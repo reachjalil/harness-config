@@ -1,0 +1,15 @@
+packages:
+  - packages/*
+
+catalogs:
+  default:
+    "@types/node": ^25.5.0
+    esbuild: ^0.27.7
+    smol-toml: ^1.6.1
+    tsx: 4.21.0
+    typescript: ^5.9.3
+    vitest: 4.1.6
+    zod: ^4.1.13
+
+onlyBuiltDependencies:
+  - esbuild
