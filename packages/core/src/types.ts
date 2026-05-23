@@ -1,0 +1,157 @@
+export type StandardHarnessResource = "skills" | "rules" | "plugins";
+
+export type HarnessResourceDefinition = {
+  path: string;
+};
+
+export type HarnessTargetDefinition = {
+  path: string;
+};
+
+export type HarnessConfigPaths = {
+  root: string;
+  harnessDir: string;
+  configPath: string;
+  ignorePath: string;
+  skillsDir: string;
+  rulesDir: string;
+  pluginsDir: string;
+  workspaceReadmePath: string;
+  agentsSkillsDir: string;
+  claudeSkillsDir: string;
+  geminiSkillsDir: string;
+  cursorSkillsDir: string;
+};
+
+export type HarnessLiveSurface = {
+  id: string;
+  path: string;
+  exists: boolean;
+};
+
+export type DiagnosticSeverity = "info" | "warning" | "error";
+
+export type HarnessDiagnostic = {
+  severity: DiagnosticSeverity;
+  code: string;
+  message: string;
+  path?: string;
+  recommendation?: string;
+};
+
+export type HarnessInspection = {
+  root: string;
+  paths: HarnessConfigPaths;
+  hasHarnessDir: boolean;
+  hasHarnessConfig: boolean;
+  hasHarnessIgnore: boolean;
+  liveSurfaces: HarnessLiveSurface[];
+  diagnostics: HarnessDiagnostic[];
+};
+
+export type TransitionActionKind =
+  | "ensure-dir"
+  | "write-file"
+  | "manual-review";
+
+export type HarnessTransitionAction = {
+  id: string;
+  kind: TransitionActionKind;
+  summary: string;
+  source?: string;
+  target?: string;
+  content?: string;
+  requiredConfirmation?: boolean;
+};
+
+export type HarnessTransitionPlan = {
+  root: string;
+  actions: HarnessTransitionAction[];
+  diagnostics: HarnessDiagnostic[];
+};
+
+export type AppliedTransitionAction = HarnessTransitionAction & {
+  applied: boolean;
+  skipped?: boolean;
+  reason?: string;
+};
+
+export type HarnessTransitionResult = {
+  root: string;
+  dryRun: boolean;
+  actions: AppliedTransitionAction[];
+  diagnostics: HarnessDiagnostic[];
+};
+
+export type ApplyHarnessTransitionOptions = {
+  dryRun?: boolean;
+  yes?: boolean;
+};
+
+export type HarnessActivationActionKind =
+  | "create"
+  | "update"
+  | "remove"
+  | "keep"
+  | "preserve";
+
+export type HarnessActivationAction = {
+  kind: HarnessActivationActionKind;
+  targetPath: string;
+  relativePath?: string;
+  sourcePath?: string;
+  reason?: string;
+};
+
+export type HarnessActivationTargetPlan = {
+  path: string;
+  override: string;
+  strategy: "copy";
+  actions: HarnessActivationAction[];
+};
+
+export type HarnessActivationPlan = {
+  root: string;
+  idempotent: true;
+  targets: HarnessActivationTargetPlan[];
+  diagnostics: HarnessDiagnostic[];
+};
+
+export type HarnessActivationResult = {
+  root: string;
+  dryRun: boolean;
+  plan: HarnessActivationPlan;
+  appliedActions: HarnessActivationAction[];
+};
+
+export type ApplyHarnessActivationOptions = {
+  dryRun?: boolean;
+  yes?: boolean;
+  cleanupUnmanaged?: "keep" | "remove";
+};
+
+export type HarnessResourceItemProjectionOptions = {
+  root?: string;
+  sourceDir: string;
+  targetDir: string;
+  targetPath?: string;
+  diagnostics?: HarnessDiagnostic[];
+};
+
+export type HarnessIgnoreRule = {
+  pattern: string;
+  negated: boolean;
+  directoryOnly: boolean;
+  anchored: boolean;
+  sourceLine: number;
+  scope: "all" | "only" | "except";
+  target?: string;
+};
+
+export type HarnessIgnoreMatcher = {
+  rules: HarnessIgnoreRule[];
+  ignores(
+    relativePath: string,
+    options?: { isDirectory?: boolean; target?: string; targetPath?: string }
+  ): boolean;
+};
