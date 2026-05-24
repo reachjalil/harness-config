@@ -29,6 +29,28 @@ async function write(root: string, relativePath: string, content: string) {
   await writeFile(target, content, "utf8");
 }
 
+async function writeHarnessConfig(
+  root: string,
+  options: {
+    resources?: string[];
+    targets?: string[];
+  } = {}
+) {
+  const resources = options.resources ?? ["skills"];
+  const targets = options.targets ?? ["./.agents"];
+  const content = [
+    "version = 1",
+    "",
+    ...resources.flatMap((resource) => [
+      `[resources.${resource}]`,
+      `path = "./.harness/${resource}"`,
+      "",
+    ]),
+    ...targets.flatMap((target) => ["[[targets]]", `path = "${target}"`, ""]),
+  ].join("\n");
+  await write(root, ".harness/harness.toml", content);
+}
+
 describe("HarnessConfig activation projection", () => {
   it("projects one resource item with override and ignore semantics", async () => {
     const root = await rootFixture();
@@ -78,16 +100,7 @@ describe("HarnessConfig activation projection", () => {
 
   it("plans and applies a repeatable copy projection with overrides and scoped ignores", async () => {
     const root = await rootFixture();
-    await write(
-      root,
-      ".harness/harness.toml",
-      `
-version = 1
-
-[[targets]]
-path = "./.claude"
-`
-    );
+    await writeHarnessConfig(root, { targets: ["./.agents", "./.claude"] });
     await write(
       root,
       ".harnessIgnore",
@@ -151,18 +164,9 @@ path = "./.claude"
     ).toEqual(["keep", "keep", "keep"]);
   });
 
-  it("copies additional targets even when their computed projection matches .agents", async () => {
+  it("copies every declared target even when computed projections match", async () => {
     const root = await rootFixture();
-    await write(
-      root,
-      ".harness/harness.toml",
-      `
-version = 1
-
-[[targets]]
-path = "./.cursor"
-`
-    );
+    await writeHarnessConfig(root, { targets: ["./.agents", "./.cursor"] });
     await write(root, ".harnessIgnore", "");
     await write(root, ".harness/skills/review/SKILL.md", "shared skill");
 
@@ -193,24 +197,23 @@ path = "./.cursor"
     ]);
   });
 
+  it("does not project anything when no targets are declared", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root, { targets: [] });
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harness/skills/review/SKILL.md", "shared skill");
+
+    const plan = await planHarnessActivation(root);
+
+    expect(plan.targets).toEqual([]);
+  });
+
   it("merges nested override folders and scoped ignores across resource kinds", async () => {
     const root = await rootFixture();
-    await write(
-      root,
-      ".harness/harness.toml",
-      `
-version = 1
-
-[resources.prompts]
-path = "./.harness/prompts"
-
-[[targets]]
-path = "./.claude"
-
-[[targets]]
-path = "./.cursor"
-`
-    );
+    await writeHarnessConfig(root, {
+      resources: ["skills", "plugins", "prompts"],
+      targets: ["./.agents", "./.claude", "./.cursor"],
+    });
     await write(
       root,
       ".harnessIgnore",
@@ -336,7 +339,7 @@ path = "./.cursor"
 
   it("keeps unmanaged target entries by default and reports them at one level", async () => {
     const root = await rootFixture();
-    await write(root, ".harness/harness.toml", "version = 1\n");
+    await writeHarnessConfig(root);
     await write(root, ".harnessIgnore", "");
     await write(root, ".harness/skills/review/SKILL.md", "projected");
     await write(root, ".agents/skills/manual/SKILL.md", "manual skill");
@@ -382,7 +385,7 @@ path = "./.cursor"
 
   it("removes unmanaged target entries only when cleanup is requested", async () => {
     const root = await rootFixture();
-    await write(root, ".harness/harness.toml", "version = 1\n");
+    await writeHarnessConfig(root);
     await write(root, ".harnessIgnore", "");
     await write(root, ".harness/skills/review/SKILL.md", "projected");
     await write(root, ".agents/skills/manual/SKILL.md", "manual skill");
@@ -426,7 +429,7 @@ path = "./.cursor"
 
   it("reports updates and requested removals before converging after apply", async () => {
     const root = await rootFixture();
-    await write(root, ".harness/harness.toml", "version = 1\n");
+    await writeHarnessConfig(root);
     await write(root, ".harnessIgnore", "");
     await write(root, ".harness/skills/review/SKILL.md", "first");
 
@@ -478,16 +481,7 @@ path = "./.cursor"
 
   it("replaces an existing target symlink with a copy projection", async () => {
     const root = await rootFixture();
-    await write(
-      root,
-      ".harness/harness.toml",
-      `
-version = 1
-
-[[targets]]
-path = "./.cursor"
-`
-    );
+    await writeHarnessConfig(root, { targets: ["./.cursor"] });
     await write(root, ".harnessIgnore", "");
     await write(root, ".harness/skills/review/SKILL.md", "shared skill");
     await symlink(
@@ -525,7 +519,7 @@ path = "./.cursor"
 
   it("replaces an existing non-directory target root with a copy projection", async () => {
     const root = await rootFixture();
-    await write(root, ".harness/harness.toml", "version = 1\n");
+    await writeHarnessConfig(root);
     await write(root, ".harnessIgnore", "");
     await write(root, ".harness/skills/review/SKILL.md", "projected");
     await write(root, ".agents", "not a directory");
@@ -558,7 +552,7 @@ path = "./.cursor"
 
   it("does not rewrite files that are already reported as keep", async () => {
     const root = await rootFixture();
-    await write(root, ".harness/harness.toml", "version = 1\n");
+    await writeHarnessConfig(root);
     await write(root, ".harnessIgnore", "");
     await write(root, ".harness/skills/review/SKILL.md", "stable");
 
@@ -583,7 +577,7 @@ path = "./.cursor"
 
   it("reports override file and directory conflicts before apply", async () => {
     const root = await rootFixture();
-    await write(root, ".harness/harness.toml", "version = 1\n");
+    await writeHarnessConfig(root);
     await write(root, ".harnessIgnore", "");
     await write(root, ".harness/skills/review/hooks/config.json", "{}");
     await write(root, ".harness/skills/review/.agents/hooks", "not a dir");
@@ -605,7 +599,7 @@ path = "./.cursor"
 
   it("reports canonical file and override directory conflicts before apply", async () => {
     const root = await rootFixture();
-    await write(root, ".harness/harness.toml", "version = 1\n");
+    await writeHarnessConfig(root);
     await write(root, ".harnessIgnore", "");
     await write(root, ".harness/skills/review/hooks", "not a dir");
     await write(root, ".harness/skills/review/.agents/hooks/config.json", "{}");

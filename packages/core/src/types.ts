@@ -1,4 +1,4 @@
-export type StandardHarnessResource = "skills" | "rules" | "plugins";
+export type ConventionalHarnessResource = "skills" | "rules" | "plugins";
 
 export type HarnessResourceDefinition = {
   path: string;
@@ -17,16 +17,6 @@ export type HarnessConfigPaths = {
   rulesDir: string;
   pluginsDir: string;
   workspaceReadmePath: string;
-  agentsSkillsDir: string;
-  claudeSkillsDir: string;
-  geminiSkillsDir: string;
-  cursorSkillsDir: string;
-};
-
-export type HarnessLiveSurface = {
-  id: string;
-  path: string;
-  exists: boolean;
 };
 
 export type DiagnosticSeverity = "info" | "warning" | "error";
@@ -45,14 +35,10 @@ export type HarnessInspection = {
   hasHarnessDir: boolean;
   hasHarnessConfig: boolean;
   hasHarnessIgnore: boolean;
-  liveSurfaces: HarnessLiveSurface[];
   diagnostics: HarnessDiagnostic[];
 };
 
-export type TransitionActionKind =
-  | "ensure-dir"
-  | "write-file"
-  | "manual-review";
+export type TransitionActionKind = "ensure-dir" | "write-file";
 
 export type HarnessTransitionAction = {
   id: string;
@@ -86,6 +72,14 @@ export type HarnessTransitionResult = {
 export type ApplyHarnessTransitionOptions = {
   dryRun?: boolean;
   yes?: boolean;
+  config?: {
+    version: number;
+    standard: {
+      name: string;
+    };
+    resources: Record<string, HarnessResourceDefinition>;
+    targets: HarnessTargetDefinition[];
+  };
 };
 
 export type HarnessActivationActionKind =

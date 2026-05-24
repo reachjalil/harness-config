@@ -2,12 +2,17 @@ import { lstat, mkdir, writeFile } from "node:fs/promises";
 
 import { createDefaultHarnessIgnore } from "./ignore";
 import {
+  createDefaultHarnessConfig,
   createDefaultHarnessConfigToml,
   type HarnessConfig,
   stringifyHarnessConfig,
 } from "./standard";
 import { inspectHarnessConfig } from "./validation";
-import { resolveHarnessPaths, toRepoRelative } from "./paths";
+import {
+  resolveHarnessPaths,
+  resolveRepoLocalPath,
+  toRepoRelative,
+} from "./paths";
 import type {
   AppliedTransitionAction,
   ApplyHarnessTransitionOptions,
@@ -45,13 +50,16 @@ export async function planHarnessTransition(
     });
   }
 
-  for (const [id, target] of [
-    ["harness.skills.ensure", paths.skillsDir],
-    ["harness.rules.ensure", paths.rulesDir],
-    ["harness.plugins.ensure", paths.pluginsDir],
-  ] as const) {
+  const config = options.config ?? createDefaultHarnessConfig();
+
+  for (const [resource, definition] of Object.entries(config.resources)) {
+    const target = resolveRepoLocalPath(
+      paths.root,
+      definition.path,
+      `Resource "${resource}" path`
+    );
     actions.push({
-      id,
+      id: `harness.resource.${resource}.ensure`,
       kind: "ensure-dir",
       summary: `Ensure ${toRepoRelative(paths.root, target)} exists.`,
       target,
@@ -78,25 +86,6 @@ export async function planHarnessTransition(
     });
   }
 
-  for (const surface of inspection.liveSurfaces.filter(
-    (surface) => surface.exists
-  )) {
-    actions.push({
-      id: `surface.${surface.id}.review`,
-      kind: "manual-review",
-      summary:
-        "Leave live harness surfaces in place; move reusable source definitions into .harness only after review.",
-      source:
-        surface.id === "agents.skills"
-          ? paths.agentsSkillsDir
-          : surface.id === "claude.skills"
-            ? paths.claudeSkillsDir
-            : surface.id === "gemini.skills"
-              ? paths.geminiSkillsDir
-              : paths.cursorSkillsDir,
-    });
-  }
-
   return {
     root: paths.root,
     actions,
@@ -108,7 +97,7 @@ export async function applyHarnessTransition(
   root = process.cwd(),
   options: ApplyHarnessTransitionOptions = {}
 ): Promise<HarnessTransitionResult> {
-  const plan = await planHarnessTransition(root);
+  const plan = await planHarnessTransition(root, { config: options.config });
   const dryRun = options.dryRun === true || options.yes !== true;
   const requiresConfirmation = plan.actions.some(
     (action) => action.requiredConfirmation
@@ -125,16 +114,6 @@ export async function applyHarnessTransition(
   for (const action of plan.actions) {
     if (dryRun) {
       appliedActions.push({ ...action, applied: false, skipped: true });
-      continue;
-    }
-
-    if (action.kind === "manual-review") {
-      appliedActions.push({
-        ...action,
-        applied: false,
-        skipped: true,
-        reason: "manual review required",
-      });
       continue;
     }
 

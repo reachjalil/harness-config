@@ -1,15 +1,15 @@
 import path from "node:path";
 
-import type { HarnessConfigPaths, StandardHarnessResource } from "./types";
+import type { ConventionalHarnessResource, HarnessConfigPaths } from "./types";
 
 export const HARNESS_CONFIG_DIR = ".harness";
 export const HARNESS_CONFIG_FILE = "harness.toml";
 export const HARNESS_IGNORE_FILE = ".harnessIgnore";
-export const STANDARD_HARNESS_RESOURCES = [
+export const CONVENTIONAL_HARNESS_RESOURCES = [
   "skills",
   "rules",
   "plugins",
-] as const satisfies readonly StandardHarnessResource[];
+] as const satisfies readonly ConventionalHarnessResource[];
 
 export function resolveHarnessPaths(root = process.cwd()): HarnessConfigPaths {
   const absoluteRoot = path.resolve(root);
@@ -24,15 +24,11 @@ export function resolveHarnessPaths(root = process.cwd()): HarnessConfigPaths {
     rulesDir: path.join(harnessDir, "rules"),
     pluginsDir: path.join(harnessDir, "plugins"),
     workspaceReadmePath: path.join(harnessDir, "README.md"),
-    agentsSkillsDir: path.join(absoluteRoot, ".agents", "skills"),
-    claudeSkillsDir: path.join(absoluteRoot, ".claude", "skills"),
-    geminiSkillsDir: path.join(absoluteRoot, ".gemini", "skills"),
-    cursorSkillsDir: path.join(absoluteRoot, ".cursor", "skills"),
   };
 }
 
 export function defaultHarnessResourcePath(
-  resource: StandardHarnessResource
+  resource: ConventionalHarnessResource | string
 ): string {
   return `./.harness/${resource}`;
 }

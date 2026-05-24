@@ -32,12 +32,9 @@ path = "./.claude"
 
     expect(config.version).toBe(CURRENT_HARNESS_CONFIG_VERSION);
     expect(config.resources.skills.path).toBe("./.harness/skills");
-    expect(config.resources.rules.path).toBe("./.harness/rules");
+    expect(config.resources.rules).toBeUndefined();
     expect(config.targets[0]?.path).toBe("./.claude");
-    expect(listHarnessProjectionTargets(config)).toEqual([
-      "./.agents",
-      "./.claude",
-    ]);
+    expect(listHarnessProjectionTargets(config)).toEqual(["./.claude"]);
   });
 
   it("infers override directories from target paths", () => {
@@ -52,6 +49,13 @@ path = "./.cursor"
       ".cursor"
     );
     expect(inferHarnessOverrideDirectory("./.claude/skills")).toBe(".claude");
+  });
+
+  it("does not invent targets or resource roots that are not declared", () => {
+    const config = parseHarnessConfigToml("version = 1");
+
+    expect(config.resources).toEqual({});
+    expect(listHarnessProjectionTargets(config)).toEqual([]);
   });
 
   it("rejects target fields other than path", () => {
@@ -129,7 +133,7 @@ path = "${targetPath}"
     }
   });
 
-  it("reports duplicate target paths including the default .agents target", async () => {
+  it("allows explicit .agents targets and reports declared duplicates", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
     await mkdir(path.join(root, ".harness"), { recursive: true });
     await writeFile(
@@ -161,7 +165,7 @@ path = "./.claude/"
           (diagnostic) => diagnostic.code === "harness.target_duplicate_path"
         )
         .map((diagnostic) => diagnostic.severity)
-    ).toEqual(["error", "error"]);
+    ).toEqual(["error"]);
     expect(
       validation.diagnostics
         .filter(
@@ -205,7 +209,7 @@ path = "./.cursor"
     );
   });
 
-  it("resolves standard paths under .harness", async () => {
+  it("resolves canonical and conventional paths under .harness", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
     const paths = resolveHarnessPaths(root);
 

@@ -633,7 +633,7 @@ export async function planHarnessActivation(
 
     plans.push({
       path: targetPath,
-      override: inferHarnessOverrideDirectory(targetPath) ?? ".agents",
+      override: inferHarnessOverrideDirectory(targetPath) ?? "",
       strategy: "copy",
       actions,
     });

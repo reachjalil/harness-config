@@ -15,6 +15,21 @@ async function write(root: string, relativePath: string, content: string) {
   await writeFile(target, content, "utf8");
 }
 
+async function writeConfig(root: string, targets = ["./.agents"]) {
+  await write(
+    root,
+    ".harness/harness.toml",
+    [
+      "version = 1",
+      "",
+      "[resources.skills]",
+      'path = "./.harness/skills"',
+      "",
+      ...targets.flatMap((target) => ["[[targets]]", `path = "${target}"`, ""]),
+    ].join("\n")
+  );
+}
+
 function captureIo() {
   const stdout: string[] = [];
   const stderr: string[] = [];
@@ -66,6 +81,24 @@ describe("harnessc", () => {
     ).rejects.toThrow();
   });
 
+  it("shows known runtime surfaces as advisory plan hints", async () => {
+    const root = await rootFixture();
+    await mkdir(path.join(root, ".agents", "skills"), { recursive: true });
+    const capture = captureIo();
+    const exitCode = await runHarnessConfigCli(
+      ["plan", "--root", root],
+      capture.io
+    );
+    const output = capture.stdout.join("\n");
+
+    expect(exitCode).toBe(0);
+    expect(output).toContain("Known runtime surfaces found");
+    expect(output).toContain('declare [[targets]] path = "./.agents"');
+    await expect(
+      readFile(path.join(root, ".harness", "harness.toml"), "utf8")
+    ).rejects.toThrow();
+  });
+
   it("creates greenfield .harness with transition --yes", async () => {
     const root = await rootFixture();
     const capture = captureIo();
@@ -79,6 +112,33 @@ describe("harnessc", () => {
     await expect(
       readFile(path.join(root, ".harnessIgnore"), "utf8")
     ).resolves.toContain("projecting .harness resources");
+  });
+
+  it("initializes custom resources and explicit targets when requested", async () => {
+    const root = await rootFixture();
+    const capture = captureIo();
+    const exitCode = await runHarnessConfigCli(
+      [
+        "init",
+        "--root",
+        root,
+        "--yes",
+        "--resource",
+        "prompts",
+        "--target",
+        "./.agents",
+      ],
+      capture.io
+    );
+
+    expect(exitCode).toBe(0);
+    const config = await readFile(
+      path.join(root, ".harness/harness.toml"),
+      "utf8"
+    );
+    expect(config).toContain("[resources.prompts]");
+    expect(config).not.toContain("[resources.skills]");
+    expect(config).toContain('path = "./.agents"');
   });
 
   it("dry-runs init by default", async () => {
@@ -98,7 +158,7 @@ describe("harnessc", () => {
 
   it("shows an activation dry run without writing live targets", async () => {
     const root = await rootFixture();
-    await write(root, ".harness/harness.toml", "version = 1\n");
+    await writeConfig(root);
     await write(root, ".harnessIgnore", "");
     await write(root, ".harness/skills/review/SKILL.md", "review skill");
     const capture = captureIo();
@@ -117,7 +177,7 @@ describe("harnessc", () => {
 
   it("applies activation with --yes and reports keeps on the next dry run", async () => {
     const root = await rootFixture();
-    await write(root, ".harness/harness.toml", "version = 1\n");
+    await writeConfig(root);
     await write(root, ".harnessIgnore", "");
     await write(root, ".harness/skills/review/SKILL.md", "review skill");
     const applyCapture = captureIo();
@@ -146,7 +206,7 @@ describe("harnessc", () => {
 
   it("summarizes unmanaged target entries and keeps them by default", async () => {
     const root = await rootFixture();
-    await write(root, ".harness/harness.toml", "version = 1\n");
+    await writeConfig(root);
     await write(root, ".harnessIgnore", "");
     await write(root, ".harness/skills/review/SKILL.md", "review skill");
     await write(root, ".agents/skills/manual/SKILL.md", "manual skill");
@@ -179,7 +239,7 @@ describe("harnessc", () => {
 
   it("removes unmanaged target entries only with --remove-unmanaged", async () => {
     const root = await rootFixture();
-    await write(root, ".harness/harness.toml", "version = 1\n");
+    await writeConfig(root);
     await write(root, ".harnessIgnore", "");
     await write(root, ".harness/skills/review/SKILL.md", "review skill");
     await write(root, ".agents/skills/manual/SKILL.md", "manual skill");

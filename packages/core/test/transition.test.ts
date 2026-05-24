@@ -15,7 +15,7 @@ async function fixtureRoot(): Promise<string> {
 }
 
 describe("HarnessConfig transition", () => {
-  it("plans greenfield .harness initialization without touching .agents", async () => {
+  it("plans greenfield .harness initialization without treating .agents as implicit", async () => {
     const root = await fixtureRoot();
     await mkdir(path.join(root, ".agents", "skills"), { recursive: true });
 
@@ -24,11 +24,9 @@ describe("HarnessConfig transition", () => {
     expect(
       plan.actions.some((action) => action.id === "harness.root.ensure")
     ).toBe(true);
-    expect(
-      plan.actions.some(
-        (action) => action.id === "surface.agents.skills.review"
-      )
-    ).toBe(true);
+    expect(plan.actions.some((action) => action.id.includes("agents"))).toBe(
+      false
+    );
   });
 
   it("dry-runs a transition by default", async () => {
@@ -59,7 +57,7 @@ describe("HarnessConfig transition", () => {
     expect(validation.hasHarnessIgnore).toBe(true);
   });
 
-  it("creates only the standard resource folders for fresh init", async () => {
+  it("creates only the conventional resource folders for fresh init", async () => {
     const root = await fixtureRoot();
 
     await applyHarnessTransition(root, { yes: true });
@@ -75,6 +73,40 @@ describe("HarnessConfig transition", () => {
     ).resolves.toBeTruthy();
     await expect(
       lstat(path.join(root, ".harness", "reports"))
+    ).rejects.toThrow();
+  });
+
+  it("can initialize custom resource roots and explicit targets", async () => {
+    const root = await fixtureRoot();
+
+    await applyHarnessTransition(root, {
+      yes: true,
+      config: {
+        version: 1,
+        standard: { name: "harness-config" },
+        resources: {
+          prompts: { path: "./.harness/prompts" },
+          workflows: { path: "./.harness/workflows" },
+        },
+        targets: [{ path: "./.agents" }, { path: "./.claude" }],
+      },
+    });
+
+    const rawConfig = await readFile(
+      path.join(root, ".harness", "harness.toml"),
+      "utf8"
+    );
+
+    expect(rawConfig).toContain("[resources.prompts]");
+    expect(rawConfig).toContain('path = "./.agents"');
+    await expect(
+      lstat(path.join(root, ".harness", "prompts"))
+    ).resolves.toBeTruthy();
+    await expect(
+      lstat(path.join(root, ".harness", "workflows"))
+    ).resolves.toBeTruthy();
+    await expect(
+      lstat(path.join(root, ".harness", "skills"))
     ).rejects.toThrow();
   });
 

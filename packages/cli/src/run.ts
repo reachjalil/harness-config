@@ -1,19 +1,24 @@
+import { lstat } from "node:fs/promises";
+import path from "node:path";
 import { stdin as processStdin, stdout as processStdout } from "node:process";
 import { createInterface } from "node:readline/promises";
 
 import {
   applyHarnessActivation,
   applyHarnessTransition,
+  createDefaultHarnessConfig,
+  defaultHarnessResourcePath,
   formatActivationPlan,
   formatActivationResult,
   formatDiagnostics,
   formatTransitionPlan,
   formatTransitionResult,
+  harnessConfigSchema,
   planHarnessActivation,
   planHarnessTransition,
   validateHarnessConfig,
 } from "@harnessconfig/core";
-import type { HarnessActivationPlan } from "@harnessconfig/core";
+import type { HarnessActivationPlan, HarnessConfig } from "@harnessconfig/core";
 
 type CliOptions = {
   command: string;
@@ -23,6 +28,8 @@ type CliOptions = {
   dryRun: boolean;
   help: boolean;
   cleanupUnmanaged?: "keep" | "remove";
+  resources: string[];
+  targets: string[];
 };
 
 type CliIo = {
@@ -30,19 +37,49 @@ type CliIo = {
   stderr: (message: string) => void;
 };
 
+type KnownHarnessSurface = {
+  id: string;
+  path: string;
+  purpose: string;
+  exists: boolean;
+};
+
 const DEFAULT_IO: CliIo = {
   stdout: (message) => console.log(message),
   stderr: (message) => console.error(message),
 };
 
+const KNOWN_HARNESS_SURFACES: Array<Omit<KnownHarnessSurface, "exists">> = [
+  {
+    id: "agents",
+    path: "./.agents",
+    purpose: "common agent activation surface",
+  },
+  {
+    id: "claude",
+    path: "./.claude",
+    purpose: "Claude project configuration surface",
+  },
+  {
+    id: "cursor",
+    path: "./.cursor",
+    purpose: "Cursor project configuration surface",
+  },
+  {
+    id: "gemini",
+    path: "./.gemini",
+    purpose: "Gemini project configuration surface",
+  },
+];
+
 const HELP = `harnessc
 
 Usage:
   harnessc validate [--root <path>] [--json]
-  harnessc plan [--root <path>] [--json]
+  harnessc plan [--root <path>] [--resource <kind>] [--target <path>] [--json]
   harnessc activate [--root <path>] [--dry-run] [--yes] [--keep-unmanaged|--remove-unmanaged] [--json]
-  harnessc transition [--root <path>] [--dry-run] [--yes] [--json]
-  harnessc init [--root <path>] [--dry-run] [--yes]
+  harnessc transition [--root <path>] [--dry-run] [--yes] [--resource <kind>] [--target <path>] [--json]
+  harnessc init [--root <path>] [--dry-run] [--yes] [--resource <kind>] [--target <path>]
 
 Commands:
   validate    Validate the repository against the HarnessConfig standard.
@@ -51,13 +88,59 @@ Commands:
   transition  Plan or apply .harness transition actions.
   init        Plan or create .harness resource structure.
 
-HarnessConfig standardizes .harness/skills, .harness/rules, .harness/plugins,
-harness.toml target mappings, and .harnessIgnore projection boundaries.
+HarnessConfig standardizes the .harness/<kind>/<name> resource shape,
+harness.toml resource and target declarations, and .harnessIgnore projection
+boundaries. Init uses skills, rules, and plugins as conventional resource
+roots unless --resource is supplied. Targets are explicit; .agents is just a
+normal target when declared with --target ./.agents.
 
 Activation keeps unmanaged target entries by default. Use --remove-unmanaged to
 delete target entries that are not present in the computed .harness projection.
 Transition and init are dry runs unless --yes is supplied.
 `;
+
+async function knownHarnessSurfaces(
+  root: string
+): Promise<KnownHarnessSurface[]> {
+  const absoluteRoot = path.resolve(root);
+  return Promise.all(
+    KNOWN_HARNESS_SURFACES.map(async (surface) => ({
+      ...surface,
+      exists: Boolean(
+        (
+          await lstat(path.resolve(absoluteRoot, surface.path)).catch(
+            () => undefined
+          )
+        )?.isDirectory()
+      ),
+    }))
+  );
+}
+
+function formatKnownHarnessSurfaceHints(
+  surfaces: KnownHarnessSurface[]
+): string {
+  const existing = surfaces.filter((surface) => surface.exists);
+  if (existing.length === 0) {
+    return "";
+  }
+
+  return [
+    "Known runtime surfaces found (reference implementation hint)",
+    ...existing.map(
+      (surface) =>
+        `- ${surface.path}: ${surface.purpose}; declare [[targets]] path = "${surface.path}" if it should receive a projection.`
+    ),
+  ].join("\n");
+}
+
+function appendKnownHarnessSurfaceHints(
+  output: string,
+  surfaces: KnownHarnessSurface[]
+): string {
+  const hints = formatKnownHarnessSurfaceHints(surfaces);
+  return hints ? `${output}\n\n${hints}` : output;
+}
 
 function parseArgs(argv: string[]): CliOptions {
   const options: CliOptions = {
@@ -67,6 +150,8 @@ function parseArgs(argv: string[]): CliOptions {
     yes: false,
     dryRun: false,
     help: false,
+    resources: [],
+    targets: [],
   };
   let sawKeepUnmanaged = false;
   let sawRemoveUnmanaged = false;
@@ -108,6 +193,24 @@ function parseArgs(argv: string[]): CliOptions {
       index += 1;
       continue;
     }
+    if (arg === "--resource") {
+      const value = argv[index + 1];
+      if (!value) {
+        throw new Error(`${arg} requires a resource id.`);
+      }
+      options.resources.push(value);
+      index += 1;
+      continue;
+    }
+    if (arg === "--target") {
+      const value = argv[index + 1];
+      if (!value) {
+        throw new Error(`${arg} requires a path.`);
+      }
+      options.targets.push(value);
+      index += 1;
+      continue;
+    }
     if (!options.command) {
       options.command = arg;
       continue;
@@ -126,6 +229,33 @@ function parseArgs(argv: string[]): CliOptions {
   }
 
   return options;
+}
+
+function transitionConfigFromOptions(
+  options: Pick<CliOptions, "resources" | "targets">
+): HarnessConfig | undefined {
+  if (options.resources.length === 0 && options.targets.length === 0) {
+    return undefined;
+  }
+
+  const base = createDefaultHarnessConfig();
+  const resources =
+    options.resources.length > 0
+      ? Object.fromEntries(
+          options.resources.map((resource) => [
+            resource,
+            {
+              path: defaultHarnessResourcePath(resource),
+            },
+          ])
+        )
+      : base.resources;
+
+  return harnessConfigSchema.parse({
+    ...base,
+    resources,
+    targets: options.targets.map((target) => ({ path: target })),
+  });
 }
 
 function hasUnmanagedEntries(plan: HarnessActivationPlan): boolean {
@@ -187,11 +317,14 @@ export async function runHarnessConfigCli(
     }
 
     if (options.command === "plan") {
-      const plan = await planHarnessTransition(options.root);
+      const plan = await planHarnessTransition(options.root, {
+        config: transitionConfigFromOptions(options),
+      });
+      const surfaces = await knownHarnessSurfaces(options.root);
       io.stdout(
         options.json
-          ? JSON.stringify(plan, null, 2)
-          : formatTransitionPlan(plan)
+          ? JSON.stringify({ ...plan, knownSurfaces: surfaces }, null, 2)
+          : appendKnownHarnessSurfaceHints(formatTransitionPlan(plan), surfaces)
       );
       return 0;
     }
@@ -228,6 +361,7 @@ export async function runHarnessConfigCli(
       const result = await applyHarnessTransition(options.root, {
         dryRun: options.dryRun || !options.yes,
         yes: options.yes,
+        config: transitionConfigFromOptions(options),
       });
       io.stdout(
         options.json

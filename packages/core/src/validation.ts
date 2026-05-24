@@ -7,16 +7,11 @@ import {
   toRepoRelative,
 } from "./paths";
 import {
-  DEFAULT_HARNESS_TARGET_PATH,
   type HarnessConfig,
   formatHarnessConfigTomlError,
   safeParseHarnessConfigToml,
 } from "./standard";
-import type {
-  HarnessDiagnostic,
-  HarnessInspection,
-  HarnessLiveSurface,
-} from "./types";
+import type { HarnessDiagnostic, HarnessInspection } from "./types";
 
 async function isDirectory(path: string): Promise<boolean> {
   const pathStat = await lstat(path).catch(() => undefined);
@@ -83,9 +78,7 @@ function validateConfigSemantics(
     );
   }
 
-  const targetPaths = new Set<string>([
-    normalizeTargetPath(DEFAULT_HARNESS_TARGET_PATH),
-  ]);
+  const targetPaths = new Set<string>();
   for (const target of config.targets) {
     const normalizedTargetPath = normalizeTargetPath(target.path);
     const overlappingTarget = [...targetPaths].find((existingPath) =>
@@ -99,13 +92,11 @@ function validateConfigSemantics(
             ? "harness.target_duplicate_path"
             : "harness.target_overlapping_path",
         message: `Target path "${target.path}" overlaps with "${
-          overlappingTarget === ".agents"
-            ? DEFAULT_HARNESS_TARGET_PATH
-            : overlappingTarget
+          overlappingTarget
         }".`,
         path: `targets.${target.path}`,
         recommendation:
-          "Declare only independent additional projection paths; .agents is always the default target.",
+          "Declare only independent projection paths. Each target is explicit.",
       });
     }
     targetPaths.add(normalizedTargetPath);
@@ -130,29 +121,6 @@ export async function inspectHarnessConfig(
   const relativeHarnessDir = toRepoRelative(paths.root, paths.harnessDir);
   const relativeConfigPath = toRepoRelative(paths.root, paths.configPath);
   const relativeIgnorePath = toRepoRelative(paths.root, paths.ignorePath);
-  const liveSurfaces: HarnessLiveSurface[] = [
-    {
-      id: "agents.skills",
-      path: ".agents/skills",
-      exists: await isDirectory(paths.agentsSkillsDir),
-    },
-    {
-      id: "claude.skills",
-      path: ".claude/skills",
-      exists: await isDirectory(paths.claudeSkillsDir),
-    },
-    {
-      id: "gemini.skills",
-      path: ".gemini/skills",
-      exists: await isDirectory(paths.geminiSkillsDir),
-    },
-    {
-      id: "cursor.skills",
-      path: ".cursor/skills",
-      exists: await isDirectory(paths.cursorSkillsDir),
-    },
-  ];
-
   if ((await pathExists(paths.harnessDir)) && !hasHarnessDir) {
     diagnostics.push({
       severity: "error",
@@ -221,24 +189,12 @@ export async function inspectHarnessConfig(
     }
   }
 
-  for (const surface of liveSurfaces.filter((surface) => surface.exists)) {
-    diagnostics.push({
-      severity: "info",
-      code: "harness.live_surface_present",
-      message: `${surface.path} is present and should be treated as a live harness surface.`,
-      path: surface.path,
-      recommendation:
-        "Keep durable source definitions in .harness and project them into live surfaces explicitly.",
-    });
-  }
-
   return {
     root: paths.root,
     paths,
     hasHarnessDir,
     hasHarnessConfig,
     hasHarnessIgnore,
-    liveSurfaces,
     diagnostics,
   };
 }

@@ -2,14 +2,13 @@ import { parse, stringify } from "smol-toml";
 import { z } from "zod";
 
 import {
-  STANDARD_HARNESS_RESOURCES,
+  CONVENTIONAL_HARNESS_RESOURCES,
   defaultHarnessResourcePath,
 } from "./paths";
 import type { HarnessResourceDefinition } from "./types";
 
 export const CURRENT_HARNESS_CONFIG_VERSION = 1;
 export const SUPPORTED_HARNESS_CONFIG_VERSIONS = [1] as const;
-export const DEFAULT_HARNESS_TARGET_PATH = "./.agents";
 
 export const resourceIdSchema = z
   .string()
@@ -63,11 +62,11 @@ export const harnessTargetSchema = z
   .object({ path: harnessTargetPathSchema })
   .strict();
 
-export const defaultHarnessResources: Record<
+export const conventionalHarnessResources: Record<
   string,
   HarnessResourceDefinition
 > = Object.fromEntries(
-  STANDARD_HARNESS_RESOURCES.map((resource) => [
+  CONVENTIONAL_HARNESS_RESOURCES.map((resource) => [
     resource,
     {
       path: defaultHarnessResourcePath(resource),
@@ -77,7 +76,7 @@ export const defaultHarnessResources: Record<
 
 const harnessResourcesSchema = z
   .record(z.string(), harnessResourceSchema)
-  .default(defaultHarnessResources)
+  .default({})
   .superRefine((resources, context) => {
     for (const resource of Object.keys(resources)) {
       const result = resourceIdSchema.safeParse(resource);
@@ -89,11 +88,7 @@ const harnessResourcesSchema = z
         });
       }
     }
-  })
-  .transform((resources) => ({
-    ...defaultHarnessResources,
-    ...resources,
-  }));
+  });
 
 export const harnessConfigSchema = z
   .object({
@@ -130,14 +125,13 @@ export type HarnessConfig = z.infer<typeof harnessConfigSchema>;
 export function createDefaultHarnessConfig(): HarnessConfig {
   return harnessConfigSchema.parse({
     version: CURRENT_HARNESS_CONFIG_VERSION,
+    resources: conventionalHarnessResources,
+    targets: [],
   });
 }
 
 export function listHarnessProjectionTargets(config: HarnessConfig): string[] {
-  return [
-    DEFAULT_HARNESS_TARGET_PATH,
-    ...config.targets.map((target) => target.path),
-  ];
+  return config.targets.map((target) => target.path);
 }
 
 export function inferHarnessOverrideDirectory(

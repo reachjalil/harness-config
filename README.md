@@ -6,58 +6,74 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](./LICENSE)
 
 HarnessConfig defines a small, local-first standard for repository-owned
-harness resources. The standard uses `./.harness` as the neutral source root
-and treats `./.agents` as the default activation target. Additional
-tool-specific folders such as `./.claude`, `./.gemini`, and `./.cursor` can be
-declared as path-only targets.
+harness resources. A repository keeps durable resource folders under
+`./.harness`, declares those resource roots in `./.harness/harness.toml`, and
+declares every live projection target explicitly.
 
-Activation stays simple: keep the complete, reviewable resource catalog in
-`./.harness`, preview the target plan, then materialize the selected runtime
-view into live harness folders as a copy projection.
+No target is implicit. `./.agents`, `./.claude`, `./.cursor`, or any other
+dot-prefixed harness folder is just a target when it appears in `harness.toml`.
+No resource kind is reserved. `skills`, `rules`, and `plugins` are useful
+conventional defaults, but teams can declare their own kinds such as
+`prompts`, `workflows`, or `checks`.
 
-The standard does not define product workflows, hosted services, distribution
-systems, or runtime-specific behavior. Those belong in implementation layers.
-HarnessConfig only defines the shared shape that other tools can validate and
-project from, including a repo-root `.harnessIgnore` file for metadata, logs,
-caches, and other files that should not enter a live harness.
+Activation stays simple: preview the target plan, apply `.harnessIgnore`, merge
+the target-derived override folder when present, and materialize each declared
+target as a copy projection. Given the same source tree, manifest, ignore rules,
+and cleanup policy, repeated activation should produce the same target trees.
+
+HarnessConfig does not define product workflows, hosted services, distribution
+systems, grouping, or selection policy. Those belong in tools that build on top
+of the standard.
 
 ## Packages
 
 - `@harnessconfig/core`: TypeScript schemas, version constants, path helpers,
-  validation diagnostics, and transition planning/apply helpers.
+  validation diagnostics, ignore parsing, transition planning, and copy
+  projection helpers.
 - `@harnessconfig/cli`: Publishable CLI package with the `harnessc` binary.
 
-## Standard Layout
+## Layout
 
-Known resource kinds:
+Conventional resource roots:
 
 ```text
 .harness/
   harness.toml
   skills/
-    skill-name/
+    review/
       SKILL.md
-      .agents/
-        SKILL.md
       .claude/
         SKILL.md
   rules/
-    rule-name/
+    release/
       RULE.md
   plugins/
-    plugin-name/
+    browser/
       PLUGIN.md
+      .cursor/
+        plugin.json
 .harnessIgnore
 ```
 
-Extensions may add more resource kinds under `./.harness/<kind>` when they
-follow the same pattern: one folder per resource and optional per-harness
-override folders such as `.claude` or `.agents`.
+Custom resource roots use the same shape:
+
+```text
+.harness/
+  prompts/
+    incident-response/
+      PROMPT.md
+  workflows/
+    release-check/
+      workflow.toml
+```
+
+Each resource kind lives under `./.harness/<kind>`. Each resource item is one
+folder. Immediate dot-prefixed folders inside an item are target overrides.
 
 ## `harness.toml`
 
-`harness.toml` declares the supported HarnessConfig version, resource roots,
-and optional additional projection targets:
+`harness.toml` declares the supported standard version, resource roots, and
+projection targets:
 
 ```toml
 version = 1
@@ -68,48 +84,45 @@ name = "harness-config"
 [resources.skills]
 path = "./.harness/skills"
 
-[resources.rules]
-path = "./.harness/rules"
+[resources.prompts]
+path = "./.harness/prompts"
 
-[resources.plugins]
-path = "./.harness/plugins"
+[[targets]]
+path = "./.agents"
 
 [[targets]]
 path = "./.claude"
 ```
 
-The default target is always `./.agents`; it does not need to be declared.
-Additional targets contain only `path`. A target path such as `./.claude`
-automatically uses `.claude` override folders when they exist inside a resource
-item.
+Resource declarations contain only `path`. Target declarations contain only
+`path`. A target path such as `./.claude` automatically uses `.claude` override
+folders when they exist inside a resource item.
 
 ## `.harnessIgnore`
 
-`.harnessIgnore` is a repo-root ignore file for live projections. It uses
-repo-relative, gitignore-style patterns so source resources can keep metadata,
-logs, local caches, or implementation state without copying those files into
-runtime-facing harness folders.
+`.harnessIgnore` is the projection boundary. Targets receive all declared
+resource roots by default; target-scoped ignore sections decide what does not
+enter a given target.
 
 ```text
-# .harnessIgnore
+# Global source-only state
 .harness/**/logs/
 .harness/**/*.log
 .harness/skills/*/metadata.toml
 
+# Claude receives skills and prompts, but not plugins.
 [.claude]
-.harness/plugins/*/codex-only.json
+.harness/plugins/**
+
+# Cursor receives plugins, but not prompts.
+[.cursor]
+.harness/prompts/**
 ```
 
-Projection first materializes the `.agents` activation target from `.harness`,
-after applying `.harnessIgnore` and any `.agents` overrides. Additional targets
-are computed the same way with their target-derived override. All v1 targets
-are copy projections.
-
-Activation is idempotent. Given the same `.harness` tree, `harness.toml`, and
-`.harnessIgnore`, repeated activation produces the same live target trees. A
-tool should be able to show create, update, remove, keep, and preserved
-unmanaged entries before writing, then converge to the same plan on the next
-run.
+Use `harness.toml` to declare what exists and where projections may write. Use
+`.harnessIgnore` to control which files or whole top-level resource kinds are
+excluded from a target. Keeping that boundary in one ignore file avoids a
+second per-target mapping language in v1.
 
 ## CLI
 
@@ -120,8 +133,7 @@ pnpm --filter @harnessconfig/cli exec harnessc validate
 pnpm --filter @harnessconfig/cli exec harnessc plan
 pnpm --filter @harnessconfig/cli exec harnessc activate
 pnpm --filter @harnessconfig/cli exec harnessc activate --yes
-pnpm --filter @harnessconfig/cli exec harnessc transition
-pnpm --filter @harnessconfig/cli exec harnessc transition --yes
+pnpm --filter @harnessconfig/cli exec harnessc init --resource prompts --target ./.claude
 ```
 
 After publishing:
@@ -131,43 +143,48 @@ npx harnessc validate
 npx harnessc plan
 npx harnessc activate
 npx harnessc activate --yes
-npx harnessc transition
-npx harnessc transition --yes
+npx harnessc init --yes --resource prompts --target ./.agents
 ```
 
-`harnessc activate` is a dry run unless `--yes` is supplied. The dry run prints
-the target strategy and the filesystem actions that would be taken. Applying
-activation writes the computed copy projection. Existing target entries that
-are not in `.harness` are kept by default and shown as unmanaged preserved
-entries. Use `--remove-unmanaged` to delete those entries during activation, or
-`--keep-unmanaged` to make the preservation choice explicit.
+`harnessc init` writes conventional resource roots (`skills`, `rules`, and
+`plugins`) when no `--resource` flags are supplied. Passing one or more
+`--resource <kind>` flags writes only those resource roots. Passing
+`--target <path>` declares explicit projection targets. Init and transition are
+dry runs unless `--yes` is supplied.
 
-`harnessc transition` and `harnessc init` are also dry runs by default. Add
-`--yes` only after reviewing the planned filesystem actions.
+`harnessc plan` may report known runtime surfaces such as `./.agents`,
+`./.claude`, or `./.cursor` as reference-implementation adoption hints. Those
+folders are not targets until they appear in `harness.toml`.
+
+`harnessc activate` is also a dry run unless `--yes` is supplied. The dry run
+prints the target strategy and the filesystem actions that would be taken.
+Existing target entries that are not in `.harness` are kept by default and
+shown as unmanaged preserved entries. Use `--remove-unmanaged` to delete those
+entries during activation, or `--keep-unmanaged` to make the preservation
+choice explicit.
 
 Example diff summary:
 
 ```text
-./.agents (copy, override .agents)
+./.claude (copy, override .claude)
 Summary: create 1, update 1, remove 0, keep 2, preserve unmanaged 2
 Unmanaged policy: keeping existing target entries that are not in .harness.
 
 Creates
-  - create: .agents/skills/review/SKILL.md <- .harness/skills/review/SKILL.md
+  - create: .claude/skills/review/SKILL.md <- .harness/skills/review/.claude/SKILL.md
 Updates
-  - update: .agents/plugins/browser/PLUGIN.md <- .harness/plugins/browser/PLUGIN.md
+  - update: .claude/prompts/incident-response/PROMPT.md <- .harness/prompts/incident-response/PROMPT.md
 Projected files already matching
-  - keep: .agents/rules/release/RULE.md <- .harness/rules/release/RULE.md
+  - keep: .claude/rules/release/RULE.md <- .harness/rules/release/RULE.md
 Unmanaged target entries kept
-  - preserve: .agents/skills/local-only (unmanaged directory kept outside .harness projection)
-  - preserve: .agents/skills/review/local.md (unmanaged file kept outside .harness projection)
+  - preserve: .claude/skills/local-only
+  - preserve: .claude/skills/review/local.md
 ```
 
 ## TypeScript API
 
 ```ts
 import {
-  CURRENT_HARNESS_CONFIG_VERSION,
   applyHarnessActivation,
   planHarnessActivation,
   planHarnessTransition,
@@ -193,20 +210,18 @@ and package dry-runs for every publishable package.
 
 ## Design Principles
 
-- `./.harness` is the durable repository-owned root.
-- `skills`, `rules`, and `plugins` are the stable standard resource kinds.
-- Extension resource kinds are allowed under `./.harness/<kind>` when they
-  follow the same folder and override pattern.
-- Live harness folders are projection targets, not source repositories.
-- `./.agents` is the default activation projection.
-- Additional targets in `harness.toml` are path-only.
-- Activation is selective; live harnesses receive filtered projections.
-- Activation is idempotent: the same inputs produce the same target trees.
-- `.harnessIgnore` controls files skipped during projection, including
-  target-scoped rules.
-- `harnessc` is local-first and should explain planned changes before writing.
-- Implementations can add grouping, sync, and higher-level workflows on top of
-  the standard without adding those concepts to HarnessConfig itself.
+- `./.harness` is the durable repository-owned source root.
+- Resource kinds are declarative names, not reserved schema concepts.
+- `skills`, `rules`, and `plugins` are conventional init defaults.
+- Every projection target is explicit in `harness.toml`.
+- Targets are path-only and copy-only in v1.
+- Live harness folders are derived projection outputs, not source repositories.
+- Activation is idempotent for the same source, manifest, ignore rules, and
+  cleanup policy.
+- `.harnessIgnore` is the single projection filter, including target-scoped
+  exclusions.
+- Target override folders are derived from target paths.
+- `harnessc` is local-first and explains planned changes before writing.
 
 See [the standard](./docs/STANDARD.md),
 [transition guide](./docs/TRANSITION.md), and

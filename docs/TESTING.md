@@ -8,7 +8,7 @@ the same `.harness` tree, `harness.toml`, override folders, and
 
 | Area | Scenario | Test |
 | --- | --- | --- |
-| TOML | Valid `harness.toml` with default resources and path-only targets | `packages/core/test/standard.test.ts` |
+| TOML | Valid `harness.toml` with declared resources and path-only targets | `packages/core/test/standard.test.ts` |
 | TOML | Unsupported standard versions fail validation | `packages/core/test/standard.test.ts` |
 | TOML | Target entries reject fields other than `path` | `packages/core/test/standard.test.ts` |
 | TOML | Target paths reject absolute paths, `..`, `.harness`, and non-dot live folders | `packages/core/test/standard.test.ts` |
@@ -17,12 +17,12 @@ the same `.harness` tree, `harness.toml`, override folders, and
 | Ignore | Target-only sections such as `[.claude]` | `packages/core/test/standard.test.ts` |
 | Ignore | Target-except sections such as `[!.cursor]` | `packages/core/test/standard.test.ts` |
 | Ignore | Global reset sections such as `[*]` | `packages/core/test/standard.test.ts` |
-| Projection | `.agents` copy projection with `.agents` overrides | `packages/core/test/projection.test.ts` |
+| Projection | Explicit `.agents` copy projection with `.agents` overrides | `packages/core/test/projection.test.ts` |
 | Projection | Additional target copy projection with target-derived overrides | `packages/core/test/projection.test.ts` |
 | Projection | Nested override contents such as plugin manifests and nested skills | `packages/core/test/projection.test.ts` |
 | Projection | Extension resource kinds declared in TOML | `packages/core/test/projection.test.ts` |
 | Projection | Scoped `.harnessIgnore` changes target output independently | `packages/core/test/projection.test.ts` |
-| Projection | Identical additional targets are still materialized as copy projections | `packages/core/test/projection.test.ts` |
+| Projection | Identical declared targets are still materialized as copy projections | `packages/core/test/projection.test.ts` |
 | Projection | An existing target symlink is replaced with a copy projection | `packages/core/test/projection.test.ts` |
 | Projection | Changed source files plan `update` actions | `packages/core/test/projection.test.ts` |
 | Projection | Unmanaged target entries are preserved by default and summarized at one level | `packages/core/test/projection.test.ts` |
@@ -47,7 +47,7 @@ For a focused activation smoke test:
 ```bash
 tmp="$(mktemp -d)"
 mkdir -p "$tmp/.harness/skills/review/.agents" "$tmp/.harness/skills/review/.claude"
-printf 'version = 1\n\n[[targets]]\npath = "./.claude"\n' > "$tmp/.harness/harness.toml"
+printf 'version = 1\n\n[resources.skills]\npath = "./.harness/skills"\n\n[[targets]]\npath = "./.agents"\n\n[[targets]]\npath = "./.claude"\n' > "$tmp/.harness/harness.toml"
 printf '.harness/**/logs/\n' > "$tmp/.harnessIgnore"
 printf 'base\n' > "$tmp/.harness/skills/review/SKILL.md"
 printf 'agents\n' > "$tmp/.harness/skills/review/.agents/SKILL.md"

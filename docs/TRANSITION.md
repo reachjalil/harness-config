@@ -1,15 +1,16 @@
 # Adoption Guide
 
 HarnessConfig adoption separates durable resource definitions from live harness
-folders so teams can materialize only the runtime view a harness should see.
+folders so teams can materialize only the runtime view a target should see.
+
 The common greenfield flow is:
 
 1. Inspect the repository.
-2. Create `./.harness` and the standard resource roots.
-3. Treat `./.agents` as the default activation projection.
-4. Add `.harnessIgnore` rules for metadata, logs, and caches that should never
-   enter live projections.
-5. Add path-only target mappings to `harness.toml` for additional live folders.
+2. Create `./.harness`, `./.harness/harness.toml`, and `.harnessIgnore`.
+3. Declare the resource roots that belong to the repository.
+4. Declare every projection target explicitly.
+5. Add `.harnessIgnore` rules for metadata, logs, caches, or target-specific
+   exclusions.
 6. Dry-run activation to review the exact projection diff.
 7. Validate that the repository follows the standard.
 
@@ -19,16 +20,21 @@ The common greenfield flow is:
 harnessc plan
 ```
 
-The plan is read-only. It reports live harness surfaces, missing standard
-files, and the operations that would be needed.
+The plan is read-only. It reports missing standard files and the operations
+that would be needed.
 
-## Apply
+The `harnessc` reference implementation also reports known runtime surfaces,
+such as `./.agents`, `./.claude`, or `./.cursor`, as advisory adoption hints.
+Those folders remain ordinary directories unless they are declared as targets
+in `harness.toml`.
+
+## Initialize
 
 ```bash
-harnessc transition --yes
+harnessc init --yes
 ```
 
-The transition command creates only the neutral standard structure:
+The default initialization creates the conventional resource roots:
 
 ```text
 .harness/
@@ -39,12 +45,34 @@ The transition command creates only the neutral standard structure:
 .harnessIgnore
 ```
 
-It does not create implementation-specific state, reports, or workflow folders.
-Those concepts belong to tools that build on top of HarnessConfig.
+These names are defaults, not reserved kinds. To initialize a custom source
+shape, pass one or more resources and targets:
+
+```bash
+harnessc init --yes --resource prompts --resource workflows --target ./.claude
+```
+
+That writes a manifest shaped like:
+
+```toml
+version = 1
+
+[standard]
+name = "harness-config"
+
+[resources.prompts]
+path = "./.harness/prompts"
+
+[resources.workflows]
+path = "./.harness/workflows"
+
+[[targets]]
+path = "./.claude"
+```
 
 ## Configure Projection
 
-Before adding targets, decide what files should stay source-only:
+Before activating targets, decide what files should stay source-only:
 
 ```text
 # .harnessIgnore
@@ -53,23 +81,19 @@ Before adding targets, decide what files should stay source-only:
 .harness/skills/*/metadata.toml
 
 [.claude]
-.harness/plugins/*/codex-only.json
+.harness/plugins/**
 ```
 
-Add a target when another live folder should receive a projection:
+Use `harness.toml` to declare resource roots and target paths. Use
+`.harnessIgnore` to decide which files, folders, or entire resource kinds are
+excluded from a specific target. For v1, this is clearer than adding
+per-target resource maps to TOML because filtering remains in one ordered,
+target-scoped rule file.
 
-```toml
-[[targets]]
-path = "./.claude"
-```
-
-An implementation first copies selected resources from `./.harness` into
-`./.agents`, merging `.agents` overrides and skipping files matched by
-`.harnessIgnore`. It then computes `./.claude` by merging `.claude` overrides
-and applying global plus `.claude`-scoped ignore rules. If the computed
-`./.claude` output is identical to `./.agents`, it is still materialized as its
-own copy. v1 deliberately keeps projection semantics copy-only so every target
-tree is inspectable without symlink-specific behavior.
+Projection copies selected resources from `./.harness` into each declared
+target, merges the matching target override, and skips files matched by
+`.harnessIgnore`. All v1 projections are copy-only so every target tree is
+inspectable without symlink-specific behavior.
 
 ## Validate
 
@@ -89,8 +113,8 @@ harnessc activate --yes
 
 Activation is a dry run unless `--yes` is supplied. The dry run shows what will
 be created, updated, removed, kept, or preserved as unmanaged content for each
-target. Applying activation writes the computed projection and keeps unmanaged
-target entries by default.
+declared target. Applying activation writes the computed projection and keeps
+unmanaged target entries by default.
 
 Use `--remove-unmanaged` when the target should be cleaned to match
 `./.harness`. The plan reports unmanaged entries at one level, for example
