@@ -55,24 +55,24 @@ single agent runtime as the canonical format.
 Agent runtimes frequently write into the folders they read. Permission grants,
 allow-listed commands, and learned hooks land in files like
 `.claude/settings.local.json`. HarnessConfig keeps activation one-directional
-on purpose — projection always flows from source to target — but the standard
-recognizes that target files have lifecycles beyond projection:
+on purpose — projection always flows from source to target. The base standard
+recognizes repo-declared mutable files but does not try to infer why target
+bytes changed:
 
-- Managed files are owned by the projection. The standard's `drift` action
-  surfaces post-activation edits to managed files so they are never silently
-  reverted.
+- Managed files are compared directly with the current projection. If target
+  bytes differ, activation can report `update`.
 - Mutable files are explicitly declared in `.harnessIgnore` under a `[mutable]`
   scope. The runtime owns them after the first projection. Projection creates
-  them once and then leaves them alone.
+  them once and then leaves them alone, even when their bytes still match the
+  source template.
 
-Reverse projection — promoting target edits back into `./.harness` — is a
-legitimate follow-on workflow that tools MAY provide, but the standard does
-not require it. Capturing runtime state into reviewable source can live in
-implementations on top of v1.
+Target edit review, reverse projection, and target-to-source capture are
+legitimate follow-on workflows, but they depend heavily on version-control
+practices and product UX. They belong in product layers on top of v1.
 
 ## Non-Goals
 
 HarnessConfig does not standardize product workflows, hosted services,
-distribution systems, rollback state, runtime behavior, grouping, selection
-policy, or remote sync. Those belong in implementations that build on top of
-the base standard.
+marketplaces, distribution systems, recovery state, runtime behavior, grouping,
+selection policy, target edit review, capture, or remote sync. Those belong in
+products that build on top of the base standard.

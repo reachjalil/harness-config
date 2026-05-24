@@ -19,16 +19,17 @@ conventional defaults, but teams can declare their own kinds such as
 Activation stays simple: preview the target plan, apply `.harnessIgnore`, merge
 the target-derived override folder when present, and materialize each declared
 target as a copy projection. Given the same source tree, manifest, ignore rules,
-and cleanup policy, repeated activation should produce the same target trees.
+cleanup policy, and mutable policy, repeated activation should produce the same
+target trees.
 
-HarnessConfig does not define product workflows, hosted services, distribution
-systems, grouping, or selection policy. Those belong in tools that build on top
-of the standard.
+HarnessConfig does not define product workflows, hosted services, marketplaces,
+distribution systems, target edit review, capture, grouping, or selection
+policy. Those belong in product layers that build on top of the standard.
 
 ## Packages
 
 - `@harnessconfig/core`: TypeScript schemas, version constants, path helpers,
-  validation diagnostics, ignore parsing, transition planning, and copy
+  validation diagnostics, ignore parsing, initialization planning, and copy
   projection helpers.
 - `@harnessconfig/cli`: Publishable CLI package with the `harnessc` binary.
 
@@ -149,11 +150,11 @@ npx harnessc init --yes --resource prompts --target ./.agents
 `harnessc init` writes conventional resource roots (`skills`, `rules`, and
 `plugins`) when no `--resource` flags are supplied. Passing one or more
 `--resource <kind>` flags writes only those resource roots. Passing
-`--target <path>` declares explicit projection targets. Init and transition are
-dry runs unless `--yes` is supplied.
+`--target <path>` declares explicit projection targets. Init is a dry run
+unless `--yes` is supplied.
 
 `harnessc plan` may report known runtime surfaces such as `./.agents`,
-`./.claude`, or `./.cursor` as reference-implementation adoption hints. Those
+`./.claude`, or `./.cursor` as standard-implementation adoption hints. Those
 folders are not targets until they appear in `harness.toml`.
 
 `harnessc activate` is also a dry run unless `--yes` is supplied. The dry run
@@ -163,11 +164,17 @@ shown as unmanaged preserved entries. Use `--remove-unmanaged` to delete those
 entries during activation, or `--keep-unmanaged` to make the preservation
 choice explicit.
 
+Managed files are compared directly with the current projection. If target
+bytes differ, activation reports `update` and applying activation writes the
+current source bytes. Files marked under `[mutable]` in `.harnessIgnore` are
+created once and then reported as runtime-owned `mutable` entries until
+`--force-mutable` is used.
+
 Example diff summary:
 
 ```text
 ./.claude (copy, override .claude)
-Summary: create 1, update 1, remove 0, keep 2, preserve unmanaged 2
+Summary: create 1, update 1, mutable 1, remove 0, keep 2, preserve unmanaged 2
 Unmanaged policy: keeping existing target entries that are not in .harness.
 
 Creates
@@ -176,6 +183,8 @@ Updates
   - update: .claude/prompts/incident-response/PROMPT.md <- .harness/prompts/incident-response/PROMPT.md
 Projected files already matching
   - keep: .claude/rules/release/RULE.md <- .harness/rules/release/RULE.md
+Mutable target files (runtime-owned, left untouched)
+  - mutable: .claude/skills/review/settings.local.json <- .harness/skills/review/settings.local.json
 Unmanaged target entries kept
   - preserve: .claude/skills/local-only
   - preserve: .claude/skills/review/local.md
@@ -187,14 +196,14 @@ Unmanaged target entries kept
 import {
   applyHarnessActivation,
   planHarnessActivation,
-  planHarnessTransition,
+  planHarnessInitialization,
   resolveHarnessPaths,
   validateHarnessConfig,
 } from "@harnessconfig/core";
 
 const paths = resolveHarnessPaths(process.cwd());
 const validation = await validateHarnessConfig(process.cwd());
-const plan = await planHarnessTransition(process.cwd());
+const plan = await planHarnessInitialization(process.cwd());
 const activationPlan = await planHarnessActivation(process.cwd());
 const dryRun = await applyHarnessActivation(process.cwd());
 ```
@@ -216,8 +225,8 @@ and package dry-runs for every publishable package.
 - Every projection target is explicit in `harness.toml`.
 - Targets are path-only and copy-only in v1.
 - Live harness folders are derived projection outputs, not source repositories.
-- Activation is idempotent for the same source, manifest, ignore rules, and
-  cleanup policy.
+- Activation is idempotent for the same source, manifest, ignore rules, cleanup
+  policy, and mutable policy.
 - `.harnessIgnore` is the single projection filter, including target-scoped
   exclusions.
 - Target override folders are derived from target paths.
@@ -225,7 +234,7 @@ and package dry-runs for every publishable package.
 
 See [the rationale](./docs/RATIONALE.md),
 [the standard](./docs/STANDARD.md),
-[the adoption guide](./docs/TRANSITION.md),
+[the adoption guide](./docs/ADOPTION.md),
 [tooling](./docs/TOOLING.md),
 [conformance](./docs/CONFORMANCE.md), and
 [test matrix](./docs/TESTING.md) for details.

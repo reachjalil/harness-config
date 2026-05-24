@@ -5,8 +5,6 @@ import type { ConventionalHarnessResource, HarnessConfigPaths } from "./types";
 export const HARNESS_CONFIG_DIR = ".harness";
 export const HARNESS_CONFIG_FILE = "harness.toml";
 export const HARNESS_IGNORE_FILE = ".harnessIgnore";
-export const HARNESS_STATE_DIR = ".state";
-export const HARNESS_MANIFEST_FILE = "projection-manifest.json";
 export const CONVENTIONAL_HARNESS_RESOURCES = [
   "skills",
   "rules",
@@ -16,7 +14,6 @@ export const CONVENTIONAL_HARNESS_RESOURCES = [
 export function resolveHarnessPaths(root = process.cwd()): HarnessConfigPaths {
   const absoluteRoot = path.resolve(root);
   const harnessDir = path.join(absoluteRoot, HARNESS_CONFIG_DIR);
-  const stateDir = path.join(harnessDir, HARNESS_STATE_DIR);
 
   return {
     root: absoluteRoot,
@@ -27,8 +24,6 @@ export function resolveHarnessPaths(root = process.cwd()): HarnessConfigPaths {
     rulesDir: path.join(harnessDir, "rules"),
     pluginsDir: path.join(harnessDir, "plugins"),
     workspaceReadmePath: path.join(harnessDir, "README.md"),
-    stateDir,
-    manifestPath: path.join(stateDir, HARNESS_MANIFEST_FILE),
   };
 }
 

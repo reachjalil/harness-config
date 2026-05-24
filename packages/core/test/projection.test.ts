@@ -3,6 +3,7 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  rm,
   stat,
   symlink,
   utimes,
@@ -668,6 +669,35 @@ describe("HarnessConfig activation projection", () => {
     ).resolves.toBe('{"allow":["bash"]}');
   });
 
+  it("reports existing mutable files as mutable even when bytes still match", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root);
+    await write(
+      root,
+      ".harnessIgnore",
+      "[mutable]\n.harness/**/settings.local.json\n"
+    );
+    await write(
+      root,
+      ".harness/skills/review/settings.local.json",
+      '{"allow":[]}'
+    );
+
+    await applyHarnessActivation(root, { dryRun: false, yes: true });
+
+    const plan = await planHarnessActivation(root);
+    expect(
+      plan.targets[0]?.actions.find(
+        (action) => action.relativePath === "skills/review/settings.local.json"
+      )
+    ).toEqual(
+      expect.objectContaining({
+        kind: "mutable",
+        relativePath: "skills/review/settings.local.json",
+      })
+    );
+  });
+
   it("--force-mutable re-projects mutable files from source", async () => {
     const root = await rootFixture();
     await writeHarnessConfig(root);
@@ -715,7 +745,42 @@ describe("HarnessConfig activation projection", () => {
     ).resolves.toBe('{"allow":[]}');
   });
 
-  it("reports drift when a managed target file is modified after apply", async () => {
+  it("lets ignore rules win over mutable rules during projection", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root);
+    await write(
+      root,
+      ".harnessIgnore",
+      [
+        "[mutable]",
+        ".harness/**/settings.local.json",
+        "",
+        "[*]",
+        ".harness/**/settings.local.json",
+        "",
+      ].join("\n")
+    );
+    await write(root, ".harness/skills/review/SKILL.md", "review skill");
+    await write(
+      root,
+      ".harness/skills/review/settings.local.json",
+      '{"allow":[]}'
+    );
+
+    const plan = await planHarnessActivation(root);
+    expect(
+      plan.targets[0]?.actions.some(
+        (action) => action.relativePath === "skills/review/settings.local.json"
+      )
+    ).toBe(false);
+
+    await applyHarnessActivation(root, { dryRun: false, yes: true });
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/settings.local.json"))
+    ).rejects.toThrow();
+  });
+
+  it("reports target byte changes as updates by direct comparison", async () => {
     const root = await rootFixture();
     await writeHarnessConfig(root);
     await write(root, ".harnessIgnore", "");
@@ -729,70 +794,6 @@ describe("HarnessConfig activation projection", () => {
     );
 
     const plan = await planHarnessActivation(root);
-    expect(
-      plan.targets[0]?.actions.find(
-        (action) => action.relativePath === "skills/review/SKILL.md"
-      )
-    ).toEqual(
-      expect.objectContaining({
-        kind: "drift",
-        relativePath: "skills/review/SKILL.md",
-        reason: expect.stringContaining("modified after last activation"),
-      })
-    );
-
-    // Default apply leaves drift in place.
-    await applyHarnessActivation(root, { dryRun: false, yes: true });
-    await expect(
-      readFile(path.join(root, ".agents/skills/review/SKILL.md"), "utf8")
-    ).resolves.toBe("edited by runtime");
-  });
-
-  it("keeps reporting drift after a default apply skips a drifted file", async () => {
-    const root = await rootFixture();
-    await writeHarnessConfig(root);
-    await write(root, ".harnessIgnore", "");
-    await write(root, ".harness/skills/review/SKILL.md", "review skill");
-
-    await applyHarnessActivation(root, { dryRun: false, yes: true });
-    await writeFile(
-      path.join(root, ".agents/skills/review/SKILL.md"),
-      "edited by runtime",
-      "utf8"
-    );
-
-    await applyHarnessActivation(root, { dryRun: false, yes: true });
-
-    const plan = await planHarnessActivation(root);
-    expect(
-      plan.targets[0]?.actions.find(
-        (action) => action.relativePath === "skills/review/SKILL.md"
-      )
-    ).toEqual(
-      expect.objectContaining({
-        kind: "drift",
-        relativePath: "skills/review/SKILL.md",
-      })
-    );
-    await expect(
-      readFile(path.join(root, ".agents/skills/review/SKILL.md"), "utf8")
-    ).resolves.toBe("edited by runtime");
-  });
-
-  it("--accept-drift overwrites drifted files with the projection", async () => {
-    const root = await rootFixture();
-    await writeHarnessConfig(root);
-    await write(root, ".harnessIgnore", "");
-    await write(root, ".harness/skills/review/SKILL.md", "review skill");
-
-    await applyHarnessActivation(root, { dryRun: false, yes: true });
-    await writeFile(
-      path.join(root, ".agents/skills/review/SKILL.md"),
-      "edited by runtime",
-      "utf8"
-    );
-
-    const plan = await planHarnessActivation(root, { driftPolicy: "accept" });
     expect(
       plan.targets[0]?.actions.find(
         (action) => action.relativePath === "skills/review/SKILL.md"
@@ -801,28 +802,22 @@ describe("HarnessConfig activation projection", () => {
       expect.objectContaining({
         kind: "update",
         relativePath: "skills/review/SKILL.md",
-        reason: expect.stringContaining("accept-drift"),
       })
     );
 
-    await applyHarnessActivation(root, {
-      dryRun: false,
-      yes: true,
-      driftPolicy: "accept",
-    });
+    await applyHarnessActivation(root, { dryRun: false, yes: true });
     await expect(
       readFile(path.join(root, ".agents/skills/review/SKILL.md"), "utf8")
     ).resolves.toBe("review skill");
   });
 
-  it("treats source updates as 'update' rather than drift when target matches manifest", async () => {
+  it("treats source updates as update when target differs from current projection", async () => {
     const root = await rootFixture();
     await writeHarnessConfig(root);
     await write(root, ".harnessIgnore", "");
     await write(root, ".harness/skills/review/SKILL.md", "first");
 
     await applyHarnessActivation(root, { dryRun: false, yes: true });
-    // source changes; target untouched
     await write(root, ".harness/skills/review/SKILL.md", "second");
 
     const plan = await planHarnessActivation(root);
@@ -833,58 +828,37 @@ describe("HarnessConfig activation projection", () => {
     ).toBe("update");
   });
 
-  it("rejects resources or targets that point at .harness/.state", async () => {
+  it("removes stale projected files when source deletion and cleanup are explicit", async () => {
     const root = await rootFixture();
-    await writeHarnessConfig(root, { targets: ["./.agents"] });
+    await writeHarnessConfig(root);
     await write(root, ".harnessIgnore", "");
-    // Overwrite with a config that points a resource at the reserved dir.
-    await write(
-      root,
-      ".harness/harness.toml",
-      [
-        "version = 1",
-        "",
-        "[resources.skills]",
-        'path = "./.harness/.state"',
-        "",
-        "[[targets]]",
-        'path = "./.agents"',
-        "",
-      ].join("\n")
-    );
+    await write(root, ".harness/skills/review/SKILL.md", "review skill");
 
-    const plan = await planHarnessActivation(root);
-    expect(plan.diagnostics).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          code: "harness.resource_reserved_state_path",
-        }),
-      ])
-    );
+    await applyHarnessActivation(root, { dryRun: false, yes: true });
+    await rm(path.join(root, ".harness/skills/review/SKILL.md"));
 
-    await write(
-      root,
-      ".harness/harness.toml",
-      [
-        "version = 1",
-        "",
-        "[resources.skills]",
-        'path = "./.harness/skills"',
-        "",
-        "[[targets]]",
-        'path = "./.harness/.state"',
-        "",
-      ].join("\n")
-    );
+    const plan = await planHarnessActivation(root, {
+      cleanupUnmanaged: "remove",
+    });
+    expect(plan.targets[0]?.actions).toEqual([
+      expect.objectContaining({
+        kind: "remove",
+        relativePath: "skills/review",
+      }),
+    ]);
 
-    const targetPlan = await planHarnessActivation(root);
-    expect(targetPlan.diagnostics).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          code: "harness.config_invalid",
-          message: expect.stringContaining(".harness/.state"),
-        }),
-      ])
-    );
+    await applyHarnessActivation(root, {
+      dryRun: false,
+      yes: true,
+      cleanupUnmanaged: "remove",
+    });
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/SKILL.md"), "utf8")
+    ).rejects.toThrow();
+
+    const secondPlan = await planHarnessActivation(root, {
+      cleanupUnmanaged: "remove",
+    });
+    expect(secondPlan.targets[0]?.actions).toEqual([]);
   });
 });

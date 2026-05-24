@@ -14,11 +14,11 @@ import {
   toRepoRelative,
 } from "./paths";
 import type {
-  AppliedTransitionAction,
-  ApplyHarnessTransitionOptions,
-  HarnessTransitionAction,
-  HarnessTransitionPlan,
-  HarnessTransitionResult,
+  AppliedInitializationAction,
+  ApplyHarnessInitializationOptions,
+  HarnessInitializationAction,
+  HarnessInitializationPlan,
+  HarnessInitializationResult,
 } from "./types";
 
 type PlanOptions = {
@@ -29,13 +29,13 @@ async function exists(path: string): Promise<boolean> {
   return Boolean(await lstat(path).catch(() => undefined));
 }
 
-export async function planHarnessTransition(
+export async function planHarnessInitialization(
   root = process.cwd(),
   options: PlanOptions = {}
-): Promise<HarnessTransitionPlan> {
+): Promise<HarnessInitializationPlan> {
   const inspection = await inspectHarnessConfig(root);
   const paths = resolveHarnessPaths(root);
-  const actions: HarnessTransitionAction[] = [];
+  const actions: HarnessInitializationAction[] = [];
   const configToml = options.config
     ? stringifyHarnessConfig(options.config)
     : createDefaultHarnessConfigToml();
@@ -93,11 +93,13 @@ export async function planHarnessTransition(
   };
 }
 
-export async function applyHarnessTransition(
+export async function applyHarnessInitialization(
   root = process.cwd(),
-  options: ApplyHarnessTransitionOptions = {}
-): Promise<HarnessTransitionResult> {
-  const plan = await planHarnessTransition(root, { config: options.config });
+  options: ApplyHarnessInitializationOptions = {}
+): Promise<HarnessInitializationResult> {
+  const plan = await planHarnessInitialization(root, {
+    config: options.config,
+  });
   const dryRun = options.dryRun === true || options.yes !== true;
   const requiresConfirmation = plan.actions.some(
     (action) => action.requiredConfirmation
@@ -105,11 +107,11 @@ export async function applyHarnessTransition(
 
   if (!dryRun && requiresConfirmation && options.yes !== true) {
     throw new Error(
-      "Transition includes filesystem moves. Re-run with --yes after reviewing the plan."
+      "Initialization includes filesystem writes. Re-run with --yes after reviewing the plan."
     );
   }
 
-  const appliedActions: AppliedTransitionAction[] = [];
+  const appliedActions: AppliedInitializationAction[] = [];
 
   for (const action of plan.actions) {
     if (dryRun) {
@@ -119,7 +121,9 @@ export async function applyHarnessTransition(
 
     if (action.kind === "ensure-dir") {
       if (!action.target) {
-        throw new Error(`Transition action ${action.id} is missing a target.`);
+        throw new Error(
+          `Initialization action ${action.id} is missing a target.`
+        );
       }
       await mkdir(action.target, { recursive: true });
       appliedActions.push({ ...action, applied: true });
@@ -128,7 +132,9 @@ export async function applyHarnessTransition(
 
     if (action.kind === "write-file") {
       if (!(action.target && action.content)) {
-        throw new Error(`Transition action ${action.id} is missing content.`);
+        throw new Error(
+          `Initialization action ${action.id} is missing content.`
+        );
       }
       if (await exists(action.target)) {
         appliedActions.push({

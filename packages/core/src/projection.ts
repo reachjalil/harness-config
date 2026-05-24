@@ -5,6 +5,7 @@ import {
   readdir,
   readFile,
   rm,
+  rmdir,
   writeFile,
 } from "node:fs/promises";
 import path from "node:path";
@@ -31,7 +32,6 @@ import type {
   HarnessActivationTargetPlan,
   HarnessDiagnostic,
   HarnessIgnoreMatcher,
-  HarnessProjectionManifest,
   HarnessResourceItemProjectionOptions,
 } from "./types";
 
@@ -48,7 +48,6 @@ type CleanupUnmanagedMode = NonNullable<
   ApplyHarnessActivationOptions["cleanupUnmanaged"]
 >;
 
-type DriftPolicy = NonNullable<ApplyHarnessActivationOptions["driftPolicy"]>;
 type MutablePolicy = NonNullable<
   ApplyHarnessActivationOptions["mutablePolicy"]
 >;
@@ -65,60 +64,6 @@ async function loadConfig(root: string): Promise<HarnessConfig> {
 
 function hash(bytes: Buffer): string {
   return createHash("sha256").update(bytes).digest("hex");
-}
-
-function emptyManifest(): HarnessProjectionManifest {
-  return { version: 1, targets: {} };
-}
-
-async function loadProjectionManifest(
-  root: string
-): Promise<HarnessProjectionManifest> {
-  const paths = resolveHarnessPaths(root);
-  const raw = await readFile(paths.manifestPath, "utf8").catch(
-    (error: unknown) => {
-      if (
-        error &&
-        typeof error === "object" &&
-        "code" in error &&
-        error.code === "ENOENT"
-      ) {
-        return undefined;
-      }
-      throw error;
-    }
-  );
-  if (!raw) {
-    return emptyManifest();
-  }
-  try {
-    const parsed = JSON.parse(raw) as Partial<HarnessProjectionManifest>;
-    if (parsed && parsed.version === 1 && parsed.targets) {
-      return { version: 1, targets: parsed.targets };
-    }
-  } catch {
-    // fall through to empty manifest on malformed state
-  }
-  return emptyManifest();
-}
-
-async function saveProjectionManifest(
-  root: string,
-  manifest: HarnessProjectionManifest
-): Promise<void> {
-  const paths = resolveHarnessPaths(root);
-  await mkdir(paths.stateDir, { recursive: true });
-  await writeFile(
-    paths.manifestPath,
-    `${JSON.stringify(manifest, null, 2)}\n`,
-    "utf8"
-  );
-}
-
-export async function readProjectionManifest(
-  root = process.cwd()
-): Promise<HarnessProjectionManifest> {
-  return loadProjectionManifest(path.resolve(root));
 }
 
 async function listFiles(root: string): Promise<string[]> {
@@ -469,9 +414,7 @@ async function planCopyActions(
   targetRoot: string,
   projection: DesiredProjection,
   cleanupUnmanaged: CleanupUnmanagedMode,
-  driftPolicy: DriftPolicy,
-  mutablePolicy: MutablePolicy,
-  manifestForTarget: Record<string, string>
+  mutablePolicy: MutablePolicy
 ): Promise<HarnessActivationAction[]> {
   const targetState = await lstat(targetRoot).catch(() => undefined);
   const existing = await readExistingTree(targetRoot);
@@ -504,19 +447,6 @@ async function planCopyActions(
       });
       continue;
     }
-    if (
-      current.type === "file" &&
-      current.bytes &&
-      hash(current.bytes) === hash(desired.bytes)
-    ) {
-      actions.push({
-        kind: "keep",
-        targetPath,
-        relativePath,
-        sourcePath: desired.sourcePath,
-      });
-      continue;
-    }
 
     if (desired.mutable) {
       if (mutablePolicy === "force") {
@@ -543,32 +473,17 @@ async function planCopyActions(
       continue;
     }
 
-    const isDrift =
+    if (
       current.type === "file" &&
-      current.bytes !== undefined &&
-      manifestForTarget[relativePath] !== undefined &&
-      manifestForTarget[relativePath] !== hash(current.bytes);
-
-    if (isDrift) {
-      if (driftPolicy === "accept") {
-        actions.push({
-          kind: "update",
-          targetPath,
-          relativePath,
-          sourcePath: desired.sourcePath,
-          reason:
-            "accept-drift: overwrite externally modified file with source",
-        });
-      } else {
-        actions.push({
-          kind: "drift",
-          targetPath,
-          relativePath,
-          sourcePath: desired.sourcePath,
-          reason:
-            "target was modified after last activation; use --accept-drift to overwrite",
-        });
-      }
+      current.bytes &&
+      hash(current.bytes) === hash(desired.bytes)
+    ) {
+      actions.push({
+        kind: "keep",
+        targetPath,
+        relativePath,
+        sourcePath: desired.sourcePath,
+      });
       continue;
     }
 
@@ -592,6 +507,15 @@ async function planCopyActions(
     if (
       entry.type === "directory" &&
       isProjectionAncestor(relativePath, projection)
+    ) {
+      continue;
+    }
+    if (
+      entry.type === "directory" &&
+      !relativePath.includes("/") &&
+      [...existing.keys()].some((existingPath) =>
+        existingPath.startsWith(`${relativePath}/`)
+      )
     ) {
       continue;
     }
@@ -623,11 +547,10 @@ function sortActivationActions(
   const rank: Record<HarnessActivationAction["kind"], number> = {
     create: 0,
     update: 1,
-    drift: 2,
-    mutable: 3,
-    remove: 4,
-    keep: 5,
-    preserve: 6,
+    mutable: 2,
+    remove: 3,
+    keep: 4,
+    preserve: 5,
   };
 
   return actions.toSorted((left, right) => {
@@ -706,12 +629,11 @@ export async function planHarnessActivation(
   root = process.cwd(),
   options: Pick<
     ApplyHarnessActivationOptions,
-    "cleanupUnmanaged" | "driftPolicy" | "mutablePolicy"
+    "cleanupUnmanaged" | "mutablePolicy"
   > = {}
 ): Promise<HarnessActivationPlan> {
   const absoluteRoot = path.resolve(root);
   const cleanupUnmanaged = options.cleanupUnmanaged ?? "keep";
-  const driftPolicy = options.driftPolicy ?? "report";
   const mutablePolicy = options.mutablePolicy ?? "skip";
   const inspection = await validateHarnessConfig(absoluteRoot);
   const diagnostics = [...inspection.diagnostics];
@@ -725,7 +647,7 @@ export async function planHarnessActivation(
         resolveHarnessPaths(absoluteRoot).configPath
       ),
       recommendation:
-        "Run harnessc transition --yes or create a valid .harness/harness.toml before activating projections.",
+        "Run harnessc init --yes or create a valid .harness/harness.toml before activating projections.",
     });
     return undefined;
   });
@@ -739,7 +661,6 @@ export async function planHarnessActivation(
     };
   }
 
-  const manifest = await loadProjectionManifest(absoluteRoot);
   const targetPaths = listHarnessProjectionTargets(config);
   const plans: HarnessActivationTargetPlan[] = [];
 
@@ -755,14 +676,11 @@ export async function planHarnessActivation(
       targetPath,
       diagnostics
     );
-    const manifestForTarget = manifest.targets[targetPath]?.files ?? {};
     const actions = await planCopyActions(
       targetRoot,
       targetProjection,
       cleanupUnmanaged,
-      driftPolicy,
-      mutablePolicy,
-      manifestForTarget
+      mutablePolicy
     );
 
     plans.push({
@@ -785,7 +703,7 @@ async function applyCopyProjection(
   targetRoot: string,
   projection: DesiredProjection,
   targetPlan: HarnessActivationTargetPlan
-): Promise<Record<string, string>> {
+): Promise<void> {
   const removesTargetRoot = targetPlan.actions.some(
     (action) =>
       action.kind === "remove" &&
@@ -803,6 +721,7 @@ async function applyCopyProjection(
       continue;
     }
     await rm(action.targetPath, { recursive: true, force: true });
+    await pruneEmptyParents(targetRoot, path.dirname(action.targetPath));
   }
 
   for (const action of targetPlan.actions) {
@@ -824,12 +743,24 @@ async function applyCopyProjection(
     }
     await writeFile(targetPath, file.bytes);
   }
+}
 
-  const files: Record<string, string> = {};
-  for (const [relativePath, file] of projection) {
-    files[relativePath] = hash(file.bytes);
+async function pruneEmptyParents(
+  targetRoot: string,
+  start: string
+): Promise<void> {
+  let current = start;
+  while (path.resolve(current).startsWith(path.resolve(targetRoot))) {
+    if (path.resolve(current) === path.resolve(targetRoot)) {
+      return;
+    }
+    const entries = await readdir(current).catch(() => undefined);
+    if (!entries || entries.length > 0) {
+      return;
+    }
+    await rmdir(current);
+    current = path.dirname(current);
   }
-  return files;
 }
 
 export async function applyHarnessActivation(
@@ -838,7 +769,6 @@ export async function applyHarnessActivation(
 ): Promise<HarnessActivationResult> {
   const plan = await planHarnessActivation(root, {
     cleanupUnmanaged: options.cleanupUnmanaged,
-    driftPolicy: options.driftPolicy,
     mutablePolicy: options.mutablePolicy,
   });
   const dryRun = options.dryRun === true || options.yes !== true;
@@ -864,8 +794,6 @@ export async function applyHarnessActivation(
   }
 
   const config = await loadConfig(plan.root);
-  const manifest = await loadProjectionManifest(plan.root);
-  const appliedAt = new Date().toISOString();
 
   for (const target of plan.targets) {
     const targetRoot = assertRepoLocalPath(
@@ -877,20 +805,16 @@ export async function applyHarnessActivation(
       projections.get(target.path) ??
       (await buildProjection(plan.root, config, target.path, plan.diagnostics));
     projections.set(target.path, projection);
-    const files = await applyCopyProjection(targetRoot, projection, target);
-    manifest.targets[target.path] = { appliedAt, files };
+    await applyCopyProjection(targetRoot, projection, target);
     appliedActions.push(
       ...target.actions.filter(
         (action) =>
           action.kind !== "keep" &&
           action.kind !== "preserve" &&
-          action.kind !== "drift" &&
           action.kind !== "mutable"
       )
     );
   }
-
-  await saveProjectionManifest(plan.root, manifest);
 
   return {
     root: plan.root,

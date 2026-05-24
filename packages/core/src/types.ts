@@ -17,8 +17,6 @@ export type HarnessConfigPaths = {
   rulesDir: string;
   pluginsDir: string;
   workspaceReadmePath: string;
-  stateDir: string;
-  manifestPath: string;
 };
 
 export type DiagnosticSeverity = "info" | "warning" | "error";
@@ -40,11 +38,11 @@ export type HarnessInspection = {
   diagnostics: HarnessDiagnostic[];
 };
 
-export type TransitionActionKind = "ensure-dir" | "write-file";
+export type InitializationActionKind = "ensure-dir" | "write-file";
 
-export type HarnessTransitionAction = {
+export type HarnessInitializationAction = {
   id: string;
-  kind: TransitionActionKind;
+  kind: InitializationActionKind;
   summary: string;
   source?: string;
   target?: string;
@@ -52,26 +50,26 @@ export type HarnessTransitionAction = {
   requiredConfirmation?: boolean;
 };
 
-export type HarnessTransitionPlan = {
+export type HarnessInitializationPlan = {
   root: string;
-  actions: HarnessTransitionAction[];
+  actions: HarnessInitializationAction[];
   diagnostics: HarnessDiagnostic[];
 };
 
-export type AppliedTransitionAction = HarnessTransitionAction & {
+export type AppliedInitializationAction = HarnessInitializationAction & {
   applied: boolean;
   skipped?: boolean;
   reason?: string;
 };
 
-export type HarnessTransitionResult = {
+export type HarnessInitializationResult = {
   root: string;
   dryRun: boolean;
-  actions: AppliedTransitionAction[];
+  actions: AppliedInitializationAction[];
   diagnostics: HarnessDiagnostic[];
 };
 
-export type ApplyHarnessTransitionOptions = {
+export type ApplyHarnessInitializationOptions = {
   dryRun?: boolean;
   yes?: boolean;
   config?: {
@@ -90,7 +88,6 @@ export type HarnessActivationActionKind =
   | "remove"
   | "keep"
   | "preserve"
-  | "drift"
   | "mutable";
 
 export type HarnessActivationAction = {
@@ -126,19 +123,7 @@ export type ApplyHarnessActivationOptions = {
   dryRun?: boolean;
   yes?: boolean;
   cleanupUnmanaged?: "keep" | "remove";
-  driftPolicy?: "report" | "accept";
   mutablePolicy?: "skip" | "force";
-};
-
-export type HarnessProjectionManifest = {
-  version: 1;
-  targets: Record<
-    string,
-    {
-      appliedAt: string;
-      files: Record<string, string>;
-    }
-  >;
 };
 
 export type HarnessResourceItemProjectionOptions = {

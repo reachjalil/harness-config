@@ -2,7 +2,6 @@ import { lstat, readFile } from "node:fs/promises";
 
 import {
   assertRepoLocalPath,
-  HARNESS_STATE_DIR,
   resolveHarnessPaths,
   resolveRepoLocalPath,
   toRepoRelative,
@@ -13,8 +12,6 @@ import {
   safeParseHarnessConfigToml,
 } from "./standard";
 import type { HarnessDiagnostic, HarnessInspection } from "./types";
-
-const RESERVED_STATE_SEGMENT = `.harness/${HARNESS_STATE_DIR}`;
 
 async function isDirectory(path: string): Promise<boolean> {
   const pathStat = await lstat(path).catch(() => undefined);
@@ -58,17 +55,6 @@ function normalizeTargetPath(path: string): string {
   return path.replaceAll("\\", "/").replace(/^\.\//, "").replace(/\/+$/, "");
 }
 
-function pointsAtReservedState(rawPath: string): boolean {
-  const normalized = rawPath
-    .replaceAll("\\", "/")
-    .replace(/^\.\//, "")
-    .replace(/\/+$/, "");
-  return (
-    normalized === RESERVED_STATE_SEGMENT ||
-    normalized.startsWith(`${RESERVED_STATE_SEGMENT}/`)
-  );
-}
-
 function targetPathsOverlap(left: string, right: string): boolean {
   return (
     left === right ||
@@ -90,15 +76,6 @@ function validateConfigSemantics(
       `resources.${resource}.path`,
       `Resource "${resource}" path`
     );
-    if (pointsAtReservedState(definition.path)) {
-      diagnostics.push({
-        severity: "error",
-        code: "harness.resource_reserved_state_path",
-        message: `Resource "${resource}" points at ${RESERVED_STATE_SEGMENT}, which is reserved for HarnessConfig implementation state.`,
-        path: `resources.${resource}.path`,
-        recommendation: `Move the resource elsewhere under .harness/<kind> and leave ${RESERVED_STATE_SEGMENT} for tool-managed projection state.`,
-      });
-    }
   }
 
   const targetPaths = new Set<string>();
@@ -130,15 +107,6 @@ function validateConfigSemantics(
       `targets.${target.path}.path`,
       `Target "${target.path}" output path`
     );
-    if (pointsAtReservedState(target.path)) {
-      diagnostics.push({
-        severity: "error",
-        code: "harness.target_reserved_state_path",
-        message: `Target "${target.path}" points at ${RESERVED_STATE_SEGMENT}, which is reserved for HarnessConfig implementation state.`,
-        path: `targets.${target.path}`,
-        recommendation: `Declare a dot-prefixed runtime surface instead of ${RESERVED_STATE_SEGMENT}.`,
-      });
-    }
   }
 }
 
@@ -169,7 +137,7 @@ export async function inspectHarnessConfig(
       code: "harness.root_missing",
       message: `${relativeHarnessDir} does not exist.`,
       path: relativeHarnessDir,
-      recommendation: "Run harnessc plan, then harnessc transition --yes.",
+      recommendation: "Run harnessc plan, then harnessc init --yes.",
     });
   }
 

@@ -1,8 +1,8 @@
 # HarnessConfig Tooling
 
-`harnessc` is one implementation of the HarnessConfig standard, not its owner.
-It exists so repositories can validate the file shape, preview activation, and
-materialize copy projections without writing a custom tool first.
+`harnessc` is the standard implementation of HarnessConfig. It exists so
+repositories can validate the file shape, preview activation, and materialize
+copy projections without writing a custom tool first.
 
 Any other implementation that meets tool conformance is equally valid. The
 standard is defined by the repository shape and activation contract, not by a
@@ -13,7 +13,6 @@ single binary.
 ```bash
 harnessc plan
 harnessc init
-harnessc transition
 harnessc validate
 harnessc activate
 ```
@@ -23,26 +22,26 @@ harnessc activate
   targets.
 - `harnessc init` creates `.harness/harness.toml`, conventional or custom
   resource roots, and `.harnessIgnore` when applied with `--yes`.
-- `harnessc transition` moves durable source state from existing runtime
-  folders into the standard layout with a reviewable report.
 - `harnessc validate` checks version support, resource declarations,
   repo-local paths, target mappings, projection ignore syntax, and mutable
   scope syntax.
 - `harnessc activate` dry-runs the activation projection and shows creates,
-  updates, requested removals, kept files, drifted files, mutable-skipped
-  files, and preserved unmanaged entries before writing.
+  updates, requested removals, kept files, mutable-skipped files, and preserved
+  unmanaged entries before writing.
 
-`init`, `transition`, and `activate` are dry runs unless `--yes` is supplied.
+`init` and `activate` are dry runs unless `--yes` is supplied.
 Unmanaged target entries are kept by default. Use `--remove-unmanaged` when a
 target should be cleaned to match `.harness`; use `--keep-unmanaged` to make
 the default explicit.
 
-Drifted managed files (target was modified after the last activation) are
-reported as `drift` and are not overwritten by default. Use `--accept-drift`
-to overwrite drifted files with the current projection. Mutable files
-(declared under `[mutable]` in `.harnessIgnore`) are created once and skipped
-on subsequent activations. Use `--force-mutable` to re-project them from
-source. The two flags can be combined.
+Managed files are compared directly with the current source projection: if the
+target differs, `harnessc activate` reports `update` and applying activation
+writes the current source bytes. Mutable files declared under `[mutable]` in
+`.harnessIgnore` are created once and skipped on subsequent activations. Use
+`--force-mutable` to re-project them from source.
+
+Selection workflows, marketplace behavior, target edit review, capture, and
+other product opinions belong above `harnessc`.
 
 ## TypeScript Helpers
 
@@ -81,13 +80,11 @@ A conforming validator should:
   point at the source root.
 - Parse `.harnessIgnore` with global, target-scoped, and `[mutable]` rules in
   declaration order.
-- Show create, update, remove, keep, preserve, drift, and mutable actions
-  before any write.
+- Show create, update, remove, keep, preserve, and mutable actions before any
+  write.
 - Verify repeated activation against unchanged inputs converges to the same
   target tree for managed files and leaves mutable files untouched.
 - Report runtime surfaces separately from durable resource roots.
-- Persist a per-target projection manifest under `./.harness/.state/` after
-  each successful apply so drift can be detected on the next plan.
 
 ## Output
 

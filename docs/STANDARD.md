@@ -170,28 +170,26 @@ place for projection filtering and makes dry-run output easier to reason about.
 ## Copy Projection
 
 Activation is a repeatable copy projection from source inputs to declared
-targets. The inputs are selected resource folders under `./.harness`, the
+targets. The inputs are participating resource folders under `./.harness`, the
 versioned `harness.toml`, target-derived override folders, and
-`.harnessIgnore`. Given the same inputs and cleanup policy, activation MUST
-produce the same target trees every time.
+`.harnessIgnore`. Given the same inputs, cleanup policy, and mutable policy,
+activation MUST produce the same target trees every time.
 
 A conforming tool SHOULD support a dry run that reports the actions it would
 take before writing:
 
 - `create`: a projected file does not exist in the target.
-- `update`: a projected file exists with different bytes and the target file
-  matches the last recorded projection.
+- `update`: a projected file exists with different bytes from the current
+  computed projection.
 - `remove`: a target entry is selected for deletion because it is not present
   in the computed projection.
 - `keep`: the target file already matches the projection.
 - `preserve`: a target entry is not in the computed projection and will stay
   untouched.
-- `drift`: a managed projected file exists with different bytes and does not
-  match the last recorded projection. The target was modified after activation.
-  Drift MUST NOT be applied as an overwrite without explicit user resolution.
 - `mutable`: a file declared mutable in `.harnessIgnore` already exists in the
-  target. The runtime owns it; activation MUST NOT overwrite or remove it
-  without an explicit force decision.
+  target, even if its bytes still match the source. The runtime owns it;
+  activation MUST NOT overwrite or remove it without an explicit force
+  decision.
 
 All v1 target projections are materialized as copies. Implementations MUST NOT
 require symlink support for conformance. An implementation MAY use internal
@@ -203,32 +201,21 @@ to `keep` actions for managed files and `mutable` actions for files declared
 mutable. That property keeps live harness folders derived and reproducible while
 still letting runtimes own their per-machine configuration.
 
-### Runtime Drift
+### Mutable Files
 
 Runtimes that read live target folders may also write into them — common cases
 include permission grants in `.claude/settings.local.json`, allow-listed
-commands, or learned hooks. Activation MUST distinguish three lifecycles for
-target files:
+commands, or learned hooks. Files the runtime owns can be declared mutable in
+`.harnessIgnore` under a `[mutable]` scope. Projection materializes them on
+first activation (action `create`) and reports them as `mutable` on every
+subsequent activation, whether or not target bytes still match the source.
+Tools SHOULD offer an explicit force decision that re-projects source bytes when
+the team needs to reset runtime-owned state.
 
-1. Managed files: bytes are owned by the projection. Drift from a prior
-   projection is reported as `drift` and MUST NOT be silently overwritten.
-   Tools SHOULD offer an explicit resolution decision that overwrites drifted
-   files with the current projection.
-2. Mutable files: declared in `.harnessIgnore` under a `[mutable]` scope.
-   Projection materializes them on first activation (action `create`) and
-   leaves them untouched on every subsequent activation (action `mutable`).
-   Tools SHOULD offer an explicit force decision that re-projects the source
-   bytes when the team needs to reset runtime state.
-3. Unmanaged entries: target entries that are not part of the computed
-   projection. They follow the existing preserve/remove cleanup policy.
-
-To detect drift, conforming tools SHOULD persist a per-target projection
-manifest at `./.harness/.state/` after each successful apply. The manifest
-records the projected relative paths and their content hashes. Without a
-manifest, an implementation MAY fall back to reporting changed managed files as
-`update`. `./.harness/.state/` is reserved for implementation state and MUST
-NOT be declared as a resource root or a target. Repositories SHOULD ignore it
-in version control.
+The standard does not classify why a non-mutable target file differs from the
+current projection. A direct-copy implementation may report that difference as
+`update`. Higher-level products can add version-control-aware review,
+target-to-source capture, or other workflows above this base contract.
 
 ### Unmanaged Target Entries
 
@@ -249,7 +236,10 @@ reviewable:
   asks for a deeper audit.
 
 If cleanup is selected, the plan MUST show those entries as `remove` before
-writing. If cleanup is not selected, the plan MUST show them as `preserve`.
+writing. Applying explicit cleanup SHOULD prune empty parent directories inside
+the target so a subsequent activation with unchanged inputs converges without
+extra cleanup actions. If cleanup is not selected, the plan MUST show unmanaged
+entries as `preserve`.
 
 ## Overrides
 
@@ -378,25 +368,21 @@ The source/projection boundary makes cross-harness differences reviewable:
 
 - Validation MUST be read-only.
 - Paths MUST stay inside the repository.
-- Transition commands MUST explain planned filesystem changes before mutation.
+- Initialization commands MUST explain planned filesystem changes before mutation.
 - Activation commands SHOULD offer a dry run and explain creates, updates,
-  removals, keeps, unmanaged preserved entries, drift, and mutable skips before
+  removals, keeps, unmanaged preserved entries, and mutable skips before
   mutation.
 - Live harness folders MUST be treated as projection targets, not source
   repositories.
 - Activation MUST be idempotent for the same `.harness`, `harness.toml`,
-  `.harnessIgnore`, selected resources, cleanup policy, drift policy, and
-  mutable policy.
+  `.harnessIgnore`, participating resources, cleanup policy, and mutable
+  policy.
 - Projection MUST honor `.harnessIgnore` so logs, metadata, caches, and
   implementation state stay out of runtime folders.
 - Tools MUST merge target-derived overrides when present and fall back to the
   canonical files when no override exists.
 - Unknown `./.harness/<kind>` folders MAY be used when declared in
   `harness.toml`.
-- Drifted managed files MUST NOT be silently overwritten. A conforming tool
-  MUST require an explicit user decision before replacing drifted bytes.
 - Mutable files MUST be created on first projection and MUST be skipped on
   subsequent projections unless the user explicitly opts in to force a
   re-projection.
-- `./.harness/.state/` is reserved for tool-managed projection state and MUST
-  NOT be declared as a resource root or a target.

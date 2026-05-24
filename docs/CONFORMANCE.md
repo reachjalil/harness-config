@@ -20,11 +20,11 @@ specific runtime, CLI, or hosted service.
 - Projection conformance: activation applies `.harnessIgnore`, including
   target-scoped sections and `[mutable]` scopes, treats every declared target
   as a copy projection, and yields the same target tree for the same inputs,
-  cleanup policy, drift policy, and mutable policy.
+  cleanup policy, and mutable policy.
 - Tool conformance: an implementation reports the activation plan before
   writing, lists creates, updates, requested removals, kept files, preserved
-  unmanaged entries, drift, and mutable-skipped files, and never reads a live
-  runtime folder as the source of truth.
+  unmanaged entries, and mutable-skipped files, and never reads a live runtime
+  folder as the source of truth.
 
 ## Repository Checklist
 
@@ -41,7 +41,6 @@ specific runtime, CLI, or hosted service.
   recognized.
 - Mutable scope sections such as `[mutable]`, `[mutable .claude]`, and
   `[mutable !.cursor]` are recognized.
-- `./.harness/.state/` is not declared as a resource or target.
 
 ## Implementation Requirements
 
@@ -56,15 +55,13 @@ specific runtime, CLI, or hosted service.
   resources, modes, or override names.
 - Activation SHOULD be derived from projection.
 - Activation MUST be idempotent for the same `.harness` tree,
-  `harness.toml`, overrides, `.harnessIgnore` rules, cleanup choice, drift
-  policy, and mutable policy.
+  `harness.toml`, overrides, `.harnessIgnore` rules, cleanup choice, and
+  mutable policy.
 - Implementations MUST support `.harnessIgnore` for global and target-scoped
   files that stay out of live projections.
 - Implementations MUST support `[mutable]` scopes in `.harnessIgnore` and
-  treat matching files as create-once, runtime-owned target files.
-- Implementations SHOULD detect drift on managed target files using a
-  projection manifest stored under `./.harness/.state/`. Drifted files MUST
-  NOT be silently overwritten.
+  treat matching files as create-once, runtime-owned target files even when
+  target bytes still match the source template.
 - Declared target folders MUST be treated as projection outputs, not source
   repositories.
 
@@ -74,8 +71,8 @@ Repository evidence is a `.harness` tree, a versioned `harness.toml`, and a
 `.harnessIgnore` visible in version control.
 
 Tool evidence is a dry-run report that lists creates, updates, requested
-removals, kept files, drifted files, mutable-skipped files, and preserved
-unmanaged entries before any write.
+removals, kept files, mutable-skipped files, and preserved unmanaged entries
+before any write.
 
 Projection evidence is two consecutive activations against unchanged inputs
 that produce byte-identical target trees for managed files and leave mutable

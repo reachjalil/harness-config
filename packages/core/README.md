@@ -13,16 +13,16 @@ Shared TypeScript implementation for the HarnessConfig standard.
 - `inferHarnessOverrideDirectory(path)`: derives `.claude`, `.cursor`,
   `.agents`, or another override folder from a target path.
 - `validateHarnessConfig(root)`: returns read-only diagnostics.
-- `planHarnessTransition(root)`: returns an inspectable initialization plan.
-- `applyHarnessTransition(root, options)`: applies confirmed transition actions.
+- `planHarnessInitialization(root)`: returns an inspectable initialization plan.
+- `applyHarnessInitialization(root, options)`: applies confirmed initialization actions.
 - `planHarnessActivation(root, options)`: returns an idempotent copy projection
   plan for declared targets.
 - `applyHarnessActivation(root, options)`: dry-runs by default and applies only
   when called with `{ yes: true }`.
 - `copyHarnessResourceItemProjection(options)`: applies the same copy,
-  `.harnessIgnore`, and override rules to one selected resource item.
+  `.harnessIgnore`, and override rules to one resource item.
 - `harnessResourceItemProjectionMatchesTarget(options)`: checks whether one
-  selected resource item already matches a target copy.
+  resource item already matches a target copy.
 
 This package does not run background services. Mutating helpers dry-run by
 default and require explicit confirmation before writing projection targets.
@@ -32,9 +32,13 @@ and `plugins` are conventional initialization defaults, not reserved schema
 concepts. Targets are also explicit: `./.agents` is valid when declared, but it
 is not created or projected by default.
 
-Use the activation helpers when a consuming tool projects selected resources
-into a live harness. Source catalogs can contain metadata, logs, or local state,
+Use the activation helpers when a consuming tool projects resource views into a
+live harness. Source catalogs can contain metadata, logs, or local state,
 but matched files are excluded by `.harnessIgnore`. Repeated activation with
-the same inputs and cleanup policy should produce the same target tree.
+the same inputs, cleanup policy, and mutable policy should produce the same
+target tree.
 Unmanaged target entries are preserved by default and reported at one level;
 pass `{ cleanupUnmanaged: "remove" }` to plan and apply explicit cleanup.
+Files declared mutable in `.harnessIgnore` are created once and skipped on
+later activations. Managed target files that differ from the current projection
+are reported as updates by direct comparison.

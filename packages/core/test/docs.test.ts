@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 describe("HarnessConfig documentation boundaries", () => {
-  it("keeps the standard independent of the reference implementation", async () => {
+  it("keeps the standard independent of implementation internals", async () => {
     const currentDir = path.dirname(fileURLToPath(import.meta.url));
     const standard = await readFile(
       path.resolve(currentDir, "../../../docs/STANDARD.md"),

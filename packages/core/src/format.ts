@@ -4,9 +4,9 @@ import type {
   HarnessActivationPlan,
   HarnessActivationResult,
   HarnessDiagnostic,
-  HarnessTransitionAction,
-  HarnessTransitionPlan,
-  HarnessTransitionResult,
+  HarnessInitializationAction,
+  HarnessInitializationPlan,
+  HarnessInitializationResult,
 } from "./types";
 
 function severityPrefix(diagnostic: HarnessDiagnostic): string {
@@ -38,9 +38,6 @@ export function formatActivationPlan(plan: HarnessActivationPlan): string {
               target.actions.some((action) => action.kind === "preserve")
                 ? "Unmanaged policy: keeping existing target entries that are not in .harness. Use --remove-unmanaged to delete them."
                 : "",
-              target.actions.some((action) => action.kind === "drift")
-                ? "Drift policy: skipping target files modified after last activation. Use --accept-drift to overwrite them from source."
-                : "",
               target.actions.some((action) => action.kind === "mutable")
                 ? "Mutable policy: leaving runtime-owned files in place. Use --force-mutable to re-project from source."
                 : "",
@@ -68,7 +65,6 @@ function summarizeActivationActions(
     remove: 0,
     keep: 0,
     preserve: 0,
-    drift: 0,
     mutable: 0,
   };
   for (const action of actions) {
@@ -78,7 +74,6 @@ function summarizeActivationActions(
   return [
     `create ${counts.create}`,
     `update ${counts.update}`,
-    `drift ${counts.drift}`,
     `mutable ${counts.mutable}`,
     `remove ${counts.remove}`,
     `keep ${counts.keep}`,
@@ -97,11 +92,6 @@ function formatActivationActionSections(
   }> = [
     { title: "Creates", kinds: ["create"], limit: 12 },
     { title: "Updates", kinds: ["update"], limit: 12 },
-    {
-      title: "Drift (target modified after last activation)",
-      kinds: ["drift"],
-      limit: 12,
-    },
     {
       title: "Mutable target files (runtime-owned, left untouched)",
       kinds: ["mutable"],
@@ -169,7 +159,10 @@ export function formatDiagnostics(diagnostics: HarnessDiagnostic[]): string {
     .join("\n\n");
 }
 
-function formatAction(root: string, action: HarnessTransitionAction): string {
+function formatAction(
+  root: string,
+  action: HarnessInitializationAction
+): string {
   const source = action.source ? toRepoRelative(root, action.source) : "";
   const target = action.target ? toRepoRelative(root, action.target) : "";
   const pathDetails =
@@ -183,24 +176,26 @@ function formatAction(root: string, action: HarnessTransitionAction): string {
   return `- ${action.kind}: ${action.summary}${pathDetails}`;
 }
 
-export function formatTransitionPlan(plan: HarnessTransitionPlan): string {
+export function formatInitializationPlan(
+  plan: HarnessInitializationPlan
+): string {
   const diagnostics = formatDiagnostics(plan.diagnostics);
   const actions =
     plan.actions.length === 0
-      ? "No transition actions needed."
+      ? "No initialization actions needed."
       : plan.actions
           .map((action) => formatAction(plan.root, action))
           .join("\n");
 
-  return `HarnessConfig transition plan\n\nDiagnostics:\n${diagnostics}\n\nActions:\n${actions}`;
+  return `HarnessConfig initialization plan\n\nDiagnostics:\n${diagnostics}\n\nActions:\n${actions}`;
 }
 
-export function formatTransitionResult(
-  result: HarnessTransitionResult
+export function formatInitializationResult(
+  result: HarnessInitializationResult
 ): string {
   const actions =
     result.actions.length === 0
-      ? "No transition actions needed."
+      ? "No initialization actions needed."
       : result.actions
           .map((action) => {
             const state = action.applied
@@ -213,5 +208,5 @@ export function formatTransitionResult(
           })
           .join("\n");
 
-  return `HarnessConfig transition ${result.dryRun ? "dry run" : "result"}\n\n${actions}`;
+  return `HarnessConfig initialization ${result.dryRun ? "dry run" : "result"}\n\n${actions}`;
 }

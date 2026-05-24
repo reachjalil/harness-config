@@ -1,7 +1,7 @@
 {
   "name": "@harnessconfig/cli",
   "version": "0.1.0",
-  "description": "CLI for validating and transitioning repositories to the HarnessConfig standard.",
+  "description": "CLI for validating, initializing, and activating HarnessConfig repositories.",
   "type": "module",
   "license": "Apache-2.0",
   "sideEffects": false,

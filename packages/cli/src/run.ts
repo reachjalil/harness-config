@@ -5,17 +5,17 @@ import { createInterface } from "node:readline/promises";
 
 import {
   applyHarnessActivation,
-  applyHarnessTransition,
+  applyHarnessInitialization,
   createDefaultHarnessConfig,
   defaultHarnessResourcePath,
   formatActivationPlan,
   formatActivationResult,
   formatDiagnostics,
-  formatTransitionPlan,
-  formatTransitionResult,
+  formatInitializationPlan,
+  formatInitializationResult,
   harnessConfigSchema,
   planHarnessActivation,
-  planHarnessTransition,
+  planHarnessInitialization,
   validateHarnessConfig,
 } from "@harnessconfig/core";
 import type { HarnessActivationPlan, HarnessConfig } from "@harnessconfig/core";
@@ -28,7 +28,6 @@ type CliOptions = {
   dryRun: boolean;
   help: boolean;
   cleanupUnmanaged?: "keep" | "remove";
-  driftPolicy?: "report" | "accept";
   mutablePolicy?: "skip" | "force";
   resources: string[];
   targets: string[];
@@ -81,15 +80,13 @@ Usage:
   harnessc plan [--root <path>] [--resource <kind>] [--target <path>] [--json]
   harnessc activate [--root <path>] [--dry-run] [--yes]
                     [--keep-unmanaged|--remove-unmanaged]
-                    [--accept-drift] [--force-mutable] [--json]
-  harnessc transition [--root <path>] [--dry-run] [--yes] [--resource <kind>] [--target <path>] [--json]
+                    [--force-mutable] [--json]
   harnessc init [--root <path>] [--dry-run] [--yes] [--resource <kind>] [--target <path>]
 
 Commands:
   validate    Validate the repository against the HarnessConfig standard.
-  plan        Show a read-only adoption plan.
+  plan        Show a read-only initialization plan.
   activate    Plan or apply idempotent .harness projections.
-  transition  Plan or apply .harness transition actions.
   init        Plan or create .harness resource structure.
 
 HarnessConfig standardizes the .harness/<kind>/<name> resource shape,
@@ -100,11 +97,9 @@ normal target when declared with --target ./.agents.
 
 Activation keeps unmanaged target entries by default. Use --remove-unmanaged to
 delete target entries that are not present in the computed .harness projection.
-Drifted target files (modified after the last activation) are reported and
-skipped; use --accept-drift to overwrite them with the source projection.
 Mutable target files declared under [mutable] in .harnessIgnore are created
 once and then left alone; use --force-mutable to re-project them from source.
-Transition and init are dry runs unless --yes is supplied.
+Init and activate are dry runs unless --yes is supplied.
 `;
 
 async function knownHarnessSurfaces(
@@ -192,10 +187,6 @@ function parseArgs(argv: string[]): CliOptions {
       options.cleanupUnmanaged = "remove";
       continue;
     }
-    if (arg === "--accept-drift") {
-      options.driftPolicy = "accept";
-      continue;
-    }
     if (arg === "--force-mutable") {
       options.mutablePolicy = "force";
       continue;
@@ -247,7 +238,7 @@ function parseArgs(argv: string[]): CliOptions {
   return options;
 }
 
-function transitionConfigFromOptions(
+function initConfigFromOptions(
   options: Pick<CliOptions, "resources" | "targets">
 ): HarnessConfig | undefined {
   if (options.resources.length === 0 && options.targets.length === 0) {
@@ -277,12 +268,6 @@ function transitionConfigFromOptions(
 function hasUnmanagedEntries(plan: HarnessActivationPlan): boolean {
   return plan.targets.some((target) =>
     target.actions.some((action) => action.kind === "preserve")
-  );
-}
-
-function hasDriftEntries(plan: HarnessActivationPlan): boolean {
-  return plan.targets.some((target) =>
-    target.actions.some((action) => action.kind === "drift")
   );
 }
 
@@ -345,34 +330,31 @@ export async function runHarnessConfigCli(
     }
 
     if (options.command === "plan") {
-      const plan = await planHarnessTransition(options.root, {
-        config: transitionConfigFromOptions(options),
+      const plan = await planHarnessInitialization(options.root, {
+        config: initConfigFromOptions(options),
       });
       const surfaces = await knownHarnessSurfaces(options.root);
       io.stdout(
         options.json
           ? JSON.stringify({ ...plan, knownSurfaces: surfaces }, null, 2)
-          : appendKnownHarnessSurfaceHints(formatTransitionPlan(plan), surfaces)
+          : appendKnownHarnessSurfaceHints(
+              formatInitializationPlan(plan),
+              surfaces
+            )
       );
       return 0;
     }
 
     if (options.command === "activate") {
       let cleanupUnmanaged = options.cleanupUnmanaged;
-      let driftNotice = "";
       let mutableNotice = "";
       if (options.yes && !options.json) {
         const promptPlan = await planHarnessActivation(options.root, {
           cleanupUnmanaged: cleanupUnmanaged ?? "keep",
-          driftPolicy: options.driftPolicy,
           mutablePolicy: options.mutablePolicy,
         });
         if (!cleanupUnmanaged && hasUnmanagedEntries(promptPlan)) {
           cleanupUnmanaged = await promptCleanupUnmanaged();
-        }
-        if (options.driftPolicy !== "accept" && hasDriftEntries(promptPlan)) {
-          driftNotice =
-            "\nNotice: drifted target files were skipped. Re-run with --accept-drift to overwrite them from .harness.";
         }
         if (
           options.mutablePolicy !== "force" &&
@@ -387,12 +369,11 @@ export async function runHarnessConfigCli(
         dryRun: options.dryRun || !options.yes,
         yes: options.yes,
         cleanupUnmanaged,
-        driftPolicy: options.driftPolicy,
         mutablePolicy: options.mutablePolicy,
       });
       const formatted = options.json
         ? JSON.stringify(result, null, 2)
-        : `${formatActivationResult(result)}${driftNotice}${mutableNotice}`;
+        : `${formatActivationResult(result)}${mutableNotice}`;
       io.stdout(formatted);
       return result.plan.diagnostics.some(
         (diagnostic) => diagnostic.severity === "error"
@@ -401,16 +382,16 @@ export async function runHarnessConfigCli(
         : 0;
     }
 
-    if (options.command === "transition" || options.command === "init") {
-      const result = await applyHarnessTransition(options.root, {
+    if (options.command === "init") {
+      const result = await applyHarnessInitialization(options.root, {
         dryRun: options.dryRun || !options.yes,
         yes: options.yes,
-        config: transitionConfigFromOptions(options),
+        config: initConfigFromOptions(options),
       });
       io.stdout(
         options.json
           ? JSON.stringify(result, null, 2)
-          : formatTransitionResult(result)
+          : formatInitializationResult(result)
       );
       return 0;
     }
@@ -420,14 +401,13 @@ export async function runHarnessConfigCli(
     return 1;
   } catch (error) {
     io.stderr(error instanceof Error ? error.message : String(error));
-    if (options.command === "transition") {
-      const plan = await planHarnessTransition(options.root);
-      io.stderr(formatTransitionPlan(plan));
+    if (options.command === "init") {
+      const plan = await planHarnessInitialization(options.root);
+      io.stderr(formatInitializationPlan(plan));
     }
     if (options.command === "activate") {
       const plan = await planHarnessActivation(options.root, {
         cleanupUnmanaged: options.cleanupUnmanaged,
-        driftPolicy: options.driftPolicy,
         mutablePolicy: options.mutablePolicy,
       });
       io.stderr(formatActivationPlan(plan));

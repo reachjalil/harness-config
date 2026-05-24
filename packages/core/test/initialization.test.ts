@@ -5,21 +5,21 @@ import { mkdtemp } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 
 import {
-  applyHarnessTransition,
-  planHarnessTransition,
+  applyHarnessInitialization,
+  planHarnessInitialization,
   validateHarnessConfig,
 } from "../src/index";
 
 async function fixtureRoot(): Promise<string> {
-  return mkdtemp(path.join(tmpdir(), "harnessconfig-transition-"));
+  return mkdtemp(path.join(tmpdir(), "harnessconfig-init-"));
 }
 
-describe("HarnessConfig transition", () => {
+describe("HarnessConfig initialization", () => {
   it("plans greenfield .harness initialization without treating .agents as implicit", async () => {
     const root = await fixtureRoot();
     await mkdir(path.join(root, ".agents", "skills"), { recursive: true });
 
-    const plan = await planHarnessTransition(root);
+    const plan = await planHarnessInitialization(root);
 
     expect(
       plan.actions.some((action) => action.id === "harness.root.ensure")
@@ -29,10 +29,10 @@ describe("HarnessConfig transition", () => {
     );
   });
 
-  it("dry-runs a transition by default", async () => {
+  it("dry-runs initialization by default", async () => {
     const root = await fixtureRoot();
 
-    const result = await applyHarnessTransition(root);
+    const result = await applyHarnessInitialization(root);
 
     expect(result.dryRun).toBe(true);
     await expect(
@@ -40,10 +40,10 @@ describe("HarnessConfig transition", () => {
     ).rejects.toThrow();
   });
 
-  it("applies a transition to .harness with explicit confirmation", async () => {
+  it("applies initialization to .harness with explicit confirmation", async () => {
     const root = await fixtureRoot();
 
-    await applyHarnessTransition(root, { yes: true });
+    await applyHarnessInitialization(root, { yes: true });
     const rawConfig = await readFile(
       path.join(root, ".harness", "harness.toml"),
       "utf8"
@@ -60,7 +60,7 @@ describe("HarnessConfig transition", () => {
   it("creates only the conventional resource folders for fresh init", async () => {
     const root = await fixtureRoot();
 
-    await applyHarnessTransition(root, { yes: true });
+    await applyHarnessInitialization(root, { yes: true });
 
     await expect(
       lstat(path.join(root, ".harness", "skills"))
@@ -79,7 +79,7 @@ describe("HarnessConfig transition", () => {
   it("can initialize custom resource roots and explicit targets", async () => {
     const root = await fixtureRoot();
 
-    await applyHarnessTransition(root, {
+    await applyHarnessInitialization(root, {
       yes: true,
       config: {
         version: 1,

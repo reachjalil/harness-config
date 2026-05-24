@@ -3,6 +3,6 @@ export * from "./ignore";
 export * from "./paths";
 export * from "./projection";
 export * from "./standard";
-export * from "./transition";
+export * from "./initialization";
 export * from "./types";
 export * from "./validation";

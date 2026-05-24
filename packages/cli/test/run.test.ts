@@ -66,11 +66,11 @@ describe("harnessc", () => {
     expect(capture.stdout.join("\n")).toContain("harness.root_missing");
   });
 
-  it("dry-runs transition by default", async () => {
+  it("dry-runs init by default", async () => {
     const root = await rootFixture();
     const capture = captureIo();
     const exitCode = await runHarnessConfigCli(
-      ["transition", "--root", root],
+      ["init", "--root", root],
       capture.io
     );
 
@@ -99,11 +99,11 @@ describe("harnessc", () => {
     ).rejects.toThrow();
   });
 
-  it("creates greenfield .harness with transition --yes", async () => {
+  it("creates greenfield .harness with init --yes", async () => {
     const root = await rootFixture();
     const capture = captureIo();
     const exitCode = await runHarnessConfigCli(
-      ["transition", "--root", root, "--yes"],
+      ["init", "--root", root, "--yes"],
       capture.io
     );
 
@@ -308,49 +308,33 @@ mode = "copy"
     );
   });
 
-  it("reports drift on plan and skips drifted files unless --accept-drift", async () => {
+  it("reports target byte changes as updates and applies the source projection", async () => {
     const root = await rootFixture();
     await writeConfig(root);
     await write(root, ".harnessIgnore", "");
     await write(root, ".harness/skills/review/SKILL.md", "review skill");
 
-    // First apply to populate manifest.
     await runHarnessConfigCli(
       ["activate", "--root", root, "--yes"],
       captureIo().io
     );
 
-    // Runtime edits the projected file.
     await writeFile(
       path.join(root, ".agents/skills/review/SKILL.md"),
-      "runtime edit",
+      "target edit",
       "utf8"
     );
 
     const planCapture = captureIo();
     await runHarnessConfigCli(["activate", "--root", root], planCapture.io);
     const planOutput = planCapture.stdout.join("\n");
-    expect(planOutput).toContain("drift 1");
-    expect(planOutput).toContain(
-      "Drift (target modified after last activation)"
-    );
+    expect(planOutput).toContain("update 1");
+    expect(planOutput).toContain("Updates");
 
-    // Default apply leaves drift untouched and notices the user.
     const applyCapture = captureIo();
     await runHarnessConfigCli(
       ["activate", "--root", root, "--yes"],
       applyCapture.io
-    );
-    expect(applyCapture.stdout.join("\n")).toContain("--accept-drift");
-    await expect(
-      readFile(path.join(root, ".agents/skills/review/SKILL.md"), "utf8")
-    ).resolves.toBe("runtime edit");
-
-    // --accept-drift overwrites from source.
-    const acceptCapture = captureIo();
-    await runHarnessConfigCli(
-      ["activate", "--root", root, "--yes", "--accept-drift"],
-      acceptCapture.io
     );
     await expect(
       readFile(path.join(root, ".agents/skills/review/SKILL.md"), "utf8")
