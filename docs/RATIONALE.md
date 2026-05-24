@@ -36,6 +36,15 @@ HarnessConfig defines four roles:
 - Tools can show creates, updates, requested removals, unchanged projected
   files, and preserved unmanaged entries before changing a live folder.
 
+## Extensions
+
+Some workflows need repository-local behavior beyond target copy projection,
+such as composing reviewed text fragments into root-level instruction files.
+HarnessConfig keeps those workflows out of the core resource/target model by
+declaring them as extensions. The base standard defines extension discovery and
+activation policy fields, while each extension owns its schema, compatibility,
+and behavior.
+
 ## Stakeholders
 
 Platform teams can define one repo-local policy for storing harness resources,

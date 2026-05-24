@@ -8,6 +8,14 @@ export type HarnessTargetDefinition = {
   path: string;
 };
 
+export type HarnessExtensionActivation = "explicit" | "auto";
+
+export type HarnessExtensionDefinition = {
+  version: number;
+  activation: HarnessExtensionActivation;
+  [key: string]: unknown;
+};
+
 export type HarnessConfigPaths = {
   root: string;
   harnessDir: string;
@@ -79,6 +87,7 @@ export type ApplyHarnessInitializationOptions = {
     };
     resources: Record<string, HarnessResourceDefinition>;
     targets: HarnessTargetDefinition[];
+    extensions?: Record<string, HarnessExtensionDefinition>;
   };
 };
 
@@ -151,10 +160,20 @@ export type HarnessIgnoreMatcher = {
   rules: HarnessIgnoreRule[];
   ignores(
     relativePath: string,
-    options?: { isDirectory?: boolean; target?: string; targetPath?: string }
+    options?: {
+      globalOnly?: boolean;
+      isDirectory?: boolean;
+      target?: string;
+      targetPath?: string;
+    }
   ): boolean;
   isMutable(
     relativePath: string,
-    options?: { isDirectory?: boolean; target?: string; targetPath?: string }
+    options?: {
+      globalOnly?: boolean;
+      isDirectory?: boolean;
+      target?: string;
+      targetPath?: string;
+    }
   ): boolean;
 };

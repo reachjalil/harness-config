@@ -17,6 +17,9 @@ specific runtime, CLI, or hosted service.
 - Target conformance: a `[[targets]]` entry contains only a repo-local path.
   The matching override folder is inferred from the first path segment. No
   target may point at `.harness` or redeclare resource roots.
+- Extension declaration conformance: an `[extensions.<id>]` table contains a
+  positive integer `version`, may set `activation` to `explicit` or `auto`, and
+  leaves all other fields to the extension implementation.
 - Projection conformance: activation applies `.harnessIgnore`, including
   target-scoped sections and `[mutable]` scopes, treats every declared target
   as a copy projection, and yields the same target tree for the same inputs,
@@ -36,6 +39,8 @@ specific runtime, CLI, or hosted service.
 - `[[targets]]` entries contain only repo-local paths.
 - No target redefines resources, modes, or override names.
 - No target points at `./.harness`.
+- Extension ids and core extension fields validate when extensions are
+  declared.
 - `.harnessIgnore` patterns are repo-relative and parse cleanly.
 - Scoped ignore sections such as `[.claude]`, `[!.cursor]`, and `[*]` are
   recognized.

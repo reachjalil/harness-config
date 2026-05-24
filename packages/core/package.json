@@ -1,7 +1,7 @@
 {
   "name": "@harnessconfig/core",
   "version": "0.1.0",
-  "description": "Schemas, path helpers, validation, initialization, and projection utilities for the HarnessConfig standard.",
+  "description": "Schemas, path helpers, validation, initialization, extension declarations, and projection utilities for the HarnessConfig standard.",
   "type": "module",
   "license": "Apache-2.0",
   "sideEffects": false,

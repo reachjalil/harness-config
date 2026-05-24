@@ -13,6 +13,7 @@ the same `.harness` tree, `harness.toml`, override folders, and
 | TOML | Target entries reject fields other than `path` | `packages/core/test/standard.test.ts` |
 | TOML | Target paths reject absolute paths, `..`, `.harness`, and non-dot live folders | `packages/core/test/standard.test.ts` |
 | TOML | Duplicate targets, including explicit `.agents`, are diagnostics | `packages/core/test/standard.test.ts` |
+| TOML | Extension declarations parse with `version`, default `activation`, and extension-owned fields | `packages/core/test/standard.test.ts` |
 | Ignore | Global patterns, directory patterns, `**`, `*`, and negation | `packages/core/test/standard.test.ts` |
 | Ignore | Target-only sections such as `[.claude]` | `packages/core/test/standard.test.ts` |
 | Ignore | Target-except sections such as `[!.cursor]` | `packages/core/test/standard.test.ts` |
@@ -36,6 +37,11 @@ the same `.harness` tree, `harness.toml`, override folders, and
 | Projection | `--force-mutable` re-projects mutable files from source | `packages/core/test/projection.test.ts` |
 | Projection | Ignore rules win when a file is both ignored and marked mutable | `packages/core/test/projection.test.ts` |
 | Projection | Target byte changes plan `update` actions by direct comparison | `packages/core/test/projection.test.ts` |
+| Extension | `dir` composes top-level, nested, dot-directory, and extensionless outputs | `packages/extension-dir/test/dir.test.ts` |
+| Extension | `dir` refs import parts and sort with local parts | `packages/extension-dir/test/dir.test.ts` |
+| Extension | `dir` honors only global `.harnessIgnore` rules | `packages/extension-dir/test/dir.test.ts` |
+| Extension | `dir` reports invalid parts, mixed containers, symlinks, ref errors, and target overlaps | `packages/extension-dir/test/dir.test.ts` |
+| Extension | `dir` reports create, update, and keep actions | `packages/extension-dir/test/dir.test.ts` |
 | Ignore | `[mutable]`, `[mutable .claude]`, and `[mutable !.cursor]` scopes | `packages/core/test/standard.test.ts` |
 | Docs | `STANDARD.md` stays independent of package names, repo paths, and CLI flags | `packages/core/test/docs.test.ts` |
 | CLI | `harnessc init` dry-runs by default | `packages/cli/test/run.test.ts` |
@@ -46,6 +52,8 @@ the same `.harness` tree, `harness.toml`, override folders, and
 | CLI | `--keep-unmanaged` and `--remove-unmanaged` cannot be used together | `packages/cli/test/run.test.ts` |
 | CLI | `--force-mutable` re-projects mutable files; default skips them | `packages/cli/test/run.test.ts` |
 | CLI | Invalid activation TOML returns diagnostics and a non-zero exit | `packages/cli/test/run.test.ts` |
+| CLI | `harnessc extension activate` dry-runs, applies, filters, and reports selection errors | `packages/cli/test/run.test.ts` |
+| CLI E2E | `dir` extension command composes mirrored outputs, refs, global ignores, exact spacing, dry-run, apply, and keep convergence | `packages/cli/test/run.test.ts` |
 
 ## Manual Smoke Command
 

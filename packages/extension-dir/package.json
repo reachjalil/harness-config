@@ -1,15 +1,12 @@
 {
-  "name": "@harnessconfig/cli",
+  "name": "@harnessconfig/extension-dir",
   "version": "0.1.0",
-  "description": "CLI for validating, initializing, and activating HarnessConfig repositories.",
+  "description": "Directory-backed text composition extension for HarnessConfig.",
   "type": "module",
   "license": "Apache-2.0",
   "sideEffects": false,
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "bin": {
-    "harnessc": "dist/bin.js"
-  },
   "files": [
     "dist",
     "README.md",
@@ -17,7 +14,7 @@
     "NOTICE"
   ],
   "scripts": {
-    "build": "pnpm run clean && esbuild ./src/bin.ts ./src/index.ts --bundle --platform=node --format=esm --packages=external --external:@harnessconfig/* --target=node22 --outdir=dist && chmod +x dist/bin.js && tsc -p tsconfig.build.json",
+    "build": "pnpm run clean && esbuild ./src/index.ts --bundle --platform=node --format=esm --packages=external --external:@harnessconfig/* --target=node22 --outfile=dist/index.js && tsc -p tsconfig.build.json",
     "check": "tsc -p tsconfig.json --noEmit",
     "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
     "test": "vitest run"
@@ -33,12 +30,11 @@
   },
   "dependencies": {
     "@harnessconfig/core": "^0.1.0",
-    "@harnessconfig/extension-dir": "^0.1.0"
+    "zod": "^4.1.13"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "esbuild": "catalog:",
-    "tsx": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   },

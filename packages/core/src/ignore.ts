@@ -73,6 +73,7 @@ function evaluate(
   kind: HarnessIgnoreRuleKind,
   relativePath: string,
   options: {
+    globalOnly?: boolean;
     isDirectory?: boolean;
     target?: string;
     targetPath?: string;
@@ -87,6 +88,9 @@ function evaluate(
   let state = false;
   for (const rule of rules) {
     if (rule.kind !== kind) {
+      continue;
+    }
+    if (options.globalOnly === true && rule.scope !== "all") {
       continue;
     }
     if (!ruleAppliesToTarget(rule, target)) {

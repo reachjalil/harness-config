@@ -13,10 +13,12 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
+    "ignoreDeprecations": "5.0",
     "baseUrl": ".",
     "paths": {
       "@harnessconfig/core": ["packages/core/src/index.ts"],
-      "@harnessconfig/cli": ["packages/cli/src/index.ts"]
+      "@harnessconfig/cli": ["packages/cli/src/index.ts"],
+      "@harnessconfig/extension-dir": ["packages/extension-dir/src/index.ts"]
     }
   }
 }

@@ -4,7 +4,7 @@ import { createDefaultHarnessIgnore } from "./ignore";
 import {
   createDefaultHarnessConfig,
   createDefaultHarnessConfigToml,
-  type HarnessConfig,
+  harnessConfigSchema,
   stringifyHarnessConfig,
 } from "./standard";
 import { inspectHarnessConfig } from "./validation";
@@ -22,7 +22,7 @@ import type {
 } from "./types";
 
 type PlanOptions = {
-  config?: HarnessConfig;
+  config?: ApplyHarnessInitializationOptions["config"];
 };
 
 async function exists(path: string): Promise<boolean> {
@@ -36,8 +36,11 @@ export async function planHarnessInitialization(
   const inspection = await inspectHarnessConfig(root);
   const paths = resolveHarnessPaths(root);
   const actions: HarnessInitializationAction[] = [];
+  const config = options.config
+    ? harnessConfigSchema.parse(options.config)
+    : createDefaultHarnessConfig();
   const configToml = options.config
-    ? stringifyHarnessConfig(options.config)
+    ? stringifyHarnessConfig(config)
     : createDefaultHarnessConfigToml();
   const ignoreFile = createDefaultHarnessIgnore();
 
@@ -49,8 +52,6 @@ export async function planHarnessInitialization(
       target: paths.harnessDir,
     });
   }
-
-  const config = options.config ?? createDefaultHarnessConfig();
 
   for (const [resource, definition] of Object.entries(config.resources)) {
     const target = resolveRepoLocalPath(

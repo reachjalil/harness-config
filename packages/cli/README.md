@@ -7,6 +7,8 @@ harnessc validate
 harnessc plan
 harnessc activate
 harnessc activate --yes
+harnessc extension activate --extension dir
+harnessc extension activate --all --yes
 harnessc init --resource prompts --target ./.claude
 harnessc init --yes --resource prompts --target ./.claude
 ```
@@ -32,6 +34,11 @@ prints a dry run for every declared target, including creates, updates,
 mutable skipped files, requested removals, projected keeps, and unmanaged
 entries preserved outside the projection. With `--yes`, it applies the computed
 copy projection.
+
+`harnessc extension activate` runs registered extensions. Extensions default to
+explicit activation; use `--extension <id>` for one extension or `--all` for
+all declared supported extensions. The built-in `dir` extension composes files
+such as `AGENTS.md` from numbered text parts under `./.harness/dir`.
 
 Unmanaged target entries are kept by default. Use `--remove-unmanaged` when a
 target should be cleaned to match `.harness`; use `--keep-unmanaged` to make

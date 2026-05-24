@@ -5,10 +5,6 @@ export default defineConfig({
   resolve: {
     alias: {
       "@harnessconfig/core": path.resolve(__dirname, "../core/src/index.ts"),
-      "@harnessconfig/extension-dir": path.resolve(
-        __dirname,
-        "../extension-dir/src/index.ts"
-      ),
     },
   },
   test: {

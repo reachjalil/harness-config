@@ -34,6 +34,7 @@ path = "./.claude"
     expect(config.resources.skills.path).toBe("./.harness/skills");
     expect(config.resources.rules).toBeUndefined();
     expect(config.targets[0]?.path).toBe("./.claude");
+    expect(config.extensions).toEqual({});
     expect(listHarnessProjectionTargets(config)).toEqual(["./.claude"]);
   });
 
@@ -56,6 +57,36 @@ path = "./.cursor"
 
     expect(config.resources).toEqual({});
     expect(listHarnessProjectionTargets(config)).toEqual([]);
+    expect(config.extensions).toEqual({});
+  });
+
+  it("parses extension declarations with core-owned defaults and extension-owned fields", () => {
+    const config = parseHarnessConfigToml(`
+version = 1
+
+[extensions.dir]
+version = 1
+path = "./.harness/dir"
+`);
+
+    expect(config.extensions.dir).toEqual({
+      version: 1,
+      activation: "explicit",
+      path: "./.harness/dir",
+    });
+  });
+
+  it("parses extension activation policy", () => {
+    const config = parseHarnessConfigToml(`
+version = 1
+
+[extensions.dir]
+version = 1
+activation = "auto"
+path = "./.harness/dir"
+`);
+
+    expect(config.extensions.dir?.activation).toBe("auto");
   });
 
   it("rejects target fields other than path", () => {
@@ -80,6 +111,36 @@ path = "./.harness/skills"
 entry = "SKILL.md"
 `)
     ).toThrow(/Unrecognized key/);
+  });
+
+  it("rejects invalid extension ids and core extension fields", () => {
+    expect(() =>
+      parseHarnessConfigToml(`
+version = 1
+
+[extensions.Bad]
+version = 1
+`)
+    ).toThrow(/Invalid extension id/);
+
+    expect(() =>
+      parseHarnessConfigToml(`
+version = 1
+
+[extensions.dir]
+activation = "explicit"
+`)
+    ).toThrow();
+
+    expect(() =>
+      parseHarnessConfigToml(`
+version = 1
+
+[extensions.dir]
+version = 1
+activation = "sometimes"
+`)
+    ).toThrow();
   });
 
   it("rejects unknown top-level and standard fields", () => {

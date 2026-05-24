@@ -32,6 +32,8 @@ policy. Those belong in product layers that build on top of the standard.
   validation diagnostics, ignore parsing, initialization planning, and copy
   projection helpers.
 - `@harnessconfig/cli`: Publishable CLI package with the `harnessc` binary.
+- `@harnessconfig/extension-dir`: Built-in extension for composing repository
+  text files from mirrored directories.
 
 ## Layout
 
@@ -93,11 +95,18 @@ path = "./.agents"
 
 [[targets]]
 path = "./.claude"
+
+[extensions.dir]
+version = 1
+activation = "explicit"
+path = "./.harness/dir"
 ```
 
 Resource declarations contain only `path`. Target declarations contain only
 `path`. A target path such as `./.claude` automatically uses `.claude` override
-folders when they exist inside a resource item.
+folders when they exist inside a resource item. Extensions are declared under
+`[extensions.<id>]`; core owns `version` and `activation`, while each extension
+owns its remaining fields.
 
 ## `.harnessIgnore`
 
@@ -134,6 +143,7 @@ pnpm --filter @harnessconfig/cli exec harnessc validate
 pnpm --filter @harnessconfig/cli exec harnessc plan
 pnpm --filter @harnessconfig/cli exec harnessc activate
 pnpm --filter @harnessconfig/cli exec harnessc activate --yes
+pnpm --filter @harnessconfig/cli exec harnessc extension activate --extension dir
 pnpm --filter @harnessconfig/cli exec harnessc init --resource prompts --target ./.claude
 ```
 
@@ -144,6 +154,7 @@ npx harnessc validate
 npx harnessc plan
 npx harnessc activate
 npx harnessc activate --yes
+npx harnessc extension activate --extension dir
 npx harnessc init --yes --resource prompts --target ./.agents
 ```
 
@@ -169,6 +180,23 @@ bytes differ, activation reports `update` and applying activation writes the
 current source bytes. Files marked under `[mutable]` in `.harnessIgnore` are
 created once and then reported as runtime-owned `mutable` entries until
 `--force-mutable` is used.
+
+`harnessc extension activate` runs registered extensions. The built-in `dir`
+extension composes text outputs from mirrored leaf directories:
+
+```text
+.harness/dir/
+  AGENTS.md/
+    100_intro.md
+    200_rules.md
+  CLAUDE.md/
+    .ref
+    150_claude.md
+```
+
+`CLAUDE.md/.ref` can point to `../AGENTS.md`. Imported and local parts are
+sorted together by numeric prefix and concatenated exactly, without generated
+headers or separators.
 
 Example diff summary:
 
@@ -200,12 +228,14 @@ import {
   resolveHarnessPaths,
   validateHarnessConfig,
 } from "@harnessconfig/core";
+import { planDirExtension } from "@harnessconfig/extension-dir";
 
 const paths = resolveHarnessPaths(process.cwd());
 const validation = await validateHarnessConfig(process.cwd());
 const plan = await planHarnessInitialization(process.cwd());
 const activationPlan = await planHarnessActivation(process.cwd());
 const dryRun = await applyHarnessActivation(process.cwd());
+const dirPlan = await planDirExtension(process.cwd());
 ```
 
 ## Quality Gate

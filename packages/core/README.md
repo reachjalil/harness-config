@@ -27,6 +27,10 @@ Shared TypeScript implementation for the HarnessConfig standard.
 This package does not run background services. Mutating helpers dry-run by
 default and require explicit confirmation before writing projection targets.
 
+`harness.toml` may also declare top-level extensions under
+`[extensions.<id>]`. Core validates the shared `version` and `activation`
+fields and preserves extension-owned fields for registered extension packages.
+
 The core standard treats resource kinds as declared names. `skills`, `rules`,
 and `plugins` are conventional initialization defaults, not reserved schema
 concepts. Targets are also explicit: `./.agents` is valid when declared, but it

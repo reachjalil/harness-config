@@ -15,6 +15,7 @@ harnessc plan
 harnessc init
 harnessc validate
 harnessc activate
+harnessc extension activate
 ```
 
 - `harnessc plan` inspects a repository, reports adoption work, and may show
@@ -28,8 +29,12 @@ harnessc activate
 - `harnessc activate` dry-runs the activation projection and shows creates,
   updates, requested removals, kept files, mutable-skipped files, and preserved
   unmanaged entries before writing.
+- `harnessc extension activate` runs registered extensions. Use
+  `--extension <id>` to run one declared extension or `--all` to run every
+  declared supported extension.
 
-`init` and `activate` are dry runs unless `--yes` is supplied.
+`init`, `activate`, and `extension activate` are dry runs unless `--yes` is
+supplied.
 Unmanaged target entries are kept by default. Use `--remove-unmanaged` when a
 target should be cleaned to match `.harness`; use `--keep-unmanaged` to make
 the default explicit.
@@ -42,6 +47,62 @@ writes the current source bytes. Mutable files declared under `[mutable]` in
 
 Selection workflows, marketplace behavior, target edit review, capture, and
 other product opinions belong above `harnessc`.
+
+## Extensions
+
+`harnessc` uses a static built-in extension registry. This release registers
+the `dir` extension; dynamic package loading is intentionally out of scope.
+
+Extensions are declared separately from core resources:
+
+```toml
+[extensions.dir]
+version = 1
+activation = "explicit"
+path = "./.harness/dir"
+```
+
+The core standard owns `version` and `activation`. Extension-specific fields,
+such as `path`, are validated by the registered extension. Declared extensions
+default to explicit activation, so plain `harnessc extension activate` runs only
+extensions configured with `activation = "auto"`.
+
+### `dir`
+
+The `dir` extension composes text files from mirrored leaf directories under
+`./.harness/dir`:
+
+```text
+.harness/dir/
+  AGENTS.md/
+    100_intro.md
+    200_rules.md
+  CLAUDE.md/
+    .ref
+    150_claude.md
+  .github/
+    copilot-instructions.md/
+      100_intro.md
+```
+
+Leaf directories become output files at the matching repository path. The
+example writes `AGENTS.md`, `CLAUDE.md`, and
+`.github/copilot-instructions.md`. Part files must start with a numeric prefix
+and underscore, such as `100_intro.md`; using `100`, `200`, and `300` leaves
+space for later insertions.
+
+Part contents are concatenated exactly in sort order. The extension adds no
+generated header, footer, separator, or newline normalization. File extensions
+are not interpreted; any regular text file that follows the numeric naming
+rule can be a part.
+
+`.ref` imports another leaf directory using a relative path. Imported parts and
+local parts are sorted together, duplicate numbers and names remain additive,
+and cycles or missing refs are reported as errors.
+
+Only global `.harnessIgnore` rules apply to `dir`; target-scoped rules do not.
+Ignoring a container skips all outputs below it, ignoring a leaf skips that
+output, and ignoring a part excludes that part from composition.
 
 ## TypeScript Helpers
 

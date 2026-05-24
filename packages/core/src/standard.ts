@@ -5,7 +5,10 @@ import {
   CONVENTIONAL_HARNESS_RESOURCES,
   defaultHarnessResourcePath,
 } from "./paths";
-import type { HarnessResourceDefinition } from "./types";
+import type {
+  HarnessExtensionDefinition,
+  HarnessResourceDefinition,
+} from "./types";
 
 export const CURRENT_HARNESS_CONFIG_VERSION = 1;
 export const SUPPORTED_HARNESS_CONFIG_VERSIONS = [1] as const;
@@ -16,6 +19,8 @@ export const resourceIdSchema = z
     /^[a-z][a-z0-9_-]*$/,
     "Resource ids must start with a lowercase letter and contain only lowercase letters, numbers, underscores, or dashes."
   );
+
+export const extensionIdSchema = resourceIdSchema;
 
 export const repoLocalPathSchema = z
   .string()
@@ -62,6 +67,15 @@ export const harnessTargetSchema = z
   .object({ path: harnessTargetPathSchema })
   .strict();
 
+export const harnessExtensionActivationSchema = z.enum(["explicit", "auto"]);
+
+export const harnessExtensionSchema = z
+  .object({
+    version: z.number().int().positive(),
+    activation: harnessExtensionActivationSchema.default("explicit"),
+  })
+  .catchall(z.unknown()) satisfies z.ZodType<HarnessExtensionDefinition>;
+
 export const conventionalHarnessResources: Record<
   string,
   HarnessResourceDefinition
@@ -85,6 +99,22 @@ const harnessResourcesSchema = z
           code: "custom",
           message: `Invalid resource id "${resource}".`,
           path: [resource],
+        });
+      }
+    }
+  });
+
+const harnessExtensionsSchema = z
+  .record(z.string(), harnessExtensionSchema)
+  .default({})
+  .superRefine((extensions, context) => {
+    for (const extension of Object.keys(extensions)) {
+      const result = extensionIdSchema.safeParse(extension);
+      if (!result.success) {
+        context.addIssue({
+          code: "custom",
+          message: `Invalid extension id "${extension}".`,
+          path: [extension],
         });
       }
     }
@@ -117,6 +147,7 @@ export const harnessConfigSchema = z
       .default({ name: "harness-config" }),
     resources: harnessResourcesSchema,
     targets: z.array(harnessTargetSchema).default([]),
+    extensions: harnessExtensionsSchema,
   })
   .strict();
 
@@ -127,6 +158,7 @@ export function createDefaultHarnessConfig(): HarnessConfig {
     version: CURRENT_HARNESS_CONFIG_VERSION,
     resources: conventionalHarnessResources,
     targets: [],
+    extensions: {},
   });
 }
 

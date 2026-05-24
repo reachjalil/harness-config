@@ -19,6 +19,14 @@ import {
   validateHarnessConfig,
 } from "@harnessconfig/core";
 import type { HarnessActivationPlan, HarnessConfig } from "@harnessconfig/core";
+import {
+  applyRegisteredExtensions,
+  formatExtensionActivationPlan,
+  formatExtensionActivationResult,
+  hasExtensionActivationErrors,
+  hasExtensionActivationOutput,
+  planRegisteredExtensions,
+} from "./extensions";
 
 type CliOptions = {
   command: string;
@@ -29,6 +37,8 @@ type CliOptions = {
   help: boolean;
   cleanupUnmanaged?: "keep" | "remove";
   mutablePolicy?: "skip" | "force";
+  allExtensions: boolean;
+  extensions: string[];
   resources: string[];
   targets: string[];
 };
@@ -81,12 +91,15 @@ Usage:
   harnessc activate [--root <path>] [--dry-run] [--yes]
                     [--keep-unmanaged|--remove-unmanaged]
                     [--force-mutable] [--json]
+  harnessc extension activate [--root <path>] [--dry-run] [--yes]
+                              [--extension <id>|--all] [--json]
   harnessc init [--root <path>] [--dry-run] [--yes] [--resource <kind>] [--target <path>]
 
 Commands:
   validate    Validate the repository against the HarnessConfig standard.
   plan        Show a read-only initialization plan.
   activate    Plan or apply idempotent .harness projections.
+  extension   Plan or apply registered HarnessConfig extensions.
   init        Plan or create .harness resource structure.
 
 HarnessConfig standardizes the .harness/<kind>/<name> resource shape,
@@ -99,7 +112,8 @@ Activation keeps unmanaged target entries by default. Use --remove-unmanaged to
 delete target entries that are not present in the computed .harness projection.
 Mutable target files declared under [mutable] in .harnessIgnore are created
 once and then left alone; use --force-mutable to re-project them from source.
-Init and activate are dry runs unless --yes is supplied.
+Extensions are activated separately with harnessc extension activate. Init,
+activate, and extension activate are dry runs unless --yes is supplied.
 `;
 
 async function knownHarnessSurfaces(
@@ -153,6 +167,8 @@ function parseArgs(argv: string[]): CliOptions {
     yes: false,
     dryRun: false,
     help: false,
+    allExtensions: false,
+    extensions: [],
     resources: [],
     targets: [],
   };
@@ -191,6 +207,19 @@ function parseArgs(argv: string[]): CliOptions {
       options.mutablePolicy = "force";
       continue;
     }
+    if (arg === "--all") {
+      options.allExtensions = true;
+      continue;
+    }
+    if (arg === "--extension") {
+      const value = argv[index + 1];
+      if (!value) {
+        throw new Error(`${arg} requires an extension id.`);
+      }
+      options.extensions.push(value);
+      index += 1;
+      continue;
+    }
     if (arg === "--root" || arg === "-C") {
       const value = argv[index + 1];
       if (!value) {
@@ -219,6 +248,14 @@ function parseArgs(argv: string[]): CliOptions {
       continue;
     }
     if (!options.command) {
+      if (arg === "extension") {
+        const subcommand = argv[index + 1];
+        if (subcommand && !subcommand.startsWith("-")) {
+          options.command = `extension ${subcommand}`;
+          index += 1;
+          continue;
+        }
+      }
       options.command = arg;
       continue;
     }
@@ -232,6 +269,15 @@ function parseArgs(argv: string[]): CliOptions {
   if (sawKeepUnmanaged && sawRemoveUnmanaged) {
     throw new Error(
       "Use either --keep-unmanaged or --remove-unmanaged, not both."
+    );
+  }
+
+  if (
+    options.command !== "extension activate" &&
+    (options.allExtensions || options.extensions.length > 0)
+  ) {
+    throw new Error(
+      "--extension and --all are only supported by harnessc extension activate."
     );
   }
 
@@ -348,6 +394,17 @@ export async function runHarnessConfigCli(
     if (options.command === "activate") {
       let cleanupUnmanaged = options.cleanupUnmanaged;
       let mutableNotice = "";
+      const autoExtensionPlan = await planRegisteredExtensions(options.root, {
+        autoOnly: true,
+      });
+      const autoExtensionHasOutput =
+        hasExtensionActivationOutput(autoExtensionPlan);
+      const autoExtensionHasErrors =
+        hasExtensionActivationErrors(autoExtensionPlan);
+      if (options.yes && autoExtensionHasErrors) {
+        io.stdout(formatExtensionActivationPlan(autoExtensionPlan));
+        return 1;
+      }
       if (options.yes && !options.json) {
         const promptPlan = await planHarnessActivation(options.root, {
           cleanupUnmanaged: cleanupUnmanaged ?? "keep",
@@ -371,15 +428,50 @@ export async function runHarnessConfigCli(
         cleanupUnmanaged,
         mutablePolicy: options.mutablePolicy,
       });
+      const extensionResult = autoExtensionHasOutput
+        ? await applyRegisteredExtensions(options.root, {
+            autoOnly: true,
+            dryRun: options.dryRun || !options.yes,
+            yes: options.yes,
+          })
+        : undefined;
       const formatted = options.json
-        ? JSON.stringify(result, null, 2)
-        : `${formatActivationResult(result)}${mutableNotice}`;
+        ? JSON.stringify(
+            extensionResult
+              ? { activation: result, extensions: extensionResult }
+              : result,
+            null,
+            2
+          )
+        : `${formatActivationResult(result)}${
+            extensionResult
+              ? `\n\n${formatExtensionActivationResult(extensionResult)}`
+              : ""
+          }${mutableNotice}`;
       io.stdout(formatted);
       return result.plan.diagnostics.some(
         (diagnostic) => diagnostic.severity === "error"
-      )
+      ) ||
+        (extensionResult
+          ? hasExtensionActivationErrors(extensionResult.plan)
+          : false)
         ? 1
         : 0;
+    }
+
+    if (options.command === "extension activate") {
+      const result = await applyRegisteredExtensions(options.root, {
+        allExtensions: options.allExtensions,
+        dryRun: options.dryRun || !options.yes,
+        extensionIds: options.extensions,
+        yes: options.yes,
+      });
+      io.stdout(
+        options.json
+          ? JSON.stringify(result, null, 2)
+          : formatExtensionActivationResult(result)
+      );
+      return hasExtensionActivationErrors(result.plan) ? 1 : 0;
     }
 
     if (options.command === "init") {
@@ -411,6 +503,15 @@ export async function runHarnessConfigCli(
         mutablePolicy: options.mutablePolicy,
       });
       io.stderr(formatActivationPlan(plan));
+    }
+    if (options.command === "extension activate") {
+      const result = await applyRegisteredExtensions(options.root, {
+        allExtensions: options.allExtensions,
+        dryRun: true,
+        extensionIds: options.extensions,
+        yes: false,
+      });
+      io.stderr(formatExtensionActivationResult(result));
     }
     return 1;
   }

@@ -4,10 +4,12 @@ HarnessConfig is a repository-local standard for durable harness resources and
 repeatable target projection. It gives tools one neutral source root,
 `./.harness`, one versioned TOML manifest, and one projection ignore file.
 
-The standard does not define an enable/disable registry or a selection format.
-Activation is an emergent property of projection: a resource is active in a
-target when that resource item is present in the computed target tree, and it is
-inactive when it is absent from the next idempotent projection.
+Core resource projection does not define an enable/disable registry or a
+selection format. Activation is an emergent property of projection: a resource
+is active in a target when that resource item is present in the computed target
+tree, and it is inactive when it is absent from the next idempotent projection.
+Extensions have a minimal declaration and activation policy, but extension
+behavior is outside core resource projection.
 
 ## Normative Language
 
@@ -24,8 +26,9 @@ version = 1
 ```
 
 Version `1` standardizes the `./.harness` root, declared resource roots,
-target-derived overrides, path-only target mappings, copy projection, and the
-repo-root `.harnessIgnore` projection ignore file.
+target-derived overrides, path-only target mappings, top-level extension
+declarations, copy projection, and the repo-root `.harnessIgnore` projection
+ignore file.
 
 ## Scope
 
@@ -35,6 +38,7 @@ HarnessConfig standardizes:
 - `./.harness/<kind>/<name>/`
 - Per-resource overrides in immediate dot-prefixed folders.
 - Explicit path-only target declarations.
+- Top-level extension declarations.
 - Copy projection from declared resources into declared targets.
 - `.harnessIgnore` as the single projection filter.
 
@@ -100,6 +104,10 @@ path = "./.claude"
 
 [[targets]]
 path = "./.cursor"
+
+[extensions.example]
+version = 1
+activation = "explicit"
 ```
 
 ### Resources
@@ -138,6 +146,27 @@ recognize common runtime surface names such as `./.agents`, `./.claude`, or
 `./.cursor` to offer initialization presets or adoption hints. That recognition
 does not make those folders standard requirements, reserved targets, or implicit
 projection outputs. A folder receives projection only when declared as a target.
+
+### Extensions
+
+Extensions are declared under top-level `[extensions.<id>]` tables. Extension
+ids MUST use lowercase letters, numbers, underscores, or dashes.
+
+Each extension declaration MUST contain an integer `version`. The `version`
+field is the extension configuration schema version, not the HarnessConfig
+standard version.
+
+Each extension declaration MAY contain `activation`, with values `explicit` or
+`auto`. When omitted, `activation` defaults to `explicit`.
+
+Fields other than `version` and `activation` are owned by the extension. The
+HarnessConfig standard defines extension discovery, not extension behavior,
+output shape, commands, or compatibility rules. Extension compatibility with
+HarnessConfig versions belongs to the extension implementation metadata.
+
+Tools MUST NOT silently apply unsupported extensions. A tool that implements an
+extension MUST validate the extension-owned fields before applying that
+extension's behavior.
 
 ## Routing Resource Kinds To Targets
 
