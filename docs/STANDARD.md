@@ -132,6 +132,12 @@ The first path segment determines the override folder:
 Targets are configuration, not hidden mutation. Tools SHOULD show the target
 plan before creating, replacing, copying, or removing files.
 
+Non-normative tooling note: a reference implementation MAY recognize common
+runtime surface names such as `./.agents`, `./.claude`, or `./.cursor` to
+offer initialization presets or adoption hints. That recognition does not make
+those folders standard requirements, reserved targets, or implicit projection
+outputs. A folder receives projection only when declared as a target.
+
 ## Routing Resource Kinds To Targets
 
 Targets receive every declared resource root by default. A resource kind is
