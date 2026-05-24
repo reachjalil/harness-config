@@ -1,13 +1,18 @@
 import { readFile } from "node:fs/promises";
 
 import { HARNESS_IGNORE_FILE, resolveHarnessPaths } from "./paths";
-import type { HarnessIgnoreMatcher, HarnessIgnoreRule } from "./types";
+import type {
+  HarnessIgnoreMatcher,
+  HarnessIgnoreRule,
+  HarnessIgnoreRuleKind,
+} from "./types";
+
+type SectionState = Pick<HarnessIgnoreRule, "kind" | "scope" | "target">;
 
 export function parseHarnessIgnore(raw: string): HarnessIgnoreRule[] {
   const rules: HarnessIgnoreRule[] = [];
   const lines = raw.split(/\r?\n/);
-  let scope: HarnessIgnoreRule["scope"] = "all";
-  let target: string | undefined;
+  let state: SectionState = { kind: "ignore", scope: "all", target: undefined };
 
   for (const [index, rawLine] of lines.entries()) {
     const line = rawLine.trim();
@@ -17,8 +22,7 @@ export function parseHarnessIgnore(raw: string): HarnessIgnoreRule[] {
 
     const section = parseScopeSection(line);
     if (section) {
-      scope = section.scope;
-      target = section.target;
+      state = section;
       continue;
     }
 
@@ -36,13 +40,14 @@ export function parseHarnessIgnore(raw: string): HarnessIgnoreRule[] {
     }
 
     rules.push({
+      kind: state.kind,
       pattern,
       negated,
       directoryOnly,
       anchored,
       sourceLine: index + 1,
-      scope,
-      target,
+      scope: state.scope,
+      target: state.target,
     });
   }
 
@@ -55,50 +60,96 @@ export function createHarnessIgnoreMatcher(
   return {
     rules,
     ignores(relativePath, options = {}) {
-      const normalized = normalizeIgnorePath(relativePath);
-      if (!normalized) {
-        return false;
-      }
-
-      const target = normalizeHarnessTarget(
-        options.targetPath ?? options.target
-      );
-      let ignored = false;
-      for (const rule of rules) {
-        if (!ruleAppliesToTarget(rule, target)) {
-          continue;
-        }
-        if (matchesRule(rule, normalized, options.isDirectory === true)) {
-          ignored = !rule.negated;
-        }
-      }
-      return ignored;
+      return evaluate(rules, "ignore", relativePath, options);
+    },
+    isMutable(relativePath, options = {}) {
+      return evaluate(rules, "mutable", relativePath, options);
     },
   };
 }
 
-function parseScopeSection(
-  line: string
-): Pick<HarnessIgnoreRule, "scope" | "target"> | undefined {
-  const match = line.match(/^\[(?<rawTarget>!?[a-z0-9_.-]+|\*)\]$/i);
-  const rawTarget = match?.groups?.rawTarget;
-  if (!rawTarget) {
+function evaluate(
+  rules: HarnessIgnoreRule[],
+  kind: HarnessIgnoreRuleKind,
+  relativePath: string,
+  options: {
+    isDirectory?: boolean;
+    target?: string;
+    targetPath?: string;
+  }
+): boolean {
+  const normalized = normalizeIgnorePath(relativePath);
+  if (!normalized) {
+    return false;
+  }
+
+  const target = normalizeHarnessTarget(options.targetPath ?? options.target);
+  let state = false;
+  for (const rule of rules) {
+    if (rule.kind !== kind) {
+      continue;
+    }
+    if (!ruleAppliesToTarget(rule, target)) {
+      continue;
+    }
+    if (matchesRule(rule, normalized, options.isDirectory === true)) {
+      state = !rule.negated;
+    }
+  }
+  return state;
+}
+
+function parseScopeSection(line: string): SectionState | undefined {
+  const match = line.match(
+    /^\[(?<body>(?:[a-z][a-z0-9_-]*\s+)?!?[a-z0-9_.-]+|\*|[a-z][a-z0-9_-]*)\]$/i
+  );
+  const body = match?.groups?.body;
+  if (!body) {
     return undefined;
   }
 
-  if (rawTarget === "*" || rawTarget.toLowerCase() === "global") {
-    return { scope: "all" };
+  const tokens = body.trim().split(/\s+/);
+  let kind: HarnessIgnoreRuleKind = "ignore";
+  let scopeToken = tokens[0];
+  if (tokens.length === 2) {
+    if (tokens[0]?.toLowerCase() === "mutable") {
+      kind = "mutable";
+      scopeToken = tokens[1];
+    } else if (tokens[0]?.toLowerCase() === "ignore") {
+      kind = "ignore";
+      scopeToken = tokens[1];
+    } else {
+      return undefined;
+    }
+  } else if (tokens.length === 1) {
+    if (scopeToken?.toLowerCase() === "mutable") {
+      return { kind: "mutable", scope: "all", target: undefined };
+    }
+    if (scopeToken?.toLowerCase() === "ignore") {
+      return { kind: "ignore", scope: "all", target: undefined };
+    }
+  } else {
+    return undefined;
   }
 
-  const except = rawTarget.startsWith("!");
+  if (!scopeToken) {
+    return undefined;
+  }
+
+  if (scopeToken === "*" || scopeToken.toLowerCase() === "global") {
+    return { kind, scope: "all", target: undefined };
+  }
+
+  const except = scopeToken.startsWith("!");
   const target = normalizeHarnessTarget(
-    except ? rawTarget.slice(1) : rawTarget
+    except ? scopeToken.slice(1) : scopeToken
   );
   if (!target) {
     return undefined;
   }
 
   return {
+    kind,
     scope: except ? "except" : "only",
     target,
   };
@@ -289,6 +340,8 @@ export function createDefaultHarnessIgnore(): string {
     "# Files matched here are ignored when projecting .harness resources into live harness surfaces.",
     "# Patterns are repo-relative and use gitignore-style * and ** wildcards.",
     "# Use [.claude] to scope following rules to one target, or [!.cursor] to apply to all except one target.",
+    "# Use [mutable] to mark files the runtime owns after first projection (e.g. .harness/**/settings.local.json).",
+    "# Use [mutable .claude] or [mutable !.cursor] to scope mutable rules to specific targets.",
     "# Example: .harness/**/logs/",
     "",
   ].join("\n");

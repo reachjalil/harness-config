@@ -1,0 +1,85 @@
+# HarnessConfig Conformance
+
+A claim of HarnessConfig support should be testable from the file shape and
+activation contract alone. A repository, tool, or organization policy may claim
+support when the relevant checks below can be reproduced without depending on a
+specific runtime, CLI, or hosted service.
+
+## Conformance Levels
+
+- Repository conformance: a repository declares `version = 1` in
+  `.harness/harness.toml`, lists at least one resource root, keeps every
+  declared path repo-local, and stores resources as
+  `.harness/<kind>/<name>` folders.
+- Resource conformance: a resource is a folder under
+  `.harness/<kind>/<name>`. Any target-derived override appears as a
+  dot-prefixed folder directly inside that resource.
+- Target conformance: a `[[targets]]` entry contains only a repo-local path.
+  The matching override folder is inferred from the first path segment. No
+  target may point at `.harness` or redeclare resource roots.
+- Projection conformance: activation applies `.harnessIgnore`, including
+  target-scoped sections and `[mutable]` scopes, treats every declared target
+  as a copy projection, and yields the same target tree for the same inputs,
+  cleanup policy, drift policy, and mutable policy.
+- Tool conformance: an implementation reports the activation plan before
+  writing, lists creates, updates, requested removals, kept files, preserved
+  unmanaged entries, drift, and mutable-skipped files, and never reads a live
+  runtime folder as the source of truth.
+
+## Repository Checklist
+
+- `.harness/harness.toml` exists and declares `version = 1`.
+- At least one resource root is declared with a repo-local path.
+- Every resource lives under `.harness/<kind>/<name>`.
+- Target-derived overrides appear only as dot-prefixed folders inside a
+  resource.
+- `[[targets]]` entries contain only repo-local paths.
+- No target redefines resources, modes, or override names.
+- No target points at `./.harness`.
+- `.harnessIgnore` patterns are repo-relative and parse cleanly.
+- Scoped ignore sections such as `[.claude]`, `[!.cursor]`, and `[*]` are
+  recognized.
+- Mutable scope sections such as `[mutable]`, `[mutable .claude]`, and
+  `[mutable !.cursor]` are recognized.
+- `./.harness/.state/` is not declared as a resource or target.
+
+## Implementation Requirements
+
+- `.harness` MUST be treated as the repository source layer, not an
+  application workspace.
+- Resource categories MUST be treated as declared names. `skills`, `rules`,
+  and `plugins` are common conventions, not required schema categories.
+- Additional resource kinds MAY be added when they live under
+  `.harness/<kind>/<name>` and follow the same folder and override contract.
+- Overrides MUST be derived from the target path.
+- `harness.toml` MUST declare target paths only. Targets MUST NOT redefine
+  resources, modes, or override names.
+- Activation SHOULD be derived from projection.
+- Activation MUST be idempotent for the same `.harness` tree,
+  `harness.toml`, overrides, `.harnessIgnore` rules, cleanup choice, drift
+  policy, and mutable policy.
+- Implementations MUST support `.harnessIgnore` for global and target-scoped
+  files that stay out of live projections.
+- Implementations MUST support `[mutable]` scopes in `.harnessIgnore` and
+  treat matching files as create-once, runtime-owned target files.
+- Implementations SHOULD detect drift on managed target files using a
+  projection manifest stored under `./.harness/.state/`. Drifted files MUST
+  NOT be silently overwritten.
+- Declared target folders MUST be treated as projection outputs, not source
+  repositories.
+
+## Evidence
+
+Repository evidence is a `.harness` tree, a versioned `harness.toml`, and a
+`.harnessIgnore` visible in version control.
+
+Tool evidence is a dry-run report that lists creates, updates, requested
+removals, kept files, drifted files, mutable-skipped files, and preserved
+unmanaged entries before any write.
+
+Projection evidence is two consecutive activations against unchanged inputs
+that produce byte-identical target trees for managed files and leave mutable
+files untouched after the first apply.
+
+Policy evidence is a CI step that runs validation against the same rules a
+contributor uses locally.

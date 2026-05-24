@@ -307,4 +307,109 @@ mode = "copy"
       "harness.activation_config_unavailable"
     );
   });
+
+  it("reports drift on plan and skips drifted files unless --accept-drift", async () => {
+    const root = await rootFixture();
+    await writeConfig(root);
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harness/skills/review/SKILL.md", "review skill");
+
+    // First apply to populate manifest.
+    await runHarnessConfigCli(
+      ["activate", "--root", root, "--yes"],
+      captureIo().io
+    );
+
+    // Runtime edits the projected file.
+    await writeFile(
+      path.join(root, ".agents/skills/review/SKILL.md"),
+      "runtime edit",
+      "utf8"
+    );
+
+    const planCapture = captureIo();
+    await runHarnessConfigCli(["activate", "--root", root], planCapture.io);
+    const planOutput = planCapture.stdout.join("\n");
+    expect(planOutput).toContain("drift 1");
+    expect(planOutput).toContain(
+      "Drift (target modified after last activation)"
+    );
+
+    // Default apply leaves drift untouched and notices the user.
+    const applyCapture = captureIo();
+    await runHarnessConfigCli(
+      ["activate", "--root", root, "--yes"],
+      applyCapture.io
+    );
+    expect(applyCapture.stdout.join("\n")).toContain("--accept-drift");
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/SKILL.md"), "utf8")
+    ).resolves.toBe("runtime edit");
+
+    // --accept-drift overwrites from source.
+    const acceptCapture = captureIo();
+    await runHarnessConfigCli(
+      ["activate", "--root", root, "--yes", "--accept-drift"],
+      acceptCapture.io
+    );
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/SKILL.md"), "utf8")
+    ).resolves.toBe("review skill");
+  });
+
+  it("skips mutable files unless --force-mutable", async () => {
+    const root = await rootFixture();
+    await writeConfig(root);
+    await write(
+      root,
+      ".harnessIgnore",
+      "[mutable]\n.harness/**/settings.local.json\n"
+    );
+    await write(
+      root,
+      ".harness/skills/review/settings.local.json",
+      '{"allow":[]}'
+    );
+
+    await runHarnessConfigCli(
+      ["activate", "--root", root, "--yes"],
+      captureIo().io
+    );
+    await writeFile(
+      path.join(root, ".agents/skills/review/settings.local.json"),
+      '{"allow":["bash"]}',
+      "utf8"
+    );
+
+    const planCapture = captureIo();
+    await runHarnessConfigCli(["activate", "--root", root], planCapture.io);
+    const planOutput = planCapture.stdout.join("\n");
+    expect(planOutput).toContain("mutable 1");
+    expect(planOutput).toContain("Mutable target files");
+
+    const applyCapture = captureIo();
+    await runHarnessConfigCli(
+      ["activate", "--root", root, "--yes"],
+      applyCapture.io
+    );
+    expect(applyCapture.stdout.join("\n")).toContain("--force-mutable");
+    await expect(
+      readFile(
+        path.join(root, ".agents/skills/review/settings.local.json"),
+        "utf8"
+      )
+    ).resolves.toBe('{"allow":["bash"]}');
+
+    const forceCapture = captureIo();
+    await runHarnessConfigCli(
+      ["activate", "--root", root, "--yes", "--force-mutable"],
+      forceCapture.io
+    );
+    await expect(
+      readFile(
+        path.join(root, ".agents/skills/review/settings.local.json"),
+        "utf8"
+      )
+    ).resolves.toBe('{"allow":[]}');
+  });
 });

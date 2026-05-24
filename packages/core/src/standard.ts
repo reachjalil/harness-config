@@ -37,6 +37,16 @@ export const harnessTargetPathSchema = repoLocalPathSchema
     return Boolean(firstSegment?.startsWith("."));
   }, "Target paths must start with a dot-prefixed harness folder such as .claude.")
   .refine((value) => {
+    const normalized = value
+      .replaceAll("\\", "/")
+      .replace(/^\.\//, "")
+      .replace(/\/+$/, "");
+    return (
+      normalized !== ".harness/.state" &&
+      !normalized.startsWith(".harness/.state/")
+    );
+  }, "Target paths cannot point at .harness/.state.")
+  .refine((value) => {
     const firstSegment = value
       .replaceAll("\\", "/")
       .replace(/^\.\//, "")

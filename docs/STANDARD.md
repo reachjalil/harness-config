@@ -132,11 +132,12 @@ The first path segment determines the override folder:
 Targets are configuration, not hidden mutation. Tools SHOULD show the target
 plan before creating, replacing, copying, or removing files.
 
-Non-normative tooling note: a reference implementation MAY recognize common
-runtime surface names such as `./.agents`, `./.claude`, or `./.cursor` to
-offer initialization presets or adoption hints. That recognition does not make
-those folders standard requirements, reserved targets, or implicit projection
-outputs. A folder receives projection only when declared as a target.
+Non-normative tooling note: `harnessc` is the standard implementation and a
+recommended way for users to get started with HarnessConfig. Implementations MAY
+recognize common runtime surface names such as `./.agents`, `./.claude`, or
+`./.cursor` to offer initialization presets or adoption hints. That recognition
+does not make those folders standard requirements, reserved targets, or implicit
+projection outputs. A folder receives projection only when declared as a target.
 
 ## Routing Resource Kinds To Targets
 
@@ -178,12 +179,19 @@ A conforming tool SHOULD support a dry run that reports the actions it would
 take before writing:
 
 - `create`: a projected file does not exist in the target.
-- `update`: a projected file exists with different bytes.
+- `update`: a projected file exists with different bytes and the target file
+  matches the last recorded projection.
 - `remove`: a target entry is selected for deletion because it is not present
   in the computed projection.
 - `keep`: the target file already matches the projection.
 - `preserve`: a target entry is not in the computed projection and will stay
   untouched.
+- `drift`: a managed projected file exists with different bytes and does not
+  match the last recorded projection. The target was modified after activation.
+  Drift MUST NOT be applied as an overwrite without explicit user resolution.
+- `mutable`: a file declared mutable in `.harnessIgnore` already exists in the
+  target. The runtime owns it; activation MUST NOT overwrite or remove it
+  without an explicit force decision.
 
 All v1 target projections are materialized as copies. Implementations MUST NOT
 require symlink support for conformance. An implementation MAY use internal
@@ -191,8 +199,36 @@ optimizations, but the observable target tree MUST behave as a copy projection
 for validation, review, and repeat activation.
 
 After activation is applied, running the same activation again SHOULD converge
-to `keep` actions. That property keeps live harness folders derived and
-reproducible.
+to `keep` actions for managed files and `mutable` actions for files declared
+mutable. That property keeps live harness folders derived and reproducible while
+still letting runtimes own their per-machine configuration.
+
+### Runtime Drift
+
+Runtimes that read live target folders may also write into them — common cases
+include permission grants in `.claude/settings.local.json`, allow-listed
+commands, or learned hooks. Activation MUST distinguish three lifecycles for
+target files:
+
+1. Managed files: bytes are owned by the projection. Drift from a prior
+   projection is reported as `drift` and MUST NOT be silently overwritten.
+   Tools SHOULD offer an explicit resolution decision that overwrites drifted
+   files with the current projection.
+2. Mutable files: declared in `.harnessIgnore` under a `[mutable]` scope.
+   Projection materializes them on first activation (action `create`) and
+   leaves them untouched on every subsequent activation (action `mutable`).
+   Tools SHOULD offer an explicit force decision that re-projects the source
+   bytes when the team needs to reset runtime state.
+3. Unmanaged entries: target entries that are not part of the computed
+   projection. They follow the existing preserve/remove cleanup policy.
+
+To detect drift, conforming tools SHOULD persist a per-target projection
+manifest at `./.harness/.state/` after each successful apply. The manifest
+records the projected relative paths and their content hashes. Without a
+manifest, an implementation MAY fall back to reporting changed managed files as
+`update`. `./.harness/.state/` is reserved for implementation state and MUST
+NOT be declared as a resource root or a target. Repositories SHOULD ignore it
+in version control.
 
 ### Unmanaged Target Entries
 
@@ -281,26 +317,49 @@ boundary.
 
 [*]
 .harness/**/tmp/
+
+[mutable]
+.harness/**/settings.local.json
+
+[mutable .claude]
+.harness/skills/**/allow-list.json
 ```
 
 Patterns are repo-relative. Tools MUST support blank lines, `#` comments, `!`
 negation, leading `/` anchors, trailing `/` directory patterns, `*`, `**`, and
 `?`.
 
+A rule has a kind (`ignore` or `mutable`) and a target scope (`all`, `only`, or
+`except`). The kind decides whether the rule excludes a file from projection or
+marks it as mutable in the target. Both kinds share the same pattern grammar
+and the same precedence rule: the last matching participating rule wins.
+
 Ignore evaluation is ordered:
 
-1. Start with `included`.
+1. Start with `included` and `not mutable`.
 2. Read rules from top to bottom.
 3. A rule participates only when its scope applies to the current target.
-4. A matching non-negated rule changes state to `ignored`.
-5. A matching negated rule changes state back to `included`.
-6. The last matching participating rule wins.
+4. For ignore rules, a matching non-negated rule changes state to `ignored`;
+   a matching negated rule changes state back to `included`.
+5. For mutable rules, a matching non-negated rule changes state to `mutable`;
+   a matching negated rule changes state back to `not mutable`.
+6. The last matching participating rule of each kind wins.
 
-Scope sections affect subsequent rules:
+Scope sections affect subsequent rules. A section header may set kind and
+target scope together:
 
-- `[*]` or `[global]` applies subsequent rules to every target.
-- `[.claude]` applies subsequent rules only to target `.claude`.
-- `[!.cursor]` applies subsequent rules to every target except `.cursor`.
+- `[*]` or `[global]` applies subsequent ignore rules to every target.
+- `[.claude]` applies subsequent ignore rules only to target `.claude`.
+- `[!.cursor]` applies subsequent ignore rules to every target except `.cursor`.
+- `[mutable]` applies subsequent mutable rules to every target.
+- `[mutable .claude]` applies subsequent mutable rules only to target `.claude`.
+- `[mutable !.cursor]` applies subsequent mutable rules to every target except
+  `.cursor`.
+- A subsequent ignore-scope header switches kind back to `ignore`.
+
+Mutable files MUST still flow through the projection ignore step. If a file is
+both ignored and marked mutable, the ignore decision wins because the file
+never enters the projection in the first place.
 
 A trailing `/` pattern is directory-only. It matches the directory itself only
 when the candidate is a directory, and it matches descendants of that directory.
@@ -321,14 +380,23 @@ The source/projection boundary makes cross-harness differences reviewable:
 - Paths MUST stay inside the repository.
 - Transition commands MUST explain planned filesystem changes before mutation.
 - Activation commands SHOULD offer a dry run and explain creates, updates,
-  removals, keeps, and unmanaged preserved entries before mutation.
+  removals, keeps, unmanaged preserved entries, drift, and mutable skips before
+  mutation.
 - Live harness folders MUST be treated as projection targets, not source
   repositories.
 - Activation MUST be idempotent for the same `.harness`, `harness.toml`,
-  `.harnessIgnore`, selected resources, and cleanup policy.
+  `.harnessIgnore`, selected resources, cleanup policy, drift policy, and
+  mutable policy.
 - Projection MUST honor `.harnessIgnore` so logs, metadata, caches, and
   implementation state stay out of runtime folders.
 - Tools MUST merge target-derived overrides when present and fall back to the
   canonical files when no override exists.
 - Unknown `./.harness/<kind>` folders MAY be used when declared in
   `harness.toml`.
+- Drifted managed files MUST NOT be silently overwritten. A conforming tool
+  MUST require an explicit user decision before replacing drifted bytes.
+- Mutable files MUST be created on first projection and MUST be skipped on
+  subsequent projections unless the user explicitly opts in to force a
+  re-projection.
+- `./.harness/.state/` is reserved for tool-managed projection state and MUST
+  NOT be declared as a resource root or a target.

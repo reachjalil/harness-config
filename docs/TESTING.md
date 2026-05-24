@@ -22,15 +22,28 @@ the same `.harness` tree, `harness.toml`, override folders, and
 | Projection | Nested override contents such as plugin manifests and nested skills | `packages/core/test/projection.test.ts` |
 | Projection | Extension resource kinds declared in TOML | `packages/core/test/projection.test.ts` |
 | Projection | Scoped `.harnessIgnore` changes target output independently | `packages/core/test/projection.test.ts` |
+| TOML | Target paths determine override folders from the first path segment | `packages/core/test/standard.test.ts` |
 | Projection | Identical declared targets are still materialized as copy projections | `packages/core/test/projection.test.ts` |
 | Projection | An existing target symlink is replaced with a copy projection | `packages/core/test/projection.test.ts` |
 | Projection | Changed source files plan `update` actions | `packages/core/test/projection.test.ts` |
 | Projection | Unmanaged target entries are preserved by default and summarized at one level | `packages/core/test/projection.test.ts` |
 | Projection | Explicit unmanaged cleanup plans `remove` actions | `packages/core/test/projection.test.ts` |
 | Projection | Re-running after apply converges to `keep` actions | `packages/core/test/projection.test.ts` |
+| Projection | Mutable files are created once and then reported as `mutable` | `packages/core/test/projection.test.ts` |
+| Projection | Mutable files are not overwritten when bytes diverge in the target | `packages/core/test/projection.test.ts` |
+| Projection | `--force-mutable` re-projects mutable files from source | `packages/core/test/projection.test.ts` |
+| Projection | Target edits to a managed file after apply produce `drift` actions | `packages/core/test/projection.test.ts` |
+| Projection | `--accept-drift` overwrites drifted files with the projection | `packages/core/test/projection.test.ts` |
+| Ignore | `[mutable]`, `[mutable .claude]`, and `[mutable !.cursor]` scopes | `packages/core/test/standard.test.ts` |
+| Docs | `STANDARD.md` stays independent of reference implementation commands, packages, and flags | `packages/core/test/docs.test.ts` |
+| CLI | `harnessc init` and `harnessc transition` dry-run by default | `packages/cli/test/run.test.ts` |
+| CLI | `harnessc transition --yes` creates the standard files and resource roots | `packages/cli/test/run.test.ts` |
 | CLI | `harnessc activate` dry-runs by default | `packages/cli/test/run.test.ts` |
 | CLI | `harnessc activate --yes` writes live targets | `packages/cli/test/run.test.ts` |
 | CLI | `--remove-unmanaged` changes preserved unmanaged entries into removals | `packages/cli/test/run.test.ts` |
+| CLI | `--keep-unmanaged` and `--remove-unmanaged` cannot be used together | `packages/cli/test/run.test.ts` |
+| CLI | `--accept-drift` overwrites drifted files; default skips them | `packages/cli/test/run.test.ts` |
+| CLI | `--force-mutable` re-projects mutable files; default skips them | `packages/cli/test/run.test.ts` |
 | CLI | Invalid activation TOML returns diagnostics and a non-zero exit | `packages/cli/test/run.test.ts` |
 
 ## Manual Smoke Command
@@ -59,3 +72,43 @@ node packages/cli/dist/bin.js activate --root "$tmp"
 
 The first command should report creates without writing. The second should
 apply. The third should report keeps for the same source inputs.
+
+For a focused drift smoke test:
+
+```bash
+tmp="$(mktemp -d)"
+mkdir -p "$tmp/.harness/skills/review"
+printf 'version = 1\n\n[resources.skills]\npath = "./.harness/skills"\n\n[[targets]]\npath = "./.agents"\n' > "$tmp/.harness/harness.toml"
+printf '' > "$tmp/.harnessIgnore"
+printf 'source\n' > "$tmp/.harness/skills/review/SKILL.md"
+node packages/cli/dist/bin.js activate --root "$tmp" --yes
+printf 'target drift\n' > "$tmp/.agents/skills/review/SKILL.md"
+node packages/cli/dist/bin.js activate --root "$tmp"
+node packages/cli/dist/bin.js activate --root "$tmp" --yes --accept-drift
+cat "$tmp/.agents/skills/review/SKILL.md"
+```
+
+The dry run after editing the target should report `drift 1` and leave the
+target file unchanged. The `--accept-drift` apply should overwrite the target
+from source, and the final `cat` should print `source`.
+
+For a focused mutable smoke test:
+
+```bash
+tmp="$(mktemp -d)"
+mkdir -p "$tmp/.harness/skills/review"
+printf 'version = 1\n\n[resources.skills]\npath = "./.harness/skills"\n\n[[targets]]\npath = "./.agents"\n' > "$tmp/.harness/harness.toml"
+printf '[mutable]\n.harness/**/settings.local.json\n' > "$tmp/.harnessIgnore"
+printf 'base\n' > "$tmp/.harness/skills/review/SKILL.md"
+printf 'source local\n' > "$tmp/.harness/skills/review/settings.local.json"
+node packages/cli/dist/bin.js activate --root "$tmp" --yes
+printf 'target local\n' > "$tmp/.agents/skills/review/settings.local.json"
+node packages/cli/dist/bin.js activate --root "$tmp"
+node packages/cli/dist/bin.js activate --root "$tmp" --yes --force-mutable
+cat "$tmp/.agents/skills/review/settings.local.json"
+```
+
+The dry run after editing the mutable target should report `mutable 1` and
+leave the target file unchanged. The `--force-mutable` apply should overwrite
+the mutable target from source, and the final `cat` should print
+`source local`.

@@ -34,16 +34,25 @@ export function formatActivationPlan(plan: HarnessActivationPlan): string {
       : plan.targets
           .map((target) => {
             const summary = summarizeActivationActions(target.actions);
-            const policy = target.actions.some(
-              (action) => action.kind === "preserve"
-            )
-              ? "\nUnmanaged policy: keeping existing target entries that are not in .harness. Use --remove-unmanaged to delete them."
-              : "";
+            const policies = [
+              target.actions.some((action) => action.kind === "preserve")
+                ? "Unmanaged policy: keeping existing target entries that are not in .harness. Use --remove-unmanaged to delete them."
+                : "",
+              target.actions.some((action) => action.kind === "drift")
+                ? "Drift policy: skipping target files modified after last activation. Use --accept-drift to overwrite them from source."
+                : "",
+              target.actions.some((action) => action.kind === "mutable")
+                ? "Mutable policy: leaving runtime-owned files in place. Use --force-mutable to re-project from source."
+                : "",
+            ]
+              .filter(Boolean)
+              .map((line) => `\n${line}`)
+              .join("");
             const actions =
               target.actions.length === 0
                 ? "  No file changes."
                 : formatActivationActionSections(plan.root, target.actions);
-            return `${target.path} (${target.strategy}, override ${target.override})\nSummary: ${summary}${policy}\n${actions}`;
+            return `${target.path} (${target.strategy}, override ${target.override})\nSummary: ${summary}${policies}\n${actions}`;
           })
           .join("\n\n");
 
@@ -59,6 +68,8 @@ function summarizeActivationActions(
     remove: 0,
     keep: 0,
     preserve: 0,
+    drift: 0,
+    mutable: 0,
   };
   for (const action of actions) {
     counts[action.kind] += 1;
@@ -67,6 +78,8 @@ function summarizeActivationActions(
   return [
     `create ${counts.create}`,
     `update ${counts.update}`,
+    `drift ${counts.drift}`,
+    `mutable ${counts.mutable}`,
     `remove ${counts.remove}`,
     `keep ${counts.keep}`,
     `preserve unmanaged ${counts.preserve}`,
@@ -84,6 +97,16 @@ function formatActivationActionSections(
   }> = [
     { title: "Creates", kinds: ["create"], limit: 12 },
     { title: "Updates", kinds: ["update"], limit: 12 },
+    {
+      title: "Drift (target modified after last activation)",
+      kinds: ["drift"],
+      limit: 12,
+    },
+    {
+      title: "Mutable target files (runtime-owned, left untouched)",
+      kinds: ["mutable"],
+      limit: 12,
+    },
     { title: "Removals", kinds: ["remove"], limit: 12 },
     { title: "Projected files already matching", kinds: ["keep"], limit: 8 },
     {

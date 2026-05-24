@@ -223,6 +223,9 @@ and package dry-runs for every publishable package.
 - Target override folders are derived from target paths.
 - `harnessc` is local-first and explains planned changes before writing.
 
-See [the standard](./docs/STANDARD.md),
-[transition guide](./docs/TRANSITION.md), and
+See [the rationale](./docs/RATIONALE.md),
+[the standard](./docs/STANDARD.md),
+[the adoption guide](./docs/TRANSITION.md),
+[tooling](./docs/TOOLING.md),
+[conformance](./docs/CONFORMANCE.md), and
 [test matrix](./docs/TESTING.md) for details.

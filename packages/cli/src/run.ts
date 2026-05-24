@@ -28,6 +28,8 @@ type CliOptions = {
   dryRun: boolean;
   help: boolean;
   cleanupUnmanaged?: "keep" | "remove";
+  driftPolicy?: "report" | "accept";
+  mutablePolicy?: "skip" | "force";
   resources: string[];
   targets: string[];
 };
@@ -77,7 +79,9 @@ const HELP = `harnessc
 Usage:
   harnessc validate [--root <path>] [--json]
   harnessc plan [--root <path>] [--resource <kind>] [--target <path>] [--json]
-  harnessc activate [--root <path>] [--dry-run] [--yes] [--keep-unmanaged|--remove-unmanaged] [--json]
+  harnessc activate [--root <path>] [--dry-run] [--yes]
+                    [--keep-unmanaged|--remove-unmanaged]
+                    [--accept-drift] [--force-mutable] [--json]
   harnessc transition [--root <path>] [--dry-run] [--yes] [--resource <kind>] [--target <path>] [--json]
   harnessc init [--root <path>] [--dry-run] [--yes] [--resource <kind>] [--target <path>]
 
@@ -96,6 +100,10 @@ normal target when declared with --target ./.agents.
 
 Activation keeps unmanaged target entries by default. Use --remove-unmanaged to
 delete target entries that are not present in the computed .harness projection.
+Drifted target files (modified after the last activation) are reported and
+skipped; use --accept-drift to overwrite them with the source projection.
+Mutable target files declared under [mutable] in .harnessIgnore are created
+once and then left alone; use --force-mutable to re-project them from source.
 Transition and init are dry runs unless --yes is supplied.
 `;
 
@@ -184,6 +192,14 @@ function parseArgs(argv: string[]): CliOptions {
       options.cleanupUnmanaged = "remove";
       continue;
     }
+    if (arg === "--accept-drift") {
+      options.driftPolicy = "accept";
+      continue;
+    }
+    if (arg === "--force-mutable") {
+      options.mutablePolicy = "force";
+      continue;
+    }
     if (arg === "--root" || arg === "-C") {
       const value = argv[index + 1];
       if (!value) {
@@ -264,6 +280,18 @@ function hasUnmanagedEntries(plan: HarnessActivationPlan): boolean {
   );
 }
 
+function hasDriftEntries(plan: HarnessActivationPlan): boolean {
+  return plan.targets.some((target) =>
+    target.actions.some((action) => action.kind === "drift")
+  );
+}
+
+function hasMutableEntries(plan: HarnessActivationPlan): boolean {
+  return plan.targets.some((target) =>
+    target.actions.some((action) => action.kind === "mutable")
+  );
+}
+
 async function promptCleanupUnmanaged(): Promise<"keep" | "remove"> {
   if (!(processStdin.isTTY && processStdout.isTTY)) {
     return "keep";
@@ -331,12 +359,27 @@ export async function runHarnessConfigCli(
 
     if (options.command === "activate") {
       let cleanupUnmanaged = options.cleanupUnmanaged;
-      if (options.yes && !cleanupUnmanaged && !options.json) {
+      let driftNotice = "";
+      let mutableNotice = "";
+      if (options.yes && !options.json) {
         const promptPlan = await planHarnessActivation(options.root, {
-          cleanupUnmanaged: "keep",
+          cleanupUnmanaged: cleanupUnmanaged ?? "keep",
+          driftPolicy: options.driftPolicy,
+          mutablePolicy: options.mutablePolicy,
         });
-        if (hasUnmanagedEntries(promptPlan)) {
+        if (!cleanupUnmanaged && hasUnmanagedEntries(promptPlan)) {
           cleanupUnmanaged = await promptCleanupUnmanaged();
+        }
+        if (options.driftPolicy !== "accept" && hasDriftEntries(promptPlan)) {
+          driftNotice =
+            "\nNotice: drifted target files were skipped. Re-run with --accept-drift to overwrite them from .harness.";
+        }
+        if (
+          options.mutablePolicy !== "force" &&
+          hasMutableEntries(promptPlan)
+        ) {
+          mutableNotice =
+            "\nNotice: mutable target files were left as-is. Re-run with --force-mutable to re-project them from .harness.";
         }
       }
 
@@ -344,12 +387,13 @@ export async function runHarnessConfigCli(
         dryRun: options.dryRun || !options.yes,
         yes: options.yes,
         cleanupUnmanaged,
+        driftPolicy: options.driftPolicy,
+        mutablePolicy: options.mutablePolicy,
       });
-      io.stdout(
-        options.json
-          ? JSON.stringify(result, null, 2)
-          : formatActivationResult(result)
-      );
+      const formatted = options.json
+        ? JSON.stringify(result, null, 2)
+        : `${formatActivationResult(result)}${driftNotice}${mutableNotice}`;
+      io.stdout(formatted);
       return result.plan.diagnostics.some(
         (diagnostic) => diagnostic.severity === "error"
       )
@@ -383,6 +427,8 @@ export async function runHarnessConfigCli(
     if (options.command === "activate") {
       const plan = await planHarnessActivation(options.root, {
         cleanupUnmanaged: options.cleanupUnmanaged,
+        driftPolicy: options.driftPolicy,
+        mutablePolicy: options.mutablePolicy,
       });
       io.stderr(formatActivationPlan(plan));
     }

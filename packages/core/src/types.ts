@@ -17,6 +17,8 @@ export type HarnessConfigPaths = {
   rulesDir: string;
   pluginsDir: string;
   workspaceReadmePath: string;
+  stateDir: string;
+  manifestPath: string;
 };
 
 export type DiagnosticSeverity = "info" | "warning" | "error";
@@ -87,7 +89,9 @@ export type HarnessActivationActionKind =
   | "update"
   | "remove"
   | "keep"
-  | "preserve";
+  | "preserve"
+  | "drift"
+  | "mutable";
 
 export type HarnessActivationAction = {
   kind: HarnessActivationActionKind;
@@ -122,6 +126,19 @@ export type ApplyHarnessActivationOptions = {
   dryRun?: boolean;
   yes?: boolean;
   cleanupUnmanaged?: "keep" | "remove";
+  driftPolicy?: "report" | "accept";
+  mutablePolicy?: "skip" | "force";
+};
+
+export type HarnessProjectionManifest = {
+  version: 1;
+  targets: Record<
+    string,
+    {
+      appliedAt: string;
+      files: Record<string, string>;
+    }
+  >;
 };
 
 export type HarnessResourceItemProjectionOptions = {
@@ -132,7 +149,10 @@ export type HarnessResourceItemProjectionOptions = {
   diagnostics?: HarnessDiagnostic[];
 };
 
+export type HarnessIgnoreRuleKind = "ignore" | "mutable";
+
 export type HarnessIgnoreRule = {
+  kind: HarnessIgnoreRuleKind;
   pattern: string;
   negated: boolean;
   directoryOnly: boolean;
@@ -145,6 +165,10 @@ export type HarnessIgnoreRule = {
 export type HarnessIgnoreMatcher = {
   rules: HarnessIgnoreRule[];
   ignores(
+    relativePath: string,
+    options?: { isDirectory?: boolean; target?: string; targetPath?: string }
+  ): boolean;
+  isMutable(
     relativePath: string,
     options?: { isDirectory?: boolean; target?: string; targetPath?: string }
   ): boolean;

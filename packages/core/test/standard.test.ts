@@ -330,4 +330,80 @@ path = "./.cursor"
       })
     ).toBe(false);
   });
+
+  it("parses [mutable], [mutable .claude], and [mutable !.cursor] scopes", () => {
+    const matcher = createHarnessIgnoreMatcher(
+      parseHarnessIgnore(`
+[mutable]
+.harness/**/settings.local.json
+
+[mutable .claude]
+.harness/skills/*/allow-list.json
+
+[mutable !.cursor]
+.harness/skills/*/no-cursor.json
+
+[.claude]
+.harness/skills/*/ignored-elsewhere.md
+`)
+    );
+
+    expect(
+      matcher.isMutable(".harness/skills/x/settings.local.json", {
+        targetPath: "./.agents",
+      })
+    ).toBe(true);
+    expect(
+      matcher.isMutable(".harness/skills/x/allow-list.json", {
+        targetPath: "./.claude",
+      })
+    ).toBe(true);
+    expect(
+      matcher.isMutable(".harness/skills/x/allow-list.json", {
+        targetPath: "./.agents",
+      })
+    ).toBe(false);
+    expect(
+      matcher.isMutable(".harness/skills/x/no-cursor.json", {
+        targetPath: "./.claude",
+      })
+    ).toBe(true);
+    expect(
+      matcher.isMutable(".harness/skills/x/no-cursor.json", {
+        targetPath: "./.cursor",
+      })
+    ).toBe(false);
+    // Ignore section after mutable scope returns kind to ignore.
+    expect(
+      matcher.ignores(".harness/skills/x/ignored-elsewhere.md", {
+        targetPath: "./.claude",
+      })
+    ).toBe(true);
+    expect(
+      matcher.isMutable(".harness/skills/x/ignored-elsewhere.md", {
+        targetPath: "./.claude",
+      })
+    ).toBe(false);
+  });
+
+  it("treats ignore and mutable evaluations as independent", () => {
+    const matcher = createHarnessIgnoreMatcher(
+      parseHarnessIgnore(`
+[mutable]
+.harness/**/settings.local.json
+
+[*]
+.harness/**/*.log
+`)
+    );
+
+    expect(matcher.ignores(".harness/skills/x/run.log")).toBe(true);
+    expect(matcher.isMutable(".harness/skills/x/run.log")).toBe(false);
+    expect(matcher.ignores(".harness/skills/x/settings.local.json")).toBe(
+      false
+    );
+    expect(matcher.isMutable(".harness/skills/x/settings.local.json")).toBe(
+      true
+    );
+  });
 });
