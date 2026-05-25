@@ -75,6 +75,8 @@ type ExistingEntry = {
   bytes?: Buffer;
 };
 
+type ProjectionPhase = "canonical" | "override";
+
 async function loadConfig(root: string): Promise<HarnessConfig> {
   const raw = await readFile(resolveHarnessPaths(root).configPath, "utf8");
   return parseHarnessConfigToml(raw);
@@ -289,6 +291,7 @@ async function projectResourceItem(options: {
   matcher: HarnessIgnoreMatcher;
   overrideDir: string | undefined;
   outputBaseRelativePath?: string;
+  phase?: ProjectionPhase;
   profileContext: HarnessProfileContext;
   profileRootDir?: string;
   projection: DesiredProjection;
@@ -297,57 +300,62 @@ async function projectResourceItem(options: {
   root: string;
   targetPath: string;
 }): Promise<void> {
-  const canonicalFiles = await listFiles(options.itemDir, {
-    skipProfileRoots: true,
-  });
-  for (const filePath of canonicalFiles) {
-    const relativeFromItem = path.relative(options.itemDir, filePath);
-    if (isImmediateOverridePath(relativeFromItem)) {
-      continue;
-    }
-    const outputFromItem = path.join(
-      options.outputBaseRelativePath ?? "",
-      relativeFromItem
-    );
-    const outputRelativePath = path.join(
-      options.resource,
-      options.itemName,
-      outputFromItem
-    );
-    const targetOutputPath = repoRelativeOutputPath(
-      options.targetPath,
-      path.posix.join(
+  if (options.phase !== "override") {
+    const canonicalFiles = await listFiles(options.itemDir, {
+      skipProfileRoots: true,
+    });
+    for (const filePath of canonicalFiles) {
+      const relativeFromItem = path.relative(options.itemDir, filePath);
+      if (isImmediateOverridePath(relativeFromItem)) {
+        continue;
+      }
+      const outputFromItem = path.join(
+        options.outputBaseRelativePath ?? "",
+        relativeFromItem
+      );
+      const outputRelativePath = path.join(
         options.resource,
         options.itemName,
-        normalizeTargetPathString(outputFromItem)
-      )
-    );
-    const activeProfile =
-      options.profileContext.profileForOutput(targetOutputPath);
-    if (options.requiredProfile && activeProfile !== options.requiredProfile) {
-      continue;
-    }
-    await addFileIfIncluded(
-      options.projection,
-      options.root,
-      options.matcher,
-      filePath,
-      outputRelativePath,
-      options.targetPath,
-      targetOutputPath,
-      options.diagnostics,
-      {
-        profile: activeProfile,
-        profileRootDir: options.profileRootDir,
-        sourceRelativePath: toRepoRelative(
-          options.root,
-          path.join(options.logicalItemDir, relativeFromItem)
-        ),
+        outputFromItem
+      );
+      const targetOutputPath = repoRelativeOutputPath(
+        options.targetPath,
+        path.posix.join(
+          options.resource,
+          options.itemName,
+          normalizeTargetPathString(outputFromItem)
+        )
+      );
+      const activeProfile =
+        options.profileContext.profileForOutput(targetOutputPath);
+      if (
+        options.requiredProfile &&
+        activeProfile !== options.requiredProfile
+      ) {
+        continue;
       }
-    );
+      await addFileIfIncluded(
+        options.projection,
+        options.root,
+        options.matcher,
+        filePath,
+        outputRelativePath,
+        options.targetPath,
+        targetOutputPath,
+        options.diagnostics,
+        {
+          profile: activeProfile,
+          profileRootDir: options.profileRootDir,
+          sourceRelativePath: toRepoRelative(
+            options.root,
+            path.join(options.logicalItemDir, relativeFromItem)
+          ),
+        }
+      );
+    }
   }
 
-  if (!options.overrideDir) {
+  if (options.phase === "canonical" || !options.overrideDir) {
     return;
   }
   const overridePath = path.join(options.itemDir, options.overrideDir);
@@ -459,125 +467,130 @@ async function buildProjection(
       () => []
     );
 
-    for (const item of items) {
-      if (!item.isDirectory()) {
-        continue;
-      }
-      const itemDir = path.join(resourceDir, item.name);
-      if (await hasProfileRootMarker(itemDir)) {
-        continue;
-      }
-      await projectResourceItem({
-        diagnostics,
-        itemDir,
-        itemName: item.name,
-        logicalItemDir: itemDir,
-        matcher,
-        overrideDir,
-        profileContext,
-        projection,
-        resource,
-        root,
-        targetPath,
-      });
-
-      for (const profileRoot of profileContext.profileRoots) {
-        if (!isInsideOrEqual(itemDir, profileRoot.overlayBase)) {
-          continue;
-        }
-        const profileItemDir = profileSourceDirForRoot(
-          profileRoot,
-          profileRoot.overlayBase
-        );
-        if (!profileItemDir) {
-          continue;
-        }
-        const state = await lstat(profileItemDir).catch(() => undefined);
-        if (!state?.isDirectory() || state.isSymbolicLink()) {
-          continue;
-        }
-        const outputBaseRelativePath = path.relative(
-          itemDir,
-          profileRoot.overlayBase
-        );
-        const targetOutputPath = repoRelativeOutputPath(
-          targetPath,
-          path.posix.join(
-            resource,
-            item.name,
-            normalizeTargetPathString(outputBaseRelativePath)
-          )
-        );
-        if (
-          !profileContext.profileCanApplyWithin(
-            targetOutputPath,
-            profileRoot.profile
-          )
-        ) {
-          continue;
-        }
-        await projectResourceItem({
-          diagnostics,
-          itemDir: profileItemDir,
-          itemName: item.name,
-          logicalItemDir: profileRoot.overlayBase,
-          matcher,
-          outputBaseRelativePath,
-          overrideDir,
-          profileContext,
-          profileRootDir: profileRoot.rootDir,
-          projection,
-          requiredProfile: profileRoot.profile,
-          resource,
-          root,
-          targetPath,
-        });
-      }
-    }
-
-    for (const profileRoot of profileContext.profileRoots) {
-      const profileResourceDir = profileSourceDirForRoot(
-        profileRoot,
-        resourceDir
-      );
-      if (!profileResourceDir) {
-        continue;
-      }
-      const profileItems = await readdir(profileResourceDir, {
-        withFileTypes: true,
-      }).catch(() => []);
-      for (const item of profileItems) {
+    for (const phase of ["canonical", "override"] as const) {
+      for (const item of items) {
         if (!item.isDirectory()) {
           continue;
         }
-        const targetOutputPath = repoRelativeOutputPath(
-          targetPath,
-          path.posix.join(resource, item.name)
-        );
-        if (
-          !profileContext.profileCanApplyWithin(
-            targetOutputPath,
-            profileRoot.profile
-          )
-        ) {
+        const itemDir = path.join(resourceDir, item.name);
+        if (await hasProfileRootMarker(itemDir)) {
           continue;
         }
-        const itemDir = path.join(profileResourceDir, item.name);
         await projectResourceItem({
           diagnostics,
           itemDir,
           itemName: item.name,
-          logicalItemDir: logicalPathForProfilePath(profileRoot, itemDir),
+          logicalItemDir: itemDir,
           matcher,
           overrideDir,
           profileContext,
-          profileRootDir: profileRoot.rootDir,
+          phase,
           projection,
-          requiredProfile: profileRoot.profile,
           resource,
           root,
           targetPath,
         });
+
+        for (const profileRoot of profileContext.profileRoots) {
+          if (!isInsideOrEqual(itemDir, profileRoot.overlayBase)) {
+            continue;
+          }
+          const profileItemDir = profileSourceDirForRoot(
+            profileRoot,
+            profileRoot.overlayBase
+          );
+          if (!profileItemDir) {
+            continue;
+          }
+          const state = await lstat(profileItemDir).catch(() => undefined);
+          if (!state?.isDirectory() || state.isSymbolicLink()) {
+            continue;
+          }
+          const outputBaseRelativePath = path.relative(
+            itemDir,
+            profileRoot.overlayBase
+          );
+          const targetOutputPath = repoRelativeOutputPath(
+            targetPath,
+            path.posix.join(
+              resource,
+              item.name,
+              normalizeTargetPathString(outputBaseRelativePath)
+            )
+          );
+          if (
+            !profileContext.profileCanApplyWithin(
+              targetOutputPath,
+              profileRoot.profile
+            )
+          ) {
+            continue;
+          }
+          await projectResourceItem({
+            diagnostics,
+            itemDir: profileItemDir,
+            itemName: item.name,
+            logicalItemDir: profileRoot.overlayBase,
+            matcher,
+            outputBaseRelativePath,
+            overrideDir,
+            phase,
+            profileContext,
+            profileRootDir: profileRoot.rootDir,
+            projection,
+            requiredProfile: profileRoot.profile,
+            resource,
+            root,
+            targetPath,
+          });
+        }
+      }
+
+      for (const profileRoot of profileContext.profileRoots) {
+        const profileResourceDir = profileSourceDirForRoot(
+          profileRoot,
+          resourceDir
+        );
+        if (!profileResourceDir) {
+          continue;
+        }
+        const profileItems = await readdir(profileResourceDir, {
+          withFileTypes: true,
+        }).catch(() => []);
+        for (const item of profileItems) {
+          if (!item.isDirectory()) {
+            continue;
+          }
+          const targetOutputPath = repoRelativeOutputPath(
+            targetPath,
+            path.posix.join(resource, item.name)
+          );
+          if (
+            !profileContext.profileCanApplyWithin(
+              targetOutputPath,
+              profileRoot.profile
+            )
+          ) {
+            continue;
+          }
+          const itemDir = path.join(profileResourceDir, item.name);
+          await projectResourceItem({
+            diagnostics,
+            itemDir,
+            itemName: item.name,
+            logicalItemDir: logicalPathForProfilePath(profileRoot, itemDir),
+            matcher,
+            overrideDir,
+            phase,
+            profileContext,
+            profileRootDir: profileRoot.rootDir,
+            projection,
+            requiredProfile: profileRoot.profile,
+            resource,
+            root,
+            targetPath,
+          });
+        }
       }
     }
   }
@@ -804,10 +817,12 @@ function unmanagedEntryRoot(
 }
 
 async function planCopyActions(
+  root: string,
   targetRoot: string,
   projection: DesiredProjection,
   cleanupUnmanaged: CleanupUnmanagedMode,
   mutablePolicy: MutablePolicy,
+  diagnostics: HarnessDiagnostic[],
   protectedRelativePaths: Set<string> = new Set()
 ): Promise<HarnessActivationAction[]> {
   const targetState = await lstat(targetRoot).catch(() => undefined);
@@ -816,11 +831,15 @@ async function planCopyActions(
   const managedItemRoots = projectedItemRoots(projection);
 
   if (targetState?.isSymbolicLink()) {
-    actions.push({
-      kind: "remove",
-      targetPath: targetRoot,
-      reason: "replace symlink with copy projection",
+    diagnostics.push({
+      severity: "error",
+      code: "harness.target_symlink_unsupported",
+      message: "Declared target paths must be real directories, not symlinks.",
+      path: toRepoRelative(root, targetRoot),
+      recommendation:
+        "Replace the symlink with a real directory before activating HarnessConfig.",
     });
+    return [];
   } else if (targetState && !targetState.isDirectory()) {
     actions.push({
       kind: "remove",
@@ -829,9 +848,29 @@ async function planCopyActions(
     });
   }
 
+  const symlinkRelativePaths = new Set(
+    [...existing.entries()]
+      .filter(([, entry]) => entry.type === "symlink")
+      .map(([relativePath]) => relativePath)
+  );
+  for (const relativePath of symlinkRelativePaths) {
+    diagnostics.push({
+      severity: "error",
+      code: "harness.target_symlink_unsupported",
+      message:
+        "Declared target trees must not contain symlinks. HarnessConfig v1 does not follow or replace nested target symlinks.",
+      path: toRepoRelative(root, path.join(targetRoot, relativePath)),
+      recommendation:
+        "Replace the symlink with a regular file or directory before activating HarnessConfig.",
+    });
+  }
+
   for (const [relativePath, desired] of projection) {
     const targetPath = path.join(targetRoot, relativePath);
     const current = existing.get(relativePath);
+    if (symlinkRelativePaths.has(relativePath)) {
+      continue;
+    }
     if (!current) {
       actions.push({
         kind: "create",
@@ -891,6 +930,9 @@ async function planCopyActions(
 
   const unmanagedRoots = new Map<string, ExistingEntry>();
   for (const [relativePath, entry] of existing) {
+    if (symlinkRelativePaths.has(relativePath)) {
+      continue;
+    }
     if (isProtectedTargetIgnorePath(relativePath, protectedRelativePaths)) {
       continue;
     }
@@ -1378,10 +1420,12 @@ async function prepareHarnessActivation(
     );
     projections.set(targetPath, targetProjection);
     const actions = await planCopyActions(
+      absoluteRoot,
       targetRoot,
       targetProjection,
       cleanupUnmanaged,
       mutablePolicy,
+      diagnostics,
       protectedTargetPathsForRoot(
         absoluteRoot,
         targetRoot,

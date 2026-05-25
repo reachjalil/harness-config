@@ -58,10 +58,11 @@ rules match final output paths and existing target-output `.harnessIgnore`
 files are preserved during cleanup.
 `.harnessProfile` selectors can activate `.harnessProfileRoot` overlays under
 `.harness`. Active profile roots merge by logical source path for resources
-and `[dir]`, and profile-local `.harnessIgnore` files can suppress base files
-or composable parts.
+and `[dir]`; generic profile overlays do not beat target-specific resource
+overrides. Profile-local `.harnessIgnore` files can suppress base files or
+composable parts.
 Unmanaged target entries are preserved by default and reported at one level;
 pass `{ cleanupUnmanaged: "remove" }` to plan and apply explicit cleanup.
 Files declared mutable in `.harnessIgnore` are created once and skipped on
 later activations. Managed target files that differ from the current projection
-are reported as updates by direct comparison.
+are reported as updates by direct comparison and overwritten on apply.

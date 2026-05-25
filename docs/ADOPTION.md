@@ -94,9 +94,9 @@ regenerated from `./.harness` plus the manifest at any time.
 - **Expecting a target-output ignore file before it exists.** A
   target-output `.harnessIgnore` only participates after it is already on
   disk. Use the repo-root file for rules that must apply on first activation.
-- **Symlinking targets.** v1 implementations may report a symlink at a
-  top-level target as a diagnostic and SHOULD NOT silently follow it.
-  Replace with a real directory before activating.
+- **Symlinking targets.** The reference implementation reports target root and
+  nested target symlinks as unsupported diagnostics. Replace them with real
+  files or directories before activating.
 
 ## Scope Reminder
 

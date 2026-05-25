@@ -217,22 +217,24 @@ suppress base files or composable parts while adding its own files.
 pnpm install
 pnpm build
 pnpm --filter @harnessconfig/cli exec harnessc validate
-pnpm --filter @harnessconfig/cli exec harnessc plan
+pnpm --filter @harnessconfig/cli exec harnessc init
 pnpm --filter @harnessconfig/cli exec harnessc activate
 pnpm --filter @harnessconfig/cli exec harnessc activate --yes
 pnpm --filter @harnessconfig/cli exec harnessc extension activate --extension dir
 pnpm --filter @harnessconfig/cli exec harnessc init --resource prompts --target ./.claude
+pnpm --filter @harnessconfig/cli exec harnessc plan
 ```
 
 After publishing:
 
 ```bash
 npx harnessc validate
-npx harnessc plan
+npx harnessc init
 npx harnessc activate
 npx harnessc activate --yes
 npx harnessc extension activate --extension dir
 npx harnessc init --yes --resource prompts --target ./runtime/agent
+npx harnessc plan
 ```
 
 `harnessc init` writes conventional resource roots (`skills`, `rules`, and
@@ -241,8 +243,10 @@ npx harnessc init --yes --resource prompts --target ./runtime/agent
 `--target <path>` declares explicit projection targets. Init is a dry run
 unless `--yes` is supplied.
 
-`harnessc plan` is read-only and does not infer targets from existing folders.
+`harnessc plan` is a read-only initialization/adoption plan. It is not a
+projection preview, and it does not infer targets from existing folders.
 Folders receive projection only after they are declared in `harness.toml`.
+Run `harnessc activate` without `--yes` to preview the projection.
 
 `harnessc activate` is also a dry run unless `--yes` is supplied. The dry run
 prints the target strategy and the filesystem actions that would be taken.
@@ -252,10 +256,10 @@ entries during activation, or `--keep-unmanaged` to make the preservation
 choice explicit.
 
 Managed files are compared directly with the current projection. If target
-bytes differ, activation reports `update` and applying activation writes the
-current source bytes. Files marked under `[mutable]` in `.harnessIgnore` are
-created once and then reported as runtime-owned `mutable` entries until
-`--force-mutable` is used.
+bytes differ, activation reports `update` and applying activation overwrites
+the target with the current source bytes. Files marked under `[mutable]` in
+`.harnessIgnore` are created once and then reported as runtime-owned
+`mutable` entries until `--force-mutable` is used.
 
 `harnessc extension activate` runs registered extensions. The built-in `dir`
 extension composes text outputs from mirrored leaf directories:

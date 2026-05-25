@@ -1,4 +1,4 @@
-import { lstat, mkdir, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readdir, writeFile } from "node:fs/promises";
 
 import { createDefaultHarnessIgnore } from "./ignore";
 import {
@@ -19,6 +19,7 @@ import type {
   HarnessInitializationAction,
   HarnessInitializationPlan,
   HarnessInitializationResult,
+  HarnessDiagnostic,
 } from "./types";
 
 type PlanOptions = {
@@ -29,6 +30,15 @@ async function exists(path: string): Promise<boolean> {
   return Boolean(await lstat(path).catch(() => undefined));
 }
 
+async function targetHasEntries(path: string): Promise<boolean> {
+  const state = await lstat(path).catch(() => undefined);
+  if (!state?.isDirectory() || state.isSymbolicLink()) {
+    return false;
+  }
+  const entries = await readdir(path).catch(() => []);
+  return entries.length > 0;
+}
+
 export async function planHarnessInitialization(
   root = process.cwd(),
   options: PlanOptions = {}
@@ -36,6 +46,7 @@ export async function planHarnessInitialization(
   const inspection = await inspectHarnessConfig(root);
   const paths = resolveHarnessPaths(root);
   const actions: HarnessInitializationAction[] = [];
+  const diagnostics: HarnessDiagnostic[] = [...inspection.diagnostics];
   const config = options.config
     ? harnessConfigSchema.parse(options.config)
     : createDefaultHarnessConfig();
@@ -67,6 +78,25 @@ export async function planHarnessInitialization(
     });
   }
 
+  for (const targetDefinition of config.targets) {
+    const target = resolveRepoLocalPath(
+      paths.root,
+      targetDefinition.path,
+      `Target "${targetDefinition.path}" path`
+    );
+    if (await targetHasEntries(target)) {
+      const targetRelative = toRepoRelative(paths.root, target);
+      diagnostics.push({
+        severity: "info",
+        code: "harness.init_target_existing_entries",
+        message: `${targetRelative} already contains files. Init declares targets but does not adopt existing runtime files into .harness.`,
+        path: targetRelative,
+        recommendation:
+          "Move files that should be managed into a declared .harness resource root before activation.",
+      });
+    }
+  }
+
   if (!inspection.hasHarnessConfig) {
     actions.push({
       id: "harness.config.write",
@@ -91,7 +121,7 @@ export async function planHarnessInitialization(
   return {
     root: paths.root,
     actions,
-    diagnostics: inspection.diagnostics,
+    diagnostics,
   };
 }
 

@@ -301,11 +301,11 @@ explicitly defines its own.
   Windows volumes) SHOULD avoid names that differ only in case, because the
   underlying filesystem may collapse them. Implementations MAY warn when
   they detect such collisions.
-- **Symlinks in source.** A symlink encountered inside `./.harness` SHOULD
-  be reported as a diagnostic. v1 implementations are not required to follow
-  symlinks during projection. Targets that are symlinks at the top level
-  SHOULD be replaced by a real directory before projection, or rejected; in
-  either case the chosen behavior MUST be reported in the plan.
+- **Symlinks.** A symlink encountered inside `./.harness` or inside a
+  declared target tree SHOULD be reported as a diagnostic. v1 implementations
+  are not required to follow symlinks during projection. The reference
+  implementation rejects symlinked target paths and nested target symlinks
+  before applying activation.
 - **Hidden files.** Names beginning with `.` are not implicitly ignored.
   They participate in projection like any other file unless excluded by
   `.harnessIgnore`.
@@ -783,11 +783,14 @@ Profile roots overlay source paths by where the marker is placed:
   layouts such as `.harness/kits/deploy-kit/.harnessProfileRoot` with
   children like `skills/` and `dir/`.
 
-During projection, base source files are considered first and active profile
-files are merged afterward using the same file-level override rules as target
-overrides. If multiple active profile roots project the same logical file, a
-tool SHOULD warn and MAY use deterministic last-wins ordering. Profile-local
-`.harnessIgnore` files match the logical overlay path, not the storage path.
+During projection, generic base source files are considered first, then
+generic active profile files, then target-derived override files, then active
+profile files inside the matching target override. A generic profile overlay
+therefore cannot replace a target-specific override such as `.codex`; a
+profile-specific `.codex` override can. If multiple active profile roots
+project the same logical file, a tool SHOULD warn and MAY use deterministic
+last-wins ordering. Profile-local `.harnessIgnore` files match the logical
+overlay path, not the storage path.
 For example, an ignore file at
 `.harness/profiles/personal/dir/AGENTS.md/.harnessIgnore` applies as if it
 were located at `.harness/dir/AGENTS.md/.harnessIgnore`, so it can suppress
@@ -862,8 +865,8 @@ SHOULD consider the following threats explicitly:
   user-controlled. Implementations MUST refuse paths that resolve outside
   the repository after normalization (see [Encoding, Paths, and Case
   Sensitivity](#encoding-paths-and-case-sensitivity)).
-- **Symlink redirection.** Symlinks in the source tree or in target paths
-  can redirect writes outside the repository. v1 implementations SHOULD
+- **Symlink redirection.** Symlinks in the source tree or in declared target
+  trees can redirect writes outside the repository. v1 implementations SHOULD
   treat such symlinks as diagnostics rather than silently following them.
 - **TOCTOU on apply.** A target may be modified between planning and
   applying. Implementations SHOULD re-check the existence and managed/

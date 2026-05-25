@@ -29,13 +29,14 @@ rules produce the same live target trees.
 | Projection | Target-output `.harnessIgnore` filters one target and is preserved during cleanup | `packages/core/test/projection.test.ts` |
 | Projection | Active `.harnessProfileRoot` overlays merge resources, suppress base resources with logical `.harnessIgnore`, and preserve target-local `.harnessProfile` during cleanup | `packages/core/test/projection.test.ts` |
 | Projection | Target-output `.harnessIgnore` remains the final boundary when profile-local rules also match | `packages/core/test/projection.test.ts` |
+| Projection | Target overrides stay above generic active profile overlays, while profile target overrides can still specialize targets | `packages/core/test/projection.test.ts` |
 | Projection | Portable profile roots nested inside resource items overlay the containing item | `packages/core/test/projection.test.ts` |
 | Projection | Multiple active profile roots projecting the same file emit a warning and resolve deterministically | `packages/core/test/projection.test.ts` |
 | Projection | Activation planning reports profile diagnostics once despite shared dir/resource phases | `packages/core/test/projection.test.ts` |
 | TOML | Target paths determine override folders from the first path segment | `packages/core/test/standard.test.ts` |
 | TOML | Target paths are explicit repo-local paths and are not constrained to named runtime folders | `packages/core/test/standard.test.ts`, `packages/cli/test/run.test.ts` |
 | Projection | Identical declared targets are still materialized as copy projections | `packages/core/test/projection.test.ts` |
-| Projection | An existing target symlink is replaced with a copy projection | `packages/core/test/projection.test.ts` |
+| Projection | Target root and nested target symlinks are reported as unsupported diagnostics | `packages/core/test/projection.test.ts` |
 | Projection | Changed source files plan `update` actions | `packages/core/test/projection.test.ts` |
 | Projection | Unmanaged target entries are preserved by default and summarized at one level | `packages/core/test/projection.test.ts` |
 | Projection | Explicit unmanaged cleanup plans `remove` actions | `packages/core/test/projection.test.ts` |

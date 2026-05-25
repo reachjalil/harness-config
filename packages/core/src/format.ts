@@ -162,7 +162,11 @@ function formatActivationActionSections(
     limit: number;
   }> = [
     { title: "Creates", kinds: ["create"], limit: 12 },
-    { title: "Updates", kinds: ["update"], limit: 12 },
+    {
+      title: "Updates (managed target files overwritten from .harness)",
+      kinds: ["update"],
+      limit: 12,
+    },
     {
       title: "Mutable target files (runtime-owned, left untouched)",
       kinds: ["mutable"],

@@ -11,26 +11,27 @@ single binary.
 ## Commands
 
 ```bash
-harnessc plan
 harnessc init
 harnessc validate
 harnessc activate
 harnessc extension activate
+harnessc plan
 ```
 
-- `harnessc plan` inspects a repository and reports adoption work without
-  inferring targets from existing folder names.
 - `harnessc init` creates `.harness/harness.toml`, conventional or custom
   resource roots, and `.harnessIgnore` when applied with `--yes`.
 - `harnessc validate` checks version support, resource declarations,
-  repo-local paths, target mappings, projection ignore syntax, and mutable
-  scope syntax.
+  repo-local paths, target mappings, projection ignore syntax, mutable scope
+  syntax, symlink diagnostics, and `[dir]` composition/copy diagnostics.
 - `harnessc activate` dry-runs the activation projection and shows creates,
   updates, requested removals, kept files, mutable-skipped files, and preserved
   unmanaged entries before writing.
 - `harnessc extension activate` runs registered extensions. Use
   `--extension <id>` to run one declared extension or `--all` to run every
   declared supported extension.
+- `harnessc plan` is a read-only initialization/adoption plan. It is not a
+  projection preview. Use `harnessc activate` without `--yes` to preview
+  projection.
 
 `init`, `activate`, and `extension activate` are dry runs unless `--yes` is
 supplied.
@@ -45,9 +46,9 @@ a higher-level activation-state workflow that can reconcile orphaned targets.
 
 Managed files are compared directly with the current source projection: if the
 target differs, `harnessc activate` reports `update` and applying activation
-writes the current source bytes. Mutable files declared under `[mutable]` in
-`.harnessIgnore` are created once and skipped on subsequent activations. Use
-`--force-mutable` to re-project them from source.
+overwrites the target with the current source bytes. Mutable files declared
+under `[mutable]` in `.harnessIgnore` are created once and skipped on
+subsequent activations. Use `--force-mutable` to re-project them from source.
 
 Selection workflows, marketplace behavior, target edit review, capture, and
 other product opinions belong above `harnessc`.
