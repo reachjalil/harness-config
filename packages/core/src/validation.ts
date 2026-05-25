@@ -1,6 +1,7 @@
 import { lstat, readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
+import { planHarnessDir } from "./dir";
 import { loadHarnessIgnoreRuleSets } from "./ignore";
 import {
   loadHarnessProfileContext,
@@ -155,6 +156,93 @@ function validateConfigSemantics(
   }
 }
 
+async function validateTargetSymlinks(
+  config: HarnessConfig,
+  root: string,
+  diagnostics: HarnessDiagnostic[]
+): Promise<void> {
+  for (const target of config.targets) {
+    const targetRoot = resolveRepoLocalPath(
+      root,
+      target.path,
+      `Target "${target.path}" output path`
+    );
+    const state = await lstat(targetRoot).catch(() => undefined);
+    if (!state) {
+      continue;
+    }
+    if (state.isSymbolicLink()) {
+      diagnostics.push({
+        severity: "error",
+        code: "harness.target_symlink_unsupported",
+        message:
+          "Declared target paths must be real directories, not symlinks.",
+        path: toRepoRelative(root, targetRoot),
+        recommendation:
+          "Replace the symlink with a real directory before activating HarnessConfig.",
+      });
+      continue;
+    }
+    if (!state.isDirectory()) {
+      continue;
+    }
+    await validateNestedTargetSymlinks(root, targetRoot, diagnostics);
+  }
+}
+
+async function validateNestedTargetSymlinks(
+  root: string,
+  directory: string,
+  diagnostics: HarnessDiagnostic[]
+): Promise<void> {
+  const entries = await readdir(directory, { withFileTypes: true }).catch(
+    () => []
+  );
+  for (const entry of entries) {
+    const absolutePath = path.join(directory, entry.name);
+    if (entry.isSymbolicLink()) {
+      diagnostics.push({
+        severity: "error",
+        code: "harness.target_symlink_unsupported",
+        message:
+          "Declared target trees must not contain symlinks. HarnessConfig v1 does not follow or replace nested target symlinks.",
+        path: toRepoRelative(root, absolutePath),
+        recommendation:
+          "Replace the symlink with a regular file or directory before activating HarnessConfig.",
+      });
+      continue;
+    }
+    if (entry.isDirectory()) {
+      await validateNestedTargetSymlinks(root, absolutePath, diagnostics);
+    }
+  }
+}
+
+function diagnosticKey(diagnostic: HarnessDiagnostic): string {
+  return [
+    diagnostic.severity,
+    diagnostic.code,
+    diagnostic.path ?? "",
+    diagnostic.message,
+  ].join("\0");
+}
+
+function dedupeDiagnostics(
+  diagnostics: HarnessDiagnostic[]
+): HarnessDiagnostic[] {
+  const seen = new Set<string>();
+  const output: HarnessDiagnostic[] = [];
+  for (const diagnostic of diagnostics) {
+    const key = diagnosticKey(diagnostic);
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    output.push(diagnostic);
+  }
+  return output;
+}
+
 export async function inspectHarnessConfig(
   root = process.cwd(),
   options: HarnessValidationOptions = {}
@@ -258,12 +346,17 @@ export async function inspectHarnessConfig(
 
     if (config) {
       validateConfigSemantics(config, paths.root, diagnostics);
+      await validateTargetSymlinks(config, paths.root, diagnostics);
       const profileContext =
         options.profileContext ??
         (await loadHarnessProfileContext(paths.root, {
           config,
         }));
       diagnostics.push(...profileContext.diagnostics);
+      const dirPlan = await planHarnessDir(paths.root, config, {
+        profileContext,
+      });
+      diagnostics.push(...dirPlan.diagnostics);
     }
   }
 
@@ -273,7 +366,7 @@ export async function inspectHarnessConfig(
     hasHarnessDir,
     hasHarnessConfig,
     hasHarnessIgnore,
-    diagnostics,
+    diagnostics: dedupeDiagnostics(diagnostics),
   };
 }
 

@@ -643,10 +643,12 @@ async function addNestedIgnoreFiles(
   await visit(rootPath);
 }
 
-async function hasHarnessProfileRootMarker(directory: string): Promise<boolean> {
-  const state = await lstat(path.join(directory, HARNESS_PROFILE_ROOT_FILE)).catch(
-    () => undefined
-  );
+async function hasHarnessProfileRootMarker(
+  directory: string
+): Promise<boolean> {
+  const state = await lstat(
+    path.join(directory, HARNESS_PROFILE_ROOT_FILE)
+  ).catch(() => undefined);
   return Boolean(state?.isFile());
 }
 

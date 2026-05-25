@@ -283,6 +283,103 @@ describe("HarnessConfig activation projection", () => {
     ).rejects.toThrow();
   });
 
+  it("keeps target overrides above generic active profile overlays", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root, { targets: ["./.codex"] });
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harnessProfile", "deploy\n");
+    await write(root, ".harness/skills/basic-shapes/SKILL.md", "base");
+    await write(
+      root,
+      ".harness/skills/basic-shapes/.codex/SKILL.md",
+      "codex override"
+    );
+    await write(
+      root,
+      ".harness/profiles/deploy/.harnessProfileRoot",
+      "deploy\n"
+    );
+    await write(
+      root,
+      ".harness/profiles/deploy/skills/basic-shapes/SKILL.md",
+      "profile generic"
+    );
+
+    await applyHarnessActivation(root, { dryRun: false, yes: true });
+
+    await expect(
+      readFile(path.join(root, ".codex/skills/basic-shapes/SKILL.md"), "utf8")
+    ).resolves.toBe("codex override");
+  });
+
+  it("lets profile target overrides win after base target overrides", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root, { targets: ["./.codex"] });
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harnessProfile", "deploy\n");
+    await write(root, ".harness/skills/basic-shapes/SKILL.md", "base");
+    await write(
+      root,
+      ".harness/skills/basic-shapes/.codex/SKILL.md",
+      "codex base override"
+    );
+    await write(
+      root,
+      ".harness/profiles/deploy/.harnessProfileRoot",
+      "deploy\n"
+    );
+    await write(
+      root,
+      ".harness/profiles/deploy/skills/basic-shapes/SKILL.md",
+      "profile generic"
+    );
+    await write(
+      root,
+      ".harness/profiles/deploy/skills/basic-shapes/.codex/SKILL.md",
+      "profile codex override"
+    );
+
+    await applyHarnessActivation(root, { dryRun: false, yes: true });
+
+    await expect(
+      readFile(path.join(root, ".codex/skills/basic-shapes/SKILL.md"), "utf8")
+    ).resolves.toBe("profile codex override");
+  });
+
+  it("applies projection semantics to arbitrary resource kinds", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root, {
+      resources: ["projects"],
+      targets: ["./.codex"],
+    });
+    await write(
+      root,
+      ".harnessIgnore",
+      [
+        ".harness/projects/demo/*.tmp",
+        "!.harness/projects/demo/keep.tmp",
+        "",
+      ].join("\n")
+    );
+    await write(root, ".codex/projects/demo/.harnessIgnore", "keep.tmp\n");
+    await write(root, ".harness/projects/demo/PROJECT.md", "base project");
+    await write(root, ".harness/projects/demo/.codex/PROJECT.md", "codex");
+    await write(root, ".harness/projects/demo/drop.tmp", "drop");
+    await write(root, ".harness/projects/demo/keep.tmp", "keep");
+
+    await applyHarnessActivation(root, { dryRun: false, yes: true });
+
+    await expect(
+      readFile(path.join(root, ".codex/projects/demo/PROJECT.md"), "utf8")
+    ).resolves.toBe("codex");
+    await expect(
+      readFile(path.join(root, ".codex/projects/demo/drop.tmp"))
+    ).rejects.toThrow();
+    await expect(
+      readFile(path.join(root, ".codex/projects/demo/keep.tmp"))
+    ).rejects.toThrow();
+  });
+
   it("applies physical ancestor ignores before profile roots overlay resources", async () => {
     const root = await rootFixture();
     await writeHarnessConfig(root, { targets: ["./.agents"] });
@@ -290,7 +387,11 @@ describe("HarnessConfig activation projection", () => {
     await write(root, ".harnessProfile", "deploy\n");
     await write(root, ".harness/kits/.harnessIgnore", "**/.harnex/\n");
     await write(root, ".harness/kits/deploy/.harnessProfileRoot", "deploy\n");
-    await write(root, ".harness/kits/deploy/.harnessIgnore", "!skills/extra/**\n");
+    await write(
+      root,
+      ".harness/kits/deploy/.harnessIgnore",
+      "!skills/extra/**\n"
+    );
     await write(root, ".harness/kits/deploy/skills/extra/SKILL.md", "extra");
     await write(
       root,
@@ -907,7 +1008,7 @@ describe("HarnessConfig activation projection", () => {
     ).toEqual(["keep"]);
   });
 
-  it("replaces an existing target symlink with a copy projection", async () => {
+  it("reports an existing target symlink as unsupported", async () => {
     const root = await rootFixture();
     await writeHarnessConfig(root, { targets: ["./.cursor"] });
     await write(root, ".harnessIgnore", "");
@@ -919,30 +1020,50 @@ describe("HarnessConfig activation projection", () => {
     );
 
     const plan = await planHarnessActivation(root);
-    expect(plan.targets.find((target) => target.path === "./.cursor")).toEqual(
-      expect.objectContaining({
-        strategy: "copy",
-        actions: expect.arrayContaining([
-          expect.objectContaining({
-            kind: "remove",
-            reason: "replace symlink with copy projection",
-          }),
-          expect.objectContaining({
-            kind: "create",
-            relativePath: "skills/review/SKILL.md",
-          }),
-        ]),
-      })
+    expect(plan.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          severity: "error",
+          code: "harness.target_symlink_unsupported",
+          path: ".cursor",
+        }),
+      ])
+    );
+    expect(
+      plan.targets.find((target) => target.path === "./.cursor")?.actions
+    ).toEqual([]);
+
+    await expect(
+      applyHarnessActivation(root, { dryRun: false, yes: true })
+    ).rejects.toThrow(/validation has errors/);
+  });
+
+  it("reports nested target symlinks as unsupported", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root);
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harness/skills/review/SKILL.md", "shared skill");
+    await write(root, "outside.md", "outside");
+    await mkdir(path.join(root, ".agents/skills/review"), { recursive: true });
+    await symlink(
+      path.join(root, "outside.md"),
+      path.join(root, ".agents/skills/review/LINK.md")
     );
 
-    await applyHarnessActivation(root, { dryRun: false, yes: true });
+    const plan = await planHarnessActivation(root);
+    expect(plan.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          severity: "error",
+          code: "harness.target_symlink_unsupported",
+          path: ".agents/skills/review/LINK.md",
+        }),
+      ])
+    );
 
-    const cursorState = await lstat(path.join(root, ".cursor"));
-    expect(cursorState.isDirectory()).toBe(true);
-    expect(cursorState.isSymbolicLink()).toBe(false);
     await expect(
-      readFile(path.join(root, ".cursor/skills/review/SKILL.md"), "utf8")
-    ).resolves.toBe("shared skill");
+      applyHarnessActivation(root, { dryRun: false, yes: true })
+    ).rejects.toThrow(/validation has errors/);
   });
 
   it("replaces an existing non-directory target root with a copy projection", async () => {

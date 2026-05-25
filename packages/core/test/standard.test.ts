@@ -358,6 +358,30 @@ path = "./.cursor"
     );
   });
 
+  it("reports dir planning diagnostics during validation", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
+    await write(
+      root,
+      ".harness/harness.toml",
+      ["version = 1", "", "[dir]", 'path = "./.harness/dir"', ""].join("\n")
+    );
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harness/dir/AGENTS.md/.harnessComposable", "");
+    await write(root, ".harness/dir/AGENTS.md/intro.md", "invalid");
+
+    const validation = await validateHarnessConfig(root);
+
+    expect(validation.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          severity: "error",
+          code: "harness.dir_invalid_part",
+          path: ".harness/dir/AGENTS.md/intro.md",
+        }),
+      ])
+    );
+  });
+
   it("rejects unsupported schema versions", () => {
     expect(() => parseHarnessConfigToml("version = 99")).toThrow(
       /Unsupported HarnessConfig version 99/

@@ -55,20 +55,20 @@ const HELP = `harnessc
 
 Usage:
   harnessc validate [--root <path>] [--json]
-  harnessc plan [--root <path>] [--resource <kind>] [--target <path>] [--json]
+  harnessc init [--root <path>] [--dry-run] [--yes] [--resource <kind>] [--target <path>]
   harnessc activate [--root <path>] [--dry-run] [--yes]
                     [--keep-unmanaged|--remove-unmanaged]
                     [--force-mutable] [--json]
   harnessc extension activate [--root <path>] [--dry-run] [--yes]
                               [--extension <id>|--all] [--json]
-  harnessc init [--root <path>] [--dry-run] [--yes] [--resource <kind>] [--target <path>]
+  harnessc plan [--root <path>] [--resource <kind>] [--target <path>] [--json]
 
 Commands:
   validate    Validate the repository against the HarnessConfig standard.
-  plan        Show a read-only initialization plan.
+  init        Plan or create .harness resource structure.
   activate    Plan or apply idempotent .harness projections.
   extension   Plan or apply registered HarnessConfig extensions.
-  init        Plan or create .harness resource structure.
+  plan        Show a read-only initialization/adoption plan, not a projection preview.
 
 HarnessConfig standardizes the .harness/<kind>/<name> resource shape,
 harness.toml resource and target declarations, and .harnessIgnore projection
@@ -80,12 +80,14 @@ source root (default ./.harness/dir): a folder that contains a
 single output file, and any other folder copies its files to the matching
 repo-relative paths.
 
-Activation keeps unmanaged target entries by default. Use --remove-unmanaged to
-delete target entries that are not present in the computed .harness projection.
-Mutable target files declared under [mutable] in .harnessIgnore are created
-once and then left alone; use --force-mutable to re-project them from source.
-Extensions are activated separately with harnessc extension activate. Init,
-activate, and extension activate are dry runs unless --yes is supplied.
+Activation without --yes is the projection preview. Activation keeps unmanaged
+target entries by default. Use --remove-unmanaged to delete target entries that
+are not present in the computed .harness projection. Managed target edits are
+overwritten from .harness on update. Mutable target files declared under
+[mutable] in .harnessIgnore are created once and then left alone; use
+--force-mutable to re-project them from source. Extensions are activated
+separately with harnessc extension activate. Init, activate, and extension
+activate are dry runs unless --yes is supplied.
 `;
 
 function parseArgs(argv: string[]): CliOptions {

@@ -1,4 +1,4 @@
-import { lstat, mkdir, readFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { mkdtemp } from "node:fs/promises";
@@ -109,6 +109,39 @@ describe("HarnessConfig initialization", () => {
     await expect(
       lstat(path.join(root, ".harness", "skills"))
     ).rejects.toThrow();
+  });
+
+  it("explains that init does not adopt existing target entries", async () => {
+    const root = await fixtureRoot();
+    await mkdir(path.join(root, ".agents", "skills", "manual"), {
+      recursive: true,
+    });
+    await writeFile(
+      path.join(root, ".agents", "skills", "manual", "SKILL.md"),
+      "manual",
+      "utf8"
+    );
+
+    const plan = await planHarnessInitialization(root, {
+      config: {
+        version: 1,
+        standard: { name: "harness-config" },
+        resources: {
+          skills: { path: "./.harness/skills" },
+        },
+        targets: [{ path: "./.agents" }],
+      },
+    });
+
+    expect(plan.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          severity: "info",
+          code: "harness.init_target_existing_entries",
+          path: ".agents",
+        }),
+      ])
+    );
   });
 
   it("reports a missing projection ignore file after partial setup", async () => {
