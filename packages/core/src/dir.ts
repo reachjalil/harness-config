@@ -4,10 +4,17 @@ import path from "node:path";
 import { loadHarnessIgnoreMatcherDetailed } from "./ignore";
 import {
   assertRepoLocalPath,
+  HARNESS_PROFILE_ROOT_FILE,
   resolveHarnessPaths,
   resolveRepoLocalPath,
   toRepoRelative,
 } from "./paths";
+import {
+  loadHarnessProfileContext,
+  profileSourceDirForRoot,
+  type HarnessProfileContext,
+  type HarnessProfileRoot,
+} from "./profile";
 import { type HarnessConfig, listHarnessProjectionTargets } from "./standard";
 import type { HarnessDiagnostic, HarnessIgnoreMatcher } from "./types";
 
@@ -34,6 +41,13 @@ export type HarnessDirPlan = {
 type DirectoryEntry = {
   absolutePath: string;
   name: string;
+};
+
+type DirSourceLayer = {
+  logicalRoot: string;
+  physicalRoot: string;
+  profile?: string;
+  profileRoot?: HarnessProfileRoot;
 };
 
 type LocalPart = {
@@ -82,16 +96,54 @@ function isInsideOrEqual(parent: string, child: string): boolean {
 
 function shouldIgnore(
   matcher: HarnessIgnoreMatcher,
-  root: string,
-  absolutePath: string,
+  sourceRelativePath: string,
   isDirectory: boolean,
-  outputPath?: string
+  outputPath?: string,
+  profile?: string
 ): boolean {
-  return matcher.ignores(toRepoRelative(root, absolutePath), {
+  return matcher.ignores(sourceRelativePath, {
     globalOnly: true,
     isDirectory,
     outputPath,
+    profile,
   });
+}
+
+function layerRelativePath(
+  layer: DirSourceLayer,
+  absolutePath: string
+): string {
+  return normalizeRelative(path.relative(layer.physicalRoot, absolutePath));
+}
+
+function layerLogicalPath(layer: DirSourceLayer, absolutePath: string): string {
+  return path.join(layer.logicalRoot, layerRelativePath(layer, absolutePath));
+}
+
+function layerLogicalRepoPath(
+  root: string,
+  layer: DirSourceLayer,
+  absolutePath: string
+): string {
+  return toRepoRelative(root, layerLogicalPath(layer, absolutePath));
+}
+
+function outputProfile(
+  profileContext: HarnessProfileContext,
+  outputPath: string
+): string | undefined {
+  return profileContext.profileForOutput(outputPath);
+}
+
+function layerProfileApplies(
+  layer: DirSourceLayer,
+  profileContext: HarnessProfileContext,
+  outputPath: string
+): boolean {
+  return (
+    layer.profile === undefined ||
+    outputProfile(profileContext, outputPath) === layer.profile
+  );
 }
 
 async function readDirectoryEntries(
@@ -119,9 +171,10 @@ async function readDirectoryEntries(
 
 async function classifyEntries(
   root: string,
-  dirRoot: string,
+  layer: DirSourceLayer,
   entries: DirectoryEntry[],
   matcher: HarnessIgnoreMatcher,
+  profileContext: HarnessProfileContext,
   diagnostics: HarnessDiagnostic[]
 ): Promise<{
   files: DirectoryEntry[];
@@ -147,11 +200,29 @@ async function classifyEntries(
     }
 
     const entryType = entryTypeFromStat(stat);
-    const outputPath = normalizeRelative(
-      path.relative(dirRoot, entry.absolutePath)
+    const outputPath = layerRelativePath(layer, entry.absolutePath);
+    const sourceRelativePath = layerLogicalRepoPath(
+      root,
+      layer,
+      entry.absolutePath
     );
+    const activeProfile = outputProfile(profileContext, outputPath);
     if (entryType === "directory") {
-      if (!shouldIgnore(matcher, root, entry.absolutePath, true, outputPath)) {
+      const markerState = await lstat(
+        path.join(entry.absolutePath, HARNESS_PROFILE_ROOT_FILE)
+      ).catch(() => undefined);
+      if (markerState?.isFile()) {
+        continue;
+      }
+      if (
+        !shouldIgnore(
+          matcher,
+          sourceRelativePath,
+          true,
+          outputPath,
+          activeProfile
+        )
+      ) {
         directories.push(entry);
       }
       continue;
@@ -159,16 +230,36 @@ async function classifyEntries(
 
     if (entryType === "file") {
       if (entry.name === HARNESS_COMPOSABLE_MARKER) {
-        hasMarker = true;
+        if (layerProfileApplies(layer, profileContext, outputPath)) {
+          hasMarker = true;
+        }
         continue;
       }
-      if (!shouldIgnore(matcher, root, entry.absolutePath, false, outputPath)) {
+      if (
+        layerProfileApplies(layer, profileContext, outputPath) &&
+        !shouldIgnore(
+          matcher,
+          sourceRelativePath,
+          false,
+          outputPath,
+          activeProfile
+        )
+      ) {
         files.push(entry);
       }
       continue;
     }
 
-    if (!shouldIgnore(matcher, root, entry.absolutePath, false, outputPath)) {
+    if (
+      layerProfileApplies(layer, profileContext, outputPath) &&
+      !shouldIgnore(
+        matcher,
+        sourceRelativePath,
+        false,
+        outputPath,
+        activeProfile
+      )
+    ) {
       diagnostics.push({
         severity: "error",
         code: "harness.dir_invalid_entry",
@@ -188,8 +279,6 @@ async function classifyEntries(
 
 async function readComposableParts(
   root: string,
-  dirRoot: string,
-  leafDirectory: string,
   files: DirectoryEntry[],
   leaf: ComposableLeaf,
   diagnostics: HarnessDiagnostic[]
@@ -235,7 +324,7 @@ async function readComposableParts(
       }
       leaf.refSourcePath = file.absolutePath;
       leaf.refTargetRelativePath = normalizeRelative(
-        path.relative(dirRoot, path.resolve(leafDirectory, refLine))
+        path.posix.normalize(path.posix.join(leaf.relativePath, refLine))
       );
       continue;
     }
@@ -278,7 +367,6 @@ async function readComposableParts(
 
 function resolveRefTargets(
   root: string,
-  dirRoot: string,
   leaves: Map<string, ComposableLeaf>,
   diagnostics: HarnessDiagnostic[]
 ): void {
@@ -293,20 +381,6 @@ function resolveRefTargets(
       refTarget.startsWith("../") ||
       path.isAbsolute(refTarget)
     ) {
-      diagnostics.push({
-        severity: "error",
-        code: "harness.dir_ref_outside_root",
-        message: ".ref targets must stay inside the dir source root.",
-        path: leaf.refSourcePath
-          ? toRepoRelative(root, leaf.refSourcePath)
-          : toRepoRelative(root, leaf.absolutePath),
-      });
-      leaf.refTargetRelativePath = undefined;
-      continue;
-    }
-
-    const targetPath = path.join(dirRoot, refTarget);
-    if (!isInsideOrEqual(dirRoot, targetPath)) {
       diagnostics.push({
         severity: "error",
         code: "harness.dir_ref_outside_root",
@@ -381,9 +455,10 @@ function expandParts(
 
 async function walkDir(
   root: string,
-  dirRoot: string,
+  layer: DirSourceLayer,
   directory: string,
   matcher: HarnessIgnoreMatcher,
+  profileContext: HarnessProfileContext,
   composableLeaves: Map<string, ComposableLeaf>,
   copyOutputs: Map<
     string,
@@ -391,10 +466,27 @@ async function walkDir(
   >,
   diagnostics: HarnessDiagnostic[]
 ): Promise<void> {
-  const isRoot = path.resolve(directory) === path.resolve(dirRoot);
-  const outputPath = normalizeRelative(path.relative(dirRoot, directory));
-  if (!isRoot && shouldIgnore(matcher, root, directory, true, outputPath)) {
+  const isRoot = path.resolve(directory) === path.resolve(layer.physicalRoot);
+  const outputPath = layerRelativePath(layer, directory);
+  if (
+    layer.profile &&
+    !profileContext.profileCanApplyWithin(outputPath, layer.profile)
+  ) {
     return;
+  }
+  if (!isRoot) {
+    const activeProfile = outputProfile(profileContext, outputPath);
+    if (
+      shouldIgnore(
+        matcher,
+        layerLogicalRepoPath(root, layer, directory),
+        true,
+        outputPath,
+        activeProfile
+      )
+    ) {
+      return;
+    }
   }
 
   const entries = await readDirectoryEntries(root, directory, diagnostics);
@@ -404,14 +496,20 @@ async function walkDir(
 
   const { files, directories, hasMarker } = await classifyEntries(
     root,
-    dirRoot,
+    layer,
     entries,
     matcher,
+    profileContext,
     diagnostics
   );
 
-  if (hasMarker) {
-    const relativePath = normalizeRelative(path.relative(dirRoot, directory));
+  const relativePath = layerRelativePath(layer, directory);
+  const contributesToExistingLeaf =
+    Boolean(layer.profile) &&
+    composableLeaves.has(relativePath) &&
+    files.length > 0;
+
+  if (hasMarker || contributesToExistingLeaf) {
     if (!relativePath) {
       diagnostics.push({
         severity: "error",
@@ -437,29 +535,20 @@ async function walkDir(
       });
       return;
     }
-    const leaf: ComposableLeaf = {
+    const leaf = composableLeaves.get(relativePath) ?? {
       kind: "composable",
       absolutePath: directory,
       relativePath,
       parts: [],
     };
-    await readComposableParts(
-      root,
-      dirRoot,
-      directory,
-      files,
-      leaf,
-      diagnostics
-    );
+    await readComposableParts(root, files, leaf, diagnostics);
     composableLeaves.set(relativePath, leaf);
     return;
   }
 
   // Copy mode: individual files copy as-is, then recurse into subdirectories.
   for (const file of files) {
-    const outputRelativePath = normalizeRelative(
-      path.relative(dirRoot, file.absolutePath)
-    );
+    const outputRelativePath = layerRelativePath(layer, file.absolutePath);
     if (!outputRelativePath) {
       continue;
     }
@@ -486,9 +575,10 @@ async function walkDir(
     directories.map((entry) =>
       walkDir(
         root,
-        dirRoot,
+        layer,
         entry.absolutePath,
         matcher,
+        profileContext,
         composableLeaves,
         copyOutputs,
         diagnostics
@@ -576,8 +666,9 @@ async function dirRootState(
 async function collectDirOutputs(
   root: string,
   config: HarnessConfig,
-  dirRoot: string,
+  layers: DirSourceLayer[],
   matcher: HarnessIgnoreMatcher,
+  profileContext: HarnessProfileContext,
   diagnostics: HarnessDiagnostic[]
 ): Promise<DirOutput[]> {
   const composableLeaves = new Map<string, ComposableLeaf>();
@@ -585,16 +676,19 @@ async function collectDirOutputs(
     string,
     { bytes: Buffer; sourcePath: string; relativePath: string }
   >();
-  await walkDir(
-    root,
-    dirRoot,
-    dirRoot,
-    matcher,
-    composableLeaves,
-    copyOutputs,
-    diagnostics
-  );
-  resolveRefTargets(root, dirRoot, composableLeaves, diagnostics);
+  for (const layer of layers) {
+    await walkDir(
+      root,
+      layer,
+      layer.physicalRoot,
+      matcher,
+      profileContext,
+      composableLeaves,
+      copyOutputs,
+      diagnostics
+    );
+  }
+  resolveRefTargets(root, composableLeaves, diagnostics);
 
   const outputs: DirOutput[] = [];
 
@@ -690,6 +784,37 @@ async function collectDirOutputs(
   );
 }
 
+async function dirSourceLayers(
+  dirRoot: string,
+  profileContext: HarnessProfileContext
+): Promise<DirSourceLayer[]> {
+  const layers: DirSourceLayer[] = [
+    {
+      logicalRoot: dirRoot,
+      physicalRoot: dirRoot,
+    },
+  ];
+
+  for (const profileRoot of profileContext.profileRoots) {
+    const physicalRoot = profileSourceDirForRoot(profileRoot, dirRoot);
+    if (!physicalRoot) {
+      continue;
+    }
+    const state = await lstat(physicalRoot).catch(() => undefined);
+    if (!state?.isDirectory() || state.isSymbolicLink()) {
+      continue;
+    }
+    layers.push({
+      logicalRoot: dirRoot,
+      physicalRoot,
+      profile: profileRoot.profile,
+      profileRoot,
+    });
+  }
+
+  return layers;
+}
+
 export async function planHarnessDir(
   root: string,
   config: HarnessConfig
@@ -739,25 +864,41 @@ export async function planHarnessDir(
     };
   }
 
-  const bootstrap = await loadHarnessIgnoreMatcherDetailed(root, { config });
+  const bootstrapProfileContext = await loadHarnessProfileContext(root, {
+    config,
+  });
+  const bootstrap = await loadHarnessIgnoreMatcherDetailed(root, {
+    config,
+    extraRuleSets: bootstrapProfileContext.ignoreRuleSets,
+    protectedTargetPaths: bootstrapProfileContext.protectedTargetPaths,
+  });
   const bootstrapOutputs = await collectDirOutputs(
     root,
     config,
-    dirRoot,
+    await dirSourceLayers(dirRoot, bootstrapProfileContext),
     bootstrap.matcher,
+    bootstrapProfileContext,
     []
   );
+  const profileContext = await loadHarnessProfileContext(root, {
+    config,
+    targetOutputPaths: bootstrapOutputs.map((output) => output.relativePath),
+  });
+  diagnostics.push(...profileContext.diagnostics);
   const { matcher, diagnostics: ignoreDiagnostics } =
     await loadHarnessIgnoreMatcherDetailed(root, {
       config,
+      extraRuleSets: profileContext.ignoreRuleSets,
+      protectedTargetPaths: profileContext.protectedTargetPaths,
       targetOutputPaths: bootstrapOutputs.map((output) => output.relativePath),
     });
   diagnostics.push(...ignoreDiagnostics);
   const outputs = await collectDirOutputs(
     root,
     config,
-    dirRoot,
+    await dirSourceLayers(dirRoot, profileContext),
     matcher,
+    profileContext,
     diagnostics
   );
 

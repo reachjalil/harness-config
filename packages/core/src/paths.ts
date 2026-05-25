@@ -6,6 +6,8 @@ import type { ConventionalHarnessResource, HarnessConfigPaths } from "./types";
 export const HARNESS_CONFIG_DIR = ".harness";
 export const HARNESS_CONFIG_FILE = "harness.toml";
 export const HARNESS_IGNORE_FILE = ".harnessIgnore";
+export const HARNESS_PROFILE_FILE = ".harnessProfile";
+export const HARNESS_PROFILE_ROOT_FILE = ".harnessProfileRoot";
 export const CONVENTIONAL_HARNESS_RESOURCES = [
   "skills",
   "rules",

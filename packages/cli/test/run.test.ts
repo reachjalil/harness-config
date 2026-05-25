@@ -617,6 +617,78 @@ mode = "copy"
     ).resolves.toBe("*.tmp\n");
   });
 
+  it("end-to-end: profile roots overlay resources and composable dir outputs", async () => {
+    const root = await rootFixture();
+    await write(
+      root,
+      ".harness/harness.toml",
+      [
+        "version = 1",
+        "",
+        "[resources.skills]",
+        'path = "./.harness/skills"',
+        "",
+        "[[targets]]",
+        'path = "./.agents"',
+        "",
+        "[dir]",
+        'path = "./.harness/dir"',
+        "",
+      ].join("\n")
+    );
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harnessProfile", "deploy-kit\n");
+    await write(root, ".harness/skills/base/SKILL.md", "base");
+    await write(root, ".harness/dir/AGENTS.md/.harnessComposable", "");
+    await write(root, ".harness/dir/AGENTS.md/100_intro.md", "Base\n");
+    await write(root, ".harness/dir/AGENTS.md/300_rules.md", "Rules\n");
+    await write(
+      root,
+      ".harness/kits/deploy-kit/.harnessProfileRoot",
+      "deploy-kit\n"
+    );
+    await write(
+      root,
+      ".harness/kits/deploy-kit/.harnessIgnore",
+      "skills/base/\n"
+    );
+    await write(
+      root,
+      ".harness/kits/deploy-kit/skills/deploy-plan/SKILL.md",
+      "deploy"
+    );
+    await write(
+      root,
+      ".harness/kits/deploy-kit/dir/AGENTS.md/.harnessIgnore",
+      "100_intro.md\n"
+    );
+    await write(
+      root,
+      ".harness/kits/deploy-kit/dir/AGENTS.md/100_deploy.md",
+      "Deploy\n"
+    );
+
+    const capture = captureIo();
+    const exitCode = await runHarnessConfigCli(
+      ["activate", "--root", root, "--yes"],
+      capture.io
+    );
+
+    expect(exitCode).toBe(0);
+    await expect(
+      readFile(path.join(root, ".agents/skills/deploy-plan/SKILL.md"), "utf8")
+    ).resolves.toBe("deploy");
+    await expect(
+      readFile(path.join(root, ".agents/skills/base/SKILL.md"))
+    ).rejects.toThrow();
+    await expect(readFile(path.join(root, "AGENTS.md"), "utf8")).resolves.toBe(
+      "Deploy\nRules\n"
+    );
+    await expect(
+      readFile(path.join(root, ".agents/kits/deploy-kit/.harnessProfileRoot"))
+    ).rejects.toThrow();
+  });
+
   it("reports a path-conflict when a copy file collides with a composable leaf", async () => {
     const root = await rootFixture();
     await writeDirConfig(root);

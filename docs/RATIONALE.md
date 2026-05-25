@@ -126,14 +126,18 @@ repo-local source-to-runtime projection problem and leaves the rest.
 
 - **`.gitignore`-style pattern files** inspire `.harnessIgnore`'s syntax and
   ordered, last-match-wins precedence. Differences: `.harnessIgnore` adds
-  target-scoped sections (`[.claude]`, `[!.cursor]`) and a `[mutable]` kind,
-  because projection has more dimensions than "tracked vs. untracked".
+  source-local and target-output-local files plus a `[mutable]` kind, because
+  projection has more dimensions than "tracked vs. untracked".
 - **Helm / Kustomize overlays** (Kubernetes) inspire the idea of a base
   source tree composed with per-target overrides. HarnessConfig keeps the
   overlay scope narrower: a dot-prefixed folder *inside the resource item*
   whose first segment matches the target's first path segment, with no
   patch language and no templating. Override files either replace exact
   paths or add new ones; nothing else.
+- **Profile-specific dotfile overlays** inspire `.harnessProfile` and
+  `.harnessProfileRoot`: teams can keep optional kits or personal overlays
+  under `.harness`, select them per repo or target-output subtree, and still
+  review the final projection as file-level additions and replacements.
 - **EditorConfig** inspired the choice of a single repo-root file with a
   small, declarative grammar that any tool can implement without runtime
   coupling.

@@ -55,3 +55,8 @@ Managed files are compared directly with the current projection and reported as
 Target-output files, such as `.agents/skills/review/.harnessIgnore`, match
 final output paths for that subtree and are preserved even when activation is
 run with `--remove-unmanaged`.
+
+`.harnessProfile` files select optional profile overlays. A matching
+`.harnessProfileRoot` under `.harness` merges into resources and `[dir]`
+outputs by logical source path, so local or team-specific kits can add files
+or replace composable parts without turning target folders into source roots.

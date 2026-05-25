@@ -51,8 +51,8 @@ See [docs/RATIONALE.md](./docs/RATIONALE.md) for the long form.
   plan for runtime-owned files. See
   [STANDARD.md § Copy Projection](./docs/STANDARD.md#copy-projection) for
   the formal statement.
-- **One projection filter** (`.harnessIgnore`) covers global, target-scoped,
-  and runtime-owned (`[mutable]`) exclusions.
+- **One projection filter** (`.harnessIgnore`) covers global,
+  target-output-local, and runtime-owned (`[mutable]`) exclusions.
 
 ## What HarnessConfig Is Not
 
@@ -146,10 +146,10 @@ owns its remaining fields.
 ## `.harnessIgnore`
 
 `.harnessIgnore` is the projection boundary. Targets receive all declared
-resource roots by default; target-scoped ignore sections decide what does not
-enter a given target. The repo-root file can match source paths such as
-`.harness/skills/review/logs/run.log` and target output paths such as
-`.agents/skills/review/scratch.tmp`.
+resource roots by default; nested source-local and target-output-local ignore
+files decide what does not enter a given subtree. The repo-root file can
+match source paths such as `.harness/skills/review/logs/run.log` and target
+output paths such as `.agents/skills/review/scratch.tmp`.
 
 ```text
 # Global source-only state
@@ -157,18 +157,14 @@ enter a given target. The repo-root file can match source paths such as
 .harness/**/*.log
 .harness/skills/*/metadata.toml
 
-# Claude receives skills and prompts, but not plugins.
-[.claude]
-.harness/plugins/**
-
-# Cursor receives plugins, but not prompts.
-[.cursor]
-.harness/prompts/**
+# Target-specific rules live beside the target output subtree.
+# For example, .claude/plugins/.harnessIgnore can contain:
+*
 ```
 
 Use `harness.toml` to declare what exists and where projections may write. Use
-`.harnessIgnore` to control which files or whole top-level resource kinds are
-excluded from a target.
+`.harnessIgnore` to control which files or whole subtrees are excluded from
+projection.
 
 Local `.harnessIgnore` files may also live next to source subtrees or
 existing target-output subtrees:
@@ -182,6 +178,33 @@ resources/AGENTS.md/.harnessIgnore        # custom [dir] source-local
 Source-local files match source paths below their directory. Target-output
 files match final output paths below their directory and are preserved during
 cleanup.
+
+## Profile Overrides
+
+Profiles let a repo keep optional overlays in `.harness` and activate them
+with a small selector file:
+
+```text
+.harnessProfile                      # contains: deploy
+.harness/
+  skills/
+    review/SKILL.md                  # normal source
+    deploy/                          # profile root, not a skill
+      .harnessProfileRoot            # contains: deploy
+      review/SKILL.md                # overlays .harness/skills/review
+  profiles/
+    personal/
+      .harnessProfileRoot            # overlays .harness
+      dir/AGENTS.md/100_local.md
+```
+
+`.harnessProfile` may live at the repo root or in an existing target/output
+subtree such as `.agents/skills/.harnessProfile`; the nearest selector chooses
+the active profile for that output path. `.harnessProfileRoot` may live only
+under `.harness`, names the profile it contributes to, and is never projected
+as a resource item. Profile-local `.harnessIgnore` files match the logical
+overlay path, so a profile can suppress base files or composable parts while
+adding its own files.
 
 ## CLI
 
@@ -340,8 +363,10 @@ and package dry-runs for every publishable package.
 - Live harness folders are derived projection outputs, not source repositories.
 - Activation is idempotent for the same source, manifest, ignore rules, cleanup
   policy, and mutable policy.
-- `.harnessIgnore` is the single projection filter, including target-scoped
-  exclusions.
+- `.harnessIgnore` is the single projection filter, with target-specific
+  exclusions expressed by target-output-local files.
+- `.harnessProfile` selects optional `.harnessProfileRoot` overlays without
+  making live target folders source roots.
 - Target override folders are derived from target paths.
 - `harnessc` is local-first and explains planned changes before writing.
 

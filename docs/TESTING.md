@@ -15,16 +15,17 @@ rules produce the same live target trees.
 | TOML | Duplicate targets, including explicit `.agents`, are diagnostics | `packages/core/test/standard.test.ts` |
 | TOML | Extension declarations parse with `version`, default `activation`, and extension-owned fields | `packages/core/test/standard.test.ts` |
 | Ignore | Global patterns, directory patterns, `**`, `*`, and negation | `packages/core/test/standard.test.ts` |
-| Ignore | Target-only sections such as `[.claude]` | `packages/core/test/standard.test.ts` |
-| Ignore | Target-except sections such as `[!.cursor]` | `packages/core/test/standard.test.ts` |
+| Ignore | Unsupported target-specific sections such as `[.claude]` and `[!.cursor]` | `packages/core/test/standard.test.ts` |
 | Ignore | Global reset sections such as `[*]` | `packages/core/test/standard.test.ts` |
 | Ignore | Source-local, target-output-local, root source/output, and shallow-first precedence | `packages/core/test/standard.test.ts` |
+| Profiles | Root and target-local `.harnessProfile` selectors discover active profiles and protected target selectors | `packages/core/test/standard.test.ts` |
 | Projection | Explicit `.agents` copy projection with `.agents` overrides | `packages/core/test/projection.test.ts` |
 | Projection | Additional target copy projection with target-derived overrides | `packages/core/test/projection.test.ts` |
 | Projection | Nested override contents such as plugin manifests and nested skills | `packages/core/test/projection.test.ts` |
 | Projection | Extension resource kinds declared in TOML | `packages/core/test/projection.test.ts` |
 | Projection | Scoped `.harnessIgnore` changes target output independently | `packages/core/test/projection.test.ts` |
 | Projection | Target-output `.harnessIgnore` filters one target and is preserved during cleanup | `packages/core/test/projection.test.ts` |
+| Projection | Active `.harnessProfileRoot` overlays merge resources, suppress base resources with logical `.harnessIgnore`, and preserve target-local `.harnessProfile` during cleanup | `packages/core/test/projection.test.ts` |
 | TOML | Target paths determine override folders from the first path segment | `packages/core/test/standard.test.ts` |
 | Projection | Identical declared targets are still materialized as copy projections | `packages/core/test/projection.test.ts` |
 | Projection | An existing target symlink is replaced with a copy projection | `packages/core/test/projection.test.ts` |
@@ -44,6 +45,8 @@ rules produce the same live target trees.
 | Dir | `[dir]` honors only global `.harnessIgnore` rules during composition | `packages/core/test/dir.test.ts` |
 | Dir | `[dir]` honors source-local `.harnessIgnore` inside `.harnessComposable` leaves, including custom dir sources outside `.harness` | `packages/core/test/dir.test.ts` |
 | Dir | `[dir]` honors target-output `.harnessIgnore` for copy and composable outputs | `packages/core/test/dir.test.ts` |
+| Dir | `[dir]` active profile roots add composable parts and use logical `.harnessIgnore` files to suppress base parts | `packages/core/test/dir.test.ts` |
+| Dir | `[dir]` discovers target-output `.harnessProfile` selectors in the final bootstrap pass | `packages/core/test/dir.test.ts` |
 | Dir | `[dir]` reports invalid parts, mixed containers, symlinks, ref errors, and target overlaps | `packages/core/test/dir.test.ts` |
 | Dir | `[dir]` reports create, update, and keep actions across activations | `packages/core/test/dir.test.ts` |
 | Dir | `[dir]` copies files from directories without the `.harnessComposable` marker | `packages/core/test/dir.test.ts` |
@@ -51,7 +54,7 @@ rules produce the same live target trees.
 | Dir | `[dir]` outputs that fall under a declared target are merged into that target's projection | `packages/core/test/dir.test.ts` |
 | Dir | `[dir]` outputs do nothing when `[dir]` is not declared even if the folder exists | `packages/core/test/dir.test.ts` |
 | CLI | `harnessc activate` runs dir composition + copy alongside resource projection | `packages/cli/test/run.test.ts` |
-| Ignore | `[mutable]`, `[mutable .claude]`, and `[mutable !.cursor]` scopes | `packages/core/test/standard.test.ts` |
+| Ignore | `[mutable]` sections | `packages/core/test/standard.test.ts` |
 | Docs | `STANDARD.md` stays independent of package names, repo paths, and CLI flags | `packages/core/test/docs.test.ts` |
 | CLI | `harnessc init` dry-runs by default | `packages/cli/test/run.test.ts` |
 | CLI | `harnessc init --yes` creates the standard files and resource roots | `packages/cli/test/run.test.ts` |
@@ -64,6 +67,7 @@ rules produce the same live target trees.
 | CLI | `harnessc extension activate` reports unsupported extension selections and conflicting flags | `packages/cli/test/run.test.ts` |
 | CLI E2E | `harnessc activate` runs composable + copy + ref + cross-target dir composition end-to-end | `packages/cli/test/run.test.ts` |
 | CLI E2E | `harnessc activate` honors target-output `.harnessIgnore`, custom dir source ignores, and cleanup preservation | `packages/cli/test/run.test.ts` |
+| CLI E2E | `harnessc activate` applies profile roots across resources and composable dir outputs | `packages/cli/test/run.test.ts` |
 
 ## Manual Smoke Command
 

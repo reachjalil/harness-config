@@ -54,10 +54,15 @@ Recommended sequence:
    dir-specific rules can live in source-local `.harnessIgnore` files, and
    user/local output preferences can live in target-output files such as
    `.agents/skills/foo/.harnessIgnore`.
-5. **Dry run, review, then apply.** `harnessc activate` prints the plan
+5. **Add profile overrides only where they clarify ownership.** Put
+   `.harnessProfileRoot` under `.harness` for optional kits or personal
+   overlays, and select them with repo-root or target-output
+   `.harnessProfile` files. Profile-local `.harnessIgnore` files can hide
+   base files or composable parts for that profile.
+6. **Dry run, review, then apply.** `harnessc activate` prints the plan
    without writing. Review `create` / `update` / `remove` actions against
    the snapshot, then re-run with `--yes`.
-6. **Re-run activation.** A second dry run on unchanged inputs should
+7. **Re-run activation.** A second dry run on unchanged inputs should
    converge to `keep` for managed files and `mutable` for runtime-owned
    files. If it does not, the source tree is still drifting from the
    target; reconcile before relying on the standard.

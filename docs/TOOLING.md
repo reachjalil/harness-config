@@ -104,6 +104,15 @@ is known. Only global ignore rules participate for dir outputs; scoped
 target headers are ignored in this mode. The `.harnessComposable` marker
 itself is never copied to any output.
 
+Profile overrides use `.harnessProfile` selectors and `.harnessProfileRoot`
+source overlays. A root `.harnessProfile` applies globally; target/output
+selectors such as `.agents/skills/.harnessProfile` apply only to that output
+subtree. `.harnessProfileRoot` must live under `.harness`; when active, its
+contents overlay either the parent source root (for markers directly inside a
+resource or dir root) or `.harness` (for kit-style folders). Profile-local
+`.harnessIgnore` files match those logical overlay paths, including
+`.harnessComposable` leaves.
+
 Dir output paths that fall under a declared `[[targets]]` path merge into
 that target's projection — running activation a second time converges to
 `keep` actions for those files, including target unmanaged-entry cleanup.
@@ -165,8 +174,11 @@ A conforming validator should:
 - Validate resource ids and repo-local resource paths.
 - Verify each `[[targets]]` entry contains only a repo-local path and does not
   point at the source root.
-- Parse `.harnessIgnore` with global, target-scoped, and `[mutable]` rules in
-  declaration order.
+- Parse `.harnessIgnore` with global, target-output-local, and `[mutable]`
+  rules in declaration order.
+- Resolve `.harnessProfile` selectors and `.harnessProfileRoot` overlays
+  before projection, including the `[dir]` bootstrap/final pass for output
+  selectors.
 - Show create, update, remove, keep, preserve, and mutable actions before any
   write.
 - Verify repeated activation against unchanged inputs converges to the same

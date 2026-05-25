@@ -8,6 +8,7 @@ import {
   createHarnessIgnoreMatcher,
   detectImplicitOverrideTarget,
   inferHarnessOverrideDirectory,
+  loadHarnessProfileContext,
   listHarnessProjectionTargets,
   loadHarnessIgnoreRuleSets,
   parseHarnessIgnore,
@@ -298,10 +299,7 @@ path = "./.cursor"
 .harness/**/logs/
 *.tmp
 !.harness/skills/review/keep.tmp
-[.claude]
-.harness/plugins/*/claude-only.json
-[!.cursor]
-.harness/plugins/*/not-cursor.json
+.harness/plugins/*/source-only.json
 `)
     );
 
@@ -316,144 +314,68 @@ path = "./.cursor"
     expect(matcher.ignores(".harness/skills/review/cache.tmp")).toBe(true);
     expect(matcher.ignores(".harness/skills/review/keep.tmp")).toBe(false);
     expect(matcher.ignores(".harness/skills/review/SKILL.md")).toBe(false);
-    expect(
-      matcher.ignores(".harness/plugins/review/claude-only.json", {
-        targetPath: "./.claude",
-      })
-    ).toBe(true);
-    expect(
-      matcher.ignores(".harness/plugins/review/claude-only.json", {
-        targetPath: "./.agents",
-      })
-    ).toBe(false);
-    expect(
-      matcher.ignores(".harness/plugins/review/not-cursor.json", {
-        targetPath: "./.claude",
-      })
-    ).toBe(true);
-    expect(
-      matcher.ignores(".harness/plugins/review/not-cursor.json", {
-        targetPath: "./.cursor",
-      })
-    ).toBe(false);
+    expect(matcher.ignores(".harness/plugins/review/source-only.json")).toBe(
+      true
+    );
   });
 
-  it("resets scoped .harnessIgnore rules with a global section", () => {
+  it("resets mutable .harnessIgnore rules with an ignore section", () => {
     const matcher = createHarnessIgnoreMatcher(
       parseHarnessIgnore(`
-[.claude]
-.harness/skills/*/claude-only.md
+[mutable]
+.harness/skills/*/settings.local.json
 
-[*]
+[ignore]
 .harness/skills/*/all-targets.md
 `)
     );
 
     expect(
-      matcher.ignores(".harness/skills/review/claude-only.md", {
-        targetPath: "./.claude",
-      })
+      matcher.isMutable(".harness/skills/review/settings.local.json")
     ).toBe(true);
-    expect(
-      matcher.ignores(".harness/skills/review/claude-only.md", {
-        targetPath: "./.agents",
-      })
-    ).toBe(false);
-    expect(
-      matcher.ignores(".harness/skills/review/all-targets.md", {
-        targetPath: "./.agents",
-      })
-    ).toBe(true);
-    expect(
-      matcher.ignores(".harness/skills/review/all-targets.md", {
-        targetPath: "./.cursor",
-      })
-    ).toBe(true);
+    expect(matcher.ignores(".harness/skills/review/settings.local.json")).toBe(
+      false
+    );
+    expect(matcher.ignores(".harness/skills/review/all-targets.md")).toBe(true);
+    expect(matcher.isMutable(".harness/skills/review/all-targets.md")).toBe(
+      false
+    );
   });
 
-  it("uses last matching participating .harnessIgnore rule precedence", () => {
+  it("uses last matching .harnessIgnore rule precedence", () => {
     const matcher = createHarnessIgnoreMatcher(
       parseHarnessIgnore(`
 .harness/skills/review/target.md
-[.claude]
 !.harness/skills/review/target.md
-[*]
 .harness/skills/review/target.md
-[.cursor]
 !.harness/skills/review/target.md
 `)
     );
 
-    expect(
-      matcher.ignores(".harness/skills/review/target.md", {
-        targetPath: "./.agents",
-      })
-    ).toBe(true);
-    expect(
-      matcher.ignores(".harness/skills/review/target.md", {
-        targetPath: "./.claude",
-      })
-    ).toBe(true);
-    expect(
-      matcher.ignores(".harness/skills/review/target.md", {
-        targetPath: "./.cursor",
-      })
-    ).toBe(false);
+    expect(matcher.ignores(".harness/skills/review/target.md")).toBe(false);
   });
 
-  it("parses [mutable], [mutable .claude], and [mutable !.cursor] scopes", () => {
+  it("parses [mutable] scopes and switches back to ignore scopes", () => {
     const matcher = createHarnessIgnoreMatcher(
       parseHarnessIgnore(`
 [mutable]
 .harness/**/settings.local.json
 
-[mutable .claude]
-.harness/skills/*/allow-list.json
-
-[mutable !.cursor]
-.harness/skills/*/no-cursor.json
-
-[.claude]
+[ignore]
 .harness/skills/*/ignored-elsewhere.md
 `)
     );
 
-    expect(
-      matcher.isMutable(".harness/skills/x/settings.local.json", {
-        targetPath: "./.agents",
-      })
-    ).toBe(true);
-    expect(
-      matcher.isMutable(".harness/skills/x/allow-list.json", {
-        targetPath: "./.claude",
-      })
-    ).toBe(true);
-    expect(
-      matcher.isMutable(".harness/skills/x/allow-list.json", {
-        targetPath: "./.agents",
-      })
-    ).toBe(false);
-    expect(
-      matcher.isMutable(".harness/skills/x/no-cursor.json", {
-        targetPath: "./.claude",
-      })
-    ).toBe(true);
-    expect(
-      matcher.isMutable(".harness/skills/x/no-cursor.json", {
-        targetPath: "./.cursor",
-      })
-    ).toBe(false);
+    expect(matcher.isMutable(".harness/skills/x/settings.local.json")).toBe(
+      true
+    );
     // Ignore section after mutable scope returns kind to ignore.
-    expect(
-      matcher.ignores(".harness/skills/x/ignored-elsewhere.md", {
-        targetPath: "./.claude",
-      })
-    ).toBe(true);
-    expect(
-      matcher.isMutable(".harness/skills/x/ignored-elsewhere.md", {
-        targetPath: "./.claude",
-      })
-    ).toBe(false);
+    expect(matcher.ignores(".harness/skills/x/ignored-elsewhere.md")).toBe(
+      true
+    );
+    expect(matcher.isMutable(".harness/skills/x/ignored-elsewhere.md")).toBe(
+      false
+    );
   });
 
   it("treats nested .harnessIgnore patterns as relative to the file's directory", () => {
@@ -687,11 +609,14 @@ settings.local.json
     ).toBe(false);
   });
 
-  it("accepts target-scoped sections in nested .harnessIgnore files outside an override folder", async () => {
+  it("rejects target-scoped sections and ignores rules below them until a supported section", async () => {
     const parsed = parseHarnessIgnoreFile(
       `
 [.claude]
 secret.md
+
+[global]
+shared.md
 
 [mutable .cursor]
 state.json
@@ -710,22 +635,21 @@ state.json
       },
     ]);
 
-    expect(parsed.diagnostics).toEqual([]);
-    expect(
-      matcher.ignores(".harness/skills/review/secret.md", {
-        targetPath: "./.claude",
-      })
-    ).toBe(true);
-    expect(
-      matcher.ignores(".harness/skills/review/secret.md", {
-        targetPath: "./.agents",
-      })
-    ).toBe(false);
-    expect(
-      matcher.isMutable(".harness/skills/review/state.json", {
-        targetPath: "./.cursor",
-      })
-    ).toBe(true);
+    expect(parsed.diagnostics).toEqual([
+      expect.objectContaining({
+        severity: "error",
+        code: "harness.ignore_unsupported_scope",
+        message: expect.stringContaining("[.claude]"),
+      }),
+      expect.objectContaining({
+        severity: "error",
+        code: "harness.ignore_unsupported_scope",
+        message: expect.stringContaining("[mutable .cursor]"),
+      }),
+    ]);
+    expect(matcher.ignores(".harness/skills/review/secret.md")).toBe(false);
+    expect(matcher.ignores(".harness/skills/review/shared.md")).toBe(true);
+    expect(matcher.isMutable(".harness/skills/review/state.json")).toBe(false);
 
     const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
     await mkdir(path.join(root, ".harness"), { recursive: true });
@@ -736,11 +660,15 @@ state.json
       "[.claude]\nsecret.md\n"
     );
     await expect(loadHarnessIgnoreRuleSets(root)).resolves.toMatchObject({
-      diagnostics: [],
+      diagnostics: [
+        expect.objectContaining({
+          code: "harness.ignore_unsupported_scope",
+        }),
+      ],
     });
   });
 
-  it("emits harness.ignore_redundant_override_scope for [.claude] inside a .claude override", async () => {
+  it("emits unsupported-scope diagnostics for [.claude] inside a .claude override", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
     await mkdir(path.join(root, ".harness"), { recursive: true });
     await write(root, ".harnessIgnore", "");
@@ -756,18 +684,18 @@ state.json
       ruleSets.find(
         (ruleSet) =>
           ruleSet.sourcePath === ".harness/skills/review/.claude/.harnessIgnore"
-      )?.implicitTarget
-    ).toBe(".claude");
+      )?.rules
+    ).toEqual([]);
     expect(diagnostics).toEqual([
       expect.objectContaining({
-        severity: "info",
-        code: "harness.ignore_redundant_override_scope",
+        severity: "error",
+        code: "harness.ignore_unsupported_scope",
         path: ".harness/skills/review/.claude/.harnessIgnore",
       }),
     ]);
   });
 
-  it("emits harness.ignore_redundant_override_scope for [!.cursor] inside a .claude override", async () => {
+  it("emits unsupported-scope diagnostics for [!.cursor] inside a .claude override", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
     await mkdir(path.join(root, ".harness"), { recursive: true });
     await write(root, ".harnessIgnore", "");
@@ -781,14 +709,14 @@ state.json
 
     expect(diagnostics).toEqual([
       expect.objectContaining({
-        severity: "info",
-        code: "harness.ignore_redundant_override_scope",
+        severity: "error",
+        code: "harness.ignore_unsupported_scope",
         message: expect.stringContaining("[!.cursor]"),
       }),
     ]);
   });
 
-  it("emits harness.ignore_dead_override_scope for [.cursor] inside a .claude override", async () => {
+  it("emits unsupported-scope diagnostics for [.cursor] inside a .claude override", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
     await mkdir(path.join(root, ".harness"), { recursive: true });
     await write(root, ".harnessIgnore", "");
@@ -802,14 +730,14 @@ state.json
 
     expect(diagnostics).toEqual([
       expect.objectContaining({
-        severity: "warning",
-        code: "harness.ignore_dead_override_scope",
+        severity: "error",
+        code: "harness.ignore_unsupported_scope",
         message: expect.stringContaining("[.cursor]"),
       }),
     ]);
   });
 
-  it("emits harness.ignore_dead_override_scope for [!.claude] inside a .claude override", async () => {
+  it("emits unsupported-scope diagnostics for [!.claude] inside a .claude override", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
     await mkdir(path.join(root, ".harness"), { recursive: true });
     await write(root, ".harnessIgnore", "");
@@ -823,8 +751,8 @@ state.json
 
     expect(diagnostics).toEqual([
       expect.objectContaining({
-        severity: "warning",
-        code: "harness.ignore_dead_override_scope",
+        severity: "error",
+        code: "harness.ignore_unsupported_scope",
         message: expect.stringContaining("[!.claude]"),
       }),
     ]);
@@ -845,10 +773,10 @@ state.json
     expect(diagnostics).toEqual([]);
   });
 
-  it("scopes nested rules with [.claude] correctly during .claude projection", () => {
+  it("applies nested rules by directory locality", () => {
     const matcher = createHarnessIgnoreMatcher([
       {
-        rules: parseHarnessIgnoreFile("[.claude]\nsecret.md\n", {
+        rules: parseHarnessIgnoreFile("secret.md\n", {
           isRoot: false,
           sourcePath: ".harness/skills/review/.harnessIgnore",
         }).rules,
@@ -858,16 +786,8 @@ state.json
       },
     ]);
 
-    expect(
-      matcher.ignores(".harness/skills/review/secret.md", {
-        targetPath: "./.claude",
-      })
-    ).toBe(true);
-    expect(
-      matcher.ignores(".harness/skills/review/secret.md", {
-        targetPath: "./.cursor",
-      })
-    ).toBe(false);
+    expect(matcher.ignores(".harness/skills/review/secret.md")).toBe(true);
+    expect(matcher.ignores(".harness/skills/other/secret.md")).toBe(false);
   });
 
   it("detects implicit override target via detectImplicitOverrideTarget()", () => {
@@ -918,6 +838,44 @@ state.json
       })
     );
     expect(matcher.ignores(".harness/skills/review/.harnessIgnore")).toBe(true);
+    expect(matcher.ignores(".harness/skills/review/.harnessProfile")).toBe(
+      true
+    );
+    expect(matcher.ignores(".harness/skills/deploy/.harnessProfileRoot")).toBe(
+      true
+    );
+  });
+
+  it("discovers root and target-local profile selectors", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
+    await write(root, ".harnessProfile", "deploy\n");
+    await write(root, ".agents/skills/.harnessProfile", "skills-only\n");
+    await write(
+      root,
+      ".harness/profiles/deploy/.harnessProfileRoot",
+      "deploy\n"
+    );
+
+    const context = await loadHarnessProfileContext(root, {
+      targetRoots: [path.join(root, ".agents")],
+    });
+
+    expect(context.diagnostics).toEqual([]);
+    expect(context.profileForOutput(".agents/rules/check/SKILL.md")).toBe(
+      "deploy"
+    );
+    expect(context.profileForOutput(".agents/skills/review/SKILL.md")).toBe(
+      "skills-only"
+    );
+    expect(context.profileRoots).toEqual([
+      expect.objectContaining({
+        profile: "deploy",
+        overlayBase: path.join(root, ".harness"),
+      }),
+    ]);
+    expect(context.protectedTargetPaths).toEqual([
+      ".agents/skills/.harnessProfile",
+    ]);
   });
 
   it("treats ignore and mutable evaluations as independent", () => {

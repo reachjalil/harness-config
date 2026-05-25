@@ -17,8 +17,9 @@ async function write(root: string, relativePath: string, content: string) {
 
 async function writeConfig(
   root: string,
-  options: { targets?: string[]; dirPath?: string } = {}
+  options: { resources?: string[]; targets?: string[]; dirPath?: string } = {}
 ) {
+  const resources = options.resources ?? [];
   const targets = options.targets ?? [];
   await write(
     root,
@@ -26,6 +27,11 @@ async function writeConfig(
     [
       "version = 1",
       "",
+      ...resources.flatMap((resource) => [
+        `[resources.${resource}]`,
+        `path = "./.harness/${resource}"`,
+        "",
+      ]),
       ...targets.flatMap((target) => ["[[targets]]", `path = "${target}"`, ""]),
       "[dir]",
       `path = "${options.dirPath ?? "./.harness/dir"}"`,
@@ -103,16 +109,13 @@ describe("core dir (composable + copy)", () => {
     );
   });
 
-  it("honors only global .harnessIgnore rules during dir composition", async () => {
+  it("honors .harnessIgnore rules during dir composition", async () => {
     const root = await fixtureRoot();
     await writeConfig(root);
     await write(
       root,
       ".harnessIgnore",
       [
-        "[.claude]",
-        ".harness/dir/AGENTS.md/100_intro.md",
-        "[*]",
         ".harness/dir/AGENTS.md/200_skip.md",
         ".harness/dir/IGNORED.md/",
         "",
@@ -164,6 +167,62 @@ describe("core dir (composable + copy)", () => {
     await expect(readFile(path.join(root, "AGENTS.md"), "utf8")).resolves.toBe(
       "A"
     );
+  });
+
+  it("lets an active profile override composable parts with logical .harnessIgnore rules", async () => {
+    const root = await fixtureRoot();
+    await writeConfig(root);
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harnessProfile", "my-profile\n");
+    await write(root, ".harness/dir/AGENTS.md/.harnessComposable", "");
+    await write(root, ".harness/dir/AGENTS.md/100_intro.md", "Base\n");
+    await write(root, ".harness/dir/AGENTS.md/300_rules.md", "Rules\n");
+    await write(
+      root,
+      ".harness/profiles/my-profile/.harnessProfileRoot",
+      "my-profile\n"
+    );
+    await write(
+      root,
+      ".harness/profiles/my-profile/dir/AGENTS.md/.harnessIgnore",
+      "100_intro.md\n"
+    );
+    await write(
+      root,
+      ".harness/profiles/my-profile/dir/AGENTS.md/100_my_intro.md",
+      "Mine\n"
+    );
+
+    await applyHarnessActivation(root, { yes: true });
+
+    await expect(readFile(path.join(root, "AGENTS.md"), "utf8")).resolves.toBe(
+      "Mine\nRules\n"
+    );
+  });
+
+  it("discovers target-output profile selectors during the final dir pass", async () => {
+    const root = await fixtureRoot();
+    await writeConfig(root);
+    await write(root, ".harnessIgnore", "");
+    await write(root, "notes/.harnessProfile", "notes-profile\n");
+    await write(root, ".harness/dir/notes/release.md/.harnessComposable", "");
+    await write(root, ".harness/dir/notes/release.md/100_base.md", "Base\n");
+    await write(
+      root,
+      ".harness/profiles/notes/.harnessProfileRoot",
+      "notes-profile\n"
+    );
+    await write(
+      root,
+      ".harness/profiles/notes/dir/notes/release.md/200_profile.md",
+      "Profile\n"
+    );
+
+    await applyHarnessActivation(root, { yes: true });
+
+    await expect(
+      readFile(path.join(root, "notes/release.md"), "utf8")
+    ).resolves.toBe("Base\nProfile\n");
   });
 
   it("applies target-located .harnessIgnore rules to dir copy outputs", async () => {
@@ -397,6 +456,163 @@ describe("core dir (composable + copy)", () => {
     await expect(
       readFile(path.join(root, ".claude/settings.json"), "utf8")
     ).resolves.toBe("{}");
+  });
+
+  it("merges resource projection and dir outputs into the same managed target", async () => {
+    const root = await fixtureRoot();
+    await writeConfig(root, {
+      resources: ["skills"],
+      targets: ["./.agents"],
+    });
+    await write(root, ".harnessIgnore", "");
+    await write(
+      root,
+      ".agents/skills/review/.harnessIgnore",
+      "local-only.tmp\n"
+    );
+    await write(root, ".harness/skills/review/SKILL.md", "resource");
+    await write(root, ".harness/dir/.agents/skills/review/README.md", "dir");
+    await write(
+      root,
+      ".harness/dir/.agents/skills/review/local-only.tmp",
+      "drop"
+    );
+
+    const createPlan = await planHarnessActivation(root);
+    const targetActions = createPlan.targets.find(
+      (target) => target.path === "./.agents"
+    )?.actions;
+    expect(targetActions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "create",
+          relativePath: "skills/review/SKILL.md",
+        }),
+        expect.objectContaining({
+          kind: "create",
+          relativePath: "skills/review/README.md",
+        }),
+      ])
+    );
+    expect(targetActions).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          relativePath: "skills/review/local-only.tmp",
+        }),
+      ])
+    );
+    expect(
+      createPlan.dir.actions.some((action) =>
+        action.relativePath.startsWith(".agents/")
+      )
+    ).toBe(false);
+
+    await applyHarnessActivation(root, { yes: true });
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/SKILL.md"), "utf8")
+    ).resolves.toBe("resource");
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/README.md"), "utf8")
+    ).resolves.toBe("dir");
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/local-only.tmp"), "utf8")
+    ).rejects.toThrow();
+
+    await write(root, ".agents/skills/review/manual.txt", "manual");
+    const cleanupPlan = await planHarnessActivation(root, {
+      cleanupUnmanaged: "remove",
+    });
+    const cleanupActions = cleanupPlan.targets.find(
+      (target) => target.path === "./.agents"
+    )?.actions;
+    expect(cleanupActions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "keep",
+          relativePath: "skills/review/SKILL.md",
+        }),
+        expect.objectContaining({
+          kind: "keep",
+          relativePath: "skills/review/README.md",
+        }),
+        expect.objectContaining({
+          kind: "remove",
+          relativePath: "skills/review/manual.txt",
+        }),
+      ])
+    );
+    expect(cleanupActions).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          relativePath: "skills/review/.harnessIgnore",
+        }),
+      ])
+    );
+
+    await applyHarnessActivation(root, {
+      cleanupUnmanaged: "remove",
+      yes: true,
+    });
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/manual.txt"), "utf8")
+    ).rejects.toThrow();
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/.harnessIgnore"), "utf8")
+    ).resolves.toBe("local-only.tmp\n");
+  });
+
+  it("reports a conflict when a dir output collides with a resource projection", async () => {
+    const root = await fixtureRoot();
+    await writeConfig(root, {
+      resources: ["skills"],
+      targets: ["./.agents"],
+    });
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harness/skills/review/SKILL.md", "resource");
+    await write(root, ".harness/dir/.agents/skills/review/SKILL.md", "dir");
+
+    const plan = await planHarnessActivation(root);
+
+    expect(plan.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "harness.projection_path_conflict",
+          path: ".harness/dir/.agents/skills/review/SKILL.md",
+        }),
+      ])
+    );
+    await expect(applyHarnessActivation(root, { yes: true })).rejects.toThrow(
+      /validation has errors/
+    );
+  });
+
+  it("applies target-output ignores to resources without suppressing unrelated dir outputs", async () => {
+    const root = await fixtureRoot();
+    await writeConfig(root, {
+      resources: ["skills"],
+      targets: ["./.agents"],
+    });
+    await write(root, ".harnessIgnore", "");
+    await write(
+      root,
+      ".agents/skills/review/.harnessIgnore",
+      "agents-only.md\n"
+    );
+    await write(root, ".harness/skills/review/SKILL.md", "resource");
+    await write(root, ".harness/skills/review/agents-only.md", "drop");
+    await write(root, ".harness/dir/.agents/notes/scoped.md", "dir");
+
+    await applyHarnessActivation(root, { yes: true });
+
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/SKILL.md"), "utf8")
+    ).resolves.toBe("resource");
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/agents-only.md"), "utf8")
+    ).rejects.toThrow();
+    await expect(
+      readFile(path.join(root, ".agents/notes/scoped.md"), "utf8")
+    ).resolves.toBe("dir");
   });
 
   it("does nothing when [dir] is not declared even if a dir folder exists", async () => {

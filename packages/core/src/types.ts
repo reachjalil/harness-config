@@ -187,6 +187,7 @@ export type HarnessIgnoreRuleSet = {
   isRoot: boolean;
   matchBase?: HarnessIgnoreMatchBase;
   implicitTarget?: string;
+  profile?: string;
 };
 
 export type HarnessIgnoreMatcher = {
@@ -198,6 +199,7 @@ export type HarnessIgnoreMatcher = {
       globalOnly?: boolean;
       isDirectory?: boolean;
       outputPath?: string;
+      profile?: string;
       target?: string;
       targetPath?: string;
     }
@@ -208,6 +210,7 @@ export type HarnessIgnoreMatcher = {
       globalOnly?: boolean;
       isDirectory?: boolean;
       outputPath?: string;
+      profile?: string;
       target?: string;
       targetPath?: string;
     }

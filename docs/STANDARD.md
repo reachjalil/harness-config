@@ -100,8 +100,7 @@ Version `1` standardizes:
 - the `[dir]` composition (`.harnessComposable` leaves) and copy contract
   for files that project to repo-relative paths,
 - `.harnessIgnore` projection ignore files, including repo-root rules,
-  source-local rules, target-output-local rules, target-scoped sections, and
-  `[mutable]` sections.
+  source-local rules, target-output-local rules, and `[mutable]` sections.
 
 Within v1, this document MAY receive editorial clarifications and additive,
 backward-compatible normative additions (for example, new optional fields with
@@ -120,8 +119,8 @@ HarnessConfig standardizes:
   leaves and copy-mode directories that project to repo-relative paths,
 - top-level extension declarations (discovery and activation policy only),
 - copy projection from declared resources to declared targets,
-- `.harnessIgnore` as the single projection filter, including target-scoped
-  and mutable-file rules.
+- `.harnessIgnore` as the single projection filter, including target-output
+  exclusions and mutable-file rules.
 
 ### Out of Scope
 
@@ -325,27 +324,25 @@ explicitly defines its own.
 
 ## Routing Resource Kinds To Targets
 
-Targets receive every declared resource root by default. A resource kind is
-excluded from a target with target-scoped `.harnessIgnore` rules:
+Targets receive every declared resource root by default. A resource kind or
+subtree is excluded from one target with a target-output-local
+`.harnessIgnore` file:
 
 ```text
-# Claude should not receive plugins.
-[.claude]
-.harness/plugins/**
+# .claude/plugins/.harnessIgnore
+*
 
-# Cursor should not receive prompts.
-[.cursor]
-.harness/prompts/**
+# .cursor/prompts/.harnessIgnore
+*
 
-# All targets except agents should skip local-only checks.
-[!.agents]
-.harness/checks/local-only/**
+# .agents/checks/.harnessIgnore
+local-only/
 ```
 
 This is the v1 boundary:
 
 - `harness.toml` declares resources and targets.
-- `.harnessIgnore` filters source files and resource roots per target.
+- `.harnessIgnore` filters source files and target output subtrees.
 
 Tools SHOULD NOT introduce a second per-target resource mapping in
 `harness.toml` for v1. Keeping target declarations path-only preserves one
@@ -621,11 +618,14 @@ Target-output `.harnessIgnore` rules also apply to dir outputs after the
 candidate output path is known. Implementations MAY use a bootstrap pass to
 compute candidate dir outputs, discover `.harnessIgnore` files in existing
 output ancestor directories, and then recompute final outputs with those
-rules. During dir collection only global ignore rules participate; scoped
-headers such as `[.claude]` do not apply because a repo-root dir output is
-not itself a target projection. The `[mutable]` family of scopes applies
-only to target resource projections; dir outputs are not mutable target
-files.
+rules. During dir collection only global ignore rules participate. The
+`[mutable]` section applies only to target resource projections; dir outputs
+are not mutable target files.
+
+Active profile roots also participate in dir collection. Profile dir folders
+overlay the configured dir source path, can add copy files or composable
+parts, and can carry logical `.harnessIgnore` files that suppress base dir
+files or base composable parts.
 
 ## `.harnessIgnore`
 
@@ -641,20 +641,11 @@ output subtree.
 .harness/skills/*/metadata.toml
 !.harness/skills/release-notes/metadata.toml
 
-[.claude]
-.harness/plugins/**
-
-[!.cursor]
-.harness/**/not-for-cursor.md
-
 [*]
 .harness/**/tmp/
 
 [mutable]
 .harness/**/settings.local.json
-
-[mutable .claude]
-.harness/skills/**/allow-list.json
 
 # Root rules may also match target output paths.
 .agents/**/scratch.tmp
@@ -666,33 +657,30 @@ relative to the directory containing that `.harnessIgnore` file. Tools MUST
 support blank lines, `#` comments, `!` negation, leading `/` anchors,
 trailing `/` directory patterns, `*`, `**`, and `?`.
 
-A rule has a kind (`ignore` or `mutable`) and a target scope (`all`, `only`, or
-`except`). The kind decides whether the rule excludes a file from projection or
-marks it as mutable in the target. Both kinds share the same pattern grammar
-and the same precedence rule: the last matching participating rule wins.
+A rule has a kind (`ignore` or `mutable`). The kind decides whether the rule
+excludes a file from projection or marks it as mutable in the target. Both
+kinds share the same pattern grammar and the same precedence rule: the last
+matching participating rule wins.
 
 Ignore evaluation is ordered:
 
 1. Start with `included` and `not mutable`.
 2. Read rules from top to bottom.
-3. A rule participates only when its scope applies to the current target.
-4. For ignore rules, a matching non-negated rule changes state to `ignored`;
+3. For ignore rules, a matching non-negated rule changes state to `ignored`;
    a matching negated rule changes state back to `included`.
-5. For mutable rules, a matching non-negated rule changes state to `mutable`;
+4. For mutable rules, a matching non-negated rule changes state to `mutable`;
    a matching negated rule changes state back to `not mutable`.
-6. The last matching participating rule of each kind wins.
+5. The last matching participating rule of each kind wins.
 
-Scope sections affect subsequent rules. A section header may set kind and
-target scope together:
+Section headers affect subsequent rules:
 
 - `[*]` or `[global]` applies subsequent ignore rules to every target.
-- `[.claude]` applies subsequent ignore rules only to target `.claude`.
-- `[!.cursor]` applies subsequent ignore rules to every target except `.cursor`.
 - `[mutable]` applies subsequent mutable rules to every target.
-- `[mutable .claude]` applies subsequent mutable rules only to target `.claude`.
-- `[mutable !.cursor]` applies subsequent mutable rules to every target except
-  `.cursor`.
-- A subsequent ignore-scope header switches kind back to `ignore`.
+- `[ignore]` switches subsequent rules back to ignore rules.
+- Target-specific headers such as `[.claude]`, `[!.cursor]`, and
+  `[mutable .claude]` are unsupported. Tools MUST report
+  `harness.ignore_unsupported_scope` and MUST NOT apply rules below that
+  unsupported header until another supported section header appears.
 
 Mutable files MUST still flow through the projection ignore step. If a file is
 both ignored and marked mutable, the ignore decision wins because the file
@@ -743,36 +731,67 @@ The following rules apply:
   therefore re-include a path that a shallower file excluded, or exclude a
   path that a shallower file would have included.
 - **Same grammar.** Nested files support the same comments, negation,
-  anchors, glob syntax, and scope sections (`[.claude]`, `[!.cursor]`,
-  `[*]`, `[mutable]`, `[mutable .claude]`, etc.) as the repo-root file.
-- **Implicit override scoping.** When a nested file lives inside an
-  override folder — that is, its path matches
-  `./.harness/<kind>/<name>/<override>/.../.harnessIgnore` where
-  `<override>` begins with `.` — it is implicitly scoped to projection into
-  that target only. Implementations:
-  - SHOULD report a `harness.ignore_redundant_override_scope`
-    informational diagnostic when such a file contains a `[<override>]` or
-    `[!<other>]` header, because the implicit scope already restricts the
-    file to that target.
-  - SHOULD report a `harness.ignore_dead_override_scope` warning when the
-    explicit scope can never participate inside the implicit one (for
-    example `[.cursor]` or `[!<override>]` inside the `<override>`
-    folder).
-  - MUST NOT emit those diagnostics for `[*]` or any `[mutable ...]`
-    header, which remain meaningful inside an override.
-- **Synthetic ignore.** Every `.harnessIgnore` file is itself excluded
-  from projection, equivalent to a global `**/.harnessIgnore` ignore rule.
-  Implementations MUST NOT copy `.harnessIgnore` files into targets, even
-  when no explicit rule excludes them.
+  anchors, glob syntax, and supported section headers (`[*]`, `[global]`,
+  `[ignore]`, and `[mutable]`) as the repo-root file.
+- **Target-specific placement.** A nested `.harnessIgnore` inside a target
+  output subtree is the target-specific mechanism. Target-specific section
+  headers are invalid even inside override folders.
+- **Synthetic ignore.** Every `.harnessIgnore`, `.harnessProfile`, and
+  `.harnessProfileRoot` file is itself excluded from projection, equivalent
+  to global declaration-file ignore rules. Implementations MUST NOT copy
+  those declaration files into targets, even when no explicit rule excludes
+  them.
 - **Target-output protection.** A `.harnessIgnore` file that already exists
   in a target-output location MUST NOT be overwritten by projection and MUST
   NOT be removed by unmanaged cleanup. Ancestor directories required to keep
-  that file in place MUST also be preserved.
+  that file in place MUST also be preserved. Existing target-output
+  `.harnessProfile` files have the same protection.
 
 Local files are an additive convenience; a repository that uses only the
 repo-root file remains conforming. Target-output-local files participate only
 after they exist on disk; implementations are not required to infer the
 contents of a file that has not been created yet.
+
+## Profile Overrides
+
+Profile overrides are optional source overlays selected by `.harnessProfile`
+files. A `.harnessProfile` file contains at most one profile name. The
+repo-root `.harnessProfile` applies globally; a target/output-local
+`.harnessProfile` applies to its directory and descendants, and the nearest
+selector wins for any output path. An empty selector means no profile for
+that subtree.
+
+Profile content is declared with `.harnessProfileRoot`, which MUST live
+inside the `.harness` tree and MUST contain exactly one profile name. The
+directory containing `.harnessProfileRoot` is a profile root. It is source
+storage, not a resource item, and MUST NOT be projected as a skill, rule,
+plugin, dir output, or copied declaration file.
+
+Profile roots overlay source paths by where the marker is placed:
+
+- If the marker directory is an immediate child of a declared resource root
+  or the configured `[dir]` source root, that marker directory overlays that
+  source root. For example, `.harness/skills/deploy/.harnessProfileRoot`
+  overlays `.harness/skills`; children of `deploy/` become logical skill
+  items.
+- Otherwise, the marker directory overlays `.harness`. This supports kit
+  layouts such as `.harness/kits/deploy-kit/.harnessProfileRoot` with
+  children like `skills/` and `dir/`.
+
+During projection, base source files are considered first and active profile
+files are merged afterward using the same file-level override rules as target
+overrides. Profile-local `.harnessIgnore` files match the logical overlay
+path, not the storage path. For example, an ignore file at
+`.harness/profiles/personal/dir/AGENTS.md/.harnessIgnore` applies as if it
+were located at `.harness/dir/AGENTS.md/.harnessIgnore`, so it can suppress
+base composable parts before adding profile parts.
+
+For `[dir]`, implementations MUST use a bootstrap/final flow: collect
+candidate outputs with source-side rules and any known profile selectors,
+discover target-output `.harnessIgnore` and `.harnessProfile` files in
+candidate output ancestors, then recompute final outputs. Active profile
+directories may contribute to an existing `.harnessComposable` leaf even
+when the profile directory does not repeat the `.harnessComposable` marker.
 
 ## Reviewability
 
@@ -787,6 +806,9 @@ The source/projection boundary makes cross-harness differences reviewable:
 - A diff in an existing target-output `.harnessIgnore` changes what will be
   copied into that output subtree, without making the target folder a source
   of truth.
+- A diff in `.harnessProfile` changes which profile root overlays apply to
+  that output subtree; a diff under an active `.harnessProfileRoot` changes
+  only outputs where that profile is selected.
 - A diff in `harness.toml` changes declared resource roots and target paths.
 
 ## Safety Requirements

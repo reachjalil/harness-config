@@ -60,10 +60,12 @@ describe("HarnessConfig activation projection", () => {
       ".harnessIgnore",
       `
 .harness/skills/*/logs/
-
-[.claude]
-.harness/skills/*/agents-only.md
 `
+    );
+    await write(
+      root,
+      ".claude/skills/review/.harnessIgnore",
+      "agents-only.md\n"
     );
     await write(root, ".harness/skills/review/SKILL.md", "base");
     await write(root, ".harness/skills/review/agents-only.md", "agents only");
@@ -147,15 +149,11 @@ describe("HarnessConfig activation projection", () => {
     ).resolves.toBe("keep");
   });
 
-  it("honors a nested [.claude] rule from a non-override nested .harnessIgnore", async () => {
+  it("honors a target-output .harnessIgnore for one target", async () => {
     const root = await rootFixture();
     await writeHarnessConfig(root, { targets: ["./.agents", "./.claude"] });
     await write(root, ".harnessIgnore", "");
-    await write(
-      root,
-      ".harness/skills/review/.harnessIgnore",
-      "[.claude]\nsecret.md\n"
-    );
+    await write(root, ".claude/skills/review/.harnessIgnore", "secret.md\n");
     await write(root, ".harness/skills/review/SKILL.md", "base");
     await write(root, ".harness/skills/review/secret.md", "secret");
 
@@ -256,7 +254,75 @@ describe("HarnessConfig activation projection", () => {
     ).rejects.toThrow();
   });
 
-  it("ignores a dead-coded [.cursor] rule inside a .claude override at projection time", async () => {
+  it("merges an active profile root under a resource root", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root, { targets: ["./.agents"] });
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harnessProfile", "deploy\n");
+    await write(root, ".harness/skills/base/SKILL.md", "base");
+    await write(root, ".harness/skills/deploy/.harnessProfileRoot", "deploy\n");
+    await write(root, ".harness/skills/deploy/.harnessIgnore", "base/\n");
+    await write(root, ".harness/skills/deploy/profiled/SKILL.md", "profiled");
+
+    await applyHarnessActivation(root, { dryRun: false, yes: true });
+
+    await expect(
+      readFile(path.join(root, ".agents/skills/profiled/SKILL.md"), "utf8")
+    ).resolves.toBe("profiled");
+    await expect(
+      readFile(path.join(root, ".agents/skills/base/SKILL.md"))
+    ).rejects.toThrow();
+    await expect(
+      readFile(path.join(root, ".agents/skills/deploy/.harnessProfileRoot"))
+    ).rejects.toThrow();
+  });
+
+  it("applies target-local profile selection to only that output subtree", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root, {
+      resources: ["skills", "rules"],
+      targets: ["./.agents"],
+    });
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".agents/skills/.harnessProfile", "deploy\n");
+    await write(root, ".agents/skills/local.md", "local");
+    await write(
+      root,
+      ".harness/profiles/deploy/.harnessProfileRoot",
+      "deploy\n"
+    );
+    await write(
+      root,
+      ".harness/profiles/deploy/skills/profiled/SKILL.md",
+      "profiled skill"
+    );
+    await write(
+      root,
+      ".harness/profiles/deploy/rules/profiled/RULE.md",
+      "profiled rule"
+    );
+
+    await applyHarnessActivation(root, {
+      dryRun: false,
+      yes: true,
+      cleanupUnmanaged: "remove",
+    });
+
+    await expect(
+      readFile(path.join(root, ".agents/skills/profiled/SKILL.md"), "utf8")
+    ).resolves.toBe("profiled skill");
+    await expect(
+      readFile(path.join(root, ".agents/rules/profiled/RULE.md"))
+    ).rejects.toThrow();
+    await expect(
+      readFile(path.join(root, ".agents/skills/.harnessProfile"), "utf8")
+    ).resolves.toBe("deploy\n");
+    await expect(
+      readFile(path.join(root, ".agents/skills/local.md"))
+    ).rejects.toThrow();
+  });
+
+  it("reports unsupported target-scoped headers inside an override .harnessIgnore", async () => {
     const root = await rootFixture();
     await writeHarnessConfig(root, { targets: ["./.claude"] });
     await write(root, ".harnessIgnore", "");
@@ -269,23 +335,17 @@ describe("HarnessConfig activation projection", () => {
       "[.cursor]\n*.tmp\n"
     );
 
-    const result = await applyHarnessActivation(root, {
-      dryRun: false,
-      yes: true,
-    });
+    const plan = await planHarnessActivation(root);
 
-    expect(result.plan.diagnostics).toEqual(
+    expect(plan.diagnostics).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          severity: "warning",
-          code: "harness.ignore_dead_override_scope",
+          severity: "error",
+          code: "harness.ignore_unsupported_scope",
           path: ".harness/skills/review/.claude/.harnessIgnore",
         }),
       ])
     );
-    await expect(
-      readFile(path.join(root, ".claude/skills/review/scratch.tmp"), "utf8")
-    ).resolves.toBe("tmp");
   });
 
   it("propagates root ignore rules into deeply nested resource items", async () => {
@@ -309,7 +369,7 @@ describe("HarnessConfig activation projection", () => {
     ).resolves.toBe("keep");
   });
 
-  it("plans and applies a repeatable copy projection with overrides and scoped ignores", async () => {
+  it("plans and applies a repeatable copy projection with overrides and target-output ignores", async () => {
     const root = await rootFixture();
     await writeHarnessConfig(root, { targets: ["./.agents", "./.claude"] });
     await write(
@@ -317,10 +377,12 @@ describe("HarnessConfig activation projection", () => {
       ".harnessIgnore",
       `
 .harness/**/logs/
-
-[.claude]
-.harness/skills/*/agents-only.md
 `
+    );
+    await write(
+      root,
+      ".claude/skills/review/.harnessIgnore",
+      "agents-only.md\n"
     );
     await write(root, ".harness/skills/review/SKILL.md", "base skill");
     await write(root, ".harness/skills/review/agents-only.md", "agents only");
@@ -419,7 +481,7 @@ describe("HarnessConfig activation projection", () => {
     expect(plan.targets).toEqual([]);
   });
 
-  it("merges nested override folders and scoped ignores across resource kinds", async () => {
+  it("merges nested override folders and target-output ignores across resource kinds", async () => {
     const root = await rootFixture();
     await writeHarnessConfig(root, {
       resources: ["skills", "plugins", "prompts"],
@@ -430,13 +492,22 @@ describe("HarnessConfig activation projection", () => {
       ".harnessIgnore",
       `
 .harness/plugins/*/logs/
-
-[.agents]
-.harness/plugins/*/.agents/hooks/
-
-[!.cursor]
-.harness/plugins/*/not-cursor.md
 `
+    );
+    await write(
+      root,
+      ".agents/plugins/review-pack/hooks/.harnessIgnore",
+      "hooks.json\n"
+    );
+    await write(
+      root,
+      ".agents/plugins/review-pack/.harnessIgnore",
+      "not-cursor.md\n"
+    );
+    await write(
+      root,
+      ".claude/plugins/review-pack/.harnessIgnore",
+      "not-cursor.md\n"
     );
     await write(root, ".harness/plugins/review-pack/PLUGIN.md", "portable");
     await write(
@@ -447,7 +518,7 @@ describe("HarnessConfig activation projection", () => {
     await write(
       root,
       ".harness/plugins/review-pack/not-cursor.md",
-      "cursor-only by scoped ignore"
+      "cursor-only by target-output ignore"
     );
     await write(
       root,
@@ -535,7 +606,7 @@ describe("HarnessConfig activation projection", () => {
         path.join(root, ".cursor/plugins/review-pack/not-cursor.md"),
         "utf8"
       )
-    ).resolves.toBe("cursor-only by scoped ignore");
+    ).resolves.toBe("cursor-only by target-output ignore");
     await expect(
       readFile(path.join(root, ".cursor/prompts/triage/PROMPT.md"), "utf8")
     ).resolves.toBe("portable prompt");
