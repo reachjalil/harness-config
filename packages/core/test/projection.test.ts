@@ -254,6 +254,35 @@ describe("HarnessConfig activation projection", () => {
     ).rejects.toThrow();
   });
 
+  it("keeps target-output .harnessIgnore as the final output boundary", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root, { targets: ["./.agents"] });
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harnessProfile", "deploy\n");
+    await write(root, ".agents/skills/review/.harnessIgnore", "secret.md\n");
+    await write(root, ".harness/skills/review/SKILL.md", "base");
+    await write(root, ".harness/skills/review/secret.md", "secret");
+    await write(
+      root,
+      ".harness/profiles/deploy/.harnessProfileRoot",
+      "deploy\n"
+    );
+    await write(
+      root,
+      ".harness/profiles/deploy/skills/review/.harnessIgnore",
+      "!secret.md\n"
+    );
+
+    await applyHarnessActivation(root, { dryRun: false, yes: true });
+
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/SKILL.md"), "utf8")
+    ).resolves.toBe("base");
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/secret.md"))
+    ).rejects.toThrow();
+  });
+
   it("merges an active profile root under a resource root", async () => {
     const root = await rootFixture();
     await writeHarnessConfig(root, { targets: ["./.agents"] });
@@ -275,6 +304,98 @@ describe("HarnessConfig activation projection", () => {
     await expect(
       readFile(path.join(root, ".agents/skills/deploy/.harnessProfileRoot"))
     ).rejects.toThrow();
+  });
+
+  it("applies a profile root nested inside a resource item as a portable overlay", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root, { targets: ["./.agents"] });
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harnessProfile", "aggressive\n");
+    await write(root, ".harness/skills/example/SKILL.md", "base");
+    await write(
+      root,
+      ".harness/skills/example/aggressiveProfile/.harnessProfileRoot",
+      "aggressive\n"
+    );
+    await write(
+      root,
+      ".harness/skills/example/aggressiveProfile/SKILL.md",
+      "aggressive"
+    );
+
+    await applyHarnessActivation(root, { dryRun: false, yes: true });
+
+    await expect(
+      readFile(path.join(root, ".agents/skills/example/SKILL.md"), "utf8")
+    ).resolves.toBe("aggressive");
+    await expect(
+      readFile(
+        path.join(root, ".agents/skills/example/aggressiveProfile/SKILL.md")
+      )
+    ).rejects.toThrow();
+  });
+
+  it("warns when multiple active profile roots project the same file", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root, { targets: ["./.agents"] });
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harnessProfile", "deploy\n");
+    await write(root, ".harness/skills/review/SKILL.md", "base");
+    await write(root, ".harness/kits/a/.harnessProfileRoot", "deploy\n");
+    await write(root, ".harness/kits/a/skills/review/SKILL.md", "a");
+    await write(root, ".harness/kits/a/skills/review/CONFLICT.md", "a");
+    await write(root, ".harness/kits/b/.harnessProfileRoot", "deploy\n");
+    await write(root, ".harness/kits/b/skills/review/SKILL.md", "b");
+    await write(root, ".harness/kits/b/skills/review/CONFLICT.md", "b");
+
+    const plan = await planHarnessActivation(root);
+
+    const conflictWarnings = plan.diagnostics.filter(
+      (diagnostic) => diagnostic.code === "harness.profile_overlay_conflict"
+    );
+    expect(conflictWarnings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          severity: "warning",
+          path: ".harness/kits/b/skills/review/SKILL.md",
+        }),
+        expect.objectContaining({
+          severity: "warning",
+          path: ".harness/kits/b/skills/review/CONFLICT.md",
+        }),
+      ])
+    );
+
+    const result = await applyHarnessActivation(root, {
+      dryRun: false,
+      yes: true,
+    });
+    expect(
+      result.plan.diagnostics.filter(
+        (diagnostic) => diagnostic.code === "harness.profile_overlay_conflict"
+      )
+    ).toHaveLength(2);
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/SKILL.md"), "utf8")
+    ).resolves.toBe("b");
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/CONFLICT.md"), "utf8")
+    ).resolves.toBe("b");
+  });
+
+  it("reports profile diagnostics once during activation planning", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root, { targets: ["./.agents"] });
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harness/profiles/bad/.harnessProfileRoot", "\n");
+
+    const plan = await planHarnessActivation(root);
+
+    expect(
+      plan.diagnostics.filter(
+        (diagnostic) => diagnostic.code === "harness.profile_empty"
+      )
+    ).toHaveLength(1);
   });
 
   it("applies target-local profile selection to only that output subtree", async () => {

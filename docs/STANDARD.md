@@ -724,12 +724,15 @@ The following rules apply:
   an output `notes/release.md`.
 - **Scope of effect.** A local file participates only when the candidate
   source path or target output path is inside that file's directory.
-- **Evaluation order.** Rule sets are evaluated **shallow-first**: the
-  repo-root file first, then local files in order of increasing directory
-  depth. Within each rule set, rules are read top-to-bottom. The
-  last-matching participating rule across all files wins. A deeper file can
-  therefore re-include a path that a shallower file excluded, or exclude a
-  path that a shallower file would have included.
+- **Evaluation order.** Rule sets are evaluated in phases: the repo-root file
+  first, then source-local and profile-local files in order of increasing
+  directory depth, then target-output-local files in order of increasing
+  directory depth. Within each rule set, rules are read top-to-bottom. The
+  last-matching participating rule across all files wins. A deeper source or
+  target file can therefore re-include a path that a shallower file in the
+  same phase excluded, or exclude a path that a shallower file would have
+  included. Target-output-local rules form the final output boundary for a
+  target subtree and cannot be undone by profile-local source rules.
 - **Same grammar.** Nested files support the same comments, negation,
   anchors, glob syntax, and supported section headers (`[*]`, `[global]`,
   `[ignore]`, and `[mutable]`) as the repo-root file.
@@ -762,7 +765,8 @@ selector wins for any output path. An empty selector means no profile for
 that subtree.
 
 Profile content is declared with `.harnessProfileRoot`, which MUST live
-inside the `.harness` tree and MUST contain exactly one profile name. The
+inside the `.harness` tree and MUST contain exactly one profile name. A
+`.harnessProfileRoot` MUST NOT be nested inside another profile root. The
 directory containing `.harnessProfileRoot` is a profile root. It is source
 storage, not a resource item, and MUST NOT be projected as a skill, rule,
 plugin, dir output, or copied declaration file.
@@ -774,14 +778,24 @@ Profile roots overlay source paths by where the marker is placed:
   source root. For example, `.harness/skills/deploy/.harnessProfileRoot`
   overlays `.harness/skills`; children of `deploy/` become logical skill
   items.
+- If the marker directory is nested deeper inside a declared resource root or
+  the configured `[dir]` source root, that marker directory overlays its parent
+  directory. This lets resource items carry portable local profiles. For
+  example,
+  `.harness/skills/example/aggressiveProfile/.harnessProfileRoot` overlays
+  `.harness/skills/example`, so
+  `.harness/skills/example/aggressiveProfile/SKILL.md` replaces the logical
+  `.harness/skills/example/SKILL.md` when that profile is active.
 - Otherwise, the marker directory overlays `.harness`. This supports kit
   layouts such as `.harness/kits/deploy-kit/.harnessProfileRoot` with
   children like `skills/` and `dir/`.
 
 During projection, base source files are considered first and active profile
 files are merged afterward using the same file-level override rules as target
-overrides. Profile-local `.harnessIgnore` files match the logical overlay
-path, not the storage path. For example, an ignore file at
+overrides. If multiple active profile roots project the same logical file, a
+tool SHOULD warn and MAY use deterministic last-wins ordering. Profile-local
+`.harnessIgnore` files match the logical overlay path, not the storage path.
+For example, an ignore file at
 `.harness/profiles/personal/dir/AGENTS.md/.harnessIgnore` applies as if it
 were located at `.harness/dir/AGENTS.md/.harnessIgnore`, so it can suppress
 base composable parts before adding profile parts.
@@ -790,8 +804,11 @@ For `[dir]`, implementations MUST use a bootstrap/final flow: collect
 candidate outputs with source-side rules and any known profile selectors,
 discover target-output `.harnessIgnore` and `.harnessProfile` files in
 candidate output ancestors, then recompute final outputs. Active profile
-directories may contribute to an existing `.harnessComposable` leaf even
-when the profile directory does not repeat the `.harnessComposable` marker.
+directories MUST also participate in candidate discovery, so a target-output
+`.harnessProfile` can activate a profile-only dir output even when no base
+dir source would have produced that output. Active profile directories may
+contribute to an existing `.harnessComposable` leaf even when the profile
+directory does not repeat the `.harnessComposable` marker.
 
 ## Reviewability
 

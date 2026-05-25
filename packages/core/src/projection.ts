@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import {
   lstat,
   mkdir,
@@ -45,11 +44,20 @@ import type {
   HarnessResourceItemProjectionOptions,
 } from "./types";
 
+type ActivationPreparation = {
+  config?: HarnessConfig;
+  dirByTarget: Map<string, DirOutput[]>;
+  dirOutputs: DirOutput[];
+  plan: HarnessActivationPlan;
+  projections: Map<string, DesiredProjection>;
+};
+
 type DesiredFile = {
   bytes: Buffer;
   sourcePath: string;
   relativePath: string;
   mutable: boolean;
+  profileRootDir?: string;
 };
 
 type DesiredProjection = Map<string, DesiredFile>;
@@ -72,18 +80,20 @@ async function loadConfig(root: string): Promise<HarnessConfig> {
   return parseHarnessConfigToml(raw);
 }
 
-function hash(bytes: Buffer): string {
-  return createHash("sha256").update(bytes).digest("hex");
-}
-
-async function listFiles(root: string): Promise<string[]> {
+async function listFiles(
+  root: string,
+  options: { skipProfileRoots?: boolean } = {}
+): Promise<string[]> {
   const entries = await readdir(root, { withFileTypes: true }).catch(() => []);
   const files: string[] = [];
 
   for (const entry of entries) {
     const absolute = path.join(root, entry.name);
     if (entry.isDirectory()) {
-      files.push(...(await listFiles(absolute)));
+      if (options.skipProfileRoots && (await hasProfileRootMarker(absolute))) {
+        continue;
+      }
+      files.push(...(await listFiles(absolute, options)));
       continue;
     }
     if (entry.isFile()) {
@@ -92,6 +102,13 @@ async function listFiles(root: string): Promise<string[]> {
   }
 
   return files;
+}
+
+function isInsideOrEqual(parent: string, child: string): boolean {
+  const relative = path.relative(path.resolve(parent), path.resolve(child));
+  return (
+    !relative || (!relative.startsWith("..") && !path.isAbsolute(relative))
+  );
 }
 
 function isImmediateOverridePath(relativeFromItem: string): boolean {
@@ -110,6 +127,7 @@ async function addFileIfIncluded(
   diagnostics: HarnessDiagnostic[],
   options: {
     profile?: string;
+    profileRootDir?: string;
     sourceRelativePath?: string;
   } = {}
 ): Promise<void> {
@@ -152,6 +170,7 @@ async function addFileIfIncluded(
       sourcePath,
       relativePath: outputRelativePath.split(path.sep).join("/"),
       mutable,
+      profileRootDir: options.profileRootDir,
     },
     root,
     diagnostics
@@ -176,6 +195,21 @@ function setProjectedFile(
 ): void {
   const existingFile = projection.get(outputRelativePath);
   if (existingFile) {
+    if (
+      existingFile.profileRootDir &&
+      file.profileRootDir &&
+      path.resolve(existingFile.profileRootDir) !==
+        path.resolve(file.profileRootDir)
+    ) {
+      diagnostics.push({
+        severity: "warning",
+        code: "harness.profile_overlay_conflict",
+        message: `Multiple active profile roots project "${outputRelativePath}". The later profile root wins.`,
+        path: toRepoRelative(root, file.sourcePath),
+        recommendation:
+          "Move one profile file, or keep only one active profile root for this output.",
+      });
+    }
     projection.set(outputRelativePath, file);
     return;
   }
@@ -215,6 +249,7 @@ function setProjectedFile(
     sourcePath: file.sourcePath,
     relativePath: outputRelativePath,
     mutable: file.mutable,
+    profileRootDir: file.profileRootDir,
   });
 }
 
@@ -232,30 +267,38 @@ async function projectResourceItem(options: {
   logicalItemDir: string;
   matcher: HarnessIgnoreMatcher;
   overrideDir: string | undefined;
+  outputBaseRelativePath?: string;
   profileContext: HarnessProfileContext;
+  profileRootDir?: string;
   projection: DesiredProjection;
   requiredProfile?: string;
   resource: string;
   root: string;
   targetPath: string;
 }): Promise<void> {
-  const canonicalFiles = await listFiles(options.itemDir);
+  const canonicalFiles = await listFiles(options.itemDir, {
+    skipProfileRoots: true,
+  });
   for (const filePath of canonicalFiles) {
     const relativeFromItem = path.relative(options.itemDir, filePath);
     if (isImmediateOverridePath(relativeFromItem)) {
       continue;
     }
+    const outputFromItem = path.join(
+      options.outputBaseRelativePath ?? "",
+      relativeFromItem
+    );
     const outputRelativePath = path.join(
       options.resource,
       options.itemName,
-      relativeFromItem
+      outputFromItem
     );
     const targetOutputPath = repoRelativeOutputPath(
       options.targetPath,
       path.posix.join(
         options.resource,
         options.itemName,
-        normalizeTargetPathString(relativeFromItem)
+        normalizeTargetPathString(outputFromItem)
       )
     );
     const activeProfile =
@@ -274,6 +317,7 @@ async function projectResourceItem(options: {
       options.diagnostics,
       {
         profile: activeProfile,
+        profileRootDir: options.profileRootDir,
         sourceRelativePath: toRepoRelative(
           options.root,
           path.join(options.logicalItemDir, relativeFromItem)
@@ -290,20 +334,26 @@ async function projectResourceItem(options: {
     options.logicalItemDir,
     options.overrideDir
   );
-  const overrideFiles = await listFiles(overridePath);
+  const overrideFiles = await listFiles(overridePath, {
+    skipProfileRoots: true,
+  });
   for (const filePath of overrideFiles) {
     const relativeFromOverride = path.relative(overridePath, filePath);
+    const outputFromOverride = path.join(
+      options.outputBaseRelativePath ?? "",
+      relativeFromOverride
+    );
     const outputRelativePath = path.join(
       options.resource,
       options.itemName,
-      relativeFromOverride
+      outputFromOverride
     );
     const targetOutputPath = repoRelativeOutputPath(
       options.targetPath,
       path.posix.join(
         options.resource,
         options.itemName,
-        normalizeTargetPathString(relativeFromOverride)
+        normalizeTargetPathString(outputFromOverride)
       )
     );
     const activeProfile =
@@ -322,6 +372,7 @@ async function projectResourceItem(options: {
       options.diagnostics,
       {
         profile: activeProfile,
+        profileRootDir: options.profileRootDir,
         sourceRelativePath: toRepoRelative(
           options.root,
           path.join(logicalOverridePath, relativeFromOverride)
@@ -335,7 +386,11 @@ async function buildProjection(
   root: string,
   config: HarnessConfig,
   targetPath: string,
-  diagnostics: HarnessDiagnostic[]
+  diagnostics: HarnessDiagnostic[],
+  options?: {
+    matcher?: HarnessIgnoreMatcher;
+    profileContext?: HarnessProfileContext;
+  }
 ): Promise<DesiredProjection> {
   const projection: DesiredProjection = new Map();
   const targetRoot = resolveRepoLocalPath(
@@ -343,19 +398,34 @@ async function buildProjection(
     targetPath,
     `Target "${targetPath}"`
   );
-  const profileContext = await loadHarnessProfileContext(root, {
-    config,
-    targetRoots: [targetRoot],
-  });
-  diagnostics.push(...profileContext.diagnostics);
-  const { matcher, diagnostics: ignoreDiagnostics } =
-    await loadHarnessIgnoreMatcherDetailed(root, {
-      config,
-      extraRuleSets: profileContext.ignoreRuleSets,
-      protectedTargetPaths: profileContext.protectedTargetPaths,
-      targetRoots: [targetRoot],
-    });
-  diagnostics.push(...ignoreDiagnostics);
+  const loadedProfileContext = options?.profileContext
+    ? undefined
+    : await loadHarnessProfileContext(root, {
+        config,
+        targetRoots: [targetRoot],
+      });
+  if (loadedProfileContext) {
+    diagnostics.push(...loadedProfileContext.diagnostics);
+  }
+  const profileContext = options?.profileContext ?? loadedProfileContext;
+  if (!profileContext) {
+    throw new Error("Profile context is required to build projection.");
+  }
+  const loadedMatcher = options?.matcher
+    ? undefined
+    : await loadHarnessIgnoreMatcherDetailed(root, {
+        config,
+        extraRuleSets: profileContext.ignoreRuleSets,
+        protectedTargetPaths: profileContext.protectedTargetPaths,
+        targetRoots: [targetRoot],
+      });
+  if (loadedMatcher) {
+    diagnostics.push(...loadedMatcher.diagnostics);
+  }
+  const matcher = options?.matcher ?? loadedMatcher?.matcher;
+  if (!matcher) {
+    throw new Error("Ignore matcher is required to build projection.");
+  }
   const overrideDir = inferHarnessOverrideDirectory(targetPath);
 
   for (const [resource, definition] of Object.entries(config.resources)) {
@@ -389,6 +459,59 @@ async function buildProjection(
         root,
         targetPath,
       });
+
+      for (const profileRoot of profileContext.profileRoots) {
+        if (!isInsideOrEqual(itemDir, profileRoot.overlayBase)) {
+          continue;
+        }
+        const profileItemDir = profileSourceDirForRoot(
+          profileRoot,
+          profileRoot.overlayBase
+        );
+        if (!profileItemDir) {
+          continue;
+        }
+        const state = await lstat(profileItemDir).catch(() => undefined);
+        if (!state?.isDirectory() || state.isSymbolicLink()) {
+          continue;
+        }
+        const outputBaseRelativePath = path.relative(
+          itemDir,
+          profileRoot.overlayBase
+        );
+        const targetOutputPath = repoRelativeOutputPath(
+          targetPath,
+          path.posix.join(
+            resource,
+            item.name,
+            normalizeTargetPathString(outputBaseRelativePath)
+          )
+        );
+        if (
+          !profileContext.profileCanApplyWithin(
+            targetOutputPath,
+            profileRoot.profile
+          )
+        ) {
+          continue;
+        }
+        await projectResourceItem({
+          diagnostics,
+          itemDir: profileItemDir,
+          itemName: item.name,
+          logicalItemDir: profileRoot.overlayBase,
+          matcher,
+          outputBaseRelativePath,
+          overrideDir,
+          profileContext,
+          profileRootDir: profileRoot.rootDir,
+          projection,
+          requiredProfile: profileRoot.profile,
+          resource,
+          root,
+          targetPath,
+        });
+      }
     }
 
     for (const profileRoot of profileContext.profileRoots) {
@@ -427,6 +550,7 @@ async function buildProjection(
           matcher,
           overrideDir,
           profileContext,
+          profileRootDir: profileRoot.rootDir,
           projection,
           requiredProfile: profileRoot.profile,
           resource,
@@ -489,7 +613,7 @@ async function buildResourceItemProjection(
     });
   diagnostics.push(...ignoreDiagnostics);
   const projection: DesiredProjection = new Map();
-  const canonicalFiles = await listFiles(sourceDir);
+  const canonicalFiles = await listFiles(sourceDir, { skipProfileRoots: true });
   for (const filePath of canonicalFiles) {
     const relativeFromItem = path.relative(sourceDir, filePath);
     if (isImmediateOverridePath(relativeFromItem)) {
@@ -519,7 +643,9 @@ async function buildResourceItemProjection(
   }
 
   const overridePath = path.join(sourceDir, overrideDir);
-  const overrideFiles = await listFiles(overridePath);
+  const overrideFiles = await listFiles(overridePath, {
+    skipProfileRoots: true,
+  });
   for (const filePath of overrideFiles) {
     const relativeFromOverride = path.relative(overridePath, filePath);
     const targetOutputPath = toRepoRelative(
@@ -720,11 +846,7 @@ async function planCopyActions(
       continue;
     }
 
-    if (
-      current.type === "file" &&
-      current.bytes &&
-      hash(current.bytes) === hash(desired.bytes)
-    ) {
+    if (current.type === "file" && current.bytes?.equals(desired.bytes)) {
       actions.push({
         kind: "keep",
         targetPath,
@@ -949,7 +1071,7 @@ export async function harnessResourceItemProjectionMatchesTarget(
     if (!desired || entry.type !== "file" || !entry.bytes) {
       return false;
     }
-    if (hash(entry.bytes) !== hash(desired.bytes)) {
+    if (!entry.bytes.equals(desired.bytes)) {
       return false;
     }
   }
@@ -1102,32 +1224,53 @@ async function planDirRepoRootActions(
   );
 }
 
-export async function planHarnessActivation(
+function diagnosticKey(diagnostic: HarnessDiagnostic): string {
+  return [
+    diagnostic.severity,
+    diagnostic.code,
+    diagnostic.path ?? "",
+    diagnostic.message,
+  ].join("\0");
+}
+
+function dedupeDiagnostics(
+  diagnostics: HarnessDiagnostic[]
+): HarnessDiagnostic[] {
+  const seen = new Set<string>();
+  const output: HarnessDiagnostic[] = [];
+  for (const diagnostic of diagnostics) {
+    const key = diagnosticKey(diagnostic);
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    output.push(diagnostic);
+  }
+  return output;
+}
+
+async function prepareHarnessActivation(
   root = process.cwd(),
   options: Pick<
     ApplyHarnessActivationOptions,
     "cleanupUnmanaged" | "mutablePolicy"
   > = {}
-): Promise<HarnessActivationPlan> {
+): Promise<ActivationPreparation> {
   const absoluteRoot = path.resolve(root);
   const cleanupUnmanaged = options.cleanupUnmanaged ?? "keep";
   const mutablePolicy = options.mutablePolicy ?? "skip";
-  const inspection = await validateHarnessConfig(absoluteRoot);
-  const diagnostics = [...inspection.diagnostics];
   const config = await loadConfig(absoluteRoot).catch((error: unknown) => {
-    diagnostics.push({
-      severity: "error",
-      code: "harness.activation_config_unavailable",
-      message: error instanceof Error ? error.message : String(error),
-      path: toRepoRelative(
-        absoluteRoot,
-        resolveHarnessPaths(absoluteRoot).configPath
-      ),
-      recommendation:
-        "Run harnessc init --yes or create a valid .harness/harness.toml before activating projections.",
-    });
+    void error;
     return undefined;
   });
+  const profileContext = config
+    ? await loadHarnessProfileContext(absoluteRoot, { config })
+    : undefined;
+  const inspection = await validateHarnessConfig(absoluteRoot, {
+    config,
+    profileContext,
+  });
+  const diagnostics = [...inspection.diagnostics];
 
   const emptyDirPlan: HarnessActivationDirPlan = {
     enabled: false,
@@ -1135,35 +1278,59 @@ export async function planHarnessActivation(
   };
 
   if (!config) {
+    diagnostics.push({
+      severity: "error",
+      code: "harness.activation_config_unavailable",
+      message: `${toRepoRelative(
+        absoluteRoot,
+        resolveHarnessPaths(absoluteRoot).configPath
+      )} is not available as a valid activation manifest.`,
+      path: toRepoRelative(
+        absoluteRoot,
+        resolveHarnessPaths(absoluteRoot).configPath
+      ),
+      recommendation:
+        "Run harnessc init --yes or create a valid .harness/harness.toml before activating projections.",
+    });
     return {
-      root: absoluteRoot,
-      idempotent: true,
-      targets: [],
-      dir: emptyDirPlan,
-      diagnostics,
+      config,
+      dirByTarget: new Map(),
+      dirOutputs: [],
+      plan: {
+        root: absoluteRoot,
+        idempotent: true,
+        targets: [],
+        dir: emptyDirPlan,
+        diagnostics: dedupeDiagnostics(diagnostics),
+      },
+      projections: new Map(),
     };
   }
+  if (!profileContext) {
+    throw new Error("Profile context is required for activation planning.");
+  }
 
-  const dirPlanState = await planHarnessDir(absoluteRoot, config);
+  const dirPlanState = await planHarnessDir(absoluteRoot, config, {
+    profileContext,
+  });
   diagnostics.push(...dirPlanState.diagnostics);
   const dirOutputs = dirPlanState.outputs;
   const { byTarget: dirByTarget, repoRoot: dirRepoRootOutputs } =
     partitionDirOutputsByTarget(config, dirOutputs);
-  const profileContext = await loadHarnessProfileContext(absoluteRoot, {
+  const {
+    matcher,
+    diagnostics: ignoreDiagnostics,
+    protectedTargetPaths,
+  } = await loadHarnessIgnoreMatcherDetailed(absoluteRoot, {
     config,
+    extraRuleSets: profileContext.ignoreRuleSets,
+    protectedTargetPaths: profileContext.protectedTargetPaths,
   });
-  diagnostics.push(...profileContext.diagnostics);
-  const { protectedTargetPaths } = await loadHarnessIgnoreMatcherDetailed(
-    absoluteRoot,
-    {
-      config,
-      extraRuleSets: profileContext.ignoreRuleSets,
-      protectedTargetPaths: profileContext.protectedTargetPaths,
-    }
-  );
+  diagnostics.push(...ignoreDiagnostics);
 
   const targetPaths = listHarnessProjectionTargets(config);
   const plans: HarnessActivationTargetPlan[] = [];
+  const projections = new Map<string, DesiredProjection>();
 
   for (const targetPath of targetPaths) {
     const targetRoot = assertRepoLocalPath(
@@ -1175,7 +1342,11 @@ export async function planHarnessActivation(
       absoluteRoot,
       config,
       targetPath,
-      diagnostics
+      diagnostics,
+      {
+        matcher,
+        profileContext,
+      }
     );
     mergeDirOutputsIntoProjection(
       absoluteRoot,
@@ -1184,6 +1355,7 @@ export async function planHarnessActivation(
       dirByTarget.get(targetPath) ?? [],
       diagnostics
     );
+    projections.set(targetPath, targetProjection);
     const actions = await planCopyActions(
       targetRoot,
       targetProjection,
@@ -1210,16 +1382,32 @@ export async function planHarnessActivation(
   );
 
   return {
-    root: absoluteRoot,
-    idempotent: true,
-    targets: plans,
-    dir: {
-      enabled: dirPlanState.enabled,
-      path: dirPlanState.path,
-      actions: dirRepoRootActions,
+    config,
+    dirByTarget,
+    dirOutputs,
+    plan: {
+      root: absoluteRoot,
+      idempotent: true,
+      targets: plans,
+      dir: {
+        enabled: dirPlanState.enabled,
+        path: dirPlanState.path,
+        actions: dirRepoRootActions,
+      },
+      diagnostics: dedupeDiagnostics(diagnostics),
     },
-    diagnostics,
+    projections,
   };
+}
+
+export async function planHarnessActivation(
+  root = process.cwd(),
+  options: Pick<
+    ApplyHarnessActivationOptions,
+    "cleanupUnmanaged" | "mutablePolicy"
+  > = {}
+): Promise<HarnessActivationPlan> {
+  return (await prepareHarnessActivation(root, options)).plan;
 }
 
 async function applyCopyProjection(
@@ -1261,7 +1449,12 @@ async function applyCopyProjection(
     const targetPath = path.join(targetRoot, action.relativePath);
     await mkdir(path.dirname(targetPath), { recursive: true });
     const existing = await lstat(targetPath).catch(() => undefined);
-    if (existing && !existing.isFile()) {
+    if (existing?.isFile()) {
+      const current = await readFile(targetPath).catch(() => undefined);
+      if (current?.equals(file.bytes)) {
+        continue;
+      }
+    } else if (existing) {
       await rm(targetPath, { recursive: true, force: true });
     }
     await writeFile(targetPath, file.bytes);
@@ -1290,15 +1483,15 @@ export async function applyHarnessActivation(
   root = process.cwd(),
   options: ApplyHarnessActivationOptions = {}
 ): Promise<HarnessActivationResult> {
-  const plan = await planHarnessActivation(root, {
+  const state = await prepareHarnessActivation(root, {
     cleanupUnmanaged: options.cleanupUnmanaged,
     mutablePolicy: options.mutablePolicy,
   });
+  const plan = state.plan;
   const dryRun = options.dryRun === true || options.yes !== true;
   const hasErrors = plan.diagnostics.some(
     (diagnostic) => diagnostic.severity === "error"
   );
-  const projections = new Map<string, DesiredProjection>();
   const appliedActions: HarnessActivationAction[] = [];
   const appliedDirActions: HarnessActivationDirAction[] = [];
 
@@ -1318,36 +1511,13 @@ export async function applyHarnessActivation(
     );
   }
 
-  const config = await loadConfig(plan.root);
-  const dirPlanState = await planHarnessDir(plan.root, config);
-  const { byTarget: dirByTarget } = partitionDirOutputsByTarget(
-    config,
-    dirPlanState.outputs
-  );
-
   for (const target of plan.targets) {
     const targetRoot = assertRepoLocalPath(
       plan.root,
       resolveRepoLocalPath(plan.root, target.path, `Target "${target.path}"`),
       `Target "${target.path}"`
     );
-    let projection = projections.get(target.path);
-    if (!projection) {
-      projection = await buildProjection(
-        plan.root,
-        config,
-        target.path,
-        plan.diagnostics
-      );
-      mergeDirOutputsIntoProjection(
-        plan.root,
-        projection,
-        target.path,
-        dirByTarget.get(target.path) ?? [],
-        plan.diagnostics
-      );
-      projections.set(target.path, projection);
-    }
+    const projection = state.projections.get(target.path) ?? new Map();
     await applyCopyProjection(targetRoot, projection, target);
     appliedActions.push(
       ...target.actions.filter(
@@ -1359,18 +1529,24 @@ export async function applyHarnessActivation(
     );
   }
 
+  const dirOutputsByPath = new Map(
+    state.dirOutputs.map((output) => [output.relativePath, output])
+  );
   for (const action of plan.dir.actions) {
     if (!(action.kind === "create" || action.kind === "update")) {
       continue;
     }
-    const output = dirPlanState.outputs.find(
-      (entry) => entry.relativePath === action.relativePath
-    );
+    const output = dirOutputsByPath.get(action.relativePath);
     if (!output) {
       continue;
     }
     const existing = await lstat(action.targetPath).catch(() => undefined);
-    if (existing && !existing.isFile()) {
+    if (existing?.isFile()) {
+      const current = await readFile(action.targetPath).catch(() => undefined);
+      if (current?.equals(output.bytes)) {
+        continue;
+      }
+    } else if (existing) {
       await rm(action.targetPath, { recursive: true, force: true });
     }
     await mkdir(path.dirname(action.targetPath), { recursive: true });

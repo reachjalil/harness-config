@@ -1,8 +1,13 @@
-import { lstat, readFile } from "node:fs/promises";
+import { lstat, readdir, readFile } from "node:fs/promises";
+import path from "node:path";
 
 import { loadHarnessIgnoreRuleSets } from "./ignore";
-import { loadHarnessProfileContext } from "./profile";
 import {
+  loadHarnessProfileContext,
+  type HarnessProfileContext,
+} from "./profile";
+import {
+  HARNESS_PROFILE_ROOT_FILE,
   assertRepoLocalPath,
   resolveHarnessPaths,
   resolveRepoLocalPath,
@@ -14,6 +19,11 @@ import {
   safeParseHarnessConfigToml,
 } from "./standard";
 import type { HarnessDiagnostic, HarnessInspection } from "./types";
+
+export type HarnessValidationOptions = {
+  config?: HarnessConfig;
+  profileContext?: HarnessProfileContext;
+};
 
 async function isDirectory(path: string): Promise<boolean> {
   const pathStat = await lstat(path).catch(() => undefined);
@@ -27,6 +37,39 @@ async function isFile(path: string): Promise<boolean> {
 
 async function pathExists(path: string): Promise<boolean> {
   return Boolean(await lstat(path).catch(() => undefined));
+}
+
+async function findProfileRootsOutsideHarness(
+  root: string,
+  harnessDir: string
+): Promise<string[]> {
+  const markers: string[] = [];
+  const ignoredDirectories = new Set([".git", "node_modules"]);
+
+  async function visit(directory: string): Promise<void> {
+    const entries = await readdir(directory, { withFileTypes: true }).catch(
+      () => []
+    );
+    for (const entry of entries) {
+      const absolutePath = path.join(directory, entry.name);
+      if (path.resolve(absolutePath) === path.resolve(harnessDir)) {
+        continue;
+      }
+      if (entry.isDirectory()) {
+        if (ignoredDirectories.has(entry.name)) {
+          continue;
+        }
+        await visit(absolutePath);
+        continue;
+      }
+      if (entry.isFile() && entry.name === HARNESS_PROFILE_ROOT_FILE) {
+        markers.push(absolutePath);
+      }
+    }
+  }
+
+  await visit(root);
+  return markers.toSorted((left, right) => left.localeCompare(right));
 }
 
 function validateRepoLocalPath(
@@ -113,7 +156,8 @@ function validateConfigSemantics(
 }
 
 export async function inspectHarnessConfig(
-  root = process.cwd()
+  root = process.cwd(),
+  options: HarnessValidationOptions = {}
 ): Promise<HarnessInspection> {
   const paths = resolveHarnessPaths(root);
   const diagnostics: HarnessDiagnostic[] = [];
@@ -175,27 +219,50 @@ export async function inspectHarnessConfig(
     });
   }
 
+  for (const markerPath of await findProfileRootsOutsideHarness(
+    paths.root,
+    paths.harnessDir
+  )) {
+    diagnostics.push({
+      severity: "error",
+      code: "harness.profile_root_outside_harness",
+      message: ".harnessProfileRoot may only exist under .harness.",
+      path: toRepoRelative(paths.root, markerPath),
+      recommendation:
+        "Move the profile root under .harness, or rename this file if it is not a HarnessConfig declaration.",
+    });
+  }
+
   const { diagnostics: ignoreDiagnostics } = await loadHarnessIgnoreRuleSets(
     paths.root
   );
   diagnostics.push(...ignoreDiagnostics);
 
   if (hasHarnessConfig) {
-    const raw = await readFile(paths.configPath, "utf8");
-    const result = safeParseHarnessConfigToml(raw);
-    if (!result.success) {
-      diagnostics.push({
-        severity: "error",
-        code: "harness.config_invalid",
-        message: formatHarnessConfigTomlError(result.error),
-        path: relativeConfigPath,
-        recommendation: "Update harness.toml to a supported schema version.",
-      });
-    } else {
-      validateConfigSemantics(result.data, paths.root, diagnostics);
-      const profileContext = await loadHarnessProfileContext(paths.root, {
-        config: result.data,
-      });
+    let config = options.config;
+    if (!config) {
+      const raw = await readFile(paths.configPath, "utf8");
+      const result = safeParseHarnessConfigToml(raw);
+      if (result.success) {
+        config = result.data;
+      } else {
+        diagnostics.push({
+          severity: "error",
+          code: "harness.config_invalid",
+          message: formatHarnessConfigTomlError(result.error),
+          path: relativeConfigPath,
+          recommendation: "Update harness.toml to a supported schema version.",
+        });
+      }
+    }
+
+    if (config) {
+      validateConfigSemantics(config, paths.root, diagnostics);
+      const profileContext =
+        options.profileContext ??
+        (await loadHarnessProfileContext(paths.root, {
+          config,
+        }));
       diagnostics.push(...profileContext.diagnostics);
     }
   }
@@ -211,7 +278,8 @@ export async function inspectHarnessConfig(
 }
 
 export async function validateHarnessConfig(
-  root = process.cwd()
+  root = process.cwd(),
+  options: HarnessValidationOptions = {}
 ): Promise<HarnessInspection> {
-  return inspectHarnessConfig(root);
+  return inspectHarnessConfig(root, options);
 }

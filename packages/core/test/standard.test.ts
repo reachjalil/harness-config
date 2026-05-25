@@ -293,6 +293,53 @@ path = "./.cursor"
     );
   });
 
+  it("reports nested profile roots during validation", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
+    await write(root, ".harness/harness.toml", "version = 1\n");
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harness/profiles/team/.harnessProfileRoot", "team\n");
+    await write(
+      root,
+      ".harness/profiles/team/nested/.harnessProfileRoot",
+      "team\n"
+    );
+
+    const inspection = await validateHarnessConfig(root);
+
+    expect(inspection.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          severity: "error",
+          code: "harness.profile_nested_root",
+          path: ".harness/profiles/team/nested/.harnessProfileRoot",
+        }),
+      ])
+    );
+  });
+
+  it("reports profile roots outside .harness during validation", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
+    await write(
+      root,
+      ".harness/harness.toml",
+      'version = 1\n\n[[targets]]\npath = "./.agents"\n'
+    );
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".agents/skills/review/.harnessProfileRoot", "team\n");
+
+    const inspection = await validateHarnessConfig(root);
+
+    expect(inspection.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          severity: "error",
+          code: "harness.profile_root_outside_harness",
+          path: ".agents/skills/review/.harnessProfileRoot",
+        }),
+      ])
+    );
+  });
+
   it("rejects unsupported schema versions", () => {
     expect(() => parseHarnessConfigToml("version = 99")).toThrow(
       /Unsupported HarnessConfig version 99/

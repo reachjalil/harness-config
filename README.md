@@ -189,6 +189,9 @@ with a small selector file:
 .harness/
   skills/
     review/SKILL.md                  # normal source
+    review/aggressiveProfile/
+      .harnessProfileRoot            # contains: aggressive
+      SKILL.md                       # overlays .harness/skills/review
     deploy/                          # profile root, not a skill
       .harnessProfileRoot            # contains: deploy
       review/SKILL.md                # overlays .harness/skills/review
@@ -201,10 +204,12 @@ with a small selector file:
 `.harnessProfile` may live at the repo root or in an existing target/output
 subtree such as `.agents/skills/.harnessProfile`; the nearest selector chooses
 the active profile for that output path. `.harnessProfileRoot` may live only
-under `.harness`, names the profile it contributes to, and is never projected
-as a resource item. Profile-local `.harnessIgnore` files match the logical
-overlay path, so a profile can suppress base files or composable parts while
-adding its own files.
+under `.harness`, cannot be nested inside another profile root, names the
+profile it contributes to, and is never projected as a resource item. Profile
+roots nested inside resource or dir source trees overlay their parent folder,
+which lets a skill carry its own portable profile override. Profile-local
+`.harnessIgnore` files match the logical overlay path, so a profile can
+suppress base files or composable parts while adding its own files.
 
 ## CLI
 

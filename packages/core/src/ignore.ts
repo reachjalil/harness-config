@@ -219,15 +219,7 @@ function normalizeRuleSets(
 
   return normalized
     .map((ruleSet, index) => ({ ruleSet, index }))
-    .sort((left, right) => {
-      const depthDifference =
-        ruleSetDepth(left.ruleSet.directory) -
-        ruleSetDepth(right.ruleSet.directory);
-      if (depthDifference !== 0) {
-        return depthDifference;
-      }
-      return left.index - right.index;
-    })
+    .sort(compareRuleSetOrder)
     .map(({ ruleSet }) => ruleSet);
 }
 
@@ -262,6 +254,31 @@ function ruleSetDepth(directory: string): number {
     return 0;
   }
   return directory.split("/").filter(Boolean).length;
+}
+
+function ruleSetPhase(ruleSet: HarnessIgnoreRuleSet): number {
+  if (ruleSet.directory === "") {
+    return 0;
+  }
+  return ruleSet.matchBase === "target" ? 2 : 1;
+}
+
+function compareRuleSetOrder(
+  left: { ruleSet: HarnessIgnoreRuleSet; index: number },
+  right: { ruleSet: HarnessIgnoreRuleSet; index: number }
+): number {
+  const phaseDifference =
+    ruleSetPhase(left.ruleSet) - ruleSetPhase(right.ruleSet);
+  if (phaseDifference !== 0) {
+    return phaseDifference;
+  }
+  const depthDifference =
+    ruleSetDepth(left.ruleSet.directory) -
+    ruleSetDepth(right.ruleSet.directory);
+  if (depthDifference !== 0) {
+    return depthDifference;
+  }
+  return left.index - right.index;
 }
 
 function evaluate(
@@ -501,15 +518,7 @@ export async function loadHarnessIgnoreRuleSets(
   }
 
   const sortedRuleSets = ruleSets
-    .sort((left, right) => {
-      const depthDifference =
-        ruleSetDepth(left.ruleSet.directory) -
-        ruleSetDepth(right.ruleSet.directory);
-      if (depthDifference !== 0) {
-        return depthDifference;
-      }
-      return left.index - right.index;
-    })
+    .sort(compareRuleSetOrder)
     .map(({ ruleSet }) => ruleSet);
 
   return {

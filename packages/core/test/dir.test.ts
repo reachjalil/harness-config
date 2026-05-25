@@ -200,6 +200,31 @@ describe("core dir (composable + copy)", () => {
     );
   });
 
+  it("applies a profile root nested inside a composable leaf", async () => {
+    const root = await fixtureRoot();
+    await writeConfig(root);
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harnessProfile", "aggressive\n");
+    await write(root, ".harness/dir/AGENTS.md/.harnessComposable", "");
+    await write(root, ".harness/dir/AGENTS.md/100_intro.md", "Base\n");
+    await write(
+      root,
+      ".harness/dir/AGENTS.md/aggressiveProfile/.harnessProfileRoot",
+      "aggressive\n"
+    );
+    await write(
+      root,
+      ".harness/dir/AGENTS.md/aggressiveProfile/150_profile.md",
+      "Profile\n"
+    );
+
+    await applyHarnessActivation(root, { yes: true });
+
+    await expect(readFile(path.join(root, "AGENTS.md"), "utf8")).resolves.toBe(
+      "Base\nProfile\n"
+    );
+  });
+
   it("discovers target-output profile selectors during the final dir pass", async () => {
     const root = await fixtureRoot();
     await writeConfig(root);
@@ -223,6 +248,58 @@ describe("core dir (composable + copy)", () => {
     await expect(
       readFile(path.join(root, "notes/release.md"), "utf8")
     ).resolves.toBe("Base\nProfile\n");
+  });
+
+  it("uses target-output profile selectors for profile-only dir outputs", async () => {
+    const root = await fixtureRoot();
+    await writeConfig(root);
+    await mkdir(path.join(root, ".harness/dir"), { recursive: true });
+    await write(root, ".harnessIgnore", "");
+    await write(root, "notes/.harnessProfile", "notes-profile\n");
+    await write(
+      root,
+      ".harness/profiles/notes/.harnessProfileRoot",
+      "notes-profile\n"
+    );
+    await write(
+      root,
+      ".harness/profiles/notes/dir/notes/release.md/.harnessComposable",
+      ""
+    );
+    await write(
+      root,
+      ".harness/profiles/notes/dir/notes/release.md/100_profile.md",
+      "Profile\n"
+    );
+    await write(
+      root,
+      ".harness/profiles/notes/dir/notes/profile.txt",
+      "copy\n"
+    );
+
+    const plan = await planHarnessActivation(root);
+
+    expect(plan.dir.actions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "create",
+          relativePath: "notes/release.md",
+        }),
+        expect.objectContaining({
+          kind: "create",
+          relativePath: "notes/profile.txt",
+        }),
+      ])
+    );
+
+    await applyHarnessActivation(root, { yes: true });
+
+    await expect(
+      readFile(path.join(root, "notes/release.md"), "utf8")
+    ).resolves.toBe("Profile\n");
+    await expect(
+      readFile(path.join(root, "notes/profile.txt"), "utf8")
+    ).resolves.toBe("copy\n");
   });
 
   it("applies target-located .harnessIgnore rules to dir copy outputs", async () => {

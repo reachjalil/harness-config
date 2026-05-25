@@ -56,7 +56,7 @@ other product opinions belong above `harnessc`.
 ## Dir Composition And Copy
 
 Declaring `[dir]` in `harness.toml` activates a single dir source root
-(default `./.harness/dir`). Running `harnessc activate` planes and applies
+(default `./.harness/dir`). Running `harnessc activate` plans and applies
 dir outputs alongside target projection:
 
 ```toml
@@ -100,18 +100,23 @@ source outside `./.harness`. Ignoring a container skips all dir outputs
 below it, ignoring a leaf skips that output, and ignoring a part excludes
 that part from composition. Target-output `.harnessIgnore` files can also
 filter dir outputs by final output path after the candidate output structure
-is known. Only global ignore rules participate for dir outputs; scoped
-target headers are ignored in this mode. The `.harnessComposable` marker
-itself is never copied to any output.
+is known; target-output rules are evaluated after source and profile-local
+rules, so they form the final boundary for that output subtree. Scoped target
+headers are ignored in this mode. The `.harnessComposable` marker itself is
+never copied to any output.
 
 Profile overrides use `.harnessProfile` selectors and `.harnessProfileRoot`
 source overlays. A root `.harnessProfile` applies globally; target/output
 selectors such as `.agents/skills/.harnessProfile` apply only to that output
 subtree. `.harnessProfileRoot` must live under `.harness`; when active, its
 contents overlay either the parent source root (for markers directly inside a
-resource or dir root) or `.harness` (for kit-style folders). Profile-local
+resource or dir root), the parent directory (for portable profile roots nested
+inside a resource item or dir subtree), or `.harness` (for kit-style folders).
+Profile roots cannot be nested inside other profile roots. Profile-local
 `.harnessIgnore` files match those logical overlay paths, including
-`.harnessComposable` leaves.
+`.harnessComposable` leaves. Dir planning discovers target/output profile
+selectors from both base and profile-only candidate outputs before computing
+the final dir output set.
 
 Dir output paths that fall under a declared `[[targets]]` path merge into
 that target's projection — running activation a second time converges to
@@ -174,8 +179,9 @@ A conforming validator should:
 - Validate resource ids and repo-local resource paths.
 - Verify each `[[targets]]` entry contains only a repo-local path and does not
   point at the source root.
-- Parse `.harnessIgnore` with global, target-output-local, and `[mutable]`
-  rules in declaration order.
+- Parse `.harnessIgnore` with repo-root, source-local, profile-local,
+  target-output-local, and `[mutable]` rules using the standard precedence
+  phases.
 - Resolve `.harnessProfile` selectors and `.harnessProfileRoot` overlays
   before projection, including the `[dir]` bootstrap/final pass for output
   selectors.

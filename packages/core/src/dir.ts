@@ -4,6 +4,8 @@ import path from "node:path";
 import { loadHarnessIgnoreMatcherDetailed } from "./ignore";
 import {
   assertRepoLocalPath,
+  HARNESS_IGNORE_FILE,
+  HARNESS_PROFILE_FILE,
   HARNESS_PROFILE_ROOT_FILE,
   resolveHarnessPaths,
   resolveRepoLocalPath,
@@ -36,6 +38,11 @@ export type HarnessDirPlan = {
   path?: string;
   outputs: DirOutput[];
   diagnostics: HarnessDiagnostic[];
+  profileContext?: HarnessProfileContext;
+};
+
+export type HarnessDirPlanOptions = {
+  profileContext?: HarnessProfileContext;
 };
 
 type DirectoryEntry = {
@@ -45,6 +52,7 @@ type DirectoryEntry = {
 
 type DirSourceLayer = {
   logicalRoot: string;
+  outputPrefix?: string;
   physicalRoot: string;
   profile?: string;
   profileRoot?: HarnessProfileRoot;
@@ -113,11 +121,20 @@ function layerRelativePath(
   layer: DirSourceLayer,
   absolutePath: string
 ): string {
-  return normalizeRelative(path.relative(layer.physicalRoot, absolutePath));
+  const relative = normalizeRelative(
+    path.relative(layer.physicalRoot, absolutePath)
+  );
+  if (!relative) {
+    return normalizeRelative(layer.outputPrefix ?? "");
+  }
+  return normalizeRelative(path.join(layer.outputPrefix ?? "", relative));
 }
 
 function layerLogicalPath(layer: DirSourceLayer, absolutePath: string): string {
-  return path.join(layer.logicalRoot, layerRelativePath(layer, absolutePath));
+  return path.join(
+    layer.logicalRoot,
+    normalizeRelative(path.relative(layer.physicalRoot, absolutePath))
+  );
 }
 
 function layerLogicalRepoPath(
@@ -784,6 +801,94 @@ async function collectDirOutputs(
   );
 }
 
+function isCandidateDeclarationFile(name: string): boolean {
+  return (
+    name === HARNESS_COMPOSABLE_MARKER ||
+    name === HARNESS_IGNORE_FILE ||
+    name === HARNESS_PROFILE_FILE ||
+    name === HARNESS_PROFILE_ROOT_FILE
+  );
+}
+
+async function hasProfileRootMarker(directory: string): Promise<boolean> {
+  const marker = await lstat(
+    path.join(directory, HARNESS_PROFILE_ROOT_FILE)
+  ).catch(() => undefined);
+  return Boolean(marker?.isFile());
+}
+
+async function collectLayerCandidateOutputPaths(
+  layer: DirSourceLayer,
+  directory: string,
+  outputPaths: Set<string>
+): Promise<void> {
+  const entries = await readdir(directory, { withFileTypes: true }).catch(
+    () => []
+  );
+  const files: string[] = [];
+  const directories: string[] = [];
+  let hasMarker = false;
+
+  for (const entry of entries) {
+    const absolutePath = path.join(directory, entry.name);
+    const stat = await lstat(absolutePath).catch(() => undefined);
+    if (!stat) {
+      continue;
+    }
+    const entryType = entryTypeFromStat(stat);
+    if (entryType === "directory") {
+      if (await hasProfileRootMarker(absolutePath)) {
+        continue;
+      }
+      directories.push(absolutePath);
+      continue;
+    }
+    if (entryType !== "file") {
+      continue;
+    }
+    if (entry.name === HARNESS_COMPOSABLE_MARKER) {
+      hasMarker = true;
+      continue;
+    }
+    if (!isCandidateDeclarationFile(entry.name)) {
+      files.push(absolutePath);
+    }
+  }
+
+  if (hasMarker) {
+    const outputPath = layerRelativePath(layer, directory);
+    if (outputPath) {
+      outputPaths.add(outputPath);
+    }
+    return;
+  }
+
+  for (const file of files) {
+    const outputPath = layerRelativePath(layer, file);
+    if (outputPath) {
+      outputPaths.add(outputPath);
+    }
+  }
+
+  await Promise.all(
+    directories.map((child) =>
+      collectLayerCandidateOutputPaths(layer, child, outputPaths)
+    )
+  );
+}
+
+async function collectDirCandidateOutputPaths(
+  layers: DirSourceLayer[]
+): Promise<string[]> {
+  const outputPaths = new Set<string>();
+  await Promise.all(
+    layers.map((layer) =>
+      collectLayerCandidateOutputPaths(layer, layer.physicalRoot, outputPaths)
+    )
+  );
+  return [...outputPaths].sort((left, right) => left.localeCompare(right));
+}
+
 async function dirSourceLayers(
   dirRoot: string,
   profileContext: HarnessProfileContext
@@ -796,7 +901,13 @@ async function dirSourceLayers(
   ];
 
   for (const profileRoot of profileContext.profileRoots) {
-    const physicalRoot = profileSourceDirForRoot(profileRoot, dirRoot);
+    const profileOverlaysDirRoot = isInsideOrEqual(
+      dirRoot,
+      profileRoot.overlayBase
+    );
+    const physicalRoot = profileOverlaysDirRoot
+      ? profileSourceDirForRoot(profileRoot, profileRoot.overlayBase)
+      : profileSourceDirForRoot(profileRoot, dirRoot);
     if (!physicalRoot) {
       continue;
     }
@@ -805,7 +916,10 @@ async function dirSourceLayers(
       continue;
     }
     layers.push({
-      logicalRoot: dirRoot,
+      logicalRoot: profileOverlaysDirRoot ? profileRoot.overlayBase : dirRoot,
+      outputPrefix: profileOverlaysDirRoot
+        ? normalizeRelative(path.relative(dirRoot, profileRoot.overlayBase))
+        : "",
       physicalRoot,
       profile: profileRoot.profile,
       profileRoot,
@@ -817,7 +931,8 @@ async function dirSourceLayers(
 
 export async function planHarnessDir(
   root: string,
-  config: HarnessConfig
+  config: HarnessConfig,
+  options: HarnessDirPlanOptions = {}
 ): Promise<HarnessDirPlan> {
   const diagnostics: HarnessDiagnostic[] = [];
   if (!dirEnabled(config)) {
@@ -864,33 +979,48 @@ export async function planHarnessDir(
     };
   }
 
-  const bootstrapProfileContext = await loadHarnessProfileContext(root, {
-    config,
-  });
+  const bootstrapProfileContext =
+    options.profileContext ??
+    (await loadHarnessProfileContext(root, {
+      config,
+    }));
   const bootstrap = await loadHarnessIgnoreMatcherDetailed(root, {
     config,
     extraRuleSets: bootstrapProfileContext.ignoreRuleSets,
     protectedTargetPaths: bootstrapProfileContext.protectedTargetPaths,
   });
+  const bootstrapLayers = await dirSourceLayers(
+    dirRoot,
+    bootstrapProfileContext
+  );
   const bootstrapOutputs = await collectDirOutputs(
     root,
     config,
-    await dirSourceLayers(dirRoot, bootstrapProfileContext),
+    bootstrapLayers,
     bootstrap.matcher,
     bootstrapProfileContext,
     []
   );
-  const profileContext = await loadHarnessProfileContext(root, {
-    config,
-    targetOutputPaths: bootstrapOutputs.map((output) => output.relativePath),
-  });
+  const targetOutputPaths = [
+    ...new Set([
+      ...bootstrapOutputs.map((output) => output.relativePath),
+      ...(await collectDirCandidateOutputPaths(bootstrapLayers)),
+    ]),
+  ].sort((left, right) => left.localeCompare(right));
+  const profileContext =
+    targetOutputPaths.length === 0
+      ? bootstrapProfileContext
+      : await loadHarnessProfileContext(root, {
+          config,
+          targetOutputPaths,
+        });
   diagnostics.push(...profileContext.diagnostics);
   const { matcher, diagnostics: ignoreDiagnostics } =
     await loadHarnessIgnoreMatcherDetailed(root, {
       config,
       extraRuleSets: profileContext.ignoreRuleSets,
       protectedTargetPaths: profileContext.protectedTargetPaths,
-      targetOutputPaths: bootstrapOutputs.map((output) => output.relativePath),
+      targetOutputPaths,
     });
   diagnostics.push(...ignoreDiagnostics);
   const outputs = await collectDirOutputs(
@@ -907,5 +1037,6 @@ export async function planHarnessDir(
     path: dirRootRelative,
     outputs,
     diagnostics,
+    profileContext,
   };
 }

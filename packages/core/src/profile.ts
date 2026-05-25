@@ -139,6 +139,13 @@ export function logicalPathForProfilePath(
   );
 }
 
+function isInsideOrEqual(parent: string, child: string): boolean {
+  const relative = path.relative(path.resolve(parent), path.resolve(child));
+  return (
+    !relative || (!relative.startsWith("..") && !path.isAbsolute(relative))
+  );
+}
+
 function profileOverlaySourceRoots(
   root: string,
   options: HarnessProfileContextOptions
@@ -176,9 +183,31 @@ async function loadHarnessProfileRoots(
 ): Promise<HarnessProfileRoot[]> {
   const paths = resolveHarnessPaths(root);
   const markerPaths = await findProfileRootMarkers(paths.harnessDir);
+  const markerRootDirs = markerPaths.map((markerPath) =>
+    path.dirname(markerPath)
+  );
   const roots: HarnessProfileRoot[] = [];
 
   for (const markerPath of markerPaths) {
+    const rootDir = path.dirname(markerPath);
+    const nestedIn = markerRootDirs.find(
+      (candidate) =>
+        path.resolve(candidate) !== path.resolve(rootDir) &&
+        isInsideOrEqual(candidate, rootDir)
+    );
+    if (nestedIn) {
+      diagnostics.push({
+        severity: "error",
+        code: "harness.profile_nested_root",
+        message:
+          ".harnessProfileRoot cannot be nested inside another profile root.",
+        path: toRepoRelative(root, markerPath),
+        recommendation:
+          "Move the nested profile root outside the parent profile root.",
+      });
+      continue;
+    }
+
     const profile = await readProfileDeclaration(root, markerPath, {
       diagnostics,
       required: true,
@@ -187,15 +216,24 @@ async function loadHarnessProfileRoots(
     if (!profile) {
       continue;
     }
-    const rootDir = path.dirname(markerPath);
     const parent = path.dirname(rootDir);
-    const sourceRoot = sourceRoots.find(
-      (candidate) => path.resolve(candidate) === path.resolve(parent)
+    const sourceRoot = sourceRoots
+      .filter(
+        (candidate) =>
+          path.resolve(candidate) !== path.resolve(paths.harnessDir)
+      )
+      .find((candidate) => isInsideOrEqual(candidate, rootDir));
+    const overlaysLocalSource = Boolean(sourceRoot);
+    const directSourceRoot = sourceRoots.find(
+      (candidate) =>
+        path.resolve(candidate) !== path.resolve(paths.harnessDir) &&
+        path.resolve(candidate) === path.resolve(parent)
     );
     roots.push({
       profile,
       rootDir,
-      overlayBase: sourceRoot ?? paths.harnessDir,
+      overlayBase:
+        directSourceRoot ?? (overlaysLocalSource ? parent : paths.harnessDir),
       markerPath,
     });
   }

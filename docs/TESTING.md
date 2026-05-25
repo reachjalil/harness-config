@@ -19,6 +19,7 @@ rules produce the same live target trees.
 | Ignore | Global reset sections such as `[*]` | `packages/core/test/standard.test.ts` |
 | Ignore | Source-local, target-output-local, root source/output, and shallow-first precedence | `packages/core/test/standard.test.ts` |
 | Profiles | Root and target-local `.harnessProfile` selectors discover active profiles and protected target selectors | `packages/core/test/standard.test.ts` |
+| Profiles | Nested `.harnessProfileRoot` declarations and profile roots outside `.harness` are diagnostics | `packages/core/test/standard.test.ts` |
 | Projection | Explicit `.agents` copy projection with `.agents` overrides | `packages/core/test/projection.test.ts` |
 | Projection | Additional target copy projection with target-derived overrides | `packages/core/test/projection.test.ts` |
 | Projection | Nested override contents such as plugin manifests and nested skills | `packages/core/test/projection.test.ts` |
@@ -26,6 +27,10 @@ rules produce the same live target trees.
 | Projection | Scoped `.harnessIgnore` changes target output independently | `packages/core/test/projection.test.ts` |
 | Projection | Target-output `.harnessIgnore` filters one target and is preserved during cleanup | `packages/core/test/projection.test.ts` |
 | Projection | Active `.harnessProfileRoot` overlays merge resources, suppress base resources with logical `.harnessIgnore`, and preserve target-local `.harnessProfile` during cleanup | `packages/core/test/projection.test.ts` |
+| Projection | Target-output `.harnessIgnore` remains the final boundary when profile-local rules also match | `packages/core/test/projection.test.ts` |
+| Projection | Portable profile roots nested inside resource items overlay the containing item | `packages/core/test/projection.test.ts` |
+| Projection | Multiple active profile roots projecting the same file emit a warning and resolve deterministically | `packages/core/test/projection.test.ts` |
+| Projection | Activation planning reports profile diagnostics once despite shared dir/resource phases | `packages/core/test/projection.test.ts` |
 | TOML | Target paths determine override folders from the first path segment | `packages/core/test/standard.test.ts` |
 | Projection | Identical declared targets are still materialized as copy projections | `packages/core/test/projection.test.ts` |
 | Projection | An existing target symlink is replaced with a copy projection | `packages/core/test/projection.test.ts` |
@@ -46,7 +51,8 @@ rules produce the same live target trees.
 | Dir | `[dir]` honors source-local `.harnessIgnore` inside `.harnessComposable` leaves, including custom dir sources outside `.harness` | `packages/core/test/dir.test.ts` |
 | Dir | `[dir]` honors target-output `.harnessIgnore` for copy and composable outputs | `packages/core/test/dir.test.ts` |
 | Dir | `[dir]` active profile roots add composable parts and use logical `.harnessIgnore` files to suppress base parts | `packages/core/test/dir.test.ts` |
-| Dir | `[dir]` discovers target-output `.harnessProfile` selectors in the final bootstrap pass | `packages/core/test/dir.test.ts` |
+| Dir | `[dir]` portable profile roots nested inside composable leaves can add profile parts | `packages/core/test/dir.test.ts` |
+| Dir | `[dir]` discovers target-output `.harnessProfile` selectors in the final bootstrap pass, including profile-only dir outputs with no base candidate | `packages/core/test/dir.test.ts` |
 | Dir | `[dir]` reports invalid parts, mixed containers, symlinks, ref errors, and target overlaps | `packages/core/test/dir.test.ts` |
 | Dir | `[dir]` reports create, update, and keep actions across activations | `packages/core/test/dir.test.ts` |
 | Dir | `[dir]` copies files from directories without the `.harnessComposable` marker | `packages/core/test/dir.test.ts` |
