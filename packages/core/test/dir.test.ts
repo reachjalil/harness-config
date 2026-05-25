@@ -302,6 +302,33 @@ describe("core dir (composable + copy)", () => {
     ).resolves.toBe("copy\n");
   });
 
+  it("applies physical ancestor ignores before profile roots overlay dir leaves", async () => {
+    const root = await fixtureRoot();
+    await writeConfig(root);
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harness/dir/.keep", "");
+    await write(root, ".harnessProfile", "deploy\n");
+    await write(root, ".harness/kits/.harnessIgnore", "**/.harnex/\n");
+    await write(root, ".harness/kits/deploy/.harnessProfileRoot", "deploy\n");
+    await write(
+      root,
+      ".harness/kits/deploy/dir/AGENTS.md/.harnessComposable",
+      ""
+    );
+    await write(root, ".harness/kits/deploy/dir/AGENTS.md/100_intro.md", "A");
+    await write(
+      root,
+      ".harness/kits/deploy/dir/AGENTS.md/.harnex/meta.md",
+      "metadata"
+    );
+
+    await applyHarnessActivation(root, { yes: true });
+
+    await expect(readFile(path.join(root, "AGENTS.md"), "utf8")).resolves.toBe(
+      "A"
+    );
+  });
+
   it("applies target-located .harnessIgnore rules to dir copy outputs", async () => {
     const root = await fixtureRoot();
     await writeConfig(root, { targets: ["./.agents"] });

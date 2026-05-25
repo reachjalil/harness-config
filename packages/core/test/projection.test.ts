@@ -283,6 +283,31 @@ describe("HarnessConfig activation projection", () => {
     ).rejects.toThrow();
   });
 
+  it("applies physical ancestor ignores before profile roots overlay resources", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root, { targets: ["./.agents"] });
+    await write(root, ".harnessIgnore", ".harness/skills/**\n");
+    await write(root, ".harnessProfile", "deploy\n");
+    await write(root, ".harness/kits/.harnessIgnore", "**/.harnex/\n");
+    await write(root, ".harness/kits/deploy/.harnessProfileRoot", "deploy\n");
+    await write(root, ".harness/kits/deploy/.harnessIgnore", "!skills/extra/**\n");
+    await write(root, ".harness/kits/deploy/skills/extra/SKILL.md", "extra");
+    await write(
+      root,
+      ".harness/kits/deploy/skills/extra/docs/.harnex/meta.md",
+      "metadata"
+    );
+
+    await applyHarnessActivation(root, { dryRun: false, yes: true });
+
+    await expect(
+      readFile(path.join(root, ".agents/skills/extra/SKILL.md"), "utf8")
+    ).resolves.toBe("extra");
+    await expect(
+      readFile(path.join(root, ".agents/skills/extra/docs/.harnex/meta.md"))
+    ).rejects.toThrow();
+  });
+
   it("merges an active profile root under a resource root", async () => {
     const root = await rootFixture();
     await writeHarnessConfig(root, { targets: ["./.agents"] });

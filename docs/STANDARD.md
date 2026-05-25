@@ -793,6 +793,13 @@ For example, an ignore file at
 were located at `.harness/dir/AGENTS.md/.harnessIgnore`, so it can suppress
 base composable parts before adding profile parts.
 
+Source-local `.harnessIgnore` files that are physical ancestors of a profile
+root also apply before the profile root is mapped onto its logical overlay
+path. For example, `.harness/kits/.harnessIgnore` can exclude
+`.harness/kits/deploy/**/.harnex/` metadata from the active `deploy` profile
+even when files under that profile root overlay logical paths such as
+`.harness/skills` or `.harness/dir`.
+
 For `[dir]`, implementations MUST use a bootstrap/final flow: collect
 candidate outputs with source-side rules and any known profile selectors,
 discover target-output `.harnessIgnore` and `.harnessProfile` files in

@@ -107,8 +107,20 @@ function shouldIgnore(
   sourceRelativePath: string,
   isDirectory: boolean,
   outputPath?: string,
-  profile?: string
+  profile?: string,
+  physicalSourceRelativePath?: string
 ): boolean {
+  if (
+    physicalSourceRelativePath &&
+    physicalSourceRelativePath !== sourceRelativePath &&
+    matcher.ignores(physicalSourceRelativePath, {
+      isDirectory,
+      outputPath,
+      profile,
+    })
+  ) {
+    return true;
+  }
   return matcher.ignores(sourceRelativePath, {
     isDirectory,
     outputPath,
@@ -142,6 +154,10 @@ function layerLogicalRepoPath(
   absolutePath: string
 ): string {
   return toRepoRelative(root, layerLogicalPath(layer, absolutePath));
+}
+
+function layerPhysicalRepoPath(root: string, absolutePath: string): string {
+  return toRepoRelative(root, absolutePath);
 }
 
 function outputProfile(
@@ -222,6 +238,10 @@ async function classifyEntries(
       layer,
       entry.absolutePath
     );
+    const physicalSourceRelativePath = layerPhysicalRepoPath(
+      root,
+      entry.absolutePath
+    );
     const activeProfile = outputProfile(profileContext, outputPath);
     if (entryType === "directory") {
       const markerState = await lstat(
@@ -236,7 +256,8 @@ async function classifyEntries(
           sourceRelativePath,
           true,
           outputPath,
-          activeProfile
+          activeProfile,
+          physicalSourceRelativePath
         )
       ) {
         directories.push(entry);
@@ -258,7 +279,8 @@ async function classifyEntries(
           sourceRelativePath,
           false,
           outputPath,
-          activeProfile
+          activeProfile,
+          physicalSourceRelativePath
         )
       ) {
         files.push(entry);
@@ -273,7 +295,8 @@ async function classifyEntries(
         sourceRelativePath,
         false,
         outputPath,
-        activeProfile
+        activeProfile,
+        physicalSourceRelativePath
       )
     ) {
       diagnostics.push({
@@ -498,7 +521,8 @@ async function walkDir(
         layerLogicalRepoPath(root, layer, directory),
         true,
         outputPath,
-        activeProfile
+        activeProfile,
+        layerPhysicalRepoPath(root, directory)
       )
     ) {
       return;

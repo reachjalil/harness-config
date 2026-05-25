@@ -126,14 +126,28 @@ async function addFileIfIncluded(
   targetOutputPath: string,
   diagnostics: HarnessDiagnostic[],
   options: {
+    physicalSourceRelativePath?: string;
     profile?: string;
     profileRootDir?: string;
     sourceRelativePath?: string;
   } = {}
 ): Promise<void> {
-  const sourceRelative = normalizeTargetPathString(
-    options.sourceRelativePath ?? toRepoRelative(root, sourcePath)
+  const physicalSourceRelative = normalizeTargetPathString(
+    options.physicalSourceRelativePath ?? toRepoRelative(root, sourcePath)
   );
+  const sourceRelative = normalizeTargetPathString(
+    options.sourceRelativePath ?? physicalSourceRelative
+  );
+  if (
+    physicalSourceRelative !== sourceRelative &&
+    matcher.ignores(physicalSourceRelative, {
+      outputPath: targetOutputPath,
+      profile: options.profile,
+      targetPath,
+    })
+  ) {
+    return;
+  }
   if (
     matcher.ignores(sourceRelative, {
       outputPath: targetOutputPath,
@@ -157,11 +171,18 @@ async function addFileIfIncluded(
     return;
   }
 
-  const mutable = matcher.isMutable(sourceRelative, {
-    outputPath: targetOutputPath,
-    profile: options.profile,
-    targetPath,
-  });
+  const mutable =
+    (physicalSourceRelative !== sourceRelative &&
+      matcher.isMutable(physicalSourceRelative, {
+        outputPath: targetOutputPath,
+        profile: options.profile,
+        targetPath,
+      })) ||
+    matcher.isMutable(sourceRelative, {
+      outputPath: targetOutputPath,
+      profile: options.profile,
+      targetPath,
+    });
   setProjectedFile(
     projection,
     outputRelativePath.split(path.sep).join("/"),
