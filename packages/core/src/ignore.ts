@@ -625,6 +625,12 @@ async function addNestedIgnoreFiles(
     for (const child of children) {
       const absolutePath = path.join(directory, child.name);
       if (child.isDirectory()) {
+        if (
+          matchBase === "source" &&
+          (await hasHarnessProfileRootMarker(absolutePath))
+        ) {
+          continue;
+        }
         await visit(absolutePath);
         continue;
       }
@@ -635,6 +641,13 @@ async function addNestedIgnoreFiles(
   }
 
   await visit(rootPath);
+}
+
+async function hasHarnessProfileRootMarker(directory: string): Promise<boolean> {
+  const state = await lstat(path.join(directory, HARNESS_PROFILE_ROOT_FILE)).catch(
+    () => undefined
+  );
+  return Boolean(state?.isFile());
 }
 
 async function addOutputAncestorIgnoreFiles(
