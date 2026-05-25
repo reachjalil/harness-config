@@ -1,3 +1,4 @@
+export * from "./dir";
 export * from "./format";
 export * from "./ignore";
 export * from "./paths";

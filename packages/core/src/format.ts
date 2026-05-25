@@ -1,6 +1,8 @@
 import { toRepoRelative } from "./paths";
 import type {
   HarnessActivationAction,
+  HarnessActivationDirAction,
+  HarnessActivationDirPlan,
   HarnessActivationPlan,
   HarnessActivationResult,
   HarnessDiagnostic,
@@ -24,6 +26,73 @@ function formatActivationAction(
   const sourceDetails = source ? ` <- ${source}` : "";
   const reason = action.reason ? ` (${action.reason})` : "";
   return `${action.kind}: ${target}${sourceDetails}${reason}`;
+}
+
+function summarizeDirActions(actions: HarnessActivationDirAction[]): string {
+  const counts = { create: 0, update: 0, keep: 0 };
+  for (const action of actions) {
+    counts[action.kind] += 1;
+  }
+  return `create ${counts.create}, update ${counts.update}, keep ${counts.keep}`;
+}
+
+function formatDirAction(
+  root: string,
+  action: HarnessActivationDirAction
+): string {
+  const target = toRepoRelative(root, action.targetPath);
+  const source =
+    action.sourcePaths.length === 0
+      ? "empty"
+      : `${action.sourcePaths.length} ${action.outputKind} source file${
+          action.sourcePaths.length === 1 ? "" : "s"
+        }`;
+  const reason = action.reason ? ` (${action.reason})` : "";
+  return `${action.kind}: ${target} <- ${source}${reason}`;
+}
+
+function formatDirPlanSection(
+  root: string,
+  dir: HarnessActivationDirPlan
+): string {
+  if (!dir.enabled) {
+    return "Dir composition:\n[dir] is not declared; no dir composition or copy.";
+  }
+  const header = `Dir composition (source ${dir.path ?? "./.harness/dir"}):`;
+  if (dir.actions.length === 0) {
+    return `${header}\nNo repo-root dir outputs. Dir outputs targeting declared [[targets]] paths are merged into those target plans above.`;
+  }
+  const summary = `Summary: ${summarizeDirActions(dir.actions)}`;
+  const sections: Array<{
+    title: string;
+    kinds: HarnessActivationDirAction["kind"][];
+    limit: number;
+  }> = [
+    { title: "Creates", kinds: ["create"], limit: 12 },
+    { title: "Updates", kinds: ["update"], limit: 12 },
+    { title: "Dir outputs already matching", kinds: ["keep"], limit: 8 },
+  ];
+  const body = sections
+    .map((section) => {
+      const sectionActions = dir.actions.filter((action) =>
+        section.kinds.includes(action.kind)
+      );
+      if (sectionActions.length === 0) {
+        return "";
+      }
+      const visibleActions = sectionActions.slice(0, section.limit);
+      const lines = visibleActions.map(
+        (action) => `  - ${formatDirAction(root, action)}`
+      );
+      const remaining = sectionActions.length - visibleActions.length;
+      if (remaining > 0) {
+        lines.push(`  - ... ${remaining} more`);
+      }
+      return `${section.title}\n${lines.join("\n")}`;
+    })
+    .filter(Boolean)
+    .join("\n");
+  return `${header}\n${summary}\n${body}`;
 }
 
 export function formatActivationPlan(plan: HarnessActivationPlan): string {
@@ -53,7 +122,9 @@ export function formatActivationPlan(plan: HarnessActivationPlan): string {
           })
           .join("\n\n");
 
-  return `HarnessConfig activation plan\n\nIdempotency:\nRunning activation with the same .harness tree, harness.toml, and .harnessIgnore produces the same projections.\n\nDiagnostics:\n${diagnostics}\n\nTargets:\n${targets}`;
+  const dirSection = formatDirPlanSection(plan.root, plan.dir);
+
+  return `HarnessConfig activation plan\n\nIdempotency:\nRunning activation with the same .harness tree, harness.toml, and .harnessIgnore files produces the same projections.\n\nDiagnostics:\n${diagnostics}\n\nTargets:\n${targets}\n\n${dirSection}`;
 }
 
 function summarizeActivationActions(
@@ -137,8 +208,14 @@ export function formatActivationResult(
       : result.appliedActions
           .map((action) => formatActivationAction(result.root, action))
           .join("\n");
+  const dirApplied =
+    result.appliedDirActions.length === 0
+      ? "No dir file changes applied."
+      : result.appliedDirActions
+          .map((action) => formatDirAction(result.root, action))
+          .join("\n");
 
-  return `HarnessConfig activation ${result.dryRun ? "dry run" : "result"}\n\n${formatActivationPlan(result.plan)}\n\nApplied:\n${applied}`;
+  return `HarnessConfig activation ${result.dryRun ? "dry run" : "result"}\n\n${formatActivationPlan(result.plan)}\n\nApplied:\n${applied}\n\nApplied dir outputs:\n${dirApplied}`;
 }
 
 export function formatDiagnostics(diagnostics: HarnessDiagnostic[]): string {

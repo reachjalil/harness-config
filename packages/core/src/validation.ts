@@ -1,5 +1,6 @@
 import { lstat, readFile } from "node:fs/promises";
 
+import { loadHarnessIgnoreRuleSets } from "./ignore";
 import {
   assertRepoLocalPath,
   resolveHarnessPaths,
@@ -158,7 +159,7 @@ export async function inspectHarnessConfig(
       message: `${relativeIgnorePath} exists but is not a file.`,
       path: relativeIgnorePath,
       recommendation:
-        "Replace it with a repo-root .harnessIgnore file before projecting resources.",
+        "Replace it with a regular .harnessIgnore file before projecting resources.",
     });
   }
 
@@ -172,6 +173,11 @@ export async function inspectHarnessConfig(
         "Create .harnessIgnore to define source-only files skipped during live projection.",
     });
   }
+
+  const { diagnostics: ignoreDiagnostics } = await loadHarnessIgnoreRuleSets(
+    paths.root
+  );
+  diagnostics.push(...ignoreDiagnostics);
 
   if (hasHarnessConfig) {
     const raw = await readFile(paths.configPath, "utf8");

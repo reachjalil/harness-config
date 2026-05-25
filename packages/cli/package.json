@@ -32,8 +32,7 @@
     }
   },
   "dependencies": {
-    "@harnessconfig/core": "^0.1.0",
-    "@harnessconfig/extension-dir": "^0.1.0"
+    "@harnessconfig/core": "^0.1.0"
   },
   "devDependencies": {
     "@types/node": "catalog:",

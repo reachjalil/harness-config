@@ -1,3 +1,4 @@
+import { lstat, readdir } from "node:fs/promises";
 import path from "node:path";
 
 import type { ConventionalHarnessResource, HarnessConfigPaths } from "./types";
@@ -25,6 +26,66 @@ export function resolveHarnessPaths(root = process.cwd()): HarnessConfigPaths {
     pluginsDir: path.join(harnessDir, "plugins"),
     workspaceReadmePath: path.join(harnessDir, "README.md"),
   };
+}
+
+export async function findHarnessIgnoreFiles(
+  root = process.cwd()
+): Promise<string[]> {
+  const paths = resolveHarnessPaths(root);
+  const files: string[] = [];
+  const rootIgnoreState = await lstat(paths.ignorePath).catch(() => undefined);
+  if (rootIgnoreState?.isFile()) {
+    files.push(paths.ignorePath);
+  }
+
+  const harnessDirState = await lstat(paths.harnessDir).catch(() => undefined);
+  if (!harnessDirState?.isDirectory() || harnessDirState.isSymbolicLink()) {
+    return files;
+  }
+
+  async function visit(directory: string): Promise<void> {
+    const entries = await readdir(directory, { withFileTypes: true }).catch(
+      () => []
+    );
+
+    for (const entry of entries) {
+      const absolutePath = path.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        await visit(absolutePath);
+        continue;
+      }
+      if (entry.name === HARNESS_IGNORE_FILE && entry.isFile()) {
+        files.push(absolutePath);
+      }
+    }
+  }
+
+  await visit(paths.harnessDir);
+  return files;
+}
+
+export function detectImplicitOverrideTarget(
+  repoRelativePath: string
+): string | undefined {
+  const segments = repoRelativePath
+    .replaceAll("\\", "/")
+    .replace(/^\.\//, "")
+    .split("/")
+    .filter(Boolean);
+  if (
+    segments.length < 5 ||
+    segments[0] !== HARNESS_CONFIG_DIR ||
+    segments.at(-1) !== HARNESS_IGNORE_FILE
+  ) {
+    return undefined;
+  }
+
+  const overrideSegment = segments[3];
+  if (!overrideSegment?.startsWith(".")) {
+    return undefined;
+  }
+
+  return overrideSegment;
 }
 
 export function defaultHarnessResourcePath(

@@ -106,7 +106,11 @@ HarnessConfig standardizes the .harness/<kind>/<name> resource shape,
 harness.toml resource and target declarations, and .harnessIgnore projection
 boundaries. Init uses skills, rules, and plugins as conventional resource
 roots unless --resource is supplied. Targets are explicit; .agents is just a
-normal target when declared with --target ./.agents.
+normal target when declared with --target ./.agents. Declaring [dir] in
+harness.toml turns on the dir source root (default ./.harness/dir): a folder
+that contains a .harnessComposable marker file is composed from its numbered
+parts into a single output file, and any other folder copies its files to
+the matching repo-relative paths.
 
 Activation keeps unmanaged target entries by default. Use --remove-unmanaged to
 delete target entries that are not present in the computed .harness projection.

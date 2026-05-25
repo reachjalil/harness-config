@@ -1,50 +1,146 @@
 # HarnessConfig Standard
 
-HarnessConfig is a repository-local standard for durable harness resources and
-repeatable target projection. It gives tools one neutral source root,
-`./.harness`, one versioned TOML manifest, and one projection ignore file.
+**Status:** Version 1 — Stable. The file shape, manifest schema, projection
+contract, and ignore grammar described here are intended to be implementable
+without consulting the reference code. Changes that would break a conforming
+v1 repository or v1 implementation are reserved for a future version of the
+standard.
 
-Core resource projection does not define an enable/disable registry or a
-selection format. Activation is an emergent property of projection: a resource
-is active in a target when that resource item is present in the computed target
-tree, and it is inactive when it is absent from the next idempotent projection.
-Extensions have a minimal declaration and activation policy, but extension
-behavior is outside core resource projection.
+HarnessConfig is a repository-local standard for declaring durable agent
+*harness resources* (the prompts, skills, rules, plugins, and similar files
+that condition an AI coding agent's behavior) and projecting them into
+runtime-facing folders in a reviewable, reproducible way.
+
+A repository keeps one neutral source root, `./.harness`, declares it in one
+versioned TOML manifest, `./.harness/harness.toml`, and filters projection
+through `.harnessIgnore` rule files. The repo-root `./.harnessIgnore`
+sets repository-wide boundaries, while local `.harnessIgnore` files may sit
+beside source or target-output subtrees. Every runtime surface that receives
+a projection (`./.agents`, `./.claude`, `./.cursor`, etc.) is explicit;
+there are no implicit targets.
+
+Core resource projection intentionally does not define an enable/disable
+registry or a selection format. Activation is an emergent property of
+projection: a resource is *active* in a target when its files are present in
+the computed target tree, and *inactive* when they are absent from the next
+projection. Selection, grouping, marketplace behavior, and similar concerns
+belong in product layers above the standard.
+
+Extensions have a minimal declaration and activation policy at the standard
+layer; the per-extension behavior is owned by each extension.
 
 ## Normative Language
 
-The key words `MUST`, `MUST NOT`, `REQUIRED`, `SHOULD`, `SHOULD NOT`, and `MAY`
-are normative when they appear in uppercase.
+The key words `MUST`, `MUST NOT`, `REQUIRED`, `SHALL`, `SHALL NOT`, `SHOULD`,
+`SHOULD NOT`, `RECOMMENDED`, `MAY`, and `OPTIONAL` in this document are to be
+interpreted as described in [RFC 2119] and [RFC 8174] when, and only when,
+they appear in all capitals, as shown here.
+
+[RFC 2119]: https://www.rfc-editor.org/rfc/rfc2119
+[RFC 8174]: https://www.rfc-editor.org/rfc/rfc8174
+
+## Terminology
+
+These terms have specific meanings throughout this document. Where a section
+later in the document gives a more detailed definition, that section is
+authoritative.
+
+- **Harness** — the collection of files an AI agent or developer-facing tool
+  reads as instructions, context, or configuration for a repository.
+- **Source root** — the canonical directory `./.harness` at the root of a
+  repository, owned by the repository and reviewed in version control.
+- **Manifest** — the file `./.harness/harness.toml`, which declares the
+  standard version, resource roots, targets, and extensions.
+- **Resource kind** — a declared category of source material such as
+  `skills`, `rules`, or `plugins`. Kinds are declarative names, not reserved
+  schema concepts.
+- **Resource item** — one folder under `./.harness/<kind>/<name>`, the unit
+  of projection. An item's files (recursively) are what gets copied to
+  targets.
+- **Target** — a repository-local directory declared in `harness.toml` that
+  receives copy projections of the resource items.
+- **Override folder** — an immediate dot-prefixed subfolder inside a resource
+  item (for example `.claude/` inside `./.harness/skills/review/`) whose
+  files replace or add to canonical files when projecting to the matching
+  target.
+- **Dir source** — an optional repo-local directory (default
+  `./.harness/dir`) declared by the top-level `[dir]` table. Its contents
+  project either by composition (a directory marked with
+  `.harnessComposable` whose numbered parts concatenate into one output
+  file) or by direct copy (any other directory or file under the dir source
+  copies to the matching repo-relative path).
+- **Composable marker** — the empty file `.harnessComposable` placed inside
+  a dir directory to mark it as a composable leaf. Without the marker, the
+  directory is treated as a copy folder.
+- **Projection** — the computed mapping from `(source root, manifest,
+  overrides, ignore rules)` to a per-target file tree.
+- **Activation** — the act of materializing a projection into one or more
+  target folders on disk.
+- **Mutable file** — a target file that the runtime owns after first
+  projection, declared with a `[mutable]` rule in `.harnessIgnore`.
+- **Conforming repository / tool** — see [Conformance](./CONFORMANCE.md).
 
 ## Versioning
 
-The current standard version is `1`. Tools MUST reject unsupported future
-versions with a clear diagnostic.
+The current standard version is `1`. Implementations MUST reject `harness.toml`
+files whose top-level `version` is not a supported integer, with a diagnostic
+that names both the encountered value and the supported version(s).
 
 ```toml
 version = 1
 ```
 
-Version `1` standardizes the `./.harness` root, declared resource roots,
-target-derived overrides, path-only target mappings, top-level extension
-declarations, copy projection, and the repo-root `.harnessIgnore` projection
-ignore file.
+Version `1` standardizes:
+
+- the `./.harness` source root,
+- the `harness.toml` manifest schema for resource roots, path-only targets,
+  the optional `[dir]` source root, and top-level extension declarations,
+- target-derived override folders,
+- copy projection (idempotent under fixed inputs),
+- the `[dir]` composition (`.harnessComposable` leaves) and copy contract
+  for files that project to repo-relative paths,
+- `.harnessIgnore` projection ignore files, including repo-root rules,
+  source-local rules, target-output-local rules, target-scoped sections, and
+  `[mutable]` sections.
+
+Within v1, this document MAY receive editorial clarifications and additive,
+backward-compatible normative additions (for example, new optional fields with
+defined defaults). Changes that would invalidate a v1 repository or v1
+implementation are reserved for v2.
 
 ## Scope
 
 HarnessConfig standardizes:
 
-- `./.harness/harness.toml`
-- `./.harness/<kind>/<name>/`
-- Per-resource overrides in immediate dot-prefixed folders.
-- Explicit path-only target declarations.
-- Top-level extension declarations.
-- Copy projection from declared resources into declared targets.
-- `.harnessIgnore` as the single projection filter.
+- the manifest file `./.harness/harness.toml` and its schema,
+- the resource layout `./.harness/<kind>/<name>/`,
+- per-resource target overrides as immediate dot-prefixed folders,
+- explicit, path-only target declarations,
+- the optional `[dir]` source root, with composable (`.harnessComposable`)
+  leaves and copy-mode directories that project to repo-relative paths,
+- top-level extension declarations (discovery and activation policy only),
+- copy projection from declared resources to declared targets,
+- `.harnessIgnore` as the single projection filter, including target-scoped
+  and mutable-file rules.
 
-HarnessConfig does not standardize product workflows, hosted services,
-distribution systems, runtime behavior, grouping, selection policy, or remote
-sync. Those belong in tools that build on top of this standard.
+### Out of Scope
+
+HarnessConfig does **not** standardize:
+
+- product workflows, command surfaces, or end-user UX,
+- hosted services, registries, or marketplaces,
+- distribution, dependency resolution, or package management for resources,
+- agent runtime behavior or how runtimes consume target files,
+- skill, prompt, or rule schemas beyond "folder with files",
+- selection, grouping, sessions, presets, or kits,
+- target-to-source capture or reverse projection,
+- target edit review workflows (see [Mutable Files](#mutable-files) for the
+  base contract),
+- remote sync, telemetry, or audit logging.
+
+These concerns belong in tools, products, or organizational policies that
+build on top of the standard. Keeping them out of v1 is what lets multiple
+implementations interoperate on the same `./.harness` tree.
 
 ## Resource Shape
 
@@ -105,6 +201,9 @@ path = "./.claude"
 [[targets]]
 path = "./.cursor"
 
+[dir]
+path = "./.harness/dir"
+
 [extensions.example]
 version = 1
 activation = "explicit"
@@ -128,14 +227,22 @@ projection at that path.
 Each `[[targets]]` entry declares one repo-local target path and MUST contain
 only `path`.
 
-Target paths MUST start with a dot-prefixed harness folder and MUST NOT point at
-`./.harness`.
+Target paths MUST start with a dot-prefixed segment (the override folder),
+MUST resolve inside the repository, MUST NOT contain `..` segments after
+normalization, and MUST NOT point at `./.harness` itself or any descendant of
+it.
 
-The first path segment determines the override folder:
+The override folder for a target is the first path segment after the leading
+`./`. After path normalization (collapsing duplicate separators and removing
+leading `./`):
 
-- `./.agents` uses `.agents`.
-- `./.claude` uses `.claude`.
-- `./.cursor/project` uses `.cursor`.
+- `./.agents` → override folder `.agents`.
+- `./.claude` → override folder `.claude`.
+- `./.cursor/project` → override folder `.cursor`.
+- `./.github/copilot/agents` → override folder `.github`.
+
+Two `[[targets]]` entries whose normalized paths are equal are duplicates and
+MUST be rejected with a diagnostic.
 
 Targets are configuration, not hidden mutation. Tools SHOULD show the target
 plan before creating, replacing, copying, or removing files.
@@ -150,23 +257,71 @@ projection outputs. A folder receives projection only when declared as a target.
 ### Extensions
 
 Extensions are declared under top-level `[extensions.<id>]` tables. Extension
-ids MUST use lowercase letters, numbers, underscores, or dashes.
+ids MUST use lowercase letters, numbers, underscores, or dashes, and MUST
+begin with a letter.
 
-Each extension declaration MUST contain an integer `version`. The `version`
-field is the extension configuration schema version, not the HarnessConfig
+Each extension declaration MUST contain a positive integer `version`. This is
+the extension's own configuration schema version, not the HarnessConfig
 standard version.
 
-Each extension declaration MAY contain `activation`, with values `explicit` or
-`auto`. When omitted, `activation` defaults to `explicit`.
+Each extension declaration MAY contain `activation` with one of two values:
+
+- `"explicit"` (default): the extension runs only when a user or tool
+  explicitly invokes it.
+- `"auto"`: the extension MAY run as part of routine activation flows offered
+  by a tool.
+
+When omitted, `activation` defaults to `"explicit"`.
 
 Fields other than `version` and `activation` are owned by the extension. The
-HarnessConfig standard defines extension discovery, not extension behavior,
-output shape, commands, or compatibility rules. Extension compatibility with
+HarnessConfig standard defines extension *discovery* (how a tool sees that an
+extension is declared) and *activation policy* (whether a tool may run it
+without explicit user action). It does not define extension behavior, output
+shape, commands, or compatibility rules. Extension compatibility with
 HarnessConfig versions belongs to the extension implementation metadata.
 
-Tools MUST NOT silently apply unsupported extensions. A tool that implements an
-extension MUST validate the extension-owned fields before applying that
-extension's behavior.
+A tool that encounters an `[extensions.<id>]` table for an extension it does
+not implement MUST NOT apply that extension's behavior, MUST NOT fail
+validation of the manifest solely because of the unknown extension, and
+SHOULD report the unknown extension as informational so users can decide
+whether to install support.
+
+A tool that does implement an extension MUST validate the extension-owned
+fields before applying that extension's behavior.
+
+## Encoding, Paths, and Case Sensitivity
+
+These rules apply to every file the standard reads or writes (`harness.toml`,
+`.harnessIgnore`, projected files, and override files) unless an extension
+explicitly defines its own.
+
+- **Text encoding.** Configuration files (`harness.toml`, `.harnessIgnore`)
+  MUST be UTF-8. A leading UTF-8 BOM MAY be present and MUST be ignored when
+  parsing. Resource file contents are copied byte-for-byte; the standard does
+  not require any encoding for resource payloads.
+- **Line endings.** The standard does not normalize line endings. Projection
+  copies bytes exactly, so a target file's line endings match the source.
+- **Path separators.** Manifest and ignore patterns use forward slashes
+  (`/`). Implementations on platforms with a different native separator MUST
+  translate at the filesystem boundary; user-visible diagnostics SHOULD use
+  forward slashes for portability.
+- **Path normalization.** Before comparison, implementations MUST collapse
+  duplicate separators, remove leading `./`, and reject `..` segments. Paths
+  MUST resolve inside the repository.
+- **Case sensitivity.** Path comparisons (target equality, override
+  matching, ignore matching) are **case-sensitive**. Repositories that may
+  be cloned onto case-insensitive filesystems (such as default macOS or
+  Windows volumes) SHOULD avoid names that differ only in case, because the
+  underlying filesystem may collapse them. Implementations MAY warn when
+  they detect such collisions.
+- **Symlinks in source.** A symlink encountered inside `./.harness` SHOULD
+  be reported as a diagnostic. v1 implementations are not required to follow
+  symlinks during projection. Targets that are symlinks at the top level
+  SHOULD be replaced by a real directory before projection, or rejected; in
+  either case the chosen behavior MUST be reported in the plan.
+- **Hidden files.** Names beginning with `.` are not implicitly ignored.
+  They participate in projection like any other file unless excluded by
+  `.harnessIgnore`.
 
 ## Routing Resource Kinds To Targets
 
@@ -199,10 +354,31 @@ place for projection filtering and makes dry-run output easier to reason about.
 ## Copy Projection
 
 Activation is a repeatable copy projection from source inputs to declared
-targets. The inputs are participating resource folders under `./.harness`, the
-versioned `harness.toml`, target-derived override folders, and
-`.harnessIgnore`. Given the same inputs, cleanup policy, and mutable policy,
-activation MUST produce the same target trees every time.
+targets. The inputs are:
+
+1. the participating resource folders under `./.harness`, including their
+   override folders,
+2. the versioned `harness.toml`,
+3. the repo-root `.harnessIgnore`,
+4. the cleanup policy (preserve unmanaged entries vs. remove them),
+5. the mutable policy (skip mutable files vs. force re-projection).
+
+**Idempotence (testable property).** Let `T_n` be the on-disk tree of a
+declared target after the `n`-th activation against an unchanged set of
+inputs (1)–(5). For every `n ≥ 2`:
+
+- the set of files in `T_n` MUST equal the set in `T_1`,
+- every managed (non-mutable) file in `T_n` MUST be byte-identical to its
+  counterpart in `T_1`,
+- every mutable file present in `T_1` MUST remain present in `T_n` with the
+  same bytes it had at the end of activation `n − 1` (i.e., the runtime owns
+  it; activation does not write to it), and
+- no additional filesystem writes to managed files SHOULD occur beyond what
+  is required to converge.
+
+This property is what makes activation reviewable: a clean re-run against
+unchanged inputs is observable as a `keep`-only plan for managed files and a
+`mutable`-only plan for mutable files.
 
 A conforming tool SHOULD support a dry run that reports the actions it would
 take before writing:
@@ -213,12 +389,16 @@ take before writing:
 - `remove`: a target entry is selected for deletion because it is not present
   in the computed projection.
 - `keep`: the target file already matches the projection.
-- `preserve`: a target entry is not in the computed projection and will stay
-  untouched.
+- `preserve`: an existing entry inside a declared target is not in the
+  computed projection and will stay untouched.
 - `mutable`: a file declared mutable in `.harnessIgnore` already exists in the
   target, even if its bytes still match the source. The runtime owns it;
   activation MUST NOT overwrite or remove it without an explicit force
   decision.
+
+These actions describe files and directories inside declared targets. Source
+files under `./.harness` are projection inputs; activation does not classify
+them as `keep`, `preserve`, or `remove`.
 
 All v1 target projections are materialized as copies. Implementations MUST NOT
 require symlink support for conformance. An implementation MAY use internal
@@ -270,6 +450,14 @@ the target so a subsequent activation with unchanged inputs converges without
 extra cleanup actions. If cleanup is not selected, the plan MUST show unmanaged
 entries as `preserve`.
 
+If a target declaration is removed from `harness.toml`, core v1 projection no
+longer has that target in its authorized write set and therefore does not clean
+that folder during normal activation. To clean a target with only the base
+projection contract, run cleanup while the target is still declared, then remove
+the declaration. Higher-level tools MAY keep activation state and offer an
+orphaned-target reconciliation workflow that previews removal, ignore, or
+capture back to source.
+
 ## Overrides
 
 A dot-prefixed folder directly inside a resource item is a target override. For
@@ -285,10 +473,12 @@ Projection MUST process each resource item in this order:
 4. Apply `.harnessIgnore` rules to every source file before it enters the
    projection.
 
+Overrides are merged at the file level, not as whole-directory replacements.
 Override files replace canonical files only when they project to the exact same
-relative file path. Override files MAY add new files. Nested dot-prefixed
-folders inside an override, such as `.codex-plugin`, are ordinary output
-folders unless they are the immediate resource-level override folder.
+relative file path. Sibling canonical files continue to project as usual.
+Override files MAY add new files. Nested dot-prefixed folders inside an
+override, such as `.codex-plugin`, are ordinary output folders unless they are
+the immediate resource-level override folder.
 
 ### Override Conflicts
 
@@ -299,27 +489,150 @@ path to be a directory.
 Examples:
 
 ```text
-# Conflict: canonical file, override directory
+# Conflict: canonical file, override directory.
+# The canonical source says "hooks" is a file, but the override needs
+# "hooks" to be a directory so it can contain config.json.
 .harness/skills/review/hooks
 .harness/skills/review/.claude/hooks/config.json
 
-# Conflict: canonical directory, override file
+# Conflict: canonical directory, override file.
+# The canonical source says "hooks" is a directory, but the override says
+# "hooks" itself is a file.
 .harness/skills/review/hooks/config.json
 .harness/skills/review/.claude/hooks
 
 # Allowed: exact file replacement
 .harness/skills/review/SKILL.md
 .harness/skills/review/.claude/SKILL.md
+
+# Allowed: replace one nested file and keep the rest
+.harness/skills/review/hooks/config.json
+.harness/skills/review/hooks/notify.json
+.harness/skills/review/.claude/hooks/config.json
 ```
 
 A tool MUST report a diagnostic for the conflicting source paths and MUST NOT
 apply the projection until the conflict is resolved.
 
+## Dir Source
+
+The optional top-level `[dir]` table declares a single repo-local **dir
+source** whose contents project to repo-relative paths. The dir source is
+how a repository carries durable, per-file outputs that are not modeled as
+resource items: top-level agent instructions (`AGENTS.md`, `CLAUDE.md`),
+per-target configuration (`.claude/settings.json`), repo-root files
+(`.gitignore`, `README.md`), and similar one-off artifacts.
+
+```toml
+[dir]
+path = "./.harness/dir"
+```
+
+The `path` field is OPTIONAL and defaults to `./.harness/dir` when the
+`[dir]` table is present. The `[dir]` table itself is OPTIONAL; if absent,
+no dir composition or copy happens, even if `./.harness/dir` exists.
+
+### Composable Leaves
+
+A directory inside the dir source that contains the empty marker file
+`.harnessComposable` is a **composable leaf**. Its name (relative to the
+dir source root) is the output file path. Files inside it that match the
+numeric-prefix pattern `<order>_<name>` are **parts**: their bytes
+concatenate in `order` to produce the output file.
+
+```text
+.harness/dir/AGENTS.md/
+  .harnessComposable           # marker (empty)
+  100_intro.md                 # part, order 100
+  200_rules.md                 # part, order 200
+
+# Output: ./AGENTS.md = 100_intro.md + 200_rules.md
+```
+
+The order prefix is a non-negative integer. Two parts MAY share the same
+order; ties break by source path. A composable leaf MAY also contain a
+`.ref` file with exactly one repo-relative path pointing at another
+composable leaf; that leaf's expanded parts are imported before this leaf's
+local parts and re-sorted by `order`. Cycles, missing refs, refs that
+escape the dir source root, and absolute refs MUST be reported as errors.
+
+A composable leaf MUST NOT contain subdirectories. A non-part, non-`.ref`
+file inside a composable leaf MUST be reported as an invalid part error;
+the author either renames the file to match `<order>_<name>` or removes
+the `.harnessComposable` marker to switch to copy mode.
+
+### Copy Folders And Individual Files
+
+Any directory in the dir source that does NOT contain the
+`.harnessComposable` marker is a **copy folder**. Its files and
+subdirectories are projected with their relative paths preserved.
+Individual files at any depth project as direct copies.
+
+```text
+.harness/dir/
+  README.md                    # -> ./README.md
+  .claude/
+    settings.json              # -> ./.claude/settings.json
+    hooks/
+      post-tool-use.sh         # -> ./.claude/hooks/post-tool-use.sh
+  notes/
+    01_dev_intro.md            # -> ./notes/01_dev_intro.md
+```
+
+The `.harnessComposable` marker file itself MUST NOT appear in any output,
+in either mode.
+
+### Output Paths And Target Overlap
+
+Dir outputs are repo-relative paths. They MUST resolve inside the
+repository and MUST NOT write inside `./.harness`. A dir output path that
+falls **under** a declared `[[targets]]` path (for example
+`.claude/settings.json` when `./.claude` is a declared target) is merged
+into that target's projection during activation, so target idempotence and
+unmanaged-entry cleanup respect dir-owned files. A dir output that would
+**replace or contain** a declared target root itself (for example a dir
+output at `.claude` when `./.claude` is a declared target) MUST be
+reported as `harness.dir_output_target_overlap`.
+
+A dir output path that does not overlap any declared target writes
+directly to that repo-relative path.
+
+### Conflicts
+
+If two dir outputs would project to the same repo-relative path
+(composable leaf vs copy file, or copy file vs copy file via path/dir
+collision), projection MUST report a `harness.dir_path_conflict` and MUST
+NOT apply until the conflict is resolved.
+
+If a dir output and a resource projection (canonical or per-resource
+override) would land at the same path inside the same target, projection
+MUST report a `harness.projection_path_conflict` and MUST NOT apply.
+
+### Ignore Rules
+
+Source-side `.harnessIgnore` rules apply to files inside the dir source the
+same way they apply to resource files, using the source path (for example
+`.harness/dir/AGENTS.md/200_skip.md` or
+`resources/AGENTS.md/200_skip.md` when `[dir].path = "./resources"`).
+Nested source-side rules therefore work inside `.harnessComposable` leaves
+even when the dir source is outside `./.harness`.
+
+Target-output `.harnessIgnore` rules also apply to dir outputs after the
+candidate output path is known. Implementations MAY use a bootstrap pass to
+compute candidate dir outputs, discover `.harnessIgnore` files in existing
+output ancestor directories, and then recompute final outputs with those
+rules. During dir collection only global ignore rules participate; scoped
+headers such as `[.claude]` do not apply because a repo-root dir output is
+not itself a target projection. The `[mutable]` family of scopes applies
+only to target resource projections; dir outputs are not mutable target
+files.
+
 ## `.harnessIgnore`
 
 `.harnessIgnore` defines files that MUST be ignored when projecting resources
-into declared targets. It is repo-root because projection is a repository-level
-boundary.
+and dir outputs. The repo-root file is the repository-wide boundary; local
+files may refine the boundary for a source subtree or an existing target
+output subtree.
 
 ```text
 # .harnessIgnore
@@ -342,11 +655,16 @@ boundary.
 
 [mutable .claude]
 .harness/skills/**/allow-list.json
+
+# Root rules may also match target output paths.
+.agents/**/scratch.tmp
 ```
 
-Patterns are repo-relative. Tools MUST support blank lines, `#` comments, `!`
-negation, leading `/` anchors, trailing `/` directory patterns, `*`, `**`, and
-`?`.
+Patterns in the repo-root file are repo-relative and may match either source
+paths or target output paths. Patterns in local files are interpreted
+relative to the directory containing that `.harnessIgnore` file. Tools MUST
+support blank lines, `#` comments, `!` negation, leading `/` anchors,
+trailing `/` directory patterns, `*`, `**`, and `?`.
 
 A rule has a kind (`ignore` or `mutable`) and a target scope (`all`, `only`, or
 `except`). The kind decides whether the rule excludes a file from projection or
@@ -383,14 +701,92 @@ never enters the projection in the first place.
 A trailing `/` pattern is directory-only. It matches the directory itself only
 when the candidate is a directory, and it matches descendants of that directory.
 
+### Local `.harnessIgnore` Files
+
+Additional `.harnessIgnore` files MAY appear inside source locations and
+inside existing target-output locations. They let a resource author or
+consumer keep ignore rules next to the files they apply to, without
+bloating the repo-root file.
+
+```text
+.harnessIgnore                                  # root file
+.harness/skills/review/.harnessIgnore           # source-local resource rules
+.harness/skills/review/.claude/.harnessIgnore   # source-local override rules
+resources/AGENTS.md/.harnessIgnore              # source-local custom dir rules
+.agents/skills/review/.harnessIgnore            # target-output-local rules
+notes/.harnessIgnore                            # target-output rules for dir outputs
+```
+
+The following rules apply:
+
+- **Source-local rules.** A `.harnessIgnore` file under `./.harness`, under
+  any declared resource root, or under the configured `[dir]` source root
+  matches source paths. A pattern like `*.tmp` in
+  `.harness/skills/review/.harnessIgnore` matches
+  `.harness/skills/review/scratch.tmp` and
+  `.harness/skills/review/nested/scratch.tmp` but does NOT match
+  `.harness/skills/triage/scratch.tmp`.
+- **Target-output-local rules.** A `.harnessIgnore` file under an existing
+  declared target root matches target output paths. A pattern like `*.tmp`
+  in `.agents/skills/review/.harnessIgnore` matches an output path such as
+  `.agents/skills/review/scratch.tmp`, regardless of whether the source was
+  `.harness/skills/review/scratch.tmp` or an override file. For dir outputs,
+  implementations also discover `.harnessIgnore` files in existing ancestor
+  directories of candidate output paths, such as `notes/.harnessIgnore` for
+  an output `notes/release.md`.
+- **Scope of effect.** A local file participates only when the candidate
+  source path or target output path is inside that file's directory.
+- **Evaluation order.** Rule sets are evaluated **shallow-first**: the
+  repo-root file first, then local files in order of increasing directory
+  depth. Within each rule set, rules are read top-to-bottom. The
+  last-matching participating rule across all files wins. A deeper file can
+  therefore re-include a path that a shallower file excluded, or exclude a
+  path that a shallower file would have included.
+- **Same grammar.** Nested files support the same comments, negation,
+  anchors, glob syntax, and scope sections (`[.claude]`, `[!.cursor]`,
+  `[*]`, `[mutable]`, `[mutable .claude]`, etc.) as the repo-root file.
+- **Implicit override scoping.** When a nested file lives inside an
+  override folder — that is, its path matches
+  `./.harness/<kind>/<name>/<override>/.../.harnessIgnore` where
+  `<override>` begins with `.` — it is implicitly scoped to projection into
+  that target only. Implementations:
+  - SHOULD report a `harness.ignore_redundant_override_scope`
+    informational diagnostic when such a file contains a `[<override>]` or
+    `[!<other>]` header, because the implicit scope already restricts the
+    file to that target.
+  - SHOULD report a `harness.ignore_dead_override_scope` warning when the
+    explicit scope can never participate inside the implicit one (for
+    example `[.cursor]` or `[!<override>]` inside the `<override>`
+    folder).
+  - MUST NOT emit those diagnostics for `[*]` or any `[mutable ...]`
+    header, which remain meaningful inside an override.
+- **Synthetic ignore.** Every `.harnessIgnore` file is itself excluded
+  from projection, equivalent to a global `**/.harnessIgnore` ignore rule.
+  Implementations MUST NOT copy `.harnessIgnore` files into targets, even
+  when no explicit rule excludes them.
+- **Target-output protection.** A `.harnessIgnore` file that already exists
+  in a target-output location MUST NOT be overwritten by projection and MUST
+  NOT be removed by unmanaged cleanup. Ancestor directories required to keep
+  that file in place MUST also be preserved.
+
+Local files are an additive convenience; a repository that uses only the
+repo-root file remains conforming. Target-output-local files participate only
+after they exist on disk; implementations are not required to infer the
+contents of a file that has not been created yet.
+
 ## Reviewability
 
 The source/projection boundary makes cross-harness differences reviewable:
 
 - A diff in a resource root affects every target that projects that resource.
 - A diff under `.agents`, `.claude`, `.cursor`, or another override folder
-  affects only targets that use that override.
-- A diff in `.harnessIgnore` changes projection boundaries.
+  inside a resource item affects only targets that use that override.
+- A diff in the repo-root `.harnessIgnore` changes projection boundaries
+  globally; a diff in a nested `.harnessIgnore` changes projection only
+  inside that file's source or target-output directory.
+- A diff in an existing target-output `.harnessIgnore` changes what will be
+  copied into that output subtree, without making the target folder a source
+  of truth.
 - A diff in `harness.toml` changes declared resource roots and target paths.
 
 ## Safety Requirements
@@ -415,3 +811,68 @@ The source/projection boundary makes cross-harness differences reviewable:
 - Mutable files MUST be created on first projection and MUST be skipped on
   subsequent projections unless the user explicitly opts in to force a
   re-projection.
+
+## Security Considerations
+
+HarnessConfig describes a system that copies files from version control into
+folders that an AI agent or other tool will subsequently read. The integrity
+of those copies has a direct effect on what the agent does. Implementations
+SHOULD consider the following threats explicitly:
+
+- **Path traversal.** Manifest paths, target paths, and ignore patterns are
+  user-controlled. Implementations MUST refuse paths that resolve outside
+  the repository after normalization (see [Encoding, Paths, and Case
+  Sensitivity](#encoding-paths-and-case-sensitivity)).
+- **Symlink redirection.** Symlinks in the source tree or in target paths
+  can redirect writes outside the repository. v1 implementations SHOULD
+  treat such symlinks as diagnostics rather than silently following them.
+- **TOCTOU on apply.** A target may be modified between planning and
+  applying. Implementations SHOULD re-check the existence and managed/
+  unmanaged classification of files at apply time, not only at plan time.
+- **Unmanaged-entry deletion.** Cleanup deletes user files. The default
+  policy MUST be preserve, and any deletion MUST be visible in the plan
+  before it happens.
+- **Mutable bypass.** `[mutable]` rules are an explicit "the runtime owns
+  this" declaration. Implementations MUST NOT overwrite a mutable target
+  without an explicit, user-visible force decision.
+- **Untrusted overrides.** A repository may import resource items from
+  third parties. Because override folders can rewrite arbitrary target
+  files, implementations and downstream products SHOULD provide tooling to
+  diff override folders against canonical files and to scope the targets a
+  given override may affect.
+- **Activation that reads its output.** Live target folders MUST NOT be
+  used as inputs to the next projection. Treating a target as both source
+  and sink can amplify runtime edits into source-of-truth changes silently.
+
+The standard does not prescribe authentication, signing, or supply-chain
+verification for resource folders. Those are appropriate concerns for
+product layers and organizational policy.
+
+## Compatibility and Future Evolution
+
+Within v1, the following kinds of change are permitted and do not require a
+new standard version:
+
+- Editorial clarifications that do not change normative meaning.
+- New optional fields with defined defaults that preserve the meaning of
+  v1 documents that omit them.
+- New extension declarations (which are opt-in by definition).
+- Additional diagnostics or non-blocking warnings.
+
+The following changes are reserved for v2:
+
+- Any change to the manifest schema for resources, targets, or the
+  top-level `version` field that would invalidate a v1 manifest.
+- Any change to projection semantics (`create`, `update`, `remove`,
+  `keep`, `preserve`, `mutable`) that would alter the on-disk outcome of
+  an unchanged v1 input.
+- Any change to `.harnessIgnore` grammar or precedence that would alter
+  which files an existing v1 ruleset includes, excludes, or marks
+  mutable.
+- Reservation of resource kinds or target names previously available to
+  user repositories.
+
+Implementations SHOULD treat manifests whose `version` is a positive
+integer greater than the maximum they support as an "unsupported version"
+diagnostic, not as a malformed manifest. This lets newer manifests fail
+informatively against older tools.

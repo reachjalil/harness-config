@@ -10,6 +10,8 @@ import type {
   HarnessResourceDefinition,
 } from "./types";
 
+export const DEFAULT_HARNESS_DIR_PATH = "./.harness/dir";
+
 export const CURRENT_HARNESS_CONFIG_VERSION = 1;
 export const SUPPORTED_HARNESS_CONFIG_VERSIONS = [1] as const;
 
@@ -120,6 +122,12 @@ const harnessExtensionsSchema = z
     }
   });
 
+export const harnessDirSchema = z
+  .object({
+    path: repoLocalPathSchema.default(DEFAULT_HARNESS_DIR_PATH),
+  })
+  .strict();
+
 export const harnessConfigSchema = z
   .object({
     version: z
@@ -147,6 +155,7 @@ export const harnessConfigSchema = z
       .default({ name: "harness-config" }),
     resources: harnessResourcesSchema,
     targets: z.array(harnessTargetSchema).default([]),
+    dir: harnessDirSchema.optional(),
     extensions: harnessExtensionsSchema,
   })
   .strict();

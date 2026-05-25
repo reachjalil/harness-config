@@ -39,6 +39,11 @@ Unmanaged target entries are kept by default. Use `--remove-unmanaged` when a
 target should be cleaned to match `.harness`; use `--keep-unmanaged` to make
 the default explicit.
 
+Cleanup applies only to targets that are still declared in `harness.toml`.
+After a target declaration is removed, base `harnessc activate` no longer
+inspects or cleans that folder. Clean it first with `--remove-unmanaged`, or use
+a higher-level activation-state workflow that can reconcile orphaned targets.
+
 Managed files are compared directly with the current source projection: if the
 target differs, `harnessc activate` reports `update` and applying activation
 writes the current source bytes. Mutable files declared under `[mutable]` in
@@ -48,61 +53,82 @@ writes the current source bytes. Mutable files declared under `[mutable]` in
 Selection workflows, marketplace behavior, target edit review, capture, and
 other product opinions belong above `harnessc`.
 
-## Extensions
+## Dir Composition And Copy
 
-`harnessc` uses a static built-in extension registry. This release registers
-the `dir` extension; dynamic package loading is intentionally out of scope.
-
-Extensions are declared separately from core resources:
+Declaring `[dir]` in `harness.toml` activates a single dir source root
+(default `./.harness/dir`). Running `harnessc activate` planes and applies
+dir outputs alongside target projection:
 
 ```toml
-[extensions.dir]
-version = 1
-activation = "explicit"
+[dir]
 path = "./.harness/dir"
 ```
-
-The core standard owns `version` and `activation`. Extension-specific fields,
-such as `path`, are validated by the registered extension. Declared extensions
-default to explicit activation, so plain `harnessc extension activate` runs only
-extensions configured with `activation = "auto"`.
-
-### `dir`
-
-The `dir` extension composes text files from mirrored leaf directories under
-`./.harness/dir`:
 
 ```text
 .harness/dir/
   AGENTS.md/
+    .harnessComposable
     100_intro.md
     200_rules.md
   CLAUDE.md/
-    .ref
+    .harnessComposable
+    .ref                       # ../AGENTS.md
     150_claude.md
   .github/
     copilot-instructions.md/
+      .harnessComposable
       100_intro.md
+  .claude/
+    settings.json              # copy mode (no marker)
+  notes/
+    01_dev_intro.md            # copy mode (no marker)
 ```
 
-Leaf directories become output files at the matching repository path. The
-example writes `AGENTS.md`, `CLAUDE.md`, and
-`.github/copilot-instructions.md`. Part files must start with a numeric prefix
-and underscore, such as `100_intro.md`; using `100`, `200`, and `300` leaves
-space for later insertions.
+Directories that contain an empty `.harnessComposable` marker file are
+composable leaves: their numeric-prefix parts (for example `100_intro.md`,
+`200_rules.md`) concatenate in order to produce the output file. Directories
+without the marker are copy folders: their files and nested files copy to
+the matching repo-relative path. Individual files at any depth also copy.
 
-Part contents are concatenated exactly in sort order. The extension adds no
-generated header, footer, separator, or newline normalization. File extensions
-are not interpreted; any regular text file that follows the numeric naming
-rule can be a part.
+`.ref` files inside a composable leaf import another leaf's parts. Imported
+and local parts are sorted together, duplicate numbers remain additive, and
+cycles or missing refs are reported as errors.
 
-`.ref` imports another leaf directory using a relative path. Imported parts and
-local parts are sorted together, duplicate numbers and names remain additive,
-and cycles or missing refs are reported as errors.
+Source-side `.harnessIgnore` rules apply during dir collection, including
+rules inside a `.harnessComposable` leaf and rules inside a custom `[dir]`
+source outside `./.harness`. Ignoring a container skips all dir outputs
+below it, ignoring a leaf skips that output, and ignoring a part excludes
+that part from composition. Target-output `.harnessIgnore` files can also
+filter dir outputs by final output path after the candidate output structure
+is known. Only global ignore rules participate for dir outputs; scoped
+target headers are ignored in this mode. The `.harnessComposable` marker
+itself is never copied to any output.
 
-Only global `.harnessIgnore` rules apply to `dir`; target-scoped rules do not.
-Ignoring a container skips all outputs below it, ignoring a leaf skips that
-output, and ignoring a part excludes that part from composition.
+Dir output paths that fall under a declared `[[targets]]` path merge into
+that target's projection — running activation a second time converges to
+`keep` actions for those files, including target unmanaged-entry cleanup.
+A dir output that would replace or contain a target root itself (for
+example a dir output at `.claude` when `./.claude` is declared as a
+target) is reported as `harness.dir_output_target_overlap`.
+
+## Extensions
+
+`harnessc` ships with an extension registry for forward-compatibility.
+This release ships no built-in extension implementations; tools that
+declare `[extensions.<id>]` for unsupported ids see an informational
+diagnostic instead of behavior. The dir composition and copy surface above
+is part of core activation, not an extension.
+
+```toml
+[extensions.example]
+version = 1
+activation = "explicit"
+```
+
+The core standard owns `version` and `activation`. Extension-specific
+fields belong to the registered extension implementation. Plain
+`harnessc extension activate` runs only extensions configured with
+`activation = "auto"`.
 
 ## TypeScript Helpers
 

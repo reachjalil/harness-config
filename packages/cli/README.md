@@ -7,7 +7,6 @@ harnessc validate
 harnessc plan
 harnessc activate
 harnessc activate --yes
-harnessc extension activate --extension dir
 harnessc extension activate --all --yes
 harnessc init --resource prompts --target ./.claude
 harnessc init --yes --resource prompts --target ./.claude
@@ -37,8 +36,10 @@ copy projection.
 
 `harnessc extension activate` runs registered extensions. Extensions default to
 explicit activation; use `--extension <id>` for one extension or `--all` for
-all declared supported extensions. The built-in `dir` extension composes files
-such as `AGENTS.md` from numbered text parts under `./.harness/dir`.
+all declared supported extensions. This release ships no built-in extension
+implementations — the dir composition + copy surface that lived in
+`@harnessconfig/extension-dir` is now part of core activation; declare
+`[dir]` in `harness.toml` and let `harnessc activate` handle it.
 
 Unmanaged target entries are kept by default. Use `--remove-unmanaged` when a
 target should be cleaned to match `.harness`; use `--keep-unmanaged` to make
@@ -49,3 +50,8 @@ Managed files are compared directly with the current projection and reported as
 `update` when target bytes differ. Mutable files declared under `[mutable]` in
 `.harnessIgnore` are created once and then left untouched unless
 `--force-mutable` is supplied.
+
+`.harnessIgnore` files can be repo-root, source-local, or target-output-local.
+Target-output files, such as `.agents/skills/review/.harnessIgnore`, match
+final output paths for that subtree and are preserved even when activation is
+run with `--remove-unmanaged`.

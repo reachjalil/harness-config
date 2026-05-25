@@ -81,7 +81,8 @@ export async function planHarnessInitialization(
     actions.push({
       id: "harness.ignore.write",
       kind: "write-file",
-      summary: "Write the repo-root .harnessIgnore projection ignore file.",
+      summary:
+        "Write the repository-root .harnessIgnore projection ignore file.",
       target: paths.ignorePath,
       content: ignoreFile,
     });

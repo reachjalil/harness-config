@@ -16,6 +16,10 @@ export type HarnessExtensionDefinition = {
   [key: string]: unknown;
 };
 
+export type HarnessDirDefinition = {
+  path: string;
+};
+
 export type HarnessConfigPaths = {
   root: string;
   harnessDir: string;
@@ -114,10 +118,28 @@ export type HarnessActivationTargetPlan = {
   actions: HarnessActivationAction[];
 };
 
+export type HarnessActivationDirActionKind = "create" | "update" | "keep";
+
+export type HarnessActivationDirAction = {
+  kind: HarnessActivationDirActionKind;
+  relativePath: string;
+  targetPath: string;
+  sourcePaths: string[];
+  outputKind: "composable" | "copy";
+  reason?: string;
+};
+
+export type HarnessActivationDirPlan = {
+  enabled: boolean;
+  path?: string;
+  actions: HarnessActivationDirAction[];
+};
+
 export type HarnessActivationPlan = {
   root: string;
   idempotent: true;
   targets: HarnessActivationTargetPlan[];
+  dir: HarnessActivationDirPlan;
   diagnostics: HarnessDiagnostic[];
 };
 
@@ -126,6 +148,7 @@ export type HarnessActivationResult = {
   dryRun: boolean;
   plan: HarnessActivationPlan;
   appliedActions: HarnessActivationAction[];
+  appliedDirActions: HarnessActivationDirAction[];
 };
 
 export type ApplyHarnessActivationOptions = {
@@ -144,6 +167,7 @@ export type HarnessResourceItemProjectionOptions = {
 };
 
 export type HarnessIgnoreRuleKind = "ignore" | "mutable";
+export type HarnessIgnoreMatchBase = "source" | "target" | "both";
 
 export type HarnessIgnoreRule = {
   kind: HarnessIgnoreRuleKind;
@@ -156,13 +180,24 @@ export type HarnessIgnoreRule = {
   target?: string;
 };
 
+export type HarnessIgnoreRuleSet = {
+  rules: HarnessIgnoreRule[];
+  directory: string;
+  sourcePath: string;
+  isRoot: boolean;
+  matchBase?: HarnessIgnoreMatchBase;
+  implicitTarget?: string;
+};
+
 export type HarnessIgnoreMatcher = {
   rules: HarnessIgnoreRule[];
+  ruleSets: HarnessIgnoreRuleSet[];
   ignores(
     relativePath: string,
     options?: {
       globalOnly?: boolean;
       isDirectory?: boolean;
+      outputPath?: string;
       target?: string;
       targetPath?: string;
     }
@@ -172,6 +207,7 @@ export type HarnessIgnoreMatcher = {
     options?: {
       globalOnly?: boolean;
       isDirectory?: boolean;
+      outputPath?: string;
       target?: string;
       targetPath?: string;
     }

@@ -30,22 +30,11 @@ async function writeConfig(root: string, targets = ["./.agents"]) {
   );
 }
 
-async function writeExtensionConfig(
-  root: string,
-  options: { activation?: "explicit" | "auto"; version?: number } = {}
-) {
+async function writeDirConfig(root: string, dirPath = "./.harness/dir") {
   await write(
     root,
     ".harness/harness.toml",
-    [
-      "version = 1",
-      "",
-      "[extensions.dir]",
-      `version = ${options.version ?? 1}`,
-      `activation = "${options.activation ?? "explicit"}"`,
-      'path = "./.harness/dir"',
-      "",
-    ].join("\n")
+    ["version = 1", "", "[dir]", `path = "${dirPath}"`, ""].join("\n")
   );
 }
 
@@ -417,93 +406,141 @@ mode = "copy"
     ).resolves.toBe('{"allow":[]}');
   });
 
-  it("dry-runs selected extension activation by default", async () => {
+  it("composes a [dir] leaf with .harnessComposable into a repo-root file", async () => {
     const root = await rootFixture();
-    await writeExtensionConfig(root);
+    await writeDirConfig(root);
     await write(root, ".harnessIgnore", "");
-    await write(root, ".harness/dir/AGENTS.md/100_intro.md", "A");
+    await write(root, ".harness/dir/AGENTS.md/.harnessComposable", "");
+    await write(root, ".harness/dir/AGENTS.md/100_intro.md", "A\n");
+    await write(root, ".harness/dir/AGENTS.md/200_rules.md", "B\n");
     const capture = captureIo();
     const exitCode = await runHarnessConfigCli(
-      ["extension", "activate", "--root", root, "--extension", "dir"],
+      ["activate", "--root", root, "--yes"],
       capture.io
     );
 
     expect(exitCode).toBe(0);
-    expect(capture.stdout.join("\n")).toContain("extension activation dry run");
-    expect(capture.stdout.join("\n")).toContain("dir extension plan");
+    expect(capture.stdout.join("\n")).toContain("Dir composition");
+    await expect(readFile(path.join(root, "AGENTS.md"), "utf8")).resolves.toBe(
+      "A\nB\n"
+    );
+  });
+
+  it("copies individual files from [dir] when no marker is present", async () => {
+    const root = await rootFixture();
+    await writeDirConfig(root);
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harness/dir/notes/README.md", "hello\n");
+    await write(root, ".harness/dir/notes/nested/info.txt", "deep\n");
+    const capture = captureIo();
+    const exitCode = await runHarnessConfigCli(
+      ["activate", "--root", root, "--yes"],
+      capture.io
+    );
+
+    expect(exitCode).toBe(0);
     await expect(
-      readFile(path.join(root, "AGENTS.md"), "utf8")
-    ).rejects.toThrow();
+      readFile(path.join(root, "notes/README.md"), "utf8")
+    ).resolves.toBe("hello\n");
+    await expect(
+      readFile(path.join(root, "notes/nested/info.txt"), "utf8")
+    ).resolves.toBe("deep\n");
   });
 
-  it("applies selected extension activation with --yes", async () => {
+  it("merges [dir] outputs that fall under a declared target into that target", async () => {
     const root = await rootFixture();
-    await writeExtensionConfig(root);
+    await write(
+      root,
+      ".harness/harness.toml",
+      [
+        "version = 1",
+        "",
+        "[[targets]]",
+        'path = "./.claude"',
+        "",
+        "[dir]",
+        'path = "./.harness/dir"',
+        "",
+      ].join("\n")
+    );
     await write(root, ".harnessIgnore", "");
-    await write(root, ".harness/dir/AGENTS.md/100_intro.md", "A");
+    await write(root, ".harness/dir/.claude/settings.json", '{"theme":"dark"}');
     const capture = captureIo();
     const exitCode = await runHarnessConfigCli(
-      ["extension", "activate", "--root", root, "--extension", "dir", "--yes"],
+      ["activate", "--root", root, "--yes"],
       capture.io
     );
 
     expect(exitCode).toBe(0);
-    expect(capture.stdout.join("\n")).toContain("extension activation result");
-    await expect(readFile(path.join(root, "AGENTS.md"), "utf8")).resolves.toBe(
-      "A"
-    );
+    await expect(
+      readFile(path.join(root, ".claude/settings.json"), "utf8")
+    ).resolves.toBe('{"theme":"dark"}');
+
+    const secondPlan = captureIo();
+    await runHarnessConfigCli(["activate", "--root", root], secondPlan.io);
+    expect(secondPlan.stdout.join("\n")).toContain("keep");
   });
 
-  it("runs explicit extensions with --all", async () => {
+  it("end-to-end: composable + copy + ref + mixed-target dir activation", async () => {
     const root = await rootFixture();
-    await writeExtensionConfig(root);
+    await write(
+      root,
+      ".harness/harness.toml",
+      [
+        "version = 1",
+        "",
+        "[[targets]]",
+        'path = "./.claude"',
+        "",
+        "[dir]",
+        'path = "./.harness/dir"',
+        "",
+      ].join("\n")
+    );
     await write(root, ".harnessIgnore", "");
-    await write(root, ".harness/dir/AGENTS.md/100_intro.md", "A");
-    const capture = captureIo();
-    const exitCode = await runHarnessConfigCli(
-      ["extension", "activate", "--root", root, "--all", "--yes"],
-      capture.io
+    await write(root, ".harness/dir/AGENTS.md/.harnessComposable", "");
+    await write(root, ".harness/dir/AGENTS.md/100_intro.md", "# Intro\n\n");
+    await write(root, ".harness/dir/AGENTS.md/300_rules.md", "## Rules\n");
+    await write(root, ".harness/dir/CLAUDE.md/.harnessComposable", "");
+    await write(root, ".harness/dir/CLAUDE.md/.ref", "../AGENTS.md\n");
+    await write(root, ".harness/dir/CLAUDE.md/250_claude.md", "Claude note\n");
+    await write(root, ".harness/dir/.claude/settings.json", "{}");
+    await write(root, ".harness/dir/.gitignore/.harnessComposable", "");
+    await write(
+      root,
+      ".harness/dir/.gitignore/100_node.txt",
+      "node_modules/\n"
     );
 
-    expect(exitCode).toBe(0);
+    const dryRun = captureIo();
+    const dryRunExitCode = await runHarnessConfigCli(
+      ["activate", "--root", root],
+      dryRun.io
+    );
+    expect(dryRunExitCode).toBe(0);
+
+    const apply = captureIo();
+    const applyExitCode = await runHarnessConfigCli(
+      ["activate", "--root", root, "--yes"],
+      apply.io
+    );
+
+    expect(applyExitCode).toBe(0);
     await expect(readFile(path.join(root, "AGENTS.md"), "utf8")).resolves.toBe(
-      "A"
+      "# Intro\n\n## Rules\n"
     );
-  });
-
-  it("runs only auto extensions when no extension filter is supplied", async () => {
-    const root = await rootFixture();
-    await writeExtensionConfig(root);
-    await write(root, ".harnessIgnore", "");
-    await write(root, ".harness/dir/AGENTS.md/100_intro.md", "A");
-    const explicitCapture = captureIo();
-    const explicitExitCode = await runHarnessConfigCli(
-      ["extension", "activate", "--root", root, "--yes"],
-      explicitCapture.io
+    await expect(readFile(path.join(root, "CLAUDE.md"), "utf8")).resolves.toBe(
+      "# Intro\n\nClaude note\n## Rules\n"
     );
-
-    expect(explicitExitCode).toBe(0);
-    expect(explicitCapture.stdout.join("\n")).toContain(
-      "No extensions selected"
+    await expect(readFile(path.join(root, ".gitignore"), "utf8")).resolves.toBe(
+      "node_modules/\n"
     );
     await expect(
-      readFile(path.join(root, "AGENTS.md"), "utf8")
-    ).rejects.toThrow();
-
-    await writeExtensionConfig(root, { activation: "auto" });
-    const autoCapture = captureIo();
-    const autoExitCode = await runHarnessConfigCli(
-      ["extension", "activate", "--root", root, "--yes"],
-      autoCapture.io
-    );
-
-    expect(autoExitCode).toBe(0);
-    await expect(readFile(path.join(root, "AGENTS.md"), "utf8")).resolves.toBe(
-      "A"
-    );
+      readFile(path.join(root, ".claude/settings.json"), "utf8")
+    ).resolves.toBe("{}");
   });
 
-  it("runs auto extensions after core activation", async () => {
+  it("end-to-end: target-output .harnessIgnore filters resources and dir outputs", async () => {
     const root = await rootFixture();
     await write(
       root,
@@ -517,45 +554,89 @@ mode = "copy"
         "[[targets]]",
         'path = "./.agents"',
         "",
-        "[extensions.dir]",
-        "version = 1",
-        'activation = "auto"',
-        'path = "./.harness/dir"',
+        "[[targets]]",
+        'path = "./.claude"',
+        "",
+        "[dir]",
+        'path = "./resources"',
         "",
       ].join("\n")
     );
     await write(root, ".harnessIgnore", "");
-    await write(root, ".harness/skills/review/SKILL.md", "review skill");
-    await write(root, ".harness/dir/AGENTS.md/100_intro.md", "A");
+    await write(root, ".harness/skills/deploy-plan/SKILL.md", "deploy");
+    await write(root, ".harness/skills/deploy-plan/scratch.tmp", "scratch");
+    await write(root, ".agents/skills/deploy-plan/.harnessIgnore", "*.tmp\n");
+    await write(root, ".agents/skills/deploy-plan/local.md", "local");
+    await write(root, "resources/AGENTS.md/.harnessComposable", "");
+    await write(root, "resources/AGENTS.md/.harnessIgnore", "200_skip.md\n");
+    await write(root, "resources/AGENTS.md/100_intro.md", "A");
+    await write(root, "resources/AGENTS.md/200_skip.md", "B");
+    await write(root, ".agents/tools/.harnessIgnore", "*.tmp\n");
+    await write(root, "resources/.agents/tools/drop.tmp", "drop");
+    await write(root, "resources/.agents/tools/keep.txt", "keep");
+
     const capture = captureIo();
     const exitCode = await runHarnessConfigCli(
-      ["activate", "--root", root, "--yes"],
+      ["activate", "--root", root, "--yes", "--remove-unmanaged"],
       capture.io
     );
 
     expect(exitCode).toBe(0);
-    expect(capture.stdout.join("\n")).toContain("dir extension result");
-    await expect(
-      readFile(path.join(root, ".agents/skills/review/SKILL.md"), "utf8")
-    ).resolves.toBe("review skill");
     await expect(readFile(path.join(root, "AGENTS.md"), "utf8")).resolves.toBe(
       "A"
     );
+    await expect(
+      readFile(path.join(root, ".agents/skills/deploy-plan/SKILL.md"), "utf8")
+    ).resolves.toBe("deploy");
+    await expect(
+      readFile(path.join(root, ".agents/skills/deploy-plan/scratch.tmp"))
+    ).rejects.toThrow();
+    await expect(
+      readFile(
+        path.join(root, ".claude/skills/deploy-plan/scratch.tmp"),
+        "utf8"
+      )
+    ).resolves.toBe("scratch");
+    await expect(
+      readFile(
+        path.join(root, ".agents/skills/deploy-plan/.harnessIgnore"),
+        "utf8"
+      )
+    ).resolves.toBe("*.tmp\n");
+    await expect(
+      readFile(path.join(root, ".agents/skills/deploy-plan/local.md"))
+    ).rejects.toThrow();
+    await expect(
+      readFile(path.join(root, ".agents/tools/drop.tmp"))
+    ).rejects.toThrow();
+    await expect(
+      readFile(path.join(root, ".agents/tools/keep.txt"), "utf8")
+    ).resolves.toBe("keep");
+    await expect(
+      readFile(path.join(root, ".agents/tools/.harnessIgnore"), "utf8")
+    ).resolves.toBe("*.tmp\n");
+  });
+
+  it("reports a path-conflict when a copy file collides with a composable leaf", async () => {
+    const root = await rootFixture();
+    await writeDirConfig(root);
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harness/dir/AGENTS.md/.harnessComposable", "");
+    await write(root, ".harness/dir/AGENTS.md/100_intro.md", "A");
+    await write(root, ".harness/dir/AGENTS.md/nested/oops.txt", "nope");
+
+    const capture = captureIo();
+    const exitCode = await runHarnessConfigCli(
+      ["activate", "--root", root],
+      capture.io
+    );
+
+    expect(exitCode).toBe(1);
+    expect(capture.stdout.join("\n")).toContain("harness.dir_mixed_container");
   });
 
   it("reports extension activation selection errors", async () => {
     const root = await rootFixture();
-    await write(root, ".harness/harness.toml", "version = 1\n");
-    await write(root, ".harnessIgnore", "");
-    const undeclared = captureIo();
-    const undeclaredExitCode = await runHarnessConfigCli(
-      ["extension", "activate", "--root", root, "--extension", "dir"],
-      undeclared.io
-    );
-
-    expect(undeclaredExitCode).toBe(1);
-    expect(undeclared.stdout.join("\n")).toContain("not declared");
-
     await write(
       root,
       ".harness/harness.toml",
@@ -568,6 +649,7 @@ mode = "copy"
         "",
       ].join("\n")
     );
+    await write(root, ".harnessIgnore", "");
     const unsupported = captureIo();
     const unsupportedExitCode = await runHarnessConfigCli(
       ["extension", "activate", "--root", root, "--all"],
@@ -576,125 +658,21 @@ mode = "copy"
 
     expect(unsupportedExitCode).toBe(1);
     expect(unsupported.stdout.join("\n")).toContain("not supported");
-
-    await writeExtensionConfig(root, { version: 2 });
-    const version = captureIo();
-    const versionExitCode = await runHarnessConfigCli(
-      ["extension", "activate", "--root", root, "--extension", "dir"],
-      version.io
-    );
-
-    expect(versionExitCode).toBe(1);
-    expect(version.stdout.join("\n")).toContain(
-      "does not support config version"
-    );
   });
 
   it("rejects conflicting extension selection flags", async () => {
     const root = await rootFixture();
-    await writeExtensionConfig(root);
+    await write(root, ".harness/harness.toml", "version = 1\n");
     await write(root, ".harnessIgnore", "");
     const capture = captureIo();
     const exitCode = await runHarnessConfigCli(
-      ["extension", "activate", "--root", root, "--all", "--extension", "dir"],
+      ["extension", "activate", "--root", root, "--all", "--extension", "any"],
       capture.io
     );
 
     expect(exitCode).toBe(1);
     expect(capture.stdout.join("\n")).toContain(
       "Use either --all or --extension"
-    );
-  });
-
-  it("prints extension activation JSON", async () => {
-    const root = await rootFixture();
-    await writeExtensionConfig(root);
-    await write(root, ".harnessIgnore", "");
-    await write(root, ".harness/dir/AGENTS.md/100_intro.md", "A");
-    const capture = captureIo();
-    const exitCode = await runHarnessConfigCli(
-      ["extension", "activate", "--root", root, "--extension", "dir", "--json"],
-      capture.io
-    );
-    const parsed = JSON.parse(capture.stdout.join("\n"));
-
-    expect(exitCode).toBe(0);
-    expect(parsed.plan.selected[0].id).toBe("dir");
-    expect(parsed.plan.selected[0].plan.actions[0].kind).toBe("create");
-  });
-
-  it("runs dir extension end-to-end with refs, ignored parts, and mirrored outputs", async () => {
-    const root = await rootFixture();
-    await writeExtensionConfig(root);
-    await write(
-      root,
-      ".harnessIgnore",
-      [
-        "[.claude]",
-        ".harness/dir/AGENTS.md/100_intro.md",
-        "[*]",
-        ".harness/dir/AGENTS.md/200_skip.md",
-        ".harness/dir/IGNORED.md/",
-        "",
-      ].join("\n")
-    );
-    await write(root, ".harness/dir/AGENTS.md/100_intro.md", "# Intro\n\n");
-    await write(root, ".harness/dir/AGENTS.md/200_skip.md", "skip\n");
-    await write(root, ".harness/dir/AGENTS.md/300_rules.md", "## Rules\n");
-    await write(root, ".harness/dir/CLAUDE.md/.ref", "../AGENTS.md\n");
-    await write(root, ".harness/dir/CLAUDE.md/250_claude.md", "Claude note\n");
-    await write(
-      root,
-      ".harness/dir/.github/copilot-instructions.md/100_intro.txt",
-      "Copilot\n"
-    );
-    await write(root, ".harness/dir/PROMPT/100_context", "Prompt\n");
-    await write(root, ".harness/dir/IGNORED.md/100_intro.md", "Ignored\n");
-
-    const dryRun = captureIo();
-    const dryRunExitCode = await runHarnessConfigCli(
-      ["extension", "activate", "--root", root, "--extension", "dir"],
-      dryRun.io
-    );
-
-    expect(dryRunExitCode).toBe(0);
-    expect(dryRun.stdout.join("\n")).toContain("create 4");
-    await expect(
-      readFile(path.join(root, "AGENTS.md"), "utf8")
-    ).rejects.toThrow();
-
-    const apply = captureIo();
-    const applyExitCode = await runHarnessConfigCli(
-      ["extension", "activate", "--root", root, "--extension", "dir", "--yes"],
-      apply.io
-    );
-
-    expect(applyExitCode).toBe(0);
-    await expect(readFile(path.join(root, "AGENTS.md"), "utf8")).resolves.toBe(
-      "# Intro\n\n## Rules\n"
-    );
-    await expect(readFile(path.join(root, "CLAUDE.md"), "utf8")).resolves.toBe(
-      "# Intro\n\nClaude note\n## Rules\n"
-    );
-    await expect(
-      readFile(path.join(root, ".github/copilot-instructions.md"), "utf8")
-    ).resolves.toBe("Copilot\n");
-    await expect(readFile(path.join(root, "PROMPT"), "utf8")).resolves.toBe(
-      "Prompt\n"
-    );
-    await expect(
-      readFile(path.join(root, "IGNORED.md"), "utf8")
-    ).rejects.toThrow();
-
-    const secondDryRun = captureIo();
-    const secondDryRunExitCode = await runHarnessConfigCli(
-      ["extension", "activate", "--root", root, "--extension", "dir"],
-      secondDryRun.io
-    );
-
-    expect(secondDryRunExitCode).toBe(0);
-    expect(secondDryRun.stdout.join("\n")).toContain(
-      "Summary: create 0, update 0, keep 4"
     );
   });
 });

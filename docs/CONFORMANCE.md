@@ -17,13 +17,19 @@ specific runtime, CLI, or hosted service.
 - Target conformance: a `[[targets]]` entry contains only a repo-local path.
   The matching override folder is inferred from the first path segment. No
   target may point at `.harness` or redeclare resource roots.
+- Dir conformance: the optional `[dir]` table declares a repo-local dir
+  source root (default `./.harness/dir`). Directories inside the source
+  marked with an empty `.harnessComposable` file are composable leaves
+  whose numeric-prefix parts concatenate into one output file; all other
+  directories and files copy as-is to their matching repo-relative paths.
 - Extension declaration conformance: an `[extensions.<id>]` table contains a
   positive integer `version`, may set `activation` to `explicit` or `auto`, and
   leaves all other fields to the extension implementation.
 - Projection conformance: activation applies `.harnessIgnore`, including
-  target-scoped sections and `[mutable]` scopes, treats every declared target
-  as a copy projection, and yields the same target tree for the same inputs,
-  cleanup policy, and mutable policy.
+  source-local files, target-output-local files, target-scoped sections, and
+  `[mutable]` scopes, treats every declared target as a copy projection, and
+  yields the same target tree for the same inputs, cleanup policy, and
+  mutable policy.
 - Tool conformance: an implementation reports the activation plan before
   writing, lists creates, updates, requested removals, kept files, preserved
   unmanaged entries, and mutable-skipped files, and never reads a live runtime
@@ -46,6 +52,9 @@ specific runtime, CLI, or hosted service.
   recognized.
 - Mutable scope sections such as `[mutable]`, `[mutable .claude]`, and
   `[mutable !.cursor]` are recognized.
+- If `[dir]` is declared, the dir source root resolves repo-locally and
+  every composable leaf carries a `.harnessComposable` marker. Copy folders
+  and individual files under the dir source carry no marker.
 
 ## Implementation Requirements
 
@@ -62,13 +71,25 @@ specific runtime, CLI, or hosted service.
 - Activation MUST be idempotent for the same `.harness` tree,
   `harness.toml`, overrides, `.harnessIgnore` rules, cleanup choice, and
   mutable policy.
-- Implementations MUST support `.harnessIgnore` for global and target-scoped
-  files that stay out of live projections.
+- Implementations MUST support `.harnessIgnore` for global, source-local,
+  target-output-local, and target-scoped files that stay out of live
+  projections. Target-output `.harnessIgnore` files that already exist MUST
+  be preserved during activation and unmanaged cleanup.
 - Implementations MUST support `[mutable]` scopes in `.harnessIgnore` and
   treat matching files as create-once, runtime-owned target files even when
   target bytes still match the source template.
 - Declared target folders MUST be treated as projection outputs, not source
   repositories.
+- When `[dir]` is declared, activation MUST compose every directory with a
+  `.harnessComposable` marker from its numeric-prefix parts and MUST copy
+  every other directory and file under the dir source to its matching
+  repo-relative path. Dir output paths that fall under a declared target
+  MUST be merged into that target's projection; dir output paths that
+  would replace or contain a declared target root MUST be rejected.
+  Source-local `.harnessIgnore` files inside the dir source, including a
+  custom dir source outside `.harness`, MUST filter dir source files.
+  Target-output `.harnessIgnore` files MAY filter dir outputs by final output
+  path once candidate outputs are known.
 
 ## Evidence
 

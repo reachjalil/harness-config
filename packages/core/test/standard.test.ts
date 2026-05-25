@@ -6,14 +6,23 @@ import { describe, expect, it } from "vitest";
 import {
   CURRENT_HARNESS_CONFIG_VERSION,
   createHarnessIgnoreMatcher,
+  detectImplicitOverrideTarget,
   inferHarnessOverrideDirectory,
   listHarnessProjectionTargets,
+  loadHarnessIgnoreRuleSets,
   parseHarnessIgnore,
+  parseHarnessIgnoreFile,
   parseHarnessConfigToml,
   resolveHarnessPaths,
   safeParseHarnessConfigToml,
   validateHarnessConfig,
 } from "../src/index";
+
+async function write(root: string, relativePath: string, content: string) {
+  const target = path.join(root, relativePath);
+  await mkdir(path.dirname(target), { recursive: true });
+  await writeFile(target, content, "utf8");
+}
 
 describe("HarnessConfig standard", () => {
   it("parses a valid harness.toml", () => {
@@ -445,6 +454,470 @@ path = "./.cursor"
         targetPath: "./.claude",
       })
     ).toBe(false);
+  });
+
+  it("treats nested .harnessIgnore patterns as relative to the file's directory", () => {
+    const nested = parseHarnessIgnoreFile("*.tmp", {
+      isRoot: false,
+      sourcePath: ".harness/skills/review/.harnessIgnore",
+    });
+    const matcher = createHarnessIgnoreMatcher([
+      {
+        rules: nested.rules,
+        directory: ".harness/skills/review",
+        sourcePath: ".harness/skills/review/.harnessIgnore",
+        isRoot: false,
+      },
+    ]);
+
+    expect(matcher.ignores(".harness/skills/review/scratch.tmp")).toBe(true);
+    expect(matcher.ignores(".harness/skills/review/nested/scratch.tmp")).toBe(
+      true
+    );
+    expect(matcher.ignores(".harness/skills/triage/scratch.tmp")).toBe(false);
+  });
+
+  it("lets a nested rule re-include a path the root file ignored", () => {
+    const matcher = createHarnessIgnoreMatcher([
+      {
+        rules: parseHarnessIgnore(".harness/skills/review/*.tmp"),
+        directory: "",
+        sourcePath: ".harnessIgnore",
+        isRoot: true,
+      },
+      {
+        rules: parseHarnessIgnoreFile("!keep.tmp", {
+          isRoot: false,
+          sourcePath: ".harness/skills/review/.harnessIgnore",
+        }).rules,
+        directory: ".harness/skills/review",
+        sourcePath: ".harness/skills/review/.harnessIgnore",
+        isRoot: false,
+      },
+    ]);
+
+    expect(matcher.ignores(".harness/skills/review/drop.tmp")).toBe(true);
+    expect(matcher.ignores(".harness/skills/review/keep.tmp")).toBe(false);
+  });
+
+  it("lets a deeper nested rule override a shallower nested rule", () => {
+    const matcher = createHarnessIgnoreMatcher([
+      {
+        rules: parseHarnessIgnore(".harness/skills/**/draft.md"),
+        directory: "",
+        sourcePath: ".harnessIgnore",
+        isRoot: true,
+      },
+      {
+        rules: parseHarnessIgnoreFile("!review/draft.md", {
+          isRoot: false,
+          sourcePath: ".harness/skills/.harnessIgnore",
+        }).rules,
+        directory: ".harness/skills",
+        sourcePath: ".harness/skills/.harnessIgnore",
+        isRoot: false,
+      },
+      {
+        rules: parseHarnessIgnoreFile("draft.md", {
+          isRoot: false,
+          sourcePath: ".harness/skills/review/.harnessIgnore",
+        }).rules,
+        directory: ".harness/skills/review",
+        sourcePath: ".harness/skills/review/.harnessIgnore",
+        isRoot: false,
+      },
+    ]);
+
+    expect(matcher.ignores(".harness/skills/review/draft.md")).toBe(true);
+    expect(matcher.ignores(".harness/skills/triage/draft.md")).toBe(true);
+  });
+
+  it("evaluates rule sets shallow-first and applies last-match precedence across files", () => {
+    const matcher = createHarnessIgnoreMatcher([
+      {
+        rules: parseHarnessIgnore(".harness/skills/review/*.md"),
+        directory: "",
+        sourcePath: ".harnessIgnore",
+        isRoot: true,
+      },
+      {
+        rules: parseHarnessIgnoreFile("!README.md", {
+          isRoot: false,
+          sourcePath: ".harness/skills/review/.harnessIgnore",
+        }).rules,
+        directory: ".harness/skills/review",
+        sourcePath: ".harness/skills/review/.harnessIgnore",
+        isRoot: false,
+      },
+    ]);
+
+    expect(matcher.ruleSets.map((ruleSet) => ruleSet.directory)).toEqual([
+      "",
+      ".harness/skills/review",
+    ]);
+    expect(matcher.ignores(".harness/skills/review/NOTE.md")).toBe(true);
+    expect(matcher.ignores(".harness/skills/review/README.md")).toBe(false);
+  });
+
+  it("matches target-based rule sets against output paths", () => {
+    const matcher = createHarnessIgnoreMatcher([
+      {
+        rules: parseHarnessIgnoreFile("*.tmp", {
+          isRoot: false,
+          sourcePath: ".agents/skills/review/.harnessIgnore",
+        }).rules,
+        directory: ".agents/skills/review",
+        sourcePath: ".agents/skills/review/.harnessIgnore",
+        isRoot: false,
+        matchBase: "target",
+      },
+    ]);
+
+    expect(
+      matcher.ignores(".harness/skills/review/scratch.tmp", {
+        outputPath: ".agents/skills/review/scratch.tmp",
+      })
+    ).toBe(true);
+    expect(matcher.ignores(".harness/skills/review/scratch.tmp")).toBe(false);
+  });
+
+  it("lets root rule sets match source and target output paths", () => {
+    const matcher = createHarnessIgnoreMatcher([
+      {
+        rules: parseHarnessIgnore(".agents/**/local.md\n.harness/**/logs/"),
+        directory: "",
+        sourcePath: ".harnessIgnore",
+        isRoot: true,
+        matchBase: "both",
+      },
+    ]);
+
+    expect(
+      matcher.ignores(".harness/skills/review/logs/run.log", {
+        outputPath: ".agents/skills/review/logs/run.log",
+      })
+    ).toBe(true);
+    expect(
+      matcher.ignores(".harness/skills/review/local.md", {
+        outputPath: ".agents/skills/review/local.md",
+      })
+    ).toBe(true);
+  });
+
+  it("preserves root rule order when source and output path rules both match", () => {
+    const matcher = createHarnessIgnoreMatcher([
+      {
+        rules: parseHarnessIgnore(
+          ".agents/**/target.md\n!.harness/skills/review/target.md"
+        ),
+        directory: "",
+        sourcePath: ".harnessIgnore",
+        isRoot: true,
+        matchBase: "both",
+      },
+    ]);
+
+    expect(
+      matcher.ignores(".harness/skills/review/target.md", {
+        outputPath: ".agents/skills/review/target.md",
+      })
+    ).toBe(false);
+  });
+
+  it("lets deeper target-based rule sets override shallower target rules", () => {
+    const matcher = createHarnessIgnoreMatcher([
+      {
+        rules: parseHarnessIgnoreFile("*.md", {
+          isRoot: false,
+          sourcePath: ".agents/skills/.harnessIgnore",
+        }).rules,
+        directory: ".agents/skills",
+        sourcePath: ".agents/skills/.harnessIgnore",
+        isRoot: false,
+        matchBase: "target",
+      },
+      {
+        rules: parseHarnessIgnoreFile("!README.md", {
+          isRoot: false,
+          sourcePath: ".agents/skills/review/.harnessIgnore",
+        }).rules,
+        directory: ".agents/skills/review",
+        sourcePath: ".agents/skills/review/.harnessIgnore",
+        isRoot: false,
+        matchBase: "target",
+      },
+    ]);
+
+    expect(
+      matcher.ignores(".harness/skills/review/NOTE.md", {
+        outputPath: ".agents/skills/review/NOTE.md",
+      })
+    ).toBe(true);
+    expect(
+      matcher.ignores(".harness/skills/review/README.md", {
+        outputPath: ".agents/skills/review/README.md",
+      })
+    ).toBe(false);
+  });
+
+  it("supports [mutable] sections in nested files", () => {
+    const matcher = createHarnessIgnoreMatcher([
+      {
+        rules: parseHarnessIgnoreFile(
+          `
+[mutable]
+settings.local.json
+`,
+          {
+            isRoot: false,
+            sourcePath: ".harness/skills/review/.harnessIgnore",
+          }
+        ).rules,
+        directory: ".harness/skills/review",
+        sourcePath: ".harness/skills/review/.harnessIgnore",
+        isRoot: false,
+      },
+    ]);
+
+    expect(
+      matcher.isMutable(".harness/skills/review/settings.local.json")
+    ).toBe(true);
+    expect(
+      matcher.isMutable(".harness/skills/triage/settings.local.json")
+    ).toBe(false);
+  });
+
+  it("accepts target-scoped sections in nested .harnessIgnore files outside an override folder", async () => {
+    const parsed = parseHarnessIgnoreFile(
+      `
+[.claude]
+secret.md
+
+[mutable .cursor]
+state.json
+`,
+      {
+        isRoot: false,
+        sourcePath: ".harness/skills/review/.harnessIgnore",
+      }
+    );
+    const matcher = createHarnessIgnoreMatcher([
+      {
+        rules: parsed.rules,
+        directory: ".harness/skills/review",
+        sourcePath: ".harness/skills/review/.harnessIgnore",
+        isRoot: false,
+      },
+    ]);
+
+    expect(parsed.diagnostics).toEqual([]);
+    expect(
+      matcher.ignores(".harness/skills/review/secret.md", {
+        targetPath: "./.claude",
+      })
+    ).toBe(true);
+    expect(
+      matcher.ignores(".harness/skills/review/secret.md", {
+        targetPath: "./.agents",
+      })
+    ).toBe(false);
+    expect(
+      matcher.isMutable(".harness/skills/review/state.json", {
+        targetPath: "./.cursor",
+      })
+    ).toBe(true);
+
+    const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
+    await mkdir(path.join(root, ".harness"), { recursive: true });
+    await write(root, ".harnessIgnore", "");
+    await write(
+      root,
+      ".harness/skills/review/.harnessIgnore",
+      "[.claude]\nsecret.md\n"
+    );
+    await expect(loadHarnessIgnoreRuleSets(root)).resolves.toMatchObject({
+      diagnostics: [],
+    });
+  });
+
+  it("emits harness.ignore_redundant_override_scope for [.claude] inside a .claude override", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
+    await mkdir(path.join(root, ".harness"), { recursive: true });
+    await write(root, ".harnessIgnore", "");
+    await write(
+      root,
+      ".harness/skills/review/.claude/.harnessIgnore",
+      "[.claude]\nsecret.md\n"
+    );
+
+    const { ruleSets, diagnostics } = await loadHarnessIgnoreRuleSets(root);
+
+    expect(
+      ruleSets.find(
+        (ruleSet) =>
+          ruleSet.sourcePath === ".harness/skills/review/.claude/.harnessIgnore"
+      )?.implicitTarget
+    ).toBe(".claude");
+    expect(diagnostics).toEqual([
+      expect.objectContaining({
+        severity: "info",
+        code: "harness.ignore_redundant_override_scope",
+        path: ".harness/skills/review/.claude/.harnessIgnore",
+      }),
+    ]);
+  });
+
+  it("emits harness.ignore_redundant_override_scope for [!.cursor] inside a .claude override", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
+    await mkdir(path.join(root, ".harness"), { recursive: true });
+    await write(root, ".harnessIgnore", "");
+    await write(
+      root,
+      ".harness/skills/review/.claude/.harnessIgnore",
+      "[!.cursor]\nshared.md\n"
+    );
+
+    const { diagnostics } = await loadHarnessIgnoreRuleSets(root);
+
+    expect(diagnostics).toEqual([
+      expect.objectContaining({
+        severity: "info",
+        code: "harness.ignore_redundant_override_scope",
+        message: expect.stringContaining("[!.cursor]"),
+      }),
+    ]);
+  });
+
+  it("emits harness.ignore_dead_override_scope for [.cursor] inside a .claude override", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
+    await mkdir(path.join(root, ".harness"), { recursive: true });
+    await write(root, ".harnessIgnore", "");
+    await write(
+      root,
+      ".harness/skills/review/.claude/.harnessIgnore",
+      "[.cursor]\ndead.md\n"
+    );
+
+    const { diagnostics } = await loadHarnessIgnoreRuleSets(root);
+
+    expect(diagnostics).toEqual([
+      expect.objectContaining({
+        severity: "warning",
+        code: "harness.ignore_dead_override_scope",
+        message: expect.stringContaining("[.cursor]"),
+      }),
+    ]);
+  });
+
+  it("emits harness.ignore_dead_override_scope for [!.claude] inside a .claude override", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
+    await mkdir(path.join(root, ".harness"), { recursive: true });
+    await write(root, ".harnessIgnore", "");
+    await write(
+      root,
+      ".harness/skills/review/.claude/.harnessIgnore",
+      "[!.claude]\ndead.md\n"
+    );
+
+    const { diagnostics } = await loadHarnessIgnoreRuleSets(root);
+
+    expect(diagnostics).toEqual([
+      expect.objectContaining({
+        severity: "warning",
+        code: "harness.ignore_dead_override_scope",
+        message: expect.stringContaining("[!.claude]"),
+      }),
+    ]);
+  });
+
+  it("emits no diagnostic for [mutable] or [*] inside an override", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
+    await mkdir(path.join(root, ".harness"), { recursive: true });
+    await write(root, ".harnessIgnore", "");
+    await write(
+      root,
+      ".harness/skills/review/.claude/.harnessIgnore",
+      "[*]\nshared.md\n\n[mutable]\nsettings.local.json\n"
+    );
+
+    const { diagnostics } = await loadHarnessIgnoreRuleSets(root);
+
+    expect(diagnostics).toEqual([]);
+  });
+
+  it("scopes nested rules with [.claude] correctly during .claude projection", () => {
+    const matcher = createHarnessIgnoreMatcher([
+      {
+        rules: parseHarnessIgnoreFile("[.claude]\nsecret.md\n", {
+          isRoot: false,
+          sourcePath: ".harness/skills/review/.harnessIgnore",
+        }).rules,
+        directory: ".harness/skills/review",
+        sourcePath: ".harness/skills/review/.harnessIgnore",
+        isRoot: false,
+      },
+    ]);
+
+    expect(
+      matcher.ignores(".harness/skills/review/secret.md", {
+        targetPath: "./.claude",
+      })
+    ).toBe(true);
+    expect(
+      matcher.ignores(".harness/skills/review/secret.md", {
+        targetPath: "./.cursor",
+      })
+    ).toBe(false);
+  });
+
+  it("detects implicit override target via detectImplicitOverrideTarget()", () => {
+    expect(
+      detectImplicitOverrideTarget(
+        ".harness/skills/review/.claude/.harnessIgnore"
+      )
+    ).toBe(".claude");
+    expect(
+      detectImplicitOverrideTarget(
+        ".harness/skills/review/.claude/nested/.harnessIgnore"
+      )
+    ).toBe(".claude");
+    expect(
+      detectImplicitOverrideTarget(
+        ".harness/skills/review/nested/.claude/.harnessIgnore"
+      )
+    ).toBeUndefined();
+    expect(
+      detectImplicitOverrideTarget(".harness/skills/review/.harnessIgnore")
+    ).toBeUndefined();
+  });
+
+  it("scopes nested rules to the file's subtree (siblings unaffected)", () => {
+    const matcher = createHarnessIgnoreMatcher([
+      {
+        rules: parseHarnessIgnoreFile("*.tmp", {
+          isRoot: false,
+          sourcePath: ".harness/skills/review/.harnessIgnore",
+        }).rules,
+        directory: ".harness/skills/review",
+        sourcePath: ".harness/skills/review/.harnessIgnore",
+        isRoot: false,
+      },
+    ]);
+
+    expect(matcher.ignores(".harness/skills/review/cache.tmp")).toBe(true);
+    expect(matcher.ignores(".harness/skills/triage/cache.tmp")).toBe(false);
+  });
+
+  it("ignores .harnessIgnore files themselves from projection by default", () => {
+    const matcher = createHarnessIgnoreMatcher();
+
+    expect(matcher.rules[0]).toEqual(
+      expect.objectContaining({
+        kind: "ignore",
+        pattern: "**/.harnessIgnore",
+      })
+    );
+    expect(matcher.ignores(".harness/skills/review/.harnessIgnore")).toBe(true);
   });
 
   it("treats ignore and mutable evaluations as independent", () => {

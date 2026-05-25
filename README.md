@@ -5,35 +5,70 @@
 [![CI](https://img.shields.io/badge/ci-pnpm%20quality-blue)](#quality-gate)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](./LICENSE)
 
-HarnessConfig defines a small, local-first standard for repository-owned
-harness resources. A repository keeps durable resource folders under
-`./.harness`, declares those resource roots in `./.harness/harness.toml`, and
-declares every live projection target explicitly.
+**Status:** Standard v1 — stable. Reference implementation is published as
+[`@harnessconfig/core`](https://www.npmjs.com/package/@harnessconfig/core)
+and the [`harnessc`](https://www.npmjs.com/package/@harnessconfig/cli) CLI.
 
-No target is implicit. `./.agents`, `./.claude`, `./.cursor`, or any other
-dot-prefixed harness folder is just a target when it appears in `harness.toml`.
-No resource kind is reserved. `skills`, `rules`, and `plugins` are useful
-conventional defaults, but teams can declare their own kinds such as
-`prompts`, `workflows`, or `checks`.
+## What HarnessConfig Is
 
-Activation stays simple: preview the target plan, apply `.harnessIgnore`, merge
-the target-derived override folder when present, and materialize each declared
-target as a copy projection. Given the same source tree, manifest, ignore rules,
-cleanup policy, and mutable policy, repeated activation should produce the same
-target trees.
+A small, repository-local standard that gives multiple AI coding agents
+(Claude, Cursor, Copilot, custom in-house tools) one shared way to read and
+update the prompts, skills, rules, and plugins a repository owns — without
+turning each agent's runtime folder into the source of truth.
 
-HarnessConfig does not define product workflows, hosted services, marketplaces,
-distribution systems, target edit review, capture, grouping, or selection
-policy. Those belong in product layers that build on top of the standard.
+A repository keeps its durable source material under one folder, `./.harness`,
+declares the resource roots and runtime targets in `./.harness/harness.toml`,
+and lets tools materialize each target as a reviewable copy projection.
+
+## The Problem It Solves
+
+Repositories that work with more than one AI coding agent tend to grow
+several near-duplicate runtime folders (`.claude/`, `.cursor/`, `.agents/`,
+`.codeium/`, plus root-level `AGENTS.md`, `CLAUDE.md`,
+`copilot-instructions.md`). The same prompt or skill gets copy-pasted into
+each, runtime-written files (permissions, learned commands) leak into version
+control, and there is no clean way to add a new agent without another
+folder. HarnessConfig replaces that pattern with one canonical source layout
+plus an explicit, reproducible projection into each runtime target.
+
+See [docs/RATIONALE.md](./docs/RATIONALE.md) for the long form.
+
+## Core Properties
+
+- **One source root** (`./.harness`), reviewed in version control.
+- **Explicit targets only.** `./.agents`, `./.claude`, `./.cursor`, or any
+  other dot-prefixed folder receives projection *only* when declared in
+  `harness.toml`. No implicit targets.
+- **No reserved resource kinds.** `skills`, `rules`, and `plugins` are
+  common conventions; repositories may declare `prompts`, `workflows`,
+  `checks`, or any other kind under `./.harness/<kind>/`.
+- **Copy projection.** Targets are materialized as ordinary files, not
+  symlinks. The plan (`create` / `update` / `remove` / `keep` / `preserve`
+  / `mutable`) is shown before any write.
+- **Idempotent under fixed inputs.** Given the same source tree, manifest,
+  ignore rules, cleanup policy, and mutable policy, repeat activation
+  converges to a `keep`-only plan for managed files and a `mutable`-only
+  plan for runtime-owned files. See
+  [STANDARD.md § Copy Projection](./docs/STANDARD.md#copy-projection) for
+  the formal statement.
+- **One projection filter** (`.harnessIgnore`) covers global, target-scoped,
+  and runtime-owned (`[mutable]`) exclusions.
+
+## What HarnessConfig Is Not
+
+HarnessConfig does not define product workflows, hosted services,
+marketplaces, distribution systems, target edit review, capture, grouping,
+or selection policy. Those belong in product layers that build on top of
+the standard — for example, [Harnex](https://github.com/reachjalil/harnex),
+which adds kits, managed activation manifests, and drift detection on top
+of `@harnessconfig/core`.
 
 ## Packages
 
 - `@harnessconfig/core`: TypeScript schemas, version constants, path helpers,
-  validation diagnostics, ignore parsing, initialization planning, and copy
-  projection helpers.
+  validation diagnostics, ignore parsing, initialization planning, copy
+  projection helpers, and the `[dir]` composable + copy module.
 - `@harnessconfig/cli`: Publishable CLI package with the `harnessc` binary.
-- `@harnessconfig/extension-dir`: Built-in extension for composing repository
-  text files from mirrored directories.
 
 ## Layout
 
@@ -96,15 +131,15 @@ path = "./.agents"
 [[targets]]
 path = "./.claude"
 
-[extensions.dir]
-version = 1
-activation = "explicit"
+[dir]
 path = "./.harness/dir"
 ```
 
 Resource declarations contain only `path`. Target declarations contain only
 `path`. A target path such as `./.claude` automatically uses `.claude` override
-folders when they exist inside a resource item. Extensions are declared under
+folders when they exist inside a resource item. The optional `[dir]` section
+turns on dir composition + copy from `./.harness/dir` (or the configured
+path); see "Dir Composition And Copy" below. Extensions are declared under
 `[extensions.<id>]`; core owns `version` and `activation`, while each extension
 owns its remaining fields.
 
@@ -112,7 +147,9 @@ owns its remaining fields.
 
 `.harnessIgnore` is the projection boundary. Targets receive all declared
 resource roots by default; target-scoped ignore sections decide what does not
-enter a given target.
+enter a given target. The repo-root file can match source paths such as
+`.harness/skills/review/logs/run.log` and target output paths such as
+`.agents/skills/review/scratch.tmp`.
 
 ```text
 # Global source-only state
@@ -131,8 +168,20 @@ enter a given target.
 
 Use `harness.toml` to declare what exists and where projections may write. Use
 `.harnessIgnore` to control which files or whole top-level resource kinds are
-excluded from a target. Keeping that boundary in one ignore file avoids a
-second per-target mapping language in v1.
+excluded from a target.
+
+Local `.harnessIgnore` files may also live next to source subtrees or
+existing target-output subtrees:
+
+```text
+.harness/skills/review/.harnessIgnore     # source-local
+resources/AGENTS.md/.harnessIgnore        # custom [dir] source-local
+.agents/skills/review/.harnessIgnore      # target-output-local
+```
+
+Source-local files match source paths below their directory. Target-output
+files match final output paths below their directory and are preserved during
+cleanup.
 
 ## CLI
 
@@ -218,24 +267,58 @@ Unmanaged target entries kept
   - preserve: .claude/skills/review/local.md
 ```
 
+## Dir Composition And Copy
+
+Declaring `[dir]` turns on a single dir source root (default
+`./.harness/dir`). `harnessc activate` runs dir composition + copy
+alongside target projection.
+
+```text
+.harness/dir/
+  AGENTS.md/
+    .harnessComposable           # marker (empty)
+    100_intro.md                 # composed into ./AGENTS.md
+    200_rules.md
+  CLAUDE.md/
+    .harnessComposable
+    .ref                         # ../AGENTS.md
+    150_claude.md                # composed into ./CLAUDE.md
+  .claude/
+    settings.json                # copy-mode -> ./.claude/settings.json
+  notes/
+    01_dev_intro.md              # copy-mode -> ./notes/01_dev_intro.md
+```
+
+A directory marked with an empty `.harnessComposable` file is a composable
+leaf: numeric-prefix parts (`100_intro.md`, `200_rules.md`, ...) concatenate
+into one output file. A directory without the marker is a copy folder; its
+files copy to repo-relative paths. The marker itself never appears in any
+output.
+
+Dir outputs that fall under a declared `[[targets]]` path merge into that
+target's projection, so target unmanaged-entry cleanup respects dir-owned
+files. Dir outputs that would replace or contain a declared target root
+are rejected.
+
 ## TypeScript API
 
 ```ts
 import {
   applyHarnessActivation,
   planHarnessActivation,
+  planHarnessDir,
   planHarnessInitialization,
   resolveHarnessPaths,
   validateHarnessConfig,
 } from "@harnessconfig/core";
-import { planDirExtension } from "@harnessconfig/extension-dir";
 
 const paths = resolveHarnessPaths(process.cwd());
 const validation = await validateHarnessConfig(process.cwd());
 const plan = await planHarnessInitialization(process.cwd());
 const activationPlan = await planHarnessActivation(process.cwd());
 const dryRun = await applyHarnessActivation(process.cwd());
-const dirPlan = await planDirExtension(process.cwd());
+// Plan dir composition + copy directly (requires the parsed config):
+// const dirPlan = await planHarnessDir(process.cwd(), config);
 ```
 
 ## Quality Gate

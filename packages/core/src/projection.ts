@@ -10,7 +10,8 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 
-import { loadHarnessIgnoreMatcher } from "./ignore";
+import { type DirOutput, planHarnessDir } from "./dir";
+import { loadHarnessIgnoreMatcherDetailed } from "./ignore";
 import {
   assertRepoLocalPath,
   resolveHarnessPaths,
@@ -27,6 +28,8 @@ import { validateHarnessConfig } from "./validation";
 import type {
   ApplyHarnessActivationOptions,
   HarnessActivationAction,
+  HarnessActivationDirAction,
+  HarnessActivationDirPlan,
   HarnessActivationPlan,
   HarnessActivationResult,
   HarnessActivationTargetPlan,
@@ -96,10 +99,16 @@ async function addFileIfIncluded(
   sourcePath: string,
   outputRelativePath: string,
   targetPath: string,
+  targetOutputPath: string,
   diagnostics: HarnessDiagnostic[]
 ): Promise<void> {
   const sourceRelative = toRepoRelative(root, sourcePath);
-  if (matcher.ignores(sourceRelative, { targetPath })) {
+  if (
+    matcher.ignores(sourceRelative, {
+      outputPath: targetOutputPath,
+      targetPath,
+    })
+  ) {
     return;
   }
 
@@ -116,7 +125,10 @@ async function addFileIfIncluded(
     return;
   }
 
-  const mutable = matcher.isMutable(sourceRelative, { targetPath });
+  const mutable = matcher.isMutable(sourceRelative, {
+    outputPath: targetOutputPath,
+    targetPath,
+  });
   setProjectedFile(
     projection,
     outputRelativePath.split(path.sep).join("/"),
@@ -128,6 +140,15 @@ async function addFileIfIncluded(
     },
     root,
     diagnostics
+  );
+}
+
+function repoRelativeOutputPath(
+  targetRoot: string,
+  outputRelativePath: string
+): string {
+  return normalizeTargetPathString(
+    path.posix.join(targetRoot, outputRelativePath)
   );
 }
 
@@ -189,7 +210,9 @@ async function buildProjection(
   diagnostics: HarnessDiagnostic[]
 ): Promise<DesiredProjection> {
   const projection: DesiredProjection = new Map();
-  const matcher = await loadHarnessIgnoreMatcher(root);
+  const { matcher, diagnostics: ignoreDiagnostics } =
+    await loadHarnessIgnoreMatcherDetailed(root, { config });
+  diagnostics.push(...ignoreDiagnostics);
   const overrideDir = inferHarnessOverrideDirectory(targetPath);
 
   for (const [resource, definition] of Object.entries(config.resources)) {
@@ -220,6 +243,14 @@ async function buildProjection(
           filePath,
           path.join(resource, item.name, relativeFromItem),
           targetPath,
+          repoRelativeOutputPath(
+            targetPath,
+            path.posix.join(
+              resource,
+              item.name,
+              normalizeTargetPathString(relativeFromItem)
+            )
+          ),
           diagnostics
         );
       }
@@ -237,6 +268,14 @@ async function buildProjection(
           filePath,
           path.join(resource, item.name, path.relative(overridePath, filePath)),
           targetPath,
+          repoRelativeOutputPath(
+            targetPath,
+            path.posix.join(
+              resource,
+              item.name,
+              normalizeTargetPathString(path.relative(overridePath, filePath))
+            )
+          ),
           diagnostics
         );
       }
@@ -268,6 +307,7 @@ async function buildResourceItemProjection(
 ): Promise<DesiredProjection> {
   const root = path.resolve(options.root ?? process.cwd());
   const sourceDir = resolveProjectionPath(root, options.sourceDir, "Resource");
+  const targetDir = resolveProjectionPath(root, options.targetDir, "Target");
   const targetPath = normalizeTargetPathForProjection(
     root,
     options.targetPath ?? options.targetDir
@@ -280,7 +320,12 @@ async function buildResourceItemProjection(
   }
 
   const diagnostics = options.diagnostics ?? [];
-  const matcher = await loadHarnessIgnoreMatcher(root);
+  const { matcher, diagnostics: ignoreDiagnostics } =
+    await loadHarnessIgnoreMatcherDetailed(root, {
+      sourceRoots: [sourceDir],
+      targetRoots: [targetDir],
+    });
+  diagnostics.push(...ignoreDiagnostics);
   const projection: DesiredProjection = new Map();
   const canonicalFiles = await listFiles(sourceDir);
   for (const filePath of canonicalFiles) {
@@ -295,6 +340,7 @@ async function buildResourceItemProjection(
       filePath,
       relativeFromItem,
       targetPath,
+      toRepoRelative(root, path.join(targetDir, relativeFromItem)),
       diagnostics
     );
   }
@@ -314,6 +360,10 @@ async function buildResourceItemProjection(
       filePath,
       path.relative(overridePath, filePath),
       targetPath,
+      toRepoRelative(
+        root,
+        path.join(targetDir, path.relative(overridePath, filePath))
+      ),
       diagnostics
     );
   }
@@ -335,6 +385,30 @@ async function readExistingTree(
   const existing = new Map<string, ExistingEntry>();
   await readExistingTreeInto(targetRoot, targetRoot, existing);
   return existing;
+}
+
+async function readProtectedTargetFiles(
+  root: string,
+  targetRoot: string,
+  protectedTargetPaths: string[]
+): Promise<Map<string, Buffer>> {
+  const protectedFiles = new Map<string, Buffer>();
+  for (const relativePath of protectedTargetPathsForRoot(
+    root,
+    targetRoot,
+    protectedTargetPaths
+  )) {
+    if (!relativePath) {
+      continue;
+    }
+    const bytes = await readFile(path.join(targetRoot, relativePath)).catch(
+      () => undefined
+    );
+    if (bytes) {
+      protectedFiles.set(relativePath, bytes);
+    }
+  }
+  return protectedFiles;
 }
 
 async function readExistingTreeInto(
@@ -414,7 +488,8 @@ async function planCopyActions(
   targetRoot: string,
   projection: DesiredProjection,
   cleanupUnmanaged: CleanupUnmanagedMode,
-  mutablePolicy: MutablePolicy
+  mutablePolicy: MutablePolicy,
+  protectedRelativePaths: Set<string> = new Set()
 ): Promise<HarnessActivationAction[]> {
   const targetState = await lstat(targetRoot).catch(() => undefined);
   const existing = await readExistingTree(targetRoot);
@@ -501,12 +576,21 @@ async function planCopyActions(
 
   const unmanagedRoots = new Map<string, ExistingEntry>();
   for (const [relativePath, entry] of existing) {
+    if (isProtectedTargetIgnorePath(relativePath, protectedRelativePaths)) {
+      continue;
+    }
     if (projection.has(relativePath)) {
       continue;
     }
     if (
       entry.type === "directory" &&
       isProjectionAncestor(relativePath, projection)
+    ) {
+      continue;
+    }
+    if (
+      entry.type === "directory" &&
+      isProtectedTargetIgnoreAncestor(relativePath, protectedRelativePaths)
     ) {
       continue;
     }
@@ -519,7 +603,11 @@ async function planCopyActions(
     ) {
       continue;
     }
-    const root = unmanagedEntryRoot(relativePath, managedItemRoots);
+    const root = protectedUnmanagedEntryRoot(
+      relativePath,
+      unmanagedEntryRoot(relativePath, managedItemRoots),
+      protectedRelativePaths
+    );
     const current = unmanagedRoots.get(root);
     if (!current || current.type !== "directory") {
       unmanagedRoots.set(root, existing.get(root) ?? entry);
@@ -539,6 +627,38 @@ async function planCopyActions(
   }
 
   return sortActivationActions(actions);
+}
+
+function isProtectedTargetIgnorePath(
+  relativePath: string,
+  protectedRelativePaths: Set<string>
+): boolean {
+  return protectedRelativePaths.has(normalizeTargetPathString(relativePath));
+}
+
+function isProtectedTargetIgnoreAncestor(
+  relativePath: string,
+  protectedRelativePaths: Set<string>
+): boolean {
+  const normalized = normalizeTargetPathString(relativePath);
+  return [...protectedRelativePaths].some((protectedPath) =>
+    protectedPath.startsWith(`${normalized}/`)
+  );
+}
+
+function protectedUnmanagedEntryRoot(
+  relativePath: string,
+  proposedRoot: string,
+  protectedRelativePaths: Set<string>
+): string {
+  const normalizedRoot = normalizeTargetPathString(proposedRoot);
+  if (
+    normalizedRoot !== normalizeTargetPathString(relativePath) &&
+    isProtectedTargetIgnoreAncestor(normalizedRoot, protectedRelativePaths)
+  ) {
+    return relativePath;
+  }
+  return proposedRoot;
 }
 
 function sortActivationActions(
@@ -566,7 +686,20 @@ export async function copyHarnessResourceItemProjection(
   options: HarnessResourceItemProjectionOptions
 ): Promise<void> {
   const root = path.resolve(options.root ?? process.cwd());
+  const sourceDir = resolveProjectionPath(root, options.sourceDir, "Resource");
   const targetDir = resolveProjectionPath(root, options.targetDir, "Target");
+  const { protectedTargetPaths } = await loadHarnessIgnoreMatcherDetailed(
+    root,
+    {
+      sourceRoots: [sourceDir],
+      targetRoots: [targetDir],
+    }
+  );
+  const protectedFiles = await readProtectedTargetFiles(
+    root,
+    targetDir,
+    protectedTargetPaths
+  );
   const projection = await buildResourceItemProjection({
     ...options,
     root,
@@ -579,6 +712,12 @@ export async function copyHarnessResourceItemProjection(
     const targetPath = path.join(targetDir, relativePath);
     await mkdir(path.dirname(targetPath), { recursive: true });
     await writeFile(targetPath, file.bytes);
+  }
+
+  for (const [relativePath, bytes] of protectedFiles) {
+    const targetPath = path.join(targetDir, relativePath);
+    await mkdir(path.dirname(targetPath), { recursive: true });
+    await writeFile(targetPath, bytes);
   }
 }
 
@@ -625,6 +764,141 @@ export async function harnessResourceItemProjectionMatchesTarget(
   return true;
 }
 
+function normalizeTargetPathString(value: string): string {
+  return value.replaceAll("\\", "/").replace(/^\.\//, "").replace(/\/+$/, "");
+}
+
+function partitionDirOutputsByTarget(
+  config: HarnessConfig,
+  outputs: DirOutput[]
+): {
+  byTarget: Map<string, DirOutput[]>;
+  repoRoot: DirOutput[];
+} {
+  const byTarget = new Map<string, DirOutput[]>();
+  const repoRoot: DirOutput[] = [];
+  const targetPaths = listHarnessProjectionTargets(config).map((target) => ({
+    raw: target,
+    normalized: normalizeTargetPathString(target),
+  }));
+
+  for (const output of outputs) {
+    const normalizedOutput = normalizeTargetPathString(output.relativePath);
+    const match = targetPaths.find(
+      (target) =>
+        normalizedOutput === target.normalized ||
+        normalizedOutput.startsWith(`${target.normalized}/`)
+    );
+    if (match) {
+      const list = byTarget.get(match.raw) ?? [];
+      list.push(output);
+      byTarget.set(match.raw, list);
+      continue;
+    }
+    repoRoot.push(output);
+  }
+
+  return { byTarget, repoRoot };
+}
+
+function mergeDirOutputsIntoProjection(
+  projection: DesiredProjection,
+  targetPath: string,
+  dirOutputs: DirOutput[],
+  diagnostics: HarnessDiagnostic[]
+): void {
+  const targetNormalized = normalizeTargetPathString(targetPath);
+  for (const output of dirOutputs) {
+    const normalizedOutput = normalizeTargetPathString(output.relativePath);
+    const relativeKey =
+      normalizedOutput === targetNormalized
+        ? ""
+        : normalizedOutput.slice(targetNormalized.length + 1);
+    if (!relativeKey) {
+      continue;
+    }
+    const existing = projection.get(relativeKey);
+    if (existing) {
+      diagnostics.push({
+        severity: "error",
+        code: "harness.projection_path_conflict",
+        message: `Dir output "${output.relativePath}" collides with a resource projection already producing "${relativeKey}" inside target "${targetPath}".`,
+        path: output.sourcePaths[0] ?? output.relativePath,
+        recommendation:
+          "Move the dir source or the resource override so the two do not produce the same path.",
+      });
+      continue;
+    }
+    projection.set(relativeKey, {
+      bytes: output.bytes,
+      sourcePath: output.sourcePaths[0] ?? output.relativePath,
+      relativePath: relativeKey,
+      mutable: false,
+    });
+  }
+}
+
+function protectedTargetPathsForRoot(
+  root: string,
+  targetRoot: string,
+  protectedTargetPaths: string[]
+): Set<string> {
+  const targetRelative = normalizeTargetPathString(
+    toRepoRelative(root, targetRoot)
+  );
+  const protectedRelativePaths = new Set<string>();
+  for (const protectedPath of protectedTargetPaths) {
+    const normalized = normalizeTargetPathString(protectedPath);
+    if (normalized.startsWith(`${targetRelative}/`)) {
+      protectedRelativePaths.add(normalized.slice(targetRelative.length + 1));
+    }
+  }
+  return protectedRelativePaths;
+}
+
+async function planDirRepoRootActions(
+  root: string,
+  outputs: DirOutput[]
+): Promise<HarnessActivationDirAction[]> {
+  const actions: HarnessActivationDirAction[] = [];
+  for (const output of outputs) {
+    const targetPath = path.resolve(root, output.relativePath);
+    const existing = await lstat(targetPath).catch(() => undefined);
+    const baseAction = {
+      relativePath: output.relativePath,
+      sourcePaths: output.sourcePaths,
+      targetPath,
+      outputKind: output.kind,
+    };
+    if (!existing) {
+      actions.push({ ...baseAction, kind: "create" });
+      continue;
+    }
+    if (!existing.isFile()) {
+      const kind = existing.isSymbolicLink()
+        ? "symlink"
+        : existing.isDirectory()
+          ? "directory"
+          : "non-file";
+      actions.push({
+        ...baseAction,
+        kind: "update",
+        reason: `replace existing ${kind} with dir output`,
+      });
+      continue;
+    }
+    const current = await readFile(targetPath);
+    if (current.equals(output.bytes)) {
+      actions.push({ ...baseAction, kind: "keep" });
+      continue;
+    }
+    actions.push({ ...baseAction, kind: "update" });
+  }
+  return actions.sort((left, right) =>
+    left.relativePath.localeCompare(right.relativePath)
+  );
+}
+
 export async function planHarnessActivation(
   root = process.cwd(),
   options: Pick<
@@ -652,14 +926,30 @@ export async function planHarnessActivation(
     return undefined;
   });
 
+  const emptyDirPlan: HarnessActivationDirPlan = {
+    enabled: false,
+    actions: [],
+  };
+
   if (!config) {
     return {
       root: absoluteRoot,
       idempotent: true,
       targets: [],
+      dir: emptyDirPlan,
       diagnostics,
     };
   }
+
+  const dirPlanState = await planHarnessDir(absoluteRoot, config);
+  diagnostics.push(...dirPlanState.diagnostics);
+  const dirOutputs = dirPlanState.outputs;
+  const { byTarget: dirByTarget, repoRoot: dirRepoRootOutputs } =
+    partitionDirOutputsByTarget(config, dirOutputs);
+  const { protectedTargetPaths } = await loadHarnessIgnoreMatcherDetailed(
+    absoluteRoot,
+    { config }
+  );
 
   const targetPaths = listHarnessProjectionTargets(config);
   const plans: HarnessActivationTargetPlan[] = [];
@@ -676,11 +966,22 @@ export async function planHarnessActivation(
       targetPath,
       diagnostics
     );
+    mergeDirOutputsIntoProjection(
+      targetProjection,
+      targetPath,
+      dirByTarget.get(targetPath) ?? [],
+      diagnostics
+    );
     const actions = await planCopyActions(
       targetRoot,
       targetProjection,
       cleanupUnmanaged,
-      mutablePolicy
+      mutablePolicy,
+      protectedTargetPathsForRoot(
+        absoluteRoot,
+        targetRoot,
+        protectedTargetPaths
+      )
     );
 
     plans.push({
@@ -691,10 +992,20 @@ export async function planHarnessActivation(
     });
   }
 
+  const dirRepoRootActions = await planDirRepoRootActions(
+    absoluteRoot,
+    dirRepoRootOutputs
+  );
+
   return {
     root: absoluteRoot,
     idempotent: true,
     targets: plans,
+    dir: {
+      enabled: dirPlanState.enabled,
+      path: dirPlanState.path,
+      actions: dirRepoRootActions,
+    },
     diagnostics,
   };
 }
@@ -777,6 +1088,7 @@ export async function applyHarnessActivation(
   );
   const projections = new Map<string, DesiredProjection>();
   const appliedActions: HarnessActivationAction[] = [];
+  const appliedDirActions: HarnessActivationDirAction[] = [];
 
   if (dryRun) {
     return {
@@ -784,6 +1096,7 @@ export async function applyHarnessActivation(
       dryRun: true,
       plan,
       appliedActions,
+      appliedDirActions,
     };
   }
 
@@ -794,6 +1107,11 @@ export async function applyHarnessActivation(
   }
 
   const config = await loadConfig(plan.root);
+  const dirPlanState = await planHarnessDir(plan.root, config);
+  const { byTarget: dirByTarget } = partitionDirOutputsByTarget(
+    config,
+    dirPlanState.outputs
+  );
 
   for (const target of plan.targets) {
     const targetRoot = assertRepoLocalPath(
@@ -801,10 +1119,22 @@ export async function applyHarnessActivation(
       resolveRepoLocalPath(plan.root, target.path, `Target "${target.path}"`),
       `Target "${target.path}"`
     );
-    const projection =
-      projections.get(target.path) ??
-      (await buildProjection(plan.root, config, target.path, plan.diagnostics));
-    projections.set(target.path, projection);
+    let projection = projections.get(target.path);
+    if (!projection) {
+      projection = await buildProjection(
+        plan.root,
+        config,
+        target.path,
+        plan.diagnostics
+      );
+      mergeDirOutputsIntoProjection(
+        projection,
+        target.path,
+        dirByTarget.get(target.path) ?? [],
+        plan.diagnostics
+      );
+      projections.set(target.path, projection);
+    }
     await applyCopyProjection(targetRoot, projection, target);
     appliedActions.push(
       ...target.actions.filter(
@@ -816,10 +1146,30 @@ export async function applyHarnessActivation(
     );
   }
 
+  for (const action of plan.dir.actions) {
+    if (!(action.kind === "create" || action.kind === "update")) {
+      continue;
+    }
+    const output = dirPlanState.outputs.find(
+      (entry) => entry.relativePath === action.relativePath
+    );
+    if (!output) {
+      continue;
+    }
+    const existing = await lstat(action.targetPath).catch(() => undefined);
+    if (existing && !existing.isFile()) {
+      await rm(action.targetPath, { recursive: true, force: true });
+    }
+    await mkdir(path.dirname(action.targetPath), { recursive: true });
+    await writeFile(action.targetPath, output.bytes);
+    appliedDirActions.push(action);
+  }
+
   return {
     root: plan.root,
     dryRun: false,
     plan,
     appliedActions,
+    appliedDirActions,
   };
 }

@@ -99,6 +99,216 @@ describe("HarnessConfig activation projection", () => {
     ).resolves.toBe(true);
   });
 
+  it("honors a nested .harnessIgnore inside a resource item during item projection", async () => {
+    const root = await rootFixture();
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harness/skills/review/.harnessIgnore", "*.tmp\n");
+    await write(root, ".harness/skills/review/SKILL.md", "base");
+    await write(root, ".harness/skills/review/scratch.tmp", "scratch");
+
+    await copyHarnessResourceItemProjection({
+      root,
+      sourceDir: ".harness/skills/review",
+      targetDir: ".agents/skills/review",
+      targetPath: ".agents/skills",
+    });
+
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/SKILL.md"), "utf8")
+    ).resolves.toBe("base");
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/scratch.tmp"), "utf8")
+    ).rejects.toThrow();
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/.harnessIgnore"), "utf8")
+    ).rejects.toThrow();
+  });
+
+  it("lets a nested rule re-include a file the root ignored", async () => {
+    const root = await rootFixture();
+    await write(root, ".harnessIgnore", ".harness/skills/review/*.tmp\n");
+    await write(root, ".harness/skills/review/.harnessIgnore", "!keep.tmp\n");
+    await write(root, ".harness/skills/review/SKILL.md", "base");
+    await write(root, ".harness/skills/review/drop.tmp", "drop");
+    await write(root, ".harness/skills/review/keep.tmp", "keep");
+
+    await copyHarnessResourceItemProjection({
+      root,
+      sourceDir: ".harness/skills/review",
+      targetDir: ".agents/skills/review",
+      targetPath: ".agents/skills",
+    });
+
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/drop.tmp"), "utf8")
+    ).rejects.toThrow();
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/keep.tmp"), "utf8")
+    ).resolves.toBe("keep");
+  });
+
+  it("honors a nested [.claude] rule from a non-override nested .harnessIgnore", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root, { targets: ["./.agents", "./.claude"] });
+    await write(root, ".harnessIgnore", "");
+    await write(
+      root,
+      ".harness/skills/review/.harnessIgnore",
+      "[.claude]\nsecret.md\n"
+    );
+    await write(root, ".harness/skills/review/SKILL.md", "base");
+    await write(root, ".harness/skills/review/secret.md", "secret");
+
+    const result = await applyHarnessActivation(root, {
+      dryRun: false,
+      yes: true,
+    });
+
+    expect(result.plan.diagnostics).toEqual([]);
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/secret.md"), "utf8")
+    ).resolves.toBe("secret");
+    await expect(
+      readFile(path.join(root, ".claude/skills/review/secret.md"), "utf8")
+    ).rejects.toThrow();
+  });
+
+  it("honors target-located .harnessIgnore files against output paths", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root, { targets: ["./.agents", "./.claude"] });
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".agents/skills/deploy-plan/.harnessIgnore", "*.tmp\n");
+    await write(root, ".harness/skills/deploy-plan/SKILL.md", "deploy");
+    await write(root, ".harness/skills/deploy-plan/scratch.tmp", "scratch");
+
+    await applyHarnessActivation(root, { dryRun: false, yes: true });
+
+    await expect(
+      readFile(path.join(root, ".agents/skills/deploy-plan/SKILL.md"), "utf8")
+    ).resolves.toBe("deploy");
+    await expect(
+      readFile(path.join(root, ".agents/skills/deploy-plan/scratch.tmp"))
+    ).rejects.toThrow();
+    await expect(
+      readFile(
+        path.join(root, ".claude/skills/deploy-plan/scratch.tmp"),
+        "utf8"
+      )
+    ).resolves.toBe("scratch");
+    await expect(
+      readFile(
+        path.join(root, ".agents/skills/deploy-plan/.harnessIgnore"),
+        "utf8"
+      )
+    ).resolves.toBe("*.tmp\n");
+  });
+
+  it("preserves target-located .harnessIgnore during unmanaged cleanup", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root, { targets: ["./.agents"] });
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harness/skills/deploy-plan/SKILL.md", "deploy");
+    await write(root, ".agents/skills/deploy-plan/.harnessIgnore", "*.tmp\n");
+    await write(root, ".agents/skills/deploy-plan/local.md", "local");
+
+    const plan = await planHarnessActivation(root, {
+      cleanupUnmanaged: "remove",
+    });
+    const actions = plan.targets.find(
+      (target) => target.path === "./.agents"
+    )?.actions;
+
+    expect(actions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "remove",
+          relativePath: "skills/deploy-plan/local.md",
+        }),
+      ])
+    );
+    expect(actions).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "remove",
+          relativePath: "skills/deploy-plan",
+        }),
+        expect.objectContaining({
+          kind: "remove",
+          relativePath: "skills/deploy-plan/.harnessIgnore",
+        }),
+      ])
+    );
+
+    await applyHarnessActivation(root, {
+      dryRun: false,
+      yes: true,
+      cleanupUnmanaged: "remove",
+    });
+
+    await expect(
+      readFile(
+        path.join(root, ".agents/skills/deploy-plan/.harnessIgnore"),
+        "utf8"
+      )
+    ).resolves.toBe("*.tmp\n");
+    await expect(
+      readFile(path.join(root, ".agents/skills/deploy-plan/local.md"))
+    ).rejects.toThrow();
+  });
+
+  it("ignores a dead-coded [.cursor] rule inside a .claude override at projection time", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root, { targets: ["./.claude"] });
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harness/skills/review/SKILL.md", "base");
+    await write(root, ".harness/skills/review/.claude/SKILL.md", "claude");
+    await write(root, ".harness/skills/review/.claude/scratch.tmp", "tmp");
+    await write(
+      root,
+      ".harness/skills/review/.claude/.harnessIgnore",
+      "[.cursor]\n*.tmp\n"
+    );
+
+    const result = await applyHarnessActivation(root, {
+      dryRun: false,
+      yes: true,
+    });
+
+    expect(result.plan.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          severity: "warning",
+          code: "harness.ignore_dead_override_scope",
+          path: ".harness/skills/review/.claude/.harnessIgnore",
+        }),
+      ])
+    );
+    await expect(
+      readFile(path.join(root, ".claude/skills/review/scratch.tmp"), "utf8")
+    ).resolves.toBe("tmp");
+  });
+
+  it("propagates root ignore rules into deeply nested resource items", async () => {
+    const root = await rootFixture();
+    await write(root, ".harnessIgnore", ".harness/**/logs/\n");
+    await write(root, ".harness/skills/review/deep/logs/run.log", "log");
+    await write(root, ".harness/skills/review/deep/KEEP.md", "keep");
+
+    await copyHarnessResourceItemProjection({
+      root,
+      sourceDir: ".harness/skills/review",
+      targetDir: ".agents/skills/review",
+      targetPath: ".agents/skills",
+    });
+
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/deep/logs/run.log"))
+    ).rejects.toThrow();
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/deep/KEEP.md"), "utf8")
+    ).resolves.toBe("keep");
+  });
+
   it("plans and applies a repeatable copy projection with overrides and scoped ignores", async () => {
     const root = await rootFixture();
     await writeHarnessConfig(root, { targets: ["./.agents", "./.claude"] });

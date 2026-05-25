@@ -1,11 +1,6 @@
 import { readFile } from "node:fs/promises";
 
 import {
-  dirExtension,
-  type DirExtensionPlan,
-  type DirExtensionResult,
-} from "@harnessconfig/extension-dir";
-import {
   CURRENT_HARNESS_CONFIG_VERSION,
   formatDiagnostics,
   parseHarnessConfigToml,
@@ -18,11 +13,43 @@ import type {
   HarnessExtensionDefinition,
 } from "@harnessconfig/core";
 
-const REGISTERED_EXTENSIONS = [dirExtension] as const;
+// Extensions remain part of the HarnessConfig v1 schema for discovery and
+// activation policy. This build does not ship any extension implementations:
+// the dir composition + copy surface that previously lived in
+// @harnessconfig/extension-dir is now part of core activation.
+type RegisteredExtension = {
+  id: string;
+  compatibleHarnessVersions: readonly number[];
+  configVersions: readonly number[];
+  plan: (
+    root: string,
+    options: {
+      config: HarnessExtensionDefinition;
+      harnessConfig: HarnessConfig;
+    }
+  ) => Promise<RegisteredExtensionPlan>;
+  apply: (
+    root: string,
+    options: {
+      config: HarnessExtensionDefinition;
+      harnessConfig: HarnessConfig;
+      dryRun: boolean;
+      yes: boolean;
+    }
+  ) => Promise<RegisteredExtensionResult>;
+  formatPlan: (plan: RegisteredExtensionPlan) => string;
+  formatResult: (result: RegisteredExtensionResult) => string;
+};
 
-type RegisteredExtensionId = (typeof REGISTERED_EXTENSIONS)[number]["id"];
-type RegisteredExtensionPlan = DirExtensionPlan;
-type RegisteredExtensionResult = DirExtensionResult;
+type RegisteredExtensionPlan = {
+  diagnostics: HarnessDiagnostic[];
+};
+
+type RegisteredExtensionResult = {
+  plan: RegisteredExtensionPlan;
+};
+
+const REGISTERED_EXTENSIONS: readonly RegisteredExtension[] = [];
 
 export type ExtensionActivationSelection = {
   allExtensions?: boolean;
@@ -33,7 +60,7 @@ export type ExtensionActivationSelection = {
 export type ExtensionActivationPlan = {
   root: string;
   selected: Array<{
-    id: RegisteredExtensionId;
+    id: string;
     config: HarnessExtensionDefinition;
     plan: RegisteredExtensionPlan;
   }>;
@@ -45,12 +72,12 @@ export type ExtensionActivationResult = {
   dryRun: boolean;
   plan: ExtensionActivationPlan;
   results: Array<{
-    id: RegisteredExtensionId;
+    id: string;
     result: RegisteredExtensionResult;
   }>;
 };
 
-function registeredExtension(id: string) {
+function registeredExtension(id: string): RegisteredExtension | undefined {
   return REGISTERED_EXTENSIONS.find((extension) => extension.id === id);
 }
 
@@ -122,9 +149,7 @@ function validateSelectedExtension(
   config: HarnessConfig,
   id: string,
   diagnostics: HarnessDiagnostic[]
-):
-  | { id: RegisteredExtensionId; config: HarnessExtensionDefinition }
-  | undefined {
+): { id: string; config: HarnessExtensionDefinition } | undefined {
   const extensionConfig = config.extensions[id];
   if (!extensionConfig) {
     diagnostics.push({
