@@ -1,6 +1,7 @@
 import { lstat, readFile } from "node:fs/promises";
 
 import { loadHarnessIgnoreRuleSets } from "./ignore";
+import { loadHarnessProfileContext } from "./profile";
 import {
   assertRepoLocalPath,
   resolveHarnessPaths,
@@ -192,6 +193,10 @@ export async function inspectHarnessConfig(
       });
     } else {
       validateConfigSemantics(result.data, paths.root, diagnostics);
+      const profileContext = await loadHarnessProfileContext(paths.root, {
+        config: result.data,
+      });
+      diagnostics.push(...profileContext.diagnostics);
     }
   }
 

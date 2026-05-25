@@ -274,6 +274,25 @@ path = "./.cursor"
     );
   });
 
+  it("reports invalid profile root declarations during validation", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
+    await write(root, ".harness/harness.toml", "version = 1\n");
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harness/profiles/bad/.harnessProfileRoot", "\n");
+
+    const validation = await validateHarnessConfig(root);
+
+    expect(validation.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          severity: "error",
+          code: "harness.profile_empty",
+          path: ".harness/profiles/bad/.harnessProfileRoot",
+        }),
+      ])
+    );
+  });
+
   it("rejects unsupported schema versions", () => {
     expect(() => parseHarnessConfigToml("version = 99")).toThrow(
       /Unsupported HarnessConfig version 99/
