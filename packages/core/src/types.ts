@@ -196,7 +196,6 @@ export type HarnessIgnoreMatcher = {
   ignores(
     relativePath: string,
     options?: {
-      globalOnly?: boolean;
       isDirectory?: boolean;
       outputPath?: string;
       profile?: string;
@@ -207,7 +206,6 @@ export type HarnessIgnoreMatcher = {
   isMutable(
     relativePath: string,
     options?: {
-      globalOnly?: boolean;
       isDirectory?: boolean;
       outputPath?: string;
       profile?: string;

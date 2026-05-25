@@ -90,7 +90,7 @@ describe("harnessc", () => {
     ).rejects.toThrow();
   });
 
-  it("shows known runtime surfaces as advisory plan hints", async () => {
+  it("does not suggest undeclared target names during plan", async () => {
     const root = await rootFixture();
     await mkdir(path.join(root, ".agents", "skills"), { recursive: true });
     const capture = captureIo();
@@ -101,8 +101,8 @@ describe("harnessc", () => {
     const output = capture.stdout.join("\n");
 
     expect(exitCode).toBe(0);
-    expect(output).toContain("Known runtime surfaces found");
-    expect(output).toContain('declare [[targets]] path = "./.agents"');
+    expect(output).not.toContain("Known runtime surfaces found");
+    expect(output).not.toContain("./.agents");
     await expect(
       readFile(path.join(root, ".harness", "harness.toml"), "utf8")
     ).rejects.toThrow();
@@ -135,7 +135,7 @@ describe("harnessc", () => {
         "--resource",
         "prompts",
         "--target",
-        "./.agents",
+        "./runtime/agent",
       ],
       capture.io
     );
@@ -147,7 +147,7 @@ describe("harnessc", () => {
     );
     expect(config).toContain("[resources.prompts]");
     expect(config).not.toContain("[resources.skills]");
-    expect(config).toContain('path = "./.agents"');
+    expect(config).toContain('path = "./runtime/agent"');
   });
 
   it("dry-runs init by default", async () => {

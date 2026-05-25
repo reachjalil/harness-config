@@ -286,7 +286,6 @@ function evaluate(
   kind: HarnessIgnoreRuleKind,
   relativePath: string,
   options: {
-    globalOnly?: boolean;
     isDirectory?: boolean;
     outputPath?: string;
     profile?: string;
@@ -324,7 +323,7 @@ function evaluate(
       if (rule.kind !== kind) {
         continue;
       }
-      if (rule.scope !== "all") {
+      if (!ruleScopeParticipates(rule, options)) {
         continue;
       }
       if (
@@ -337,6 +336,30 @@ function evaluate(
     }
   }
   return state;
+}
+
+function ruleScopeParticipates(
+  rule: HarnessIgnoreRule,
+  options: {
+    outputPath?: string;
+    target?: string;
+    targetPath?: string;
+  }
+): boolean {
+  if (rule.scope === "all") {
+    return true;
+  }
+  const ruleTarget = normalizeHarnessTarget(rule.target);
+  const candidateTarget = normalizeHarnessTarget(
+    options.target ?? options.targetPath ?? options.outputPath
+  );
+  if (!ruleTarget || !candidateTarget) {
+    return false;
+  }
+  if (rule.scope === "only") {
+    return candidateTarget === ruleTarget;
+  }
+  return candidateTarget !== ruleTarget;
 }
 
 function evaluationCandidates(

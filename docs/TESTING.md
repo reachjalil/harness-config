@@ -19,6 +19,7 @@ rules produce the same live target trees.
 | Ignore | Global reset sections such as `[*]` | `packages/core/test/standard.test.ts` |
 | Ignore | Source-local, target-output-local, root source/output, and shallow-first precedence | `packages/core/test/standard.test.ts` |
 | Profiles | Root and target-local `.harnessProfile` selectors discover active profiles and protected target selectors | `packages/core/test/standard.test.ts` |
+| Profiles | `.harnessProfile` and `.harnessProfileRoot` grammar, empty selector behavior, and multi-line severity | `packages/core/test/standard.test.ts` |
 | Profiles | Nested `.harnessProfileRoot` declarations and profile roots outside `.harness` are diagnostics | `packages/core/test/standard.test.ts` |
 | Projection | Explicit `.agents` copy projection with `.agents` overrides | `packages/core/test/projection.test.ts` |
 | Projection | Additional target copy projection with target-derived overrides | `packages/core/test/projection.test.ts` |
@@ -32,6 +33,7 @@ rules produce the same live target trees.
 | Projection | Multiple active profile roots projecting the same file emit a warning and resolve deterministically | `packages/core/test/projection.test.ts` |
 | Projection | Activation planning reports profile diagnostics once despite shared dir/resource phases | `packages/core/test/projection.test.ts` |
 | TOML | Target paths determine override folders from the first path segment | `packages/core/test/standard.test.ts` |
+| TOML | Target paths are explicit repo-local paths and are not constrained to named runtime folders | `packages/core/test/standard.test.ts`, `packages/cli/test/run.test.ts` |
 | Projection | Identical declared targets are still materialized as copy projections | `packages/core/test/projection.test.ts` |
 | Projection | An existing target symlink is replaced with a copy projection | `packages/core/test/projection.test.ts` |
 | Projection | Changed source files plan `update` actions | `packages/core/test/projection.test.ts` |

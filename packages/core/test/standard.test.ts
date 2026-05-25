@@ -186,12 +186,30 @@ path = "./.cursor"
     }
   });
 
-  it("rejects target paths outside the path-only live surface shape", () => {
+  it("allows repo-local target names without runtime naming opinions", () => {
+    const config = parseHarnessConfigToml(`
+version = 1
+
+[[targets]]
+path = "./runtime/agent"
+
+[[targets]]
+path = "./.claude"
+`);
+
+    expect(listHarnessProjectionTargets(config)).toEqual([
+      "./runtime/agent",
+      "./.claude",
+    ]);
+    expect(inferHarnessOverrideDirectory("./runtime/agent")).toBe(".runtime");
+  });
+
+  it("rejects target paths outside the repo or under .harness", () => {
     for (const targetPath of [
       "/tmp/.claude",
       "../.claude",
       "./.harness/out",
-      "./claude",
+      ".",
     ]) {
       expect(() =>
         parseHarnessConfigToml(`
@@ -569,6 +587,59 @@ path = "./.cursor"
     expect(matcher.ignores(".harness/skills/review/scratch.tmp")).toBe(false);
   });
 
+  it("applies target-scoped ignore rule objects by target", () => {
+    const matcher = createHarnessIgnoreMatcher([
+      {
+        rules: [
+          {
+            kind: "ignore",
+            pattern: "claude.md",
+            negated: false,
+            directoryOnly: false,
+            anchored: false,
+            sourceLine: 2,
+            scope: "only",
+            target: ".claude",
+          },
+          {
+            kind: "ignore",
+            pattern: "not-claude.md",
+            negated: false,
+            directoryOnly: false,
+            anchored: false,
+            sourceLine: 3,
+            scope: "except",
+            target: ".claude",
+          },
+        ],
+        directory: ".harness/skills/review",
+        sourcePath: ".harness/skills/review/.harnessIgnore",
+        isRoot: false,
+      },
+    ]);
+
+    expect(
+      matcher.ignores(".harness/skills/review/claude.md", {
+        targetPath: ".claude",
+      })
+    ).toBe(true);
+    expect(
+      matcher.ignores(".harness/skills/review/claude.md", {
+        targetPath: ".agents",
+      })
+    ).toBe(false);
+    expect(
+      matcher.ignores(".harness/skills/review/not-claude.md", {
+        targetPath: ".agents",
+      })
+    ).toBe(true);
+    expect(
+      matcher.ignores(".harness/skills/review/not-claude.md", {
+        targetPath: ".claude",
+      })
+    ).toBe(false);
+  });
+
   it("lets root rule sets match source and target output paths", () => {
     const matcher = createHarnessIgnoreMatcher([
       {
@@ -942,6 +1013,77 @@ state.json
     expect(context.protectedTargetPaths).toEqual([
       ".agents/skills/.harnessProfile",
     ]);
+  });
+
+  it("warns on multi-line .harnessProfile selectors and uses the first profile", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
+    await write(root, ".harnessProfile", "\n personal \n team \n");
+    await write(
+      root,
+      ".harness/profiles/personal/.harnessProfileRoot",
+      "personal\n"
+    );
+    await write(root, ".harness/profiles/team/.harnessProfileRoot", "team\n");
+
+    const context = await loadHarnessProfileContext(root);
+
+    expect(context.profileForOutput(".agents/skills/review/SKILL.md")).toBe(
+      "personal"
+    );
+    expect(context.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          severity: "warning",
+          code: "harness.profile_invalid",
+          path: ".harnessProfile",
+        }),
+      ])
+    );
+  });
+
+  it("errors on multi-line .harnessProfileRoot declarations and ignores that root", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
+    await write(
+      root,
+      ".harness/profiles/bad/.harnessProfileRoot",
+      "personal\nteam\n"
+    );
+
+    const context = await loadHarnessProfileContext(root);
+
+    expect(context.profileRoots).toEqual([]);
+    expect(context.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          severity: "error",
+          code: "harness.profile_invalid",
+          path: ".harness/profiles/bad/.harnessProfileRoot",
+        }),
+      ])
+    );
+  });
+
+  it("treats an empty .harnessProfile as selecting no profile without diagnostics", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
+    await write(root, ".harnessProfile", "\n");
+    await write(root, ".agents/skills/.harnessProfile", "\n");
+    await write(
+      root,
+      ".harness/profiles/deploy/.harnessProfileRoot",
+      "deploy\n"
+    );
+
+    const context = await loadHarnessProfileContext(root, {
+      targetRoots: [path.join(root, ".agents")],
+    });
+
+    expect(context.diagnostics).toEqual([]);
+    expect(context.profileForOutput(".agents/rules/check/SKILL.md")).toBe(
+      undefined
+    );
+    expect(context.profileForOutput(".agents/skills/review/SKILL.md")).toBe(
+      undefined
+    );
   });
 
   it("treats ignore and mutable evaluations as independent", () => {

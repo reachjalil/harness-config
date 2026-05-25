@@ -36,9 +36,9 @@ See [docs/RATIONALE.md](./docs/RATIONALE.md) for the long form.
 ## Core Properties
 
 - **One source root** (`./.harness`), reviewed in version control.
-- **Explicit targets only.** `./.agents`, `./.claude`, `./.cursor`, or any
-  other dot-prefixed folder receives projection *only* when declared in
-  `harness.toml`. No implicit targets.
+- **Explicit targets only.** A repo-local folder receives projection *only*
+  when declared in `harness.toml`. No implicit targets or reserved target
+  folder names.
 - **No reserved resource kinds.** `skills`, `rules`, and `plugins` are
   common conventions; repositories may declare `prompts`, `workflows`,
   `checks`, or any other kind under `./.harness/<kind>/`.
@@ -232,7 +232,7 @@ npx harnessc plan
 npx harnessc activate
 npx harnessc activate --yes
 npx harnessc extension activate --extension dir
-npx harnessc init --yes --resource prompts --target ./.agents
+npx harnessc init --yes --resource prompts --target ./runtime/agent
 ```
 
 `harnessc init` writes conventional resource roots (`skills`, `rules`, and
@@ -241,9 +241,8 @@ npx harnessc init --yes --resource prompts --target ./.agents
 `--target <path>` declares explicit projection targets. Init is a dry run
 unless `--yes` is supplied.
 
-`harnessc plan` may report known runtime surfaces such as `./.agents`,
-`./.claude`, or `./.cursor` as standard-implementation adoption hints. Those
-folders are not targets until they appear in `harness.toml`.
+`harnessc plan` is read-only and does not infer targets from existing folders.
+Folders receive projection only after they are declared in `harness.toml`.
 
 `harnessc activate` is also a dry run unless `--yes` is supplied. The dry run
 prints the target strategy and the filesystem actions that would be taken.
@@ -365,7 +364,7 @@ and package dry-runs for every publishable package.
 - `skills`, `rules`, and `plugins` are conventional init defaults.
 - Every projection target is explicit in `harness.toml`.
 - Targets are path-only and copy-only in v1.
-- Live harness folders are derived projection outputs, not source repositories.
+- Live target folders are derived projection outputs, not source repositories.
 - Activation is idempotent for the same source, manifest, ignore rules, cleanup
   policy, and mutable policy.
 - `.harnessIgnore` is the single projection filter, with target-specific

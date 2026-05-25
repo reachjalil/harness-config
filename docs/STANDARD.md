@@ -15,9 +15,9 @@ A repository keeps one neutral source root, `./.harness`, declares it in one
 versioned TOML manifest, `./.harness/harness.toml`, and filters projection
 through `.harnessIgnore` rule files. The repo-root `./.harnessIgnore`
 sets repository-wide boundaries, while local `.harnessIgnore` files may sit
-beside source or target-output subtrees. Every runtime surface that receives
-a projection (`./.agents`, `./.claude`, `./.cursor`, etc.) is explicit;
-there are no implicit targets.
+beside source or target-output subtrees. Every target-output folder that
+receives a projection is explicit; there are no implicit targets and no
+reserved target folder names.
 
 Core resource projection intentionally does not define an enable/disable
 registry or a selection format. Activation is an emergent property of
@@ -192,13 +192,10 @@ path = "./.harness/prompts"
 path = "./.harness/plugins"
 
 [[targets]]
-path = "./.agents"
-
-[[targets]]
 path = "./.claude"
 
 [[targets]]
-path = "./.cursor"
+path = "./runtime/agent"
 
 [dir]
 path = "./.harness/dir"
@@ -219,25 +216,23 @@ They do not decide which targets receive those resources.
 
 ### Targets
 
-Every target is explicit. `./.agents` is not implicit and has no special status
-in the standard. It MAY be declared as a normal target when a repository wants a
-projection at that path.
+Every target is explicit. HarnessConfig does not reserve, prefer, or imply any
+runtime target folder name. Each `[[targets]]` entry declares one repo-local
+target path and MUST contain only `path`.
 
-Each `[[targets]]` entry declares one repo-local target path and MUST contain
-only `path`.
-
-Target paths MUST start with a dot-prefixed segment (the override folder),
-MUST resolve inside the repository, MUST NOT contain `..` segments after
-normalization, and MUST NOT point at `./.harness` itself or any descendant of
-it.
+Target paths MUST resolve inside the repository, MUST point at a folder below
+the repository root, MUST NOT contain `..` segments after normalization, and
+MUST NOT point at `./.harness` itself or any descendant of it.
 
 The override folder for a target is the first path segment after the leading
-`./`. After path normalization (collapsing duplicate separators and removing
-leading `./`):
+`./`, normalized to a dot-prefixed source override folder. This keeps target
+paths unconstrained while preserving the source-tree convention that immediate
+dot-prefixed folders inside a resource item are overrides. After path
+normalization (collapsing duplicate separators and removing leading `./`):
 
 - `./.agents` → override folder `.agents`.
 - `./.claude` → override folder `.claude`.
-- `./.cursor/project` → override folder `.cursor`.
+- `./runtime/agent` → override folder `.runtime`.
 - `./.github/copilot/agents` → override folder `.github`.
 
 Two `[[targets]]` entries whose normalized paths are equal are duplicates and
@@ -245,13 +240,6 @@ MUST be rejected with a diagnostic.
 
 Targets are configuration, not hidden mutation. Tools SHOULD show the target
 plan before creating, replacing, copying, or removing files.
-
-Non-normative tooling note: `harnessc` is the standard implementation and a
-recommended way for users to get started with HarnessConfig. Implementations MAY
-recognize common runtime surface names such as `./.agents`, `./.claude`, or
-`./.cursor` to offer initialization presets or adoption hints. That recognition
-does not make those folders standard requirements, reserved targets, or implicit
-projection outputs. A folder receives projection only when declared as a target.
 
 ### Extensions
 
@@ -404,7 +392,7 @@ for validation, review, and repeat activation.
 
 After activation is applied, running the same activation again SHOULD converge
 to `keep` actions for managed files and `mutable` actions for files declared
-mutable. That property keeps live harness folders derived and reproducible while
+mutable. That property keeps live target folders derived and reproducible while
 still letting runtimes own their per-machine configuration.
 
 ### Mutable Files
@@ -457,9 +445,9 @@ capture back to source.
 
 ## Overrides
 
-A dot-prefixed folder directly inside a resource item is a target override. For
-target `./.claude`, the override folder is `.claude`; for target `./.agents`,
-the override folder is `.agents`.
+A dot-prefixed folder directly inside a resource item is a target override.
+For target `./.claude`, the override folder is `.claude`; for target
+`./runtime/agent`, the override folder is `.runtime`.
 
 Projection MUST process each resource item in this order:
 
@@ -758,18 +746,23 @@ contents of a file that has not been created yet.
 ## Profile Overrides
 
 Profile overrides are optional source overlays selected by `.harnessProfile`
-files. A `.harnessProfile` file contains at most one profile name. The
-repo-root `.harnessProfile` applies globally; a target/output-local
-`.harnessProfile` applies to its directory and descendants, and the nearest
-selector wins for any output path. An empty selector means no profile for
-that subtree.
+files. A `.harnessProfile` file is UTF-8 text. After trimming whitespace from
+each line and ignoring blank lines, it SHOULD contain zero or one profile
+name. Zero profile names selects no profile for that output subtree. More
+than one non-empty line SHOULD produce a warning, and tools MAY use the first
+profile name for compatibility. The repo-root `.harnessProfile` applies
+globally; a target/output-local `.harnessProfile` applies to its directory
+and descendants, and the nearest selector wins for any output path.
 
 Profile content is declared with `.harnessProfileRoot`, which MUST live
-inside the `.harness` tree and MUST contain exactly one profile name. A
-`.harnessProfileRoot` MUST NOT be nested inside another profile root. The
-directory containing `.harnessProfileRoot` is a profile root. It is source
-storage, not a resource item, and MUST NOT be projected as a skill, rule,
-plugin, dir output, or copied declaration file.
+inside the `.harness` tree. A `.harnessProfileRoot` file is UTF-8 text. After
+trimming whitespace from each line and ignoring blank lines, it MUST contain
+exactly one profile name. Zero profile names or more than one non-empty line
+MUST produce an error, and that profile root MUST NOT participate in
+projection. A `.harnessProfileRoot` MUST NOT be nested inside another profile
+root. The directory containing `.harnessProfileRoot` is a profile root. It is
+source storage, not a resource item, and MUST NOT be projected as a skill,
+rule, plugin, dir output, or copied declaration file.
 
 Profile roots overlay source paths by where the marker is placed:
 
@@ -836,7 +829,7 @@ The source/projection boundary makes cross-harness differences reviewable:
 - Activation commands SHOULD offer a dry run and explain creates, updates,
   removals, keeps, unmanaged preserved entries, and mutable skips before
   mutation.
-- Live harness folders MUST be treated as projection targets, not source
+- Live target folders MUST be treated as projection targets, not source
   repositories.
 - Activation MUST be idempotent for the same `.harness`, `harness.toml`,
   `.harnessIgnore`, participating resources, cleanup policy, and mutable

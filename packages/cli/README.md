@@ -8,8 +8,8 @@ harnessc plan
 harnessc activate
 harnessc activate --yes
 harnessc extension activate --all --yes
-harnessc init --resource prompts --target ./.claude
-harnessc init --yes --resource prompts --target ./.claude
+harnessc init --resource prompts --target ./runtime/agent
+harnessc init --yes --resource prompts --target ./runtime/agent
 ```
 
 The CLI is local-first, read-only by default for validation and planning, and
@@ -23,10 +23,9 @@ conventional resource roots `skills`, `rules`, and `plugins`. With one or more
 `--resource <kind>` flags, init uses only those kinds. Targets are explicit and
 path-only; declare them with `--target <path>` or edit `harness.toml`.
 
-`harnessc plan` includes reference-implementation hints for known runtime
-surfaces when folders such as `./.agents`, `./.claude`, or `./.cursor` already
-exist. These hints help adoption, but they do not make those folders standard
-requirements or implicit targets.
+`harnessc plan` is read-only and does not infer targets from existing folder
+names. Declare targets with `--target <path>` during init or edit
+`harness.toml`.
 
 `harnessc activate` is the reference projection command. Without `--yes`, it
 prints a dry run for every declared target, including creates, updates,

@@ -15,16 +15,16 @@ async function fixtureRoot(): Promise<string> {
 }
 
 describe("HarnessConfig initialization", () => {
-  it("plans greenfield .harness initialization without treating .agents as implicit", async () => {
+  it("plans greenfield .harness initialization without treating existing folders as implicit targets", async () => {
     const root = await fixtureRoot();
-    await mkdir(path.join(root, ".agents", "skills"), { recursive: true });
+    await mkdir(path.join(root, "runtime", "skills"), { recursive: true });
 
     const plan = await planHarnessInitialization(root);
 
     expect(
       plan.actions.some((action) => action.id === "harness.root.ensure")
     ).toBe(true);
-    expect(plan.actions.some((action) => action.id.includes("agents"))).toBe(
+    expect(plan.actions.some((action) => action.id.includes("runtime"))).toBe(
       false
     );
   });
@@ -88,7 +88,7 @@ describe("HarnessConfig initialization", () => {
           prompts: { path: "./.harness/prompts" },
           workflows: { path: "./.harness/workflows" },
         },
-        targets: [{ path: "./.agents" }, { path: "./.claude" }],
+        targets: [{ path: "./runtime/agent" }, { path: "./custom-target" }],
       },
     });
 
@@ -98,7 +98,8 @@ describe("HarnessConfig initialization", () => {
     );
 
     expect(rawConfig).toContain("[resources.prompts]");
-    expect(rawConfig).toContain('path = "./.agents"');
+    expect(rawConfig).toContain('path = "./runtime/agent"');
+    expect(rawConfig).toContain('path = "./custom-target"');
     await expect(
       lstat(path.join(root, ".harness", "prompts"))
     ).resolves.toBeTruthy();

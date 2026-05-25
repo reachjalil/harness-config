@@ -31,7 +31,7 @@ specific runtime, CLI, or hosted service.
   target tree for the same inputs, cleanup policy, and mutable policy.
 - Tool conformance: an implementation reports the activation plan before
   writing, lists creates, updates, requested removals, kept files, preserved
-  unmanaged entries, and mutable-skipped files, and never reads a live runtime
+  unmanaged entries, and mutable-skipped files, and never reads a live target
   folder as the source of truth.
 
 ## Repository Checklist

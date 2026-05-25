@@ -10,8 +10,8 @@ Shared TypeScript implementation for the HarnessConfig standard.
 - `loadHarnessIgnoreMatcher(root)`: loads ignore rules for projection planning.
 - `listHarnessProjectionTargets(config)`: returns the explicitly declared
   target paths.
-- `inferHarnessOverrideDirectory(path)`: derives `.claude`, `.cursor`,
-  `.agents`, or another override folder from a target path.
+- `inferHarnessOverrideDirectory(path)`: derives the source override folder
+  from a target path.
 - `validateHarnessConfig(root)`: returns read-only diagnostics.
 - `planHarnessInitialization(root)`: returns an inspectable initialization plan.
 - `applyHarnessInitialization(root, options)`: applies confirmed initialization actions.
@@ -44,8 +44,8 @@ fields and preserves extension-owned fields for registered extension packages.
 
 The core standard treats resource kinds as declared names. `skills`, `rules`,
 and `plugins` are conventional initialization defaults, not reserved schema
-concepts. Targets are also explicit: `./.agents` is valid when declared, but it
-is not created or projected by default.
+concepts. Targets are also explicit repo-local paths; no target folder name is
+created, reserved, or projected by default.
 
 Use the activation helpers when a consuming tool projects resource views into a
 live harness. Source catalogs can contain metadata, logs, or local state,

@@ -1,5 +1,3 @@
-import { lstat } from "node:fs/promises";
-import path from "node:path";
 import { stdin as processStdin, stdout as processStdout } from "node:process";
 import { createInterface } from "node:readline/promises";
 
@@ -48,40 +46,10 @@ type CliIo = {
   stderr: (message: string) => void;
 };
 
-type KnownHarnessSurface = {
-  id: string;
-  path: string;
-  purpose: string;
-  exists: boolean;
-};
-
 const DEFAULT_IO: CliIo = {
   stdout: (message) => console.log(message),
   stderr: (message) => console.error(message),
 };
-
-const KNOWN_HARNESS_SURFACES: Array<Omit<KnownHarnessSurface, "exists">> = [
-  {
-    id: "agents",
-    path: "./.agents",
-    purpose: "common agent activation surface",
-  },
-  {
-    id: "claude",
-    path: "./.claude",
-    purpose: "Claude project configuration surface",
-  },
-  {
-    id: "cursor",
-    path: "./.cursor",
-    purpose: "Cursor project configuration surface",
-  },
-  {
-    id: "gemini",
-    path: "./.gemini",
-    purpose: "Gemini project configuration surface",
-  },
-];
 
 const HELP = `harnessc
 
@@ -105,12 +73,12 @@ Commands:
 HarnessConfig standardizes the .harness/<kind>/<name> resource shape,
 harness.toml resource and target declarations, and .harnessIgnore projection
 boundaries. Init uses skills, rules, and plugins as conventional resource
-roots unless --resource is supplied. Targets are explicit; .agents is just a
-normal target when declared with --target ./.agents. Declaring [dir] in
-harness.toml turns on the dir source root (default ./.harness/dir): a folder
-that contains a .harnessComposable marker file is composed from its numbered
-parts into a single output file, and any other folder copies its files to
-the matching repo-relative paths.
+roots unless --resource is supplied. Targets are explicit repo-local paths
+declared with --target. Declaring [dir] in harness.toml turns on the dir
+source root (default ./.harness/dir): a folder that contains a
+.harnessComposable marker file is composed from its numbered parts into a
+single output file, and any other folder copies its files to the matching
+repo-relative paths.
 
 Activation keeps unmanaged target entries by default. Use --remove-unmanaged to
 delete target entries that are not present in the computed .harness projection.
@@ -119,49 +87,6 @@ once and then left alone; use --force-mutable to re-project them from source.
 Extensions are activated separately with harnessc extension activate. Init,
 activate, and extension activate are dry runs unless --yes is supplied.
 `;
-
-async function knownHarnessSurfaces(
-  root: string
-): Promise<KnownHarnessSurface[]> {
-  const absoluteRoot = path.resolve(root);
-  return Promise.all(
-    KNOWN_HARNESS_SURFACES.map(async (surface) => ({
-      ...surface,
-      exists: Boolean(
-        (
-          await lstat(path.resolve(absoluteRoot, surface.path)).catch(
-            () => undefined
-          )
-        )?.isDirectory()
-      ),
-    }))
-  );
-}
-
-function formatKnownHarnessSurfaceHints(
-  surfaces: KnownHarnessSurface[]
-): string {
-  const existing = surfaces.filter((surface) => surface.exists);
-  if (existing.length === 0) {
-    return "";
-  }
-
-  return [
-    "Known runtime surfaces found (reference implementation hint)",
-    ...existing.map(
-      (surface) =>
-        `- ${surface.path}: ${surface.purpose}; declare [[targets]] path = "${surface.path}" if it should receive a projection.`
-    ),
-  ].join("\n");
-}
-
-function appendKnownHarnessSurfaceHints(
-  output: string,
-  surfaces: KnownHarnessSurface[]
-): string {
-  const hints = formatKnownHarnessSurfaceHints(surfaces);
-  return hints ? `${output}\n\n${hints}` : output;
-}
 
 function parseArgs(argv: string[]): CliOptions {
   const options: CliOptions = {
@@ -383,14 +308,10 @@ export async function runHarnessConfigCli(
       const plan = await planHarnessInitialization(options.root, {
         config: initConfigFromOptions(options),
       });
-      const surfaces = await knownHarnessSurfaces(options.root);
       io.stdout(
         options.json
-          ? JSON.stringify({ ...plan, knownSurfaces: surfaces }, null, 2)
-          : appendKnownHarnessSurfaceHints(
-              formatInitializationPlan(plan),
-              surfaces
-            )
+          ? JSON.stringify(plan, null, 2)
+          : formatInitializationPlan(plan)
       );
       return 0;
     }

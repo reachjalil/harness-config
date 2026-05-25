@@ -18,9 +18,8 @@ harnessc activate
 harnessc extension activate
 ```
 
-- `harnessc plan` inspects a repository, reports adoption work, and may show
-  advisory hints for known runtime surfaces without making them implicit
-  targets.
+- `harnessc plan` inspects a repository and reports adoption work without
+  inferring targets from existing folder names.
 - `harnessc init` creates `.harness/harness.toml`, conventional or custom
   resource roots, and `.harnessIgnore` when applied with `--yes`.
 - `harnessc validate` checks version support, resource declarations,
@@ -177,8 +176,8 @@ A conforming validator should:
   diagnostics.
 - Refuse unsupported future standard versions.
 - Validate resource ids and repo-local resource paths.
-- Verify each `[[targets]]` entry contains only a repo-local path and does not
-  point at the source root.
+- Verify each `[[targets]]` entry contains only a repo-local path, points
+  below the repository root, and does not point at the source root.
 - Parse `.harnessIgnore` with repo-root, source-local, profile-local,
   target-output-local, and `[mutable]` rules using the standard precedence
   phases.
@@ -189,7 +188,7 @@ A conforming validator should:
   write.
 - Verify repeated activation against unchanged inputs converges to the same
   target tree for managed files and leaves mutable files untouched.
-- Report runtime surfaces separately from durable resource roots.
+- Report declared targets separately from durable resource roots.
 
 ## Output
 

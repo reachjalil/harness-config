@@ -110,7 +110,6 @@ function shouldIgnore(
   profile?: string
 ): boolean {
   return matcher.ignores(sourceRelativePath, {
-    globalOnly: true,
     isDirectory,
     outputPath,
     profile,

@@ -41,8 +41,8 @@ export const harnessTargetPathSchema = repoLocalPathSchema
       .replace(/^\.\//, "")
       .split("/")
       .find(Boolean);
-    return Boolean(firstSegment?.startsWith("."));
-  }, "Target paths must start with a dot-prefixed harness folder such as .claude.")
+    return Boolean(firstSegment && firstSegment !== ".");
+  }, "Target paths must point at a repo-local folder, not the repository root.")
   .refine((value) => {
     const firstSegment = value
       .replaceAll("\\", "/")
@@ -56,7 +56,7 @@ export const overrideDirectorySchema = z
   .string()
   .regex(
     /^\.[a-z][a-z0-9_-]*$/,
-    "Override directories must be dot-prefixed harness ids such as .claude."
+    "Override directories must be dot-prefixed ids."
   );
 
 export const harnessResourceSchema = z

@@ -21,7 +21,7 @@ HarnessConfig v1 starts from a small source contract:
 
 ```bash
 harnessc init
-harnessc init --yes --resource skills --target ./.agents
+harnessc init --yes --resource skills --target ./runtime/agent
 harnessc validate
 harnessc activate
 harnessc activate --yes
@@ -53,7 +53,7 @@ Recommended sequence:
    Repository-wide rules usually live in `./.harnessIgnore`; resource- or
    dir-specific rules can live in source-local `.harnessIgnore` files, and
    user/local output preferences can live in target-output files such as
-   `.agents/skills/foo/.harnessIgnore`.
+   `runtime/agent/skills/foo/.harnessIgnore`.
 5. **Add profile overrides only where they clarify ownership.** Put
    `.harnessProfileRoot` under `.harness` for optional kits or personal
    overlays, and select them with repo-root or target-output
