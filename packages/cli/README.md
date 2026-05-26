@@ -1,6 +1,7 @@
 # @harnessconfig/cli
 
-Publishable CLI for the HarnessConfig standard.
+Scoped implementation package for the Harness config CLI. The public CLI
+package is `harnessc`.
 
 Run it directly from npm:
 
@@ -8,14 +9,6 @@ Run it directly from npm:
 npx harnessc@alpha validate
 npx harnessc@alpha init
 npx harnessc@alpha activate
-```
-
-The canonical package is also executable directly:
-
-```bash
-npx @harnessconfig/cli validate
-npx @harnessconfig/cli init
-npx @harnessconfig/cli activate
 ```
 
 After installing the package, use the binary name:

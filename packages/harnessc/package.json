@@ -1,7 +1,7 @@
 {
   "name": "harnessc",
   "version": "1.0.0-alpha.0",
-  "description": "Short npm alias for the @harnessconfig/cli harnessc binary.",
+  "description": "CLI for validating, initializing, and activating Harness config repositories.",
   "type": "module",
   "license": "Apache-2.0",
   "sideEffects": false,

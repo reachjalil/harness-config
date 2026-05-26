@@ -1,9 +1,8 @@
 # harnessc
 
-Short npm alias for the Harness config CLI.
+Public npm package for the Harness config CLI.
 
-The canonical implementation package is `@harnessconfig/cli`. This package
-exists so npm one-off execution can use the shorter command:
+This package exposes the `harnessc` command for npm one-off execution:
 
 ```bash
 npx harnessc@alpha validate

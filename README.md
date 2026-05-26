@@ -1,13 +1,13 @@
 # HarnessConfig
 
 [![npm @harnessconfig/core](https://img.shields.io/npm/v/@harnessconfig/core?label=%40harnessconfig%2Fcore)](https://www.npmjs.com/package/@harnessconfig/core)
-[![npm harnessc](https://img.shields.io/npm/v/@harnessconfig/cli?label=harnessc)](https://www.npmjs.com/package/@harnessconfig/cli)
+[![npm harnessc](https://img.shields.io/npm/v/harnessc?label=harnessc)](https://www.npmjs.com/package/harnessc)
 [![CI](https://img.shields.io/badge/ci-pnpm%20quality-blue)](#quality-gate)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](./LICENSE)
 
 **Status:** Standard v1 — stable. Reference implementation is published as
 [`@harnessconfig/core`](https://www.npmjs.com/package/@harnessconfig/core)
-and the [`harnessc`](https://www.npmjs.com/package/@harnessconfig/cli) CLI.
+and the [`harnessc`](https://www.npmjs.com/package/harnessc) CLI.
 
 ## What HarnessConfig Is
 
@@ -73,7 +73,8 @@ of `@harnessconfig/core`.
 - `@harnessconfig/core`: TypeScript schemas, version constants, path helpers,
   validation diagnostics, ignore parsing, initialization planning, copy
   projection helpers, and the `[dir]` composable + copy module.
-- `@harnessconfig/cli`: Publishable CLI package with the `harnessc` binary.
+- `harnessc`: Publishable CLI package and one-off `npx` command.
+- `@harnessconfig/cli`: Scoped implementation package used by `harnessc`.
 
 ## Layout
 
@@ -259,8 +260,7 @@ npx harnessc@alpha init --yes --resource prompts --target ./runtime/agent
 npx harnessc@alpha plan
 ```
 
-The canonical package remains `@harnessconfig/cli`; `harnessc` is the short npm
-alias package for one-off execution.
+The public CLI package is `harnessc`.
 
 `harnessc init` writes conventional resource folders under
 `.harness/resources` (`skills`, `rules`, and `plugins`) when no `--resource`
