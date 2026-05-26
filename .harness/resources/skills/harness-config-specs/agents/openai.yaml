@@ -1,0 +1,4 @@
+interface:
+  display_name: "HarnessConfig Specs"
+  short_description: "Navigate the HarnessConfig v1 standard"
+  default_prompt: "Use $harness-config-specs to update the HarnessConfig standard and conformance docs for a new projection behavior."
