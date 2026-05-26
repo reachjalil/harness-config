@@ -4,4 +4,3 @@ description: Use when working in the harness-config repository and Codex needs t
 ---
 
 # HarnessConfig CLI
-

@@ -4,13 +4,11 @@ description: Use when working in the harness-config repository and Codex needs t
 ---
 
 # HarnessConfig CLI
-
 ## Overview
 
 Use the local `harnessc` build from this repository to validate and activate
 the repo's own `.harness` tree. Treat `.harness` as source and `.agents`,
 `.claude`, and root generated files as projection outputs.
-
 ## Workflow
 
 1. Work from the repository root.
@@ -79,3 +77,6 @@ this CLI workflow:
   placement.
 - `$harness-config-testing` for regression design, fixture construction,
   `docs/TESTING.md`, focused test commands, and quality gates.
+- `$harness-config-migration` for converting an existing repository's agent
+  instructions, runtime folders, skills, plugins, and local settings into a
+  reviewed `.harness` source tree.

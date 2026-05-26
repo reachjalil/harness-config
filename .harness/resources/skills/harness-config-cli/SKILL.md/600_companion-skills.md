@@ -11,3 +11,6 @@ this CLI workflow:
   placement.
 - `$harness-config-testing` for regression design, fixture construction,
   `docs/TESTING.md`, focused test commands, and quality gates.
+- `$harness-config-migration` for converting an existing repository's agent
+  instructions, runtime folders, skills, plugins, and local settings into a
+  reviewed `.harness` source tree.
