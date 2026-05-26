@@ -37,9 +37,8 @@ copy projection.
 `harnessc extension activate` runs registered extensions. Extensions default to
 explicit activation; use `--extension <id>` for one extension or `--all` for
 all declared supported extensions. This release ships no built-in extension
-implementations — the dir composition + copy surface that lived in
-`@harnessconfig/extension-dir` is now part of core activation; declare
-`[dir]` in `harness.toml` and let `harnessc activate` handle it.
+implementations. Dir composition and copy are now part of core activation;
+declare `[dir]` in `harness.toml` and let `harnessc activate` handle it.
 
 Unmanaged target entries are kept by default. Use `--remove-unmanaged` when a
 target should be cleaned to match `.harness`; use `--keep-unmanaged` to make
@@ -61,3 +60,7 @@ run with `--remove-unmanaged`.
 `.harnessProfileRoot` under `.harness` merges into resources and `[dir]`
 outputs by logical source path, so local or team-specific kits can add files
 or replace composable parts without turning target folders into source roots.
+
+Human terminal output uses ANSI color when the output stream supports it and
+keeps `--json` output unstyled for automation. Set `NO_COLOR` to disable color
+or `FORCE_COLOR=1` to force it.

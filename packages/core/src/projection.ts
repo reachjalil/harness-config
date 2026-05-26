@@ -1150,7 +1150,11 @@ export async function harnessResourceItemProjectionMatchesTarget(
 }
 
 function normalizeTargetPathString(value: string): string {
-  return value.replaceAll("\\", "/").replace(/^\.\//, "").replace(/\/+$/, "");
+  return value
+    .replaceAll("\\", "/")
+    .replace(/\/+/g, "/")
+    .replace(/^\.\//, "")
+    .replace(/\/+$/, "");
 }
 
 function partitionDirOutputsByTarget(

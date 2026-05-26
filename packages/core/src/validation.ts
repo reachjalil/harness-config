@@ -98,7 +98,11 @@ function validateRepoLocalPath(
 }
 
 function normalizeTargetPath(path: string): string {
-  return path.replaceAll("\\", "/").replace(/^\.\//, "").replace(/\/+$/, "");
+  return path
+    .replaceAll("\\", "/")
+    .replace(/\/+/g, "/")
+    .replace(/^\.\//, "")
+    .replace(/\/+$/, "");
 }
 
 function targetPathsOverlap(left: string, right: string): boolean {
@@ -321,11 +325,6 @@ export async function inspectHarnessConfig(
     });
   }
 
-  const { diagnostics: ignoreDiagnostics } = await loadHarnessIgnoreRuleSets(
-    paths.root
-  );
-  diagnostics.push(...ignoreDiagnostics);
-
   if (hasHarnessConfig) {
     let config = options.config;
     if (!config) {
@@ -353,11 +352,23 @@ export async function inspectHarnessConfig(
           config,
         }));
       diagnostics.push(...profileContext.diagnostics);
+      const { diagnostics: ignoreDiagnostics } =
+        await loadHarnessIgnoreRuleSets(paths.root, { config });
+      diagnostics.push(...ignoreDiagnostics);
       const dirPlan = await planHarnessDir(paths.root, config, {
         profileContext,
       });
       diagnostics.push(...dirPlan.diagnostics);
+    } else {
+      const { diagnostics: ignoreDiagnostics } =
+        await loadHarnessIgnoreRuleSets(paths.root);
+      diagnostics.push(...ignoreDiagnostics);
     }
+  } else {
+    const { diagnostics: ignoreDiagnostics } = await loadHarnessIgnoreRuleSets(
+      paths.root
+    );
+    diagnostics.push(...ignoreDiagnostics);
   }
 
   return {

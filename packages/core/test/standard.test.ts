@@ -264,6 +264,35 @@ path = "./.claude/"
     ).toEqual(["error"]);
   });
 
+  it("reports duplicate target paths after separator normalization", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
+    await write(
+      root,
+      ".harness/harness.toml",
+      `
+version = 1
+
+[[targets]]
+path = "./.agents/skills"
+
+[[targets]]
+path = "./.agents//skills"
+`
+    );
+    await write(root, ".harnessIgnore", "");
+
+    const validation = await validateHarnessConfig(root);
+
+    expect(validation.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          severity: "error",
+          code: "harness.target_duplicate_path",
+        }),
+      ])
+    );
+  });
+
   it("reports invalid TOML as a validation diagnostic", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
     await mkdir(path.join(root, ".harness"), { recursive: true });
@@ -917,6 +946,38 @@ state.json
         message: expect.stringContaining("[!.claude]"),
       }),
     ]);
+  });
+
+  it("reports malformed target-output .harnessIgnore files during validation", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
+    await write(
+      root,
+      ".harness/harness.toml",
+      `
+version = 1
+
+[[targets]]
+path = "./.agents"
+`
+    );
+    await write(root, ".harnessIgnore", "");
+    await write(
+      root,
+      ".agents/skills/review/.harnessIgnore",
+      "[.claude]\nsecret.md\n"
+    );
+
+    const validation = await validateHarnessConfig(root);
+
+    expect(validation.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          severity: "error",
+          code: "harness.ignore_unsupported_scope",
+          path: ".agents/skills/review/.harnessIgnore",
+        }),
+      ])
+    );
   });
 
   it("emits no diagnostic for [mutable] or [*] inside an override", async () => {

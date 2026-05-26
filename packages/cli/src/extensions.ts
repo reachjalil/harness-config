@@ -11,12 +11,12 @@ import type {
   HarnessConfig,
   HarnessDiagnostic,
   HarnessExtensionDefinition,
+  HarnessFormatOptions,
 } from "@harnessconfig/core";
 
 // Extensions remain part of the HarnessConfig v1 schema for discovery and
 // activation policy. This build does not ship any extension implementations:
-// the dir composition + copy surface that previously lived in
-// @harnessconfig/extension-dir is now part of core activation.
+// dir composition and copy are now part of core activation.
 type RegisteredExtension = {
   id: string;
   compatibleHarnessVersions: readonly number[];
@@ -321,9 +321,10 @@ export async function applyRegisteredExtensions(
 }
 
 export function formatExtensionActivationPlan(
-  plan: ExtensionActivationPlan
+  plan: ExtensionActivationPlan,
+  options: HarnessFormatOptions = {}
 ): string {
-  const diagnostics = formatDiagnostics(plan.diagnostics);
+  const diagnostics = formatDiagnostics(plan.diagnostics, options);
   const extensionPlans =
     plan.selected.length === 0
       ? "No extensions selected."
@@ -340,7 +341,8 @@ export function formatExtensionActivationPlan(
 }
 
 export function formatExtensionActivationResult(
-  result: ExtensionActivationResult
+  result: ExtensionActivationResult,
+  options: HarnessFormatOptions = {}
 ): string {
   const extensionResults =
     result.results.length === 0
@@ -357,6 +359,7 @@ export function formatExtensionActivationResult(
   return `HarnessConfig extension activation ${
     result.dryRun ? "dry run" : "result"
   }\n\n${formatExtensionActivationPlan(
-    result.plan
+    result.plan,
+    options
   )}\n\nApplied:\n${extensionResults}`;
 }

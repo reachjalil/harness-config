@@ -38,13 +38,14 @@ async function writeDirConfig(root: string, dirPath = "./.harness/dir") {
   );
 }
 
-function captureIo() {
+function captureIo(options: { supportsColor?: boolean } = {}) {
   const stdout: string[] = [];
   const stderr: string[] = [];
   return {
     stdout,
     stderr,
     io: {
+      supportsColor: options.supportsColor,
       stdout: (message: string) => stdout.push(message),
       stderr: (message: string) => stderr.push(message),
     },
@@ -73,6 +74,51 @@ describe("harnessc", () => {
 
     expect(exitCode).toBe(0);
     expect(capture.stdout.join("\n")).toContain("harness.root_missing");
+  });
+
+  it("colors human output only when the output sink supports color", async () => {
+    const root = await rootFixture();
+    const originalNoColor = process.env.NO_COLOR;
+    const originalForceColor = process.env.FORCE_COLOR;
+    delete process.env.NO_COLOR;
+    delete process.env.FORCE_COLOR;
+    try {
+      const plain = captureIo();
+      const colored = captureIo({ supportsColor: true });
+      const json = captureIo({ supportsColor: true });
+
+      await runHarnessConfigCli(["validate", "--root", root], plain.io);
+      await runHarnessConfigCli(["validate", "--root", root], colored.io);
+      await runHarnessConfigCli(
+        ["validate", "--root", root, "--json"],
+        json.io
+      );
+
+      expect(plain.stdout.join("\n")).not.toContain("\u001b[");
+      expect(colored.stdout.join("\n")).toContain("\u001b[");
+      expect(json.stdout.join("\n")).not.toContain("\u001b[");
+
+      process.env.NO_COLOR = "1";
+      const suppressed = captureIo({ supportsColor: true });
+      await runHarnessConfigCli(["validate", "--root", root], suppressed.io);
+      expect(suppressed.stdout.join("\n")).not.toContain("\u001b[");
+
+      process.env.FORCE_COLOR = "1";
+      const forced = captureIo();
+      await runHarnessConfigCli(["validate", "--root", root], forced.io);
+      expect(forced.stdout.join("\n")).toContain("\u001b[");
+    } finally {
+      if (originalNoColor === undefined) {
+        delete process.env.NO_COLOR;
+      } else {
+        process.env.NO_COLOR = originalNoColor;
+      }
+      if (originalForceColor === undefined) {
+        delete process.env.FORCE_COLOR;
+      } else {
+        process.env.FORCE_COLOR = originalForceColor;
+      }
+    }
   });
 
   it("dry-runs init by default", async () => {

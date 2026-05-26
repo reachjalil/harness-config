@@ -171,8 +171,8 @@ const dryRun = await applyHarnessActivation(paths.root);
 
 A conforming validator should:
 
-- Locate the nearest `.harness` directory and use it as the canonical source
-  root.
+- Use the supplied `--root` path, or the current working directory when no root
+  is supplied, as the repository root. Nested invocations should pass `--root`.
 - Parse `.harness/harness.toml` and reject malformed input with clear
   diagnostics.
 - Refuse unsupported future standard versions.
@@ -194,5 +194,7 @@ A conforming validator should:
 ## Output
 
 The default output is a concise terminal report with paths, severity, and
-suggested fixes. Tools may also expose stable `--json` output for automation
-and CI.
+suggested fixes. Human terminal output may use ANSI color for headings,
+diagnostic severity, and action kinds when the output stream supports color.
+Implementations should avoid color in redirected output, honor `NO_COLOR`, and
+keep `--json` output free of ANSI escapes for automation and CI.

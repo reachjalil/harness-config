@@ -1,4 +1,8 @@
-import { stdin as processStdin, stdout as processStdout } from "node:process";
+import {
+  env as processEnv,
+  stdin as processStdin,
+  stdout as processStdout,
+} from "node:process";
 import { createInterface } from "node:readline/promises";
 
 import {
@@ -16,7 +20,11 @@ import {
   planHarnessInitialization,
   validateHarnessConfig,
 } from "@harnessconfig/core";
-import type { HarnessActivationPlan, HarnessConfig } from "@harnessconfig/core";
+import type {
+  HarnessActivationPlan,
+  HarnessConfig,
+  HarnessFormatOptions,
+} from "@harnessconfig/core";
 import {
   applyRegisteredExtensions,
   formatExtensionActivationPlan,
@@ -42,11 +50,13 @@ type CliOptions = {
 };
 
 type CliIo = {
+  supportsColor?: boolean;
   stdout: (message: string) => void;
   stderr: (message: string) => void;
 };
 
 const DEFAULT_IO: CliIo = {
+  supportsColor: processStdout.isTTY,
   stdout: (message) => console.log(message),
   stderr: (message) => console.error(message),
 };
@@ -254,6 +264,23 @@ function hasMutableEntries(plan: HarnessActivationPlan): boolean {
   );
 }
 
+function formatOptionsForCli(
+  options: Pick<CliOptions, "json">,
+  io: CliIo
+): HarnessFormatOptions {
+  if (options.json) {
+    return { color: false };
+  }
+  const forceColor = processEnv.FORCE_COLOR;
+  if (forceColor && forceColor !== "0") {
+    return { color: true };
+  }
+  if (processEnv.NO_COLOR !== undefined) {
+    return { color: false };
+  }
+  return { color: io.supportsColor === true };
+}
+
 async function promptCleanupUnmanaged(): Promise<"keep" | "remove"> {
   if (!(processStdin.isTTY && processStdout.isTTY)) {
     return "keep";
@@ -291,13 +318,15 @@ export async function runHarnessConfigCli(
     return 0;
   }
 
+  const formatOptions = formatOptionsForCli(options, io);
+
   try {
     if (options.command === "validate") {
       const inspection = await validateHarnessConfig(options.root);
       io.stdout(
         options.json
           ? JSON.stringify(inspection, null, 2)
-          : formatDiagnostics(inspection.diagnostics)
+          : formatDiagnostics(inspection.diagnostics, formatOptions)
       );
       return inspection.diagnostics.some(
         (diagnostic) => diagnostic.severity === "error"
@@ -313,7 +342,7 @@ export async function runHarnessConfigCli(
       io.stdout(
         options.json
           ? JSON.stringify(plan, null, 2)
-          : formatInitializationPlan(plan)
+          : formatInitializationPlan(plan, formatOptions)
       );
       return 0;
     }
@@ -329,7 +358,9 @@ export async function runHarnessConfigCli(
       const autoExtensionHasErrors =
         hasExtensionActivationErrors(autoExtensionPlan);
       if (options.yes && autoExtensionHasErrors) {
-        io.stdout(formatExtensionActivationPlan(autoExtensionPlan));
+        io.stdout(
+          formatExtensionActivationPlan(autoExtensionPlan, formatOptions)
+        );
         return 1;
       }
       if (options.yes && !options.json) {
@@ -370,9 +401,12 @@ export async function runHarnessConfigCli(
             null,
             2
           )
-        : `${formatActivationResult(result)}${
+        : `${formatActivationResult(result, formatOptions)}${
             extensionResult
-              ? `\n\n${formatExtensionActivationResult(extensionResult)}`
+              ? `\n\n${formatExtensionActivationResult(
+                  extensionResult,
+                  formatOptions
+                )}`
               : ""
           }${mutableNotice}`;
       io.stdout(formatted);
@@ -396,7 +430,7 @@ export async function runHarnessConfigCli(
       io.stdout(
         options.json
           ? JSON.stringify(result, null, 2)
-          : formatExtensionActivationResult(result)
+          : formatExtensionActivationResult(result, formatOptions)
       );
       return hasExtensionActivationErrors(result.plan) ? 1 : 0;
     }
@@ -410,7 +444,7 @@ export async function runHarnessConfigCli(
       io.stdout(
         options.json
           ? JSON.stringify(result, null, 2)
-          : formatInitializationResult(result)
+          : formatInitializationResult(result, formatOptions)
       );
       return 0;
     }
@@ -422,14 +456,14 @@ export async function runHarnessConfigCli(
     io.stderr(error instanceof Error ? error.message : String(error));
     if (options.command === "init") {
       const plan = await planHarnessInitialization(options.root);
-      io.stderr(formatInitializationPlan(plan));
+      io.stderr(formatInitializationPlan(plan, formatOptions));
     }
     if (options.command === "activate") {
       const plan = await planHarnessActivation(options.root, {
         cleanupUnmanaged: options.cleanupUnmanaged,
         mutablePolicy: options.mutablePolicy,
       });
-      io.stderr(formatActivationPlan(plan));
+      io.stderr(formatActivationPlan(plan, formatOptions));
     }
     if (options.command === "extension activate") {
       const result = await applyRegisteredExtensions(options.root, {
@@ -438,7 +472,7 @@ export async function runHarnessConfigCli(
         extensionIds: options.extensions,
         yes: false,
       });
-      io.stderr(formatExtensionActivationResult(result));
+      io.stderr(formatExtensionActivationResult(result, formatOptions));
     }
     return 1;
   }

@@ -220,7 +220,6 @@ pnpm --filter @harnessconfig/cli exec harnessc validate
 pnpm --filter @harnessconfig/cli exec harnessc init
 pnpm --filter @harnessconfig/cli exec harnessc activate
 pnpm --filter @harnessconfig/cli exec harnessc activate --yes
-pnpm --filter @harnessconfig/cli exec harnessc extension activate --extension dir
 pnpm --filter @harnessconfig/cli exec harnessc init --resource prompts --target ./.claude
 pnpm --filter @harnessconfig/cli exec harnessc plan
 ```
@@ -232,7 +231,6 @@ npx harnessc validate
 npx harnessc init
 npx harnessc activate
 npx harnessc activate --yes
-npx harnessc extension activate --extension dir
 npx harnessc init --yes --resource prompts --target ./runtime/agent
 npx harnessc plan
 ```
@@ -261,8 +259,14 @@ the target with the current source bytes. Files marked under `[mutable]` in
 `.harnessIgnore` are created once and then reported as runtime-owned
 `mutable` entries until `--force-mutable` is used.
 
-`harnessc extension activate` runs registered extensions. The built-in `dir`
-extension composes text outputs from mirrored leaf directories:
+Human terminal output uses ANSI color for scanability when supported, while
+`--json` output remains unstyled for automation. Set `NO_COLOR` to disable
+color or `FORCE_COLOR=1` to force it.
+
+`harnessc extension activate` runs registered extensions. This release ships
+no built-in extension implementations; dir composition and copy are part of
+core activation when `[dir]` is declared. A dir source composes text outputs
+from mirrored leaf directories:
 
 ```text
 .harness/dir/
