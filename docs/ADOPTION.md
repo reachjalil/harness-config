@@ -8,10 +8,10 @@ and migration (a repository that already has `.claude/`, `.cursor/`,
 
 HarnessConfig v1 starts from a small source contract:
 
-1. Create `.harness/harness.toml` with `version = 1` and at least one
-   resource root.
-2. Add resource roots such as `.harness/skills`, `.harness/rules`, or custom
-   `.harness/<kind>` folders.
+1. Create `.harness/harness.toml` with `version = 1`.
+2. Add resource folders and files under `.harness/resources`, such as
+   `.harness/resources/skills`, `.harness/resources/rules`, or
+   `.harness/resources/hooks.json`.
 3. Declare every projection target explicitly in `harness.toml`.
 4. Use `.harnessIgnore` to keep source-only files out of live targets and
    mark runtime-owned files with `[mutable]`.
@@ -38,14 +38,16 @@ Recommended sequence:
 1. **Snapshot existing targets.** Commit the current live folders, or copy
    them to a branch. Adoption is reversible, but a known-good baseline
    makes review easier.
-2. **Move durable content into `./.harness/<kind>/<name>/`.** Most
-   `.claude/skills/foo/` contents become `./.harness/skills/foo/`. Files
+2. **Move durable content into `./.harness/resources/`.** Most
+   `.claude/skills/foo/` contents become
+   `./.harness/resources/skills/foo/`. Files
    that differ only for one agent move into the matching override folder
-   (e.g., `./.harness/skills/foo/.claude/`).
-3. **Declare what moved in `harness.toml`.** Add a `[resources.<kind>]`
-   table for each resource kind and a `[[targets]]` entry for each runtime
-   folder you want regenerated. A target only receives projections when it
-   appears here.
+   (e.g., `./.harness/resources/skills/foo/.claude/`). Target-root files
+   such as `.claude/hooks.json` become `.harness/resources/hooks.json`, with
+   target-specific versions under `.harness/resources/.claude/`.
+3. **Declare targets in `harness.toml`.** Add a `[[targets]]` entry for each
+   runtime folder you want regenerated. A target only receives projections
+   when it appears here; resource roots must not be declared in the manifest.
 4. **Write `.harnessIgnore` for source-only artifacts.** Logs, scratch
    files, per-tool metadata, and skill `metadata.toml` typically belong
    under ignore rules. Files the runtime writes back (permissions, learned
@@ -77,8 +79,8 @@ regenerated from `./.harness` plus the manifest at any time.
   activation will report drift or overwrite the live edits. If a folder
   must remain the source for now, leave it out of `[[targets]]`.
 - **Forgetting to declare a target.** Resources project only to declared
-  targets. A repository can have `./.harness/skills/foo/` and `.claude/`
-  on disk and still see "no creates" — because `./.claude` is not in
+  targets. A repository can have `./.harness/resources/skills/foo/` and
+  `.claude/` on disk and still see "no creates" — because `./.claude` is not in
   `[[targets]]`.
 - **Putting product or runtime state under `.harness/`.** `./.harness/`
   is for durable, reviewable source. Activation records, drift hashes, and

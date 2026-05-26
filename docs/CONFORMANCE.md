@@ -8,15 +8,16 @@ specific runtime, CLI, or hosted service.
 ## Conformance Levels
 
 - Repository conformance: a repository declares `version = 1` in
-  `.harness/harness.toml`, lists at least one resource root, keeps every
-  declared path repo-local, and stores resources as
-  `.harness/<kind>/<name>` folders.
-- Resource conformance: a resource is a folder under
-  `.harness/<kind>/<name>`. Any target-derived override appears as a
-  dot-prefixed folder directly inside that resource.
+  `.harness/harness.toml`, keeps every declared path repo-local, and stores
+  durable target resources under `.harness/resources`.
+- Resource conformance: a resource is a file or folder under
+  `.harness/resources`. Conventional resource items are folders under
+  `.harness/resources/<kind>/<name>`. A target-root override appears as a
+  dot-prefixed folder directly under `.harness/resources`; an item override
+  appears as a dot-prefixed folder directly inside a conventional item.
 - Target conformance: a `[[targets]]` entry contains only a repo-local path.
   The matching override folder is inferred from the first path segment. No
-  target may point at `.harness` or redeclare resource roots.
+  target may point at `.harness` or redeclare resource mappings.
 - Dir conformance: the optional `[dir]` table declares a repo-local dir
   source root (default `./.harness/dir`). Directories inside the source
   marked with an empty `.harnessComposable` file are composable leaves
@@ -37,10 +38,11 @@ specific runtime, CLI, or hosted service.
 ## Repository Checklist
 
 - `.harness/harness.toml` exists and declares `version = 1`.
-- At least one resource root is declared with a repo-local path.
-- Every resource lives under `.harness/<kind>/<name>`.
-- Target-derived overrides appear only as dot-prefixed folders inside a
-  resource.
+- Durable target resources live under `.harness/resources`.
+- Conventional resource items live under `.harness/resources/<kind>/<name>`;
+  direct resource files such as `.harness/resources/hooks.json` are allowed.
+- Target-derived overrides appear only as dot-prefixed folders directly under
+  `.harness/resources` or directly inside a conventional resource item.
 - `[[targets]]` entries contain only repo-local paths.
 - No target redefines resources, modes, or override names.
 - No target points at `./.harness`.
@@ -57,10 +59,11 @@ specific runtime, CLI, or hosted service.
 
 - `.harness` MUST be treated as the repository source layer, not an
   application workspace.
-- Resource categories MUST be treated as declared names. `skills`, `rules`,
-  and `plugins` are common conventions, not required schema categories.
+- Resource categories MUST be treated as source-tree names. `skills`, `rules`,
+  `hooks`, and `plugins` are common conventions, not required schema
+  categories.
 - Additional resource kinds MAY be added when they live under
-  `.harness/<kind>/<name>` and follow the same folder and override contract.
+  `.harness/resources` and follow the same override contract.
 - Overrides MUST be derived from the target path.
 - `harness.toml` MUST declare target paths only. Targets MUST NOT redefine
   resources, modes, or override names.

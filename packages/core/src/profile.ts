@@ -151,7 +151,7 @@ function profileOverlaySourceRoots(
   options: HarnessProfileContextOptions
 ): string[] {
   const paths = resolveHarnessPaths(root);
-  const roots = new Set<string>([paths.harnessDir]);
+  const roots = new Set<string>([paths.harnessDir, paths.resourcesDir]);
 
   for (const sourceRoot of options.sourceRoots ?? []) {
     roots.add(path.resolve(sourceRoot));
@@ -159,11 +159,6 @@ function profileOverlaySourceRoots(
 
   const config = options.config;
   if (config) {
-    for (const definition of Object.values(config.resources)) {
-      roots.add(
-        resolveRepoLocalPath(root, definition.path, "Resource source path")
-      );
-    }
     roots.add(
       resolveRepoLocalPath(
         root,

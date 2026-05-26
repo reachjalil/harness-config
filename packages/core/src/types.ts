@@ -1,9 +1,5 @@
 export type ConventionalHarnessResource = "skills" | "rules" | "plugins";
 
-export type HarnessResourceDefinition = {
-  path: string;
-};
-
 export type HarnessTargetDefinition = {
   path: string;
 };
@@ -25,6 +21,7 @@ export type HarnessConfigPaths = {
   harnessDir: string;
   configPath: string;
   ignorePath: string;
+  resourcesDir: string;
   skillsDir: string;
   rulesDir: string;
   pluginsDir: string;
@@ -84,12 +81,12 @@ export type HarnessInitializationResult = {
 export type ApplyHarnessInitializationOptions = {
   dryRun?: boolean;
   yes?: boolean;
+  resourceKinds?: string[];
   config?: {
     version: number;
     standard: {
       name: string;
     };
-    resources: Record<string, HarnessResourceDefinition>;
     targets: HarnessTargetDefinition[];
     extensions?: Record<string, HarnessExtensionDefinition>;
   };

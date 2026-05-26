@@ -1,14 +1,17 @@
 import { lstat, mkdir, readdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 
 import { createDefaultHarnessIgnore } from "./ignore";
 import {
   createDefaultHarnessConfig,
   createDefaultHarnessConfigToml,
   harnessConfigSchema,
+  resourceIdSchema,
   stringifyHarnessConfig,
 } from "./standard";
 import { inspectHarnessConfig } from "./validation";
 import {
+  CONVENTIONAL_HARNESS_RESOURCES,
   resolveHarnessPaths,
   resolveRepoLocalPath,
   toRepoRelative,
@@ -24,6 +27,7 @@ import type {
 
 type PlanOptions = {
   config?: ApplyHarnessInitializationOptions["config"];
+  resourceKinds?: string[];
 };
 
 async function exists(path: string): Promise<boolean> {
@@ -64,12 +68,22 @@ export async function planHarnessInitialization(
     });
   }
 
-  for (const [resource, definition] of Object.entries(config.resources)) {
-    const target = resolveRepoLocalPath(
-      paths.root,
-      definition.path,
-      `Resource "${resource}" path`
-    );
+  const resourceKinds =
+    options.resourceKinds ??
+    (options.config ? [] : [...CONVENTIONAL_HARNESS_RESOURCES]);
+  for (const resource of resourceKinds) {
+    if (!resourceIdSchema.safeParse(resource).success) {
+      diagnostics.push({
+        severity: "error",
+        code: "harness.init_invalid_resource_kind",
+        message: `Invalid resource kind "${resource}".`,
+        path: resource,
+        recommendation:
+          "Use lowercase letters, numbers, underscores, or dashes.",
+      });
+      continue;
+    }
+    const target = path.join(paths.resourcesDir, resource);
     actions.push({
       id: `harness.resource.${resource}.ensure`,
       kind: "ensure-dir",
@@ -92,7 +106,7 @@ export async function planHarnessInitialization(
         message: `${targetRelative} already contains files. Init declares targets but does not adopt existing runtime files into .harness.`,
         path: targetRelative,
         recommendation:
-          "Move files that should be managed into a declared .harness resource root before activation.",
+          "Move files that should be managed into .harness/resources before activation.",
       });
     }
   }
@@ -131,6 +145,7 @@ export async function applyHarnessInitialization(
 ): Promise<HarnessInitializationResult> {
   const plan = await planHarnessInitialization(root, {
     config: options.config,
+    resourceKinds: options.resourceKinds,
   });
   const dryRun = options.dryRun === true || options.yes !== true;
   const requiresConfirmation = plan.actions.some(

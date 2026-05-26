@@ -20,7 +20,6 @@ import {
 } from "./paths";
 import {
   loadHarnessProfileContext,
-  logicalPathForProfilePath,
   profileSourceDirForRoot,
   type HarnessProfileContext,
 } from "./profile";
@@ -116,6 +115,43 @@ function isInsideOrEqual(parent: string, child: string): boolean {
 function isImmediateOverridePath(relativeFromItem: string): boolean {
   const firstSegment = relativeFromItem.split(/[\\/]/).find(Boolean);
   return Boolean(firstSegment?.startsWith("."));
+}
+
+function resourceTreeOutputPath(
+  relativeFromResourcesRoot: string,
+  phase: ProjectionPhase,
+  overrideDir: string | undefined
+): string | undefined {
+  const segments = normalizeTargetPathString(relativeFromResourcesRoot)
+    .split("/")
+    .filter(Boolean);
+  if (segments.length === 0) {
+    return undefined;
+  }
+
+  if (phase === "canonical") {
+    if (segments[0]?.startsWith(".")) {
+      return undefined;
+    }
+    if (segments[2]?.startsWith(".")) {
+      return undefined;
+    }
+    return segments.join("/");
+  }
+
+  if (!overrideDir) {
+    return undefined;
+  }
+
+  if (segments[0] === overrideDir && segments.length > 1) {
+    return segments.slice(1).join("/");
+  }
+
+  if (segments[2] === overrideDir && segments.length > 3) {
+    return [segments[0], segments[1], ...segments.slice(3)].join("/");
+  }
+
+  return undefined;
 }
 
 async function addFileIfIncluded(
@@ -283,113 +319,51 @@ async function hasProfileRootMarker(directory: string): Promise<boolean> {
   return Boolean(markerState?.isFile());
 }
 
-async function projectResourceItem(options: {
+async function projectResourcesTree(options: {
   diagnostics: HarnessDiagnostic[];
-  itemDir: string;
-  itemName: string;
-  logicalItemDir: string;
+  logicalSourceDir: string;
   matcher: HarnessIgnoreMatcher;
   overrideDir: string | undefined;
   outputBaseRelativePath?: string;
-  phase?: ProjectionPhase;
+  phase: ProjectionPhase;
   profileContext: HarnessProfileContext;
   profileRootDir?: string;
   projection: DesiredProjection;
   requiredProfile?: string;
-  resource: string;
   root: string;
+  sourceDir: string;
   targetPath: string;
 }): Promise<void> {
-  if (options.phase !== "override") {
-    const canonicalFiles = await listFiles(options.itemDir, {
+  const files = (
+    await listFiles(options.sourceDir, {
       skipProfileRoots: true,
-    });
-    for (const filePath of canonicalFiles) {
-      const relativeFromItem = path.relative(options.itemDir, filePath);
-      if (isImmediateOverridePath(relativeFromItem)) {
-        continue;
-      }
-      const outputFromItem = path.join(
-        options.outputBaseRelativePath ?? "",
-        relativeFromItem
-      );
-      const outputRelativePath = path.join(
-        options.resource,
-        options.itemName,
-        outputFromItem
-      );
-      const targetOutputPath = repoRelativeOutputPath(
-        options.targetPath,
-        path.posix.join(
-          options.resource,
-          options.itemName,
-          normalizeTargetPathString(outputFromItem)
-        )
-      );
-      const activeProfile =
-        options.profileContext.profileForOutput(targetOutputPath);
-      if (
-        options.requiredProfile &&
-        activeProfile !== options.requiredProfile
-      ) {
-        continue;
-      }
-      await addFileIfIncluded(
-        options.projection,
-        options.root,
-        options.matcher,
-        filePath,
-        outputRelativePath,
-        options.targetPath,
-        targetOutputPath,
-        options.diagnostics,
-        {
-          profile: activeProfile,
-          profileRootDir: options.profileRootDir,
-          sourceRelativePath: toRepoRelative(
-            options.root,
-            path.join(options.logicalItemDir, relativeFromItem)
-          ),
-        }
-      );
-    }
-  }
-
-  if (options.phase === "canonical" || !options.overrideDir) {
-    return;
-  }
-  const overridePath = path.join(options.itemDir, options.overrideDir);
-  const logicalOverridePath = path.join(
-    options.logicalItemDir,
-    options.overrideDir
-  );
-  const overrideFiles = await listFiles(overridePath, {
-    skipProfileRoots: true,
-  });
-  for (const filePath of overrideFiles) {
-    const relativeFromOverride = path.relative(overridePath, filePath);
-    const outputFromOverride = path.join(
+    })
+  ).toSorted((left, right) => left.localeCompare(right));
+  for (const filePath of files) {
+    const relativeFromSource = path.relative(options.sourceDir, filePath);
+    const relativeForOutput = path.join(
       options.outputBaseRelativePath ?? "",
-      relativeFromOverride
+      relativeFromSource
     );
-    const outputRelativePath = path.join(
-      options.resource,
-      options.itemName,
-      outputFromOverride
+    const outputRelativePath = resourceTreeOutputPath(
+      relativeForOutput,
+      options.phase,
+      options.overrideDir
     );
+    if (!outputRelativePath) {
+      continue;
+    }
+
     const targetOutputPath = repoRelativeOutputPath(
       options.targetPath,
-      path.posix.join(
-        options.resource,
-        options.itemName,
-        normalizeTargetPathString(outputFromOverride)
-      )
+      outputRelativePath
     );
     const activeProfile =
       options.profileContext.profileForOutput(targetOutputPath);
     if (options.requiredProfile && activeProfile !== options.requiredProfile) {
       continue;
     }
+
     await addFileIfIncluded(
       options.projection,
       options.root,
@@ -404,10 +378,68 @@ async function projectResourceItem(options: {
         profileRootDir: options.profileRootDir,
         sourceRelativePath: toRepoRelative(
           options.root,
-          path.join(logicalOverridePath, relativeFromOverride)
+          path.join(options.logicalSourceDir, relativeFromSource)
         ),
       }
     );
+  }
+}
+
+async function projectCanonicalResourcesTree(options: {
+  diagnostics: HarnessDiagnostic[];
+  matcher: HarnessIgnoreMatcher;
+  overrideDir: string | undefined;
+  phase: ProjectionPhase;
+  profileContext: HarnessProfileContext;
+  projection: DesiredProjection;
+  root: string;
+  targetPath: string;
+}): Promise<void> {
+  const resourcesDir = resolveHarnessPaths(options.root).resourcesDir;
+  const resourcesState = await lstat(resourcesDir).catch(() => undefined);
+  if (resourcesState?.isDirectory() && !resourcesState.isSymbolicLink()) {
+    await projectResourcesTree({
+      ...options,
+      logicalSourceDir: resourcesDir,
+      sourceDir: resourcesDir,
+    });
+  }
+
+  for (const profileRoot of options.profileContext.profileRoots) {
+    const profileResourcesDirFromRoot = profileSourceDirForRoot(
+      profileRoot,
+      resourcesDir
+    );
+    const overlaysResourcesSubtree = isInsideOrEqual(
+      resourcesDir,
+      profileRoot.overlayBase
+    );
+    const profileResourcesDir =
+      profileResourcesDirFromRoot ??
+      (overlaysResourcesSubtree ? profileRoot.rootDir : undefined);
+    if (!profileResourcesDir) {
+      continue;
+    }
+    const state = await lstat(profileResourcesDir).catch(() => undefined);
+    if (!state?.isDirectory() || state.isSymbolicLink()) {
+      continue;
+    }
+    const logicalSourceDir =
+      profileResourcesDirFromRoot === undefined
+        ? profileRoot.overlayBase
+        : resourcesDir;
+    const outputBaseRelativePath =
+      profileResourcesDirFromRoot === undefined
+        ? path.relative(resourcesDir, profileRoot.overlayBase)
+        : undefined;
+    await projectResourcesTree({
+      ...options,
+      logicalSourceDir,
+      outputBaseRelativePath,
+      profileRootDir: profileRoot.rootDir,
+      requiredProfile: profileRoot.profile,
+      sourceDir: profileResourcesDir,
+    });
   }
 }
 
@@ -457,142 +489,17 @@ async function buildProjection(
   }
   const overrideDir = inferHarnessOverrideDirectory(targetPath);
 
-  for (const [resource, definition] of Object.entries(config.resources)) {
-    const resourceDir = resolveRepoLocalPath(
+  for (const phase of ["canonical", "override"] as const) {
+    await projectCanonicalResourcesTree({
+      diagnostics,
+      matcher,
+      overrideDir,
+      phase,
+      profileContext,
+      projection,
       root,
-      definition.path,
-      `Resource "${resource}" path`
-    );
-    const items = await readdir(resourceDir, { withFileTypes: true }).catch(
-      () => []
-    );
-
-    for (const phase of ["canonical", "override"] as const) {
-      for (const item of items) {
-        if (!item.isDirectory()) {
-          continue;
-        }
-        const itemDir = path.join(resourceDir, item.name);
-        if (await hasProfileRootMarker(itemDir)) {
-          continue;
-        }
-        await projectResourceItem({
-          diagnostics,
-          itemDir,
-          itemName: item.name,
-          logicalItemDir: itemDir,
-          matcher,
-          overrideDir,
-          profileContext,
-          phase,
-          projection,
-          resource,
-          root,
-          targetPath,
-        });
-
-        for (const profileRoot of profileContext.profileRoots) {
-          if (!isInsideOrEqual(itemDir, profileRoot.overlayBase)) {
-            continue;
-          }
-          const profileItemDir = profileSourceDirForRoot(
-            profileRoot,
-            profileRoot.overlayBase
-          );
-          if (!profileItemDir) {
-            continue;
-          }
-          const state = await lstat(profileItemDir).catch(() => undefined);
-          if (!state?.isDirectory() || state.isSymbolicLink()) {
-            continue;
-          }
-          const outputBaseRelativePath = path.relative(
-            itemDir,
-            profileRoot.overlayBase
-          );
-          const targetOutputPath = repoRelativeOutputPath(
-            targetPath,
-            path.posix.join(
-              resource,
-              item.name,
-              normalizeTargetPathString(outputBaseRelativePath)
-            )
-          );
-          if (
-            !profileContext.profileCanApplyWithin(
-              targetOutputPath,
-              profileRoot.profile
-            )
-          ) {
-            continue;
-          }
-          await projectResourceItem({
-            diagnostics,
-            itemDir: profileItemDir,
-            itemName: item.name,
-            logicalItemDir: profileRoot.overlayBase,
-            matcher,
-            outputBaseRelativePath,
-            overrideDir,
-            phase,
-            profileContext,
-            profileRootDir: profileRoot.rootDir,
-            projection,
-            requiredProfile: profileRoot.profile,
-            resource,
-            root,
-            targetPath,
-          });
-        }
-      }
-
-      for (const profileRoot of profileContext.profileRoots) {
-        const profileResourceDir = profileSourceDirForRoot(
-          profileRoot,
-          resourceDir
-        );
-        if (!profileResourceDir) {
-          continue;
-        }
-        const profileItems = await readdir(profileResourceDir, {
-          withFileTypes: true,
-        }).catch(() => []);
-        for (const item of profileItems) {
-          if (!item.isDirectory()) {
-            continue;
-          }
-          const targetOutputPath = repoRelativeOutputPath(
-            targetPath,
-            path.posix.join(resource, item.name)
-          );
-          if (
-            !profileContext.profileCanApplyWithin(
-              targetOutputPath,
-              profileRoot.profile
-            )
-          ) {
-            continue;
-          }
-          const itemDir = path.join(profileResourceDir, item.name);
-          await projectResourceItem({
-            diagnostics,
-            itemDir,
-            itemName: item.name,
-            logicalItemDir: logicalPathForProfilePath(profileRoot, itemDir),
-            matcher,
-            overrideDir,
-            phase,
-            profileContext,
-            profileRootDir: profileRoot.rootDir,
-            projection,
-            requiredProfile: profileRoot.profile,
-            resource,
-            root,
-            targetPath,
-          });
-        }
-      }
-    }
+      targetPath,
+    });
   }
 
   return projection;

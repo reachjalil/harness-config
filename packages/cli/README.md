@@ -18,11 +18,12 @@ does not create standard files or mutate projection targets unless the relevant
 command is explicitly applied with `--yes`.
 
 `harnessc init` is a dry run by default. With `--yes`, it writes
-`./.harness/harness.toml`, declared resource roots, and a commented repo-root
-`./.harnessIgnore`. With no `--resource` flags, init uses the
-conventional resource roots `skills`, `rules`, and `plugins`. With one or more
-`--resource <kind>` flags, init uses only those kinds. Targets are explicit and
-path-only; declare them with `--target <path>` or edit `harness.toml`.
+`./.harness/harness.toml`, resource folders under `./.harness/resources`, and
+a commented repo-root `./.harnessIgnore`. With no `--resource` flags, init
+uses the conventional resource folders `skills`, `rules`, and `plugins`. With
+one or more `--resource <kind>` flags, init creates only those folders under
+`.harness/resources`. Targets are explicit and path-only; declare them with
+`--target <path>` or edit `harness.toml`.
 
 `harnessc plan` is a read-only initialization/adoption plan. It is not a
 projection preview, and it does not infer targets from existing folder names.

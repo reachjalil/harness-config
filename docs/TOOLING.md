@@ -19,9 +19,10 @@ harnessc plan
 ```
 
 - `harnessc init` creates `.harness/harness.toml`, conventional or custom
-  resource roots, and `.harnessIgnore` when applied with `--yes`.
-- `harnessc validate` checks version support, resource declarations,
-  repo-local paths, target mappings, projection ignore syntax, mutable scope
+  resource folders under `.harness/resources`, and `.harnessIgnore` when
+  applied with `--yes`.
+- `harnessc validate` checks version support, repo-local paths, target
+  mappings, projection ignore syntax, mutable scope
   syntax, symlink diagnostics, and `[dir]` composition/copy diagnostics.
 - `harnessc activate` dry-runs the activation projection and shows creates,
   updates, requested removals, kept files, mutable-skipped files, and preserved
@@ -109,9 +110,10 @@ Profile overrides use `.harnessProfile` selectors and `.harnessProfileRoot`
 source overlays. A root `.harnessProfile` applies globally; target/output
 selectors such as `.agents/skills/.harnessProfile` apply only to that output
 subtree. `.harnessProfileRoot` must live under `.harness`; when active, its
-contents overlay either the parent source root (for markers directly inside a
-resource or dir root), the parent directory (for portable profile roots nested
-inside a resource item or dir subtree), or `.harness` (for kit-style folders).
+contents overlay either the parent source root (for markers directly inside
+the resources source or dir root), the parent directory (for portable profile
+roots nested inside a resource item or dir subtree), or `.harness` (for
+kit-style folders).
 Profile roots cannot be nested inside other profile roots. Profile-local
 `.harnessIgnore` files match those logical overlay paths, including
 `.harnessComposable` leaves. Dir planning discovers target/output profile
@@ -176,7 +178,8 @@ A conforming validator should:
 - Parse `.harness/harness.toml` and reject malformed input with clear
   diagnostics.
 - Refuse unsupported future standard versions.
-- Validate resource ids and repo-local resource paths.
+- Validate the canonical `.harness/resources` source tree and reject manifest
+  resource declarations.
 - Verify each `[[targets]]` entry contains only a repo-local path, points
   below the repository root, and does not point at the source root.
 - Parse `.harnessIgnore` with repo-root, source-local, profile-local,
@@ -189,7 +192,7 @@ A conforming validator should:
   write.
 - Verify repeated activation against unchanged inputs converges to the same
   target tree for managed files and leaves mutable files untouched.
-- Report declared targets separately from durable resource roots.
+- Report declared targets separately from durable source folders.
 
 ## Output
 

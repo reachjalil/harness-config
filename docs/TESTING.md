@@ -8,7 +8,7 @@ rules produce the same live target trees.
 
 | Area | Scenario | Test |
 | --- | --- | --- |
-| TOML | Valid `harness.toml` with declared resources and path-only targets | `packages/core/test/standard.test.ts` |
+| TOML | Valid `harness.toml` with path-only targets and no resource-root declarations | `packages/core/test/standard.test.ts` |
 | TOML | Unsupported standard versions fail validation | `packages/core/test/standard.test.ts` |
 | TOML | Target entries reject fields other than `path` | `packages/core/test/standard.test.ts` |
 | TOML | Target paths reject absolute paths, `..`, `.harness`, duplicate normalized paths, and overlapping target roots while allowing arbitrary repo-local target folders | `packages/core/test/standard.test.ts` |
@@ -22,9 +22,10 @@ rules produce the same live target trees.
 | Profiles | `.harnessProfile` and `.harnessProfileRoot` grammar, empty selector behavior, and multi-line severity | `packages/core/test/standard.test.ts` |
 | Profiles | Nested `.harnessProfileRoot` declarations and profile roots outside `.harness` are diagnostics | `packages/core/test/standard.test.ts` |
 | Projection | Explicit `.agents` copy projection with `.agents` overrides | `packages/core/test/projection.test.ts` |
+| Projection | Canonical `.harness/resources` tree projects without manifest resource declarations, including direct files and target-root overrides | `packages/core/test/projection.test.ts`, `packages/cli/test/run.test.ts` |
 | Projection | Additional target copy projection with target-derived overrides | `packages/core/test/projection.test.ts` |
 | Projection | Nested override contents such as plugin manifests and nested skills | `packages/core/test/projection.test.ts` |
-| Projection | Extension resource kinds declared in TOML | `packages/core/test/projection.test.ts` |
+| Projection | Arbitrary resource kinds under `.harness/resources` project without manifest declarations | `packages/core/test/projection.test.ts` |
 | Projection | Scoped `.harnessIgnore` changes target output independently | `packages/core/test/projection.test.ts` |
 | Projection | Target-output `.harnessIgnore` filters one target and is preserved during cleanup | `packages/core/test/projection.test.ts` |
 | Projection | Active `.harnessProfileRoot` overlays merge resources, suppress base resources with logical `.harnessIgnore`, and preserve target-local `.harnessProfile` during cleanup | `packages/core/test/projection.test.ts` |
@@ -66,7 +67,7 @@ rules produce the same live target trees.
 | Ignore | `[mutable]` sections | `packages/core/test/standard.test.ts` |
 | Docs | `STANDARD.md` stays independent of package names, repo paths, and CLI flags | `packages/core/test/docs.test.ts` |
 | CLI | `harnessc init` dry-runs by default | `packages/cli/test/run.test.ts` |
-| CLI | `harnessc init --yes` creates the standard files and resource roots | `packages/cli/test/run.test.ts` |
+| CLI | `harnessc init --yes` creates the standard files and resource folders under `.harness/resources` | `packages/cli/test/run.test.ts` |
 | CLI | `harnessc activate` dry-runs by default | `packages/cli/test/run.test.ts` |
 | CLI | `harnessc activate --yes` writes live targets | `packages/cli/test/run.test.ts` |
 | CLI | `--remove-unmanaged` changes preserved unmanaged entries into removals | `packages/cli/test/run.test.ts` |
@@ -92,12 +93,14 @@ For a focused activation smoke test:
 
 ```bash
 tmp="$(mktemp -d)"
-mkdir -p "$tmp/.harness/skills/review/.agents" "$tmp/.harness/skills/review/.claude"
-printf 'version = 1\n\n[resources.skills]\npath = "./.harness/skills"\n\n[[targets]]\npath = "./.agents"\n\n[[targets]]\npath = "./.claude"\n' > "$tmp/.harness/harness.toml"
+mkdir -p "$tmp/.harness/resources/.claude" "$tmp/.harness/resources/skills/review/.agents" "$tmp/.harness/resources/skills/review/.claude"
+printf 'version = 1\n\n[[targets]]\npath = "./.agents"\n\n[[targets]]\npath = "./.claude"\n' > "$tmp/.harness/harness.toml"
 printf '.harness/**/logs/\n' > "$tmp/.harnessIgnore"
-printf 'base\n' > "$tmp/.harness/skills/review/SKILL.md"
-printf 'agents\n' > "$tmp/.harness/skills/review/.agents/SKILL.md"
-printf 'claude\n' > "$tmp/.harness/skills/review/.claude/SKILL.md"
+printf 'base\n' > "$tmp/.harness/resources/skills/review/SKILL.md"
+printf 'agents\n' > "$tmp/.harness/resources/skills/review/.agents/SKILL.md"
+printf 'claude\n' > "$tmp/.harness/resources/skills/review/.claude/SKILL.md"
+printf 'shared hooks\n' > "$tmp/.harness/resources/hooks.json"
+printf 'claude hooks\n' > "$tmp/.harness/resources/.claude/hooks.json"
 node packages/cli/dist/bin.js activate --root "$tmp"
 node packages/cli/dist/bin.js activate --root "$tmp" --yes
 node packages/cli/dist/bin.js activate --root "$tmp"
@@ -110,10 +113,10 @@ For a focused update smoke test:
 
 ```bash
 tmp="$(mktemp -d)"
-mkdir -p "$tmp/.harness/skills/review"
-printf 'version = 1\n\n[resources.skills]\npath = "./.harness/skills"\n\n[[targets]]\npath = "./.agents"\n' > "$tmp/.harness/harness.toml"
+mkdir -p "$tmp/.harness/resources/skills/review"
+printf 'version = 1\n\n[[targets]]\npath = "./.agents"\n' > "$tmp/.harness/harness.toml"
 printf '' > "$tmp/.harnessIgnore"
-printf 'source\n' > "$tmp/.harness/skills/review/SKILL.md"
+printf 'source\n' > "$tmp/.harness/resources/skills/review/SKILL.md"
 node packages/cli/dist/bin.js activate --root "$tmp" --yes
 printf 'target edit\n' > "$tmp/.agents/skills/review/SKILL.md"
 node packages/cli/dist/bin.js activate --root "$tmp"
@@ -129,11 +132,11 @@ For a focused mutable smoke test:
 
 ```bash
 tmp="$(mktemp -d)"
-mkdir -p "$tmp/.harness/skills/review"
-printf 'version = 1\n\n[resources.skills]\npath = "./.harness/skills"\n\n[[targets]]\npath = "./.agents"\n' > "$tmp/.harness/harness.toml"
-printf '[mutable]\n.harness/**/settings.local.json\n' > "$tmp/.harnessIgnore"
-printf 'base\n' > "$tmp/.harness/skills/review/SKILL.md"
-printf 'source local\n' > "$tmp/.harness/skills/review/settings.local.json"
+mkdir -p "$tmp/.harness/resources/skills/review"
+printf 'version = 1\n\n[[targets]]\npath = "./.agents"\n' > "$tmp/.harness/harness.toml"
+printf '[mutable]\n.harness/resources/**/settings.local.json\n' > "$tmp/.harnessIgnore"
+printf 'base\n' > "$tmp/.harness/resources/skills/review/SKILL.md"
+printf 'source local\n' > "$tmp/.harness/resources/skills/review/settings.local.json"
 node packages/cli/dist/bin.js activate --root "$tmp" --yes
 printf 'target local\n' > "$tmp/.agents/skills/review/settings.local.json"
 node packages/cli/dist/bin.js activate --root "$tmp"

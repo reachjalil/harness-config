@@ -592,12 +592,8 @@ async function findHarnessIgnoreFileEntries(
 }
 
 function sourceRootsForConfig(root: string, config: HarnessConfig): string[] {
-  const roots = new Set<string>([resolveHarnessPaths(root).harnessDir]);
-  for (const definition of Object.values(config.resources)) {
-    roots.add(
-      resolveRepoLocalPath(root, definition.path, "Resource source path")
-    );
-  }
+  const paths = resolveHarnessPaths(root);
+  const roots = new Set<string>([paths.harnessDir, paths.resourcesDir]);
   if (config.dir) {
     roots.add(resolveRepoLocalPath(root, config.dir.path, "Dir source path"));
   } else {

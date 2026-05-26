@@ -9,6 +9,7 @@
       "!**/build",
       "!**/.turbo",
       "!**/coverage",
+      "!**/.harness",
       "!**/.agents"
     ]
   },
@@ -17,6 +18,7 @@
     "includes": [
       "*.{js,jsx,ts,tsx,mts,cts,cjs,mjs,json,jsonc,md,mdx,css}",
       "**/*.{js,jsx,ts,tsx,mts,cts,cjs,mjs,json,jsonc,md,mdx,css}",
+      "!**/.harness/**",
       "!**/.agents/**"
     ],
     "indentStyle": "space",
@@ -37,6 +39,7 @@
     "includes": [
       "*.{js,jsx,ts,tsx,mts,cts,cjs,mjs,json,jsonc,css}",
       "**/*.{js,jsx,ts,tsx,mts,cts,cjs,mjs,json,jsonc,css}",
+      "!**/.harness/**",
       "!**/.agents/**"
     ],
     "domains": {

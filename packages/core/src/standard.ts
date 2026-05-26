@@ -1,14 +1,7 @@
 import { parse, stringify } from "smol-toml";
 import { z } from "zod";
 
-import {
-  CONVENTIONAL_HARNESS_RESOURCES,
-  defaultHarnessResourcePath,
-} from "./paths";
-import type {
-  HarnessExtensionDefinition,
-  HarnessResourceDefinition,
-} from "./types";
+import type { HarnessExtensionDefinition } from "./types";
 
 export const DEFAULT_HARNESS_DIR_PATH = "./.harness/dir";
 
@@ -59,12 +52,6 @@ export const overrideDirectorySchema = z
     "Override directories must be dot-prefixed ids."
   );
 
-export const harnessResourceSchema = z
-  .object({
-    path: repoLocalPathSchema,
-  })
-  .strict();
-
 export const harnessTargetSchema = z
   .object({ path: harnessTargetPathSchema })
   .strict();
@@ -77,34 +64,6 @@ export const harnessExtensionSchema = z
     activation: harnessExtensionActivationSchema.default("explicit"),
   })
   .catchall(z.unknown()) satisfies z.ZodType<HarnessExtensionDefinition>;
-
-export const conventionalHarnessResources: Record<
-  string,
-  HarnessResourceDefinition
-> = Object.fromEntries(
-  CONVENTIONAL_HARNESS_RESOURCES.map((resource) => [
-    resource,
-    {
-      path: defaultHarnessResourcePath(resource),
-    },
-  ])
-);
-
-const harnessResourcesSchema = z
-  .record(z.string(), harnessResourceSchema)
-  .default({})
-  .superRefine((resources, context) => {
-    for (const resource of Object.keys(resources)) {
-      const result = resourceIdSchema.safeParse(resource);
-      if (!result.success) {
-        context.addIssue({
-          code: "custom",
-          message: `Invalid resource id "${resource}".`,
-          path: [resource],
-        });
-      }
-    }
-  });
 
 const harnessExtensionsSchema = z
   .record(z.string(), harnessExtensionSchema)
@@ -153,7 +112,6 @@ export const harnessConfigSchema = z
       })
       .strict()
       .default({ name: "harness-config" }),
-    resources: harnessResourcesSchema,
     targets: z.array(harnessTargetSchema).default([]),
     dir: harnessDirSchema.optional(),
     extensions: harnessExtensionsSchema,
@@ -165,7 +123,6 @@ export type HarnessConfig = z.infer<typeof harnessConfigSchema>;
 export function createDefaultHarnessConfig(): HarnessConfig {
   return harnessConfigSchema.parse({
     version: CURRENT_HARNESS_CONFIG_VERSION,
-    resources: conventionalHarnessResources,
     targets: [],
     extensions: {},
   });
@@ -229,7 +186,14 @@ export function formatHarnessConfigTomlError(
 }
 
 export function stringifyHarnessConfig(config: HarnessConfig): string {
-  return `${stringify(config)}\n`;
+  const manifest: Record<string, unknown> = { ...config };
+  if (config.targets.length === 0) {
+    delete manifest.targets;
+  }
+  if (Object.keys(config.extensions).length === 0) {
+    delete manifest.extensions;
+  }
+  return `${stringify(manifest)}\n`;
 }
 
 export function createDefaultHarnessConfigToml(): string {

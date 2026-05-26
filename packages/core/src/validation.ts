@@ -118,16 +118,6 @@ function validateConfigSemantics(
   root: string,
   diagnostics: HarnessDiagnostic[]
 ): void {
-  for (const [resource, definition] of Object.entries(config.resources)) {
-    validateRepoLocalPath(
-      diagnostics,
-      root,
-      definition.path,
-      `resources.${resource}.path`,
-      `Resource "${resource}" path`
-    );
-  }
-
   const targetPaths = new Set<string>();
   for (const target of config.targets) {
     const normalizedTargetPath = normalizeTargetPath(target.path);

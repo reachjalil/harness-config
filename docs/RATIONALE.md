@@ -45,7 +45,7 @@ target derived from that source.
 
 HarnessConfig defines four roles:
 
-- Source catalog: durable resources under `./.harness/<kind>/<name>`.
+- Source catalog: durable resources under `./.harness/resources`.
 - Target-derived override: a dot-prefixed folder inside a resource, such as
   `.claude`, that adjusts files for a target.
 - Activation projection: the computed copy of source plus matching overrides
@@ -61,8 +61,8 @@ HarnessConfig defines four roles:
   receives only the reviewed projection for that context.
 - The contract is implementation-neutral: folders, TOML, ignore rules,
   overrides, and projection intent.
-- New resource kinds can use `.harness/<kind>/<name>` before every runtime
-  supports a native format.
+- New resource kinds and direct target-root files can use
+  `.harness/resources` before every runtime supports a native format.
 - Each declared target projection is explicit, reviewable, and reproducible
   from source, ignores, overrides, and cleanup policy.
 - Tools can show creates, updates, requested removals, unchanged projected

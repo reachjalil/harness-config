@@ -5,6 +5,7 @@ import type { ConventionalHarnessResource, HarnessConfigPaths } from "./types";
 
 export const HARNESS_CONFIG_DIR = ".harness";
 export const HARNESS_CONFIG_FILE = "harness.toml";
+export const HARNESS_RESOURCES_DIR = "resources";
 export const HARNESS_IGNORE_FILE = ".harnessIgnore";
 export const HARNESS_PROFILE_FILE = ".harnessProfile";
 export const HARNESS_PROFILE_ROOT_FILE = ".harnessProfileRoot";
@@ -23,9 +24,10 @@ export function resolveHarnessPaths(root = process.cwd()): HarnessConfigPaths {
     harnessDir,
     configPath: path.join(harnessDir, HARNESS_CONFIG_FILE),
     ignorePath: path.join(absoluteRoot, HARNESS_IGNORE_FILE),
-    skillsDir: path.join(harnessDir, "skills"),
-    rulesDir: path.join(harnessDir, "rules"),
-    pluginsDir: path.join(harnessDir, "plugins"),
+    resourcesDir: path.join(harnessDir, HARNESS_RESOURCES_DIR),
+    skillsDir: path.join(harnessDir, HARNESS_RESOURCES_DIR, "skills"),
+    rulesDir: path.join(harnessDir, HARNESS_RESOURCES_DIR, "rules"),
+    pluginsDir: path.join(harnessDir, HARNESS_RESOURCES_DIR, "plugins"),
     workspaceReadmePath: path.join(harnessDir, "README.md"),
   };
 }
@@ -75,32 +77,48 @@ export function detectImplicitOverrideTarget(
     .split("/")
     .filter(Boolean);
   if (
-    segments.length < 5 ||
+    segments.length < 4 ||
     segments[0] !== HARNESS_CONFIG_DIR ||
     segments.at(-1) !== HARNESS_IGNORE_FILE
   ) {
     return undefined;
   }
 
-  const overrideSegment = segments[3];
-  if (!overrideSegment?.startsWith(".")) {
-    return undefined;
+  if (segments[1] === HARNESS_RESOURCES_DIR) {
+    const rootOverrideSegment = segments[2];
+    if (rootOverrideSegment?.startsWith(".")) {
+      return rootOverrideSegment;
+    }
+    const itemOverrideSegment = segments.length >= 6 ? segments[4] : undefined;
+    if (itemOverrideSegment?.startsWith(".")) {
+      return itemOverrideSegment;
+    }
   }
 
-  return overrideSegment;
+  if (segments.length >= 5) {
+    const overrideSegment = segments[3];
+    return overrideSegment?.startsWith(".") ? overrideSegment : undefined;
+  }
+
+  return undefined;
 }
 
 export function defaultHarnessResourcePath(
   resource: ConventionalHarnessResource | string
 ): string {
-  return `./.harness/${resource}`;
+  return `./.harness/${HARNESS_RESOURCES_DIR}/${resource}`;
 }
 
 export function resolveHarnessResourceDir(
   root: string,
   resource: string
 ): string {
-  return path.join(path.resolve(root), HARNESS_CONFIG_DIR, resource);
+  return path.join(
+    path.resolve(root),
+    HARNESS_CONFIG_DIR,
+    HARNESS_RESOURCES_DIR,
+    resource
+  );
 }
 
 export function resolveHarnessResourceItemDir(

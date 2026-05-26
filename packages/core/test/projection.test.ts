@@ -33,33 +33,145 @@ async function write(root: string, relativePath: string, content: string) {
 async function writeHarnessConfig(
   root: string,
   options: {
-    resources?: string[];
     targets?: string[];
   } = {}
 ) {
-  const resources = options.resources ?? ["skills"];
   const targets = options.targets ?? ["./.agents"];
   const content = [
     "version = 1",
     "",
-    ...resources.flatMap((resource) => [
-      `[resources.${resource}]`,
-      `path = "./.harness/${resource}"`,
-      "",
-    ]),
     ...targets.flatMap((target) => ["[[targets]]", `path = "${target}"`, ""]),
   ].join("\n");
   await write(root, ".harness/harness.toml", content);
 }
 
 describe("HarnessConfig activation projection", () => {
+  it("projects the canonical .harness/resources tree without manifest resource declarations", async () => {
+    const root = await rootFixture();
+    await write(
+      root,
+      ".harness/harness.toml",
+      [
+        "version = 1",
+        "",
+        "[[targets]]",
+        'path = "./.agents"',
+        "",
+        "[[targets]]",
+        'path = "./.gemini"',
+        "",
+      ].join("\n")
+    );
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harness/resources/skills/review/SKILL.md", "base");
+    await write(root, ".harness/resources/hooks.json", "shared hooks");
+    await write(
+      root,
+      ".harness/resources/skills/review/.gemini/SKILL.md",
+      "gemini skill"
+    );
+    await write(root, ".harness/resources/.gemini/hooks.json", "gemini hooks");
+
+    const result = await applyHarnessActivation(root, {
+      dryRun: false,
+      yes: true,
+    });
+
+    expect(result.plan.diagnostics).toEqual([]);
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/SKILL.md"), "utf8")
+    ).resolves.toBe("base");
+    await expect(
+      readFile(path.join(root, ".agents/hooks.json"), "utf8")
+    ).resolves.toBe("shared hooks");
+    await expect(
+      readFile(path.join(root, ".gemini/skills/review/SKILL.md"), "utf8")
+    ).resolves.toBe("gemini skill");
+    await expect(
+      readFile(path.join(root, ".gemini/hooks.json"), "utf8")
+    ).resolves.toBe("gemini hooks");
+    await expect(
+      readFile(path.join(root, ".agents/.gemini/hooks.json"), "utf8")
+    ).rejects.toThrow();
+  });
+
+  it("applies profile overlays to the canonical .harness/resources tree", async () => {
+    const root = await rootFixture();
+    await write(
+      root,
+      ".harness/harness.toml",
+      ["version = 1", "", "[[targets]]", 'path = "./.agents"', ""].join("\n")
+    );
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harnessProfile", "team\n");
+    await write(root, ".harness/resources/skills/review/SKILL.md", "base");
+    await write(root, ".harness/resources/hooks.json", "base hooks");
+    await write(root, ".harness/profiles/team/.harnessProfileRoot", "team\n");
+    await write(
+      root,
+      ".harness/profiles/team/resources/skills/review/PROFILE.md",
+      "profile"
+    );
+    await write(
+      root,
+      ".harness/profiles/team/resources/hooks.json",
+      "profile hooks"
+    );
+
+    await applyHarnessActivation(root, { dryRun: false, yes: true });
+
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/SKILL.md"), "utf8")
+    ).resolves.toBe("base");
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/PROFILE.md"), "utf8")
+    ).resolves.toBe("profile");
+    await expect(
+      readFile(path.join(root, ".agents/hooks.json"), "utf8")
+    ).resolves.toBe("profile hooks");
+  });
+
+  it("applies portable profile roots nested inside canonical resource items", async () => {
+    const root = await rootFixture();
+    await write(
+      root,
+      ".harness/harness.toml",
+      ["version = 1", "", "[[targets]]", 'path = "./.agents"', ""].join("\n")
+    );
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harnessProfile", "aggressive\n");
+    await write(root, ".harness/resources/skills/review/SKILL.md", "base");
+    await write(
+      root,
+      ".harness/resources/skills/review/aggressiveProfile/.harnessProfileRoot",
+      "aggressive\n"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/review/aggressiveProfile/SKILL.md",
+      "profile"
+    );
+
+    await applyHarnessActivation(root, { dryRun: false, yes: true });
+
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/SKILL.md"), "utf8")
+    ).resolves.toBe("profile");
+    await expect(
+      readFile(
+        path.join(root, ".agents/skills/review/aggressiveProfile/SKILL.md"),
+        "utf8"
+      )
+    ).rejects.toThrow();
+  });
+
   it("projects one resource item with override and ignore semantics", async () => {
     const root = await rootFixture();
     await write(
       root,
       ".harnessIgnore",
       `
-.harness/skills/*/logs/
+.harness/resources/skills/*/logs/
 `
     );
     await write(
@@ -67,14 +179,26 @@ describe("HarnessConfig activation projection", () => {
       ".claude/skills/review/.harnessIgnore",
       "agents-only.md\n"
     );
-    await write(root, ".harness/skills/review/SKILL.md", "base");
-    await write(root, ".harness/skills/review/agents-only.md", "agents only");
-    await write(root, ".harness/skills/review/logs/run.log", "ignore");
-    await write(root, ".harness/skills/review/.claude/SKILL.md", "claude");
+    await write(root, ".harness/resources/skills/review/SKILL.md", "base");
+    await write(
+      root,
+      ".harness/resources/skills/review/agents-only.md",
+      "agents only"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/review/logs/run.log",
+      "ignore"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/review/.claude/SKILL.md",
+      "claude"
+    );
 
     await copyHarnessResourceItemProjection({
       root,
-      sourceDir: ".harness/skills/review",
+      sourceDir: ".harness/resources/skills/review",
       targetDir: ".claude/skills/review",
       targetPath: ".claude/skills",
     });
@@ -94,7 +218,7 @@ describe("HarnessConfig activation projection", () => {
     await expect(
       harnessResourceItemProjectionMatchesTarget({
         root,
-        sourceDir: ".harness/skills/review",
+        sourceDir: ".harness/resources/skills/review",
         targetDir: ".claude/skills/review",
         targetPath: ".claude/skills",
       })
@@ -104,13 +228,21 @@ describe("HarnessConfig activation projection", () => {
   it("honors a nested .harnessIgnore inside a resource item during item projection", async () => {
     const root = await rootFixture();
     await write(root, ".harnessIgnore", "");
-    await write(root, ".harness/skills/review/.harnessIgnore", "*.tmp\n");
-    await write(root, ".harness/skills/review/SKILL.md", "base");
-    await write(root, ".harness/skills/review/scratch.tmp", "scratch");
+    await write(
+      root,
+      ".harness/resources/skills/review/.harnessIgnore",
+      "*.tmp\n"
+    );
+    await write(root, ".harness/resources/skills/review/SKILL.md", "base");
+    await write(
+      root,
+      ".harness/resources/skills/review/scratch.tmp",
+      "scratch"
+    );
 
     await copyHarnessResourceItemProjection({
       root,
-      sourceDir: ".harness/skills/review",
+      sourceDir: ".harness/resources/skills/review",
       targetDir: ".agents/skills/review",
       targetPath: ".agents/skills",
     });
@@ -128,15 +260,23 @@ describe("HarnessConfig activation projection", () => {
 
   it("lets a nested rule re-include a file the root ignored", async () => {
     const root = await rootFixture();
-    await write(root, ".harnessIgnore", ".harness/skills/review/*.tmp\n");
-    await write(root, ".harness/skills/review/.harnessIgnore", "!keep.tmp\n");
-    await write(root, ".harness/skills/review/SKILL.md", "base");
-    await write(root, ".harness/skills/review/drop.tmp", "drop");
-    await write(root, ".harness/skills/review/keep.tmp", "keep");
+    await write(
+      root,
+      ".harnessIgnore",
+      ".harness/resources/skills/review/*.tmp\n"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/review/.harnessIgnore",
+      "!keep.tmp\n"
+    );
+    await write(root, ".harness/resources/skills/review/SKILL.md", "base");
+    await write(root, ".harness/resources/skills/review/drop.tmp", "drop");
+    await write(root, ".harness/resources/skills/review/keep.tmp", "keep");
 
     await copyHarnessResourceItemProjection({
       root,
-      sourceDir: ".harness/skills/review",
+      sourceDir: ".harness/resources/skills/review",
       targetDir: ".agents/skills/review",
       targetPath: ".agents/skills",
     });
@@ -154,8 +294,8 @@ describe("HarnessConfig activation projection", () => {
     await writeHarnessConfig(root, { targets: ["./.agents", "./.claude"] });
     await write(root, ".harnessIgnore", "");
     await write(root, ".claude/skills/review/.harnessIgnore", "secret.md\n");
-    await write(root, ".harness/skills/review/SKILL.md", "base");
-    await write(root, ".harness/skills/review/secret.md", "secret");
+    await write(root, ".harness/resources/skills/review/SKILL.md", "base");
+    await write(root, ".harness/resources/skills/review/secret.md", "secret");
 
     const result = await applyHarnessActivation(root, {
       dryRun: false,
@@ -176,8 +316,16 @@ describe("HarnessConfig activation projection", () => {
     await writeHarnessConfig(root, { targets: ["./.agents", "./.claude"] });
     await write(root, ".harnessIgnore", "");
     await write(root, ".agents/skills/deploy-plan/.harnessIgnore", "*.tmp\n");
-    await write(root, ".harness/skills/deploy-plan/SKILL.md", "deploy");
-    await write(root, ".harness/skills/deploy-plan/scratch.tmp", "scratch");
+    await write(
+      root,
+      ".harness/resources/skills/deploy-plan/SKILL.md",
+      "deploy"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/deploy-plan/scratch.tmp",
+      "scratch"
+    );
 
     await applyHarnessActivation(root, { dryRun: false, yes: true });
 
@@ -205,7 +353,11 @@ describe("HarnessConfig activation projection", () => {
     const root = await rootFixture();
     await writeHarnessConfig(root, { targets: ["./.agents"] });
     await write(root, ".harnessIgnore", "");
-    await write(root, ".harness/skills/deploy-plan/SKILL.md", "deploy");
+    await write(
+      root,
+      ".harness/resources/skills/deploy-plan/SKILL.md",
+      "deploy"
+    );
     await write(root, ".agents/skills/deploy-plan/.harnessIgnore", "*.tmp\n");
     await write(root, ".agents/skills/deploy-plan/local.md", "local");
 
@@ -260,8 +412,8 @@ describe("HarnessConfig activation projection", () => {
     await write(root, ".harnessIgnore", "");
     await write(root, ".harnessProfile", "deploy\n");
     await write(root, ".agents/skills/review/.harnessIgnore", "secret.md\n");
-    await write(root, ".harness/skills/review/SKILL.md", "base");
-    await write(root, ".harness/skills/review/secret.md", "secret");
+    await write(root, ".harness/resources/skills/review/SKILL.md", "base");
+    await write(root, ".harness/resources/skills/review/secret.md", "secret");
     await write(
       root,
       ".harness/profiles/deploy/.harnessProfileRoot",
@@ -269,7 +421,7 @@ describe("HarnessConfig activation projection", () => {
     );
     await write(
       root,
-      ".harness/profiles/deploy/skills/review/.harnessIgnore",
+      ".harness/profiles/deploy/resources/skills/review/.harnessIgnore",
       "!secret.md\n"
     );
 
@@ -288,10 +440,14 @@ describe("HarnessConfig activation projection", () => {
     await writeHarnessConfig(root, { targets: ["./.codex"] });
     await write(root, ".harnessIgnore", "");
     await write(root, ".harnessProfile", "deploy\n");
-    await write(root, ".harness/skills/basic-shapes/SKILL.md", "base");
     await write(
       root,
-      ".harness/skills/basic-shapes/.codex/SKILL.md",
+      ".harness/resources/skills/basic-shapes/SKILL.md",
+      "base"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/basic-shapes/.codex/SKILL.md",
       "codex override"
     );
     await write(
@@ -301,7 +457,7 @@ describe("HarnessConfig activation projection", () => {
     );
     await write(
       root,
-      ".harness/profiles/deploy/skills/basic-shapes/SKILL.md",
+      ".harness/profiles/deploy/resources/skills/basic-shapes/SKILL.md",
       "profile generic"
     );
 
@@ -317,10 +473,14 @@ describe("HarnessConfig activation projection", () => {
     await writeHarnessConfig(root, { targets: ["./.codex"] });
     await write(root, ".harnessIgnore", "");
     await write(root, ".harnessProfile", "deploy\n");
-    await write(root, ".harness/skills/basic-shapes/SKILL.md", "base");
     await write(
       root,
-      ".harness/skills/basic-shapes/.codex/SKILL.md",
+      ".harness/resources/skills/basic-shapes/SKILL.md",
+      "base"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/basic-shapes/.codex/SKILL.md",
       "codex base override"
     );
     await write(
@@ -330,12 +490,12 @@ describe("HarnessConfig activation projection", () => {
     );
     await write(
       root,
-      ".harness/profiles/deploy/skills/basic-shapes/SKILL.md",
+      ".harness/profiles/deploy/resources/skills/basic-shapes/SKILL.md",
       "profile generic"
     );
     await write(
       root,
-      ".harness/profiles/deploy/skills/basic-shapes/.codex/SKILL.md",
+      ".harness/profiles/deploy/resources/skills/basic-shapes/.codex/SKILL.md",
       "profile codex override"
     );
 
@@ -349,23 +509,30 @@ describe("HarnessConfig activation projection", () => {
   it("applies projection semantics to arbitrary resource kinds", async () => {
     const root = await rootFixture();
     await writeHarnessConfig(root, {
-      resources: ["projects"],
       targets: ["./.codex"],
     });
     await write(
       root,
       ".harnessIgnore",
       [
-        ".harness/projects/demo/*.tmp",
-        "!.harness/projects/demo/keep.tmp",
+        ".harness/resources/projects/demo/*.tmp",
+        "!.harness/resources/projects/demo/keep.tmp",
         "",
       ].join("\n")
     );
     await write(root, ".codex/projects/demo/.harnessIgnore", "keep.tmp\n");
-    await write(root, ".harness/projects/demo/PROJECT.md", "base project");
-    await write(root, ".harness/projects/demo/.codex/PROJECT.md", "codex");
-    await write(root, ".harness/projects/demo/drop.tmp", "drop");
-    await write(root, ".harness/projects/demo/keep.tmp", "keep");
+    await write(
+      root,
+      ".harness/resources/projects/demo/PROJECT.md",
+      "base project"
+    );
+    await write(
+      root,
+      ".harness/resources/projects/demo/.codex/PROJECT.md",
+      "codex"
+    );
+    await write(root, ".harness/resources/projects/demo/drop.tmp", "drop");
+    await write(root, ".harness/resources/projects/demo/keep.tmp", "keep");
 
     await applyHarnessActivation(root, { dryRun: false, yes: true });
 
@@ -383,7 +550,7 @@ describe("HarnessConfig activation projection", () => {
   it("applies physical ancestor ignores before profile roots overlay resources", async () => {
     const root = await rootFixture();
     await writeHarnessConfig(root, { targets: ["./.agents"] });
-    await write(root, ".harnessIgnore", ".harness/skills/**\n");
+    await write(root, ".harnessIgnore", ".harness/resources/skills/**\n");
     await write(root, ".harnessProfile", "deploy\n");
     await write(root, ".harness/kits/.harnessIgnore", "**/.harnex/\n");
     await write(root, ".harness/kits/deploy/.harnessProfileRoot", "deploy\n");
@@ -392,10 +559,14 @@ describe("HarnessConfig activation projection", () => {
       ".harness/kits/deploy/.harnessIgnore",
       "!skills/extra/**\n"
     );
-    await write(root, ".harness/kits/deploy/skills/extra/SKILL.md", "extra");
     await write(
       root,
-      ".harness/kits/deploy/skills/extra/docs/.harnex/meta.md",
+      ".harness/kits/deploy/resources/skills/extra/SKILL.md",
+      "extra"
+    );
+    await write(
+      root,
+      ".harness/kits/deploy/resources/skills/extra/docs/.harnex/meta.md",
       "metadata"
     );
 
@@ -414,10 +585,22 @@ describe("HarnessConfig activation projection", () => {
     await writeHarnessConfig(root, { targets: ["./.agents"] });
     await write(root, ".harnessIgnore", "");
     await write(root, ".harnessProfile", "deploy\n");
-    await write(root, ".harness/skills/base/SKILL.md", "base");
-    await write(root, ".harness/skills/deploy/.harnessProfileRoot", "deploy\n");
-    await write(root, ".harness/skills/deploy/.harnessIgnore", "base/\n");
-    await write(root, ".harness/skills/deploy/profiled/SKILL.md", "profiled");
+    await write(root, ".harness/resources/skills/base/SKILL.md", "base");
+    await write(
+      root,
+      ".harness/resources/skills/deploy/.harnessProfileRoot",
+      "deploy\n"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/deploy/.harnessIgnore",
+      "base/\n"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/deploy/profiled/SKILL.md",
+      "profiled"
+    );
 
     await applyHarnessActivation(root, { dryRun: false, yes: true });
 
@@ -437,15 +620,15 @@ describe("HarnessConfig activation projection", () => {
     await writeHarnessConfig(root, { targets: ["./.agents"] });
     await write(root, ".harnessIgnore", "");
     await write(root, ".harnessProfile", "aggressive\n");
-    await write(root, ".harness/skills/example/SKILL.md", "base");
+    await write(root, ".harness/resources/skills/example/SKILL.md", "base");
     await write(
       root,
-      ".harness/skills/example/aggressiveProfile/.harnessProfileRoot",
+      ".harness/resources/skills/example/aggressiveProfile/.harnessProfileRoot",
       "aggressive\n"
     );
     await write(
       root,
-      ".harness/skills/example/aggressiveProfile/SKILL.md",
+      ".harness/resources/skills/example/aggressiveProfile/SKILL.md",
       "aggressive"
     );
 
@@ -466,13 +649,21 @@ describe("HarnessConfig activation projection", () => {
     await writeHarnessConfig(root, { targets: ["./.agents"] });
     await write(root, ".harnessIgnore", "");
     await write(root, ".harnessProfile", "deploy\n");
-    await write(root, ".harness/skills/review/SKILL.md", "base");
+    await write(root, ".harness/resources/skills/review/SKILL.md", "base");
     await write(root, ".harness/kits/a/.harnessProfileRoot", "deploy\n");
-    await write(root, ".harness/kits/a/skills/review/SKILL.md", "a");
-    await write(root, ".harness/kits/a/skills/review/CONFLICT.md", "a");
+    await write(root, ".harness/kits/a/resources/skills/review/SKILL.md", "a");
+    await write(
+      root,
+      ".harness/kits/a/resources/skills/review/CONFLICT.md",
+      "a"
+    );
     await write(root, ".harness/kits/b/.harnessProfileRoot", "deploy\n");
-    await write(root, ".harness/kits/b/skills/review/SKILL.md", "b");
-    await write(root, ".harness/kits/b/skills/review/CONFLICT.md", "b");
+    await write(root, ".harness/kits/b/resources/skills/review/SKILL.md", "b");
+    await write(
+      root,
+      ".harness/kits/b/resources/skills/review/CONFLICT.md",
+      "b"
+    );
 
     const plan = await planHarnessActivation(root);
 
@@ -483,11 +674,11 @@ describe("HarnessConfig activation projection", () => {
       expect.arrayContaining([
         expect.objectContaining({
           severity: "warning",
-          path: ".harness/kits/b/skills/review/SKILL.md",
+          path: ".harness/kits/b/resources/skills/review/SKILL.md",
         }),
         expect.objectContaining({
           severity: "warning",
-          path: ".harness/kits/b/skills/review/CONFLICT.md",
+          path: ".harness/kits/b/resources/skills/review/CONFLICT.md",
         }),
       ])
     );
@@ -527,7 +718,6 @@ describe("HarnessConfig activation projection", () => {
   it("applies target-local profile selection to only that output subtree", async () => {
     const root = await rootFixture();
     await writeHarnessConfig(root, {
-      resources: ["skills", "rules"],
       targets: ["./.agents"],
     });
     await write(root, ".harnessIgnore", "");
@@ -540,12 +730,12 @@ describe("HarnessConfig activation projection", () => {
     );
     await write(
       root,
-      ".harness/profiles/deploy/skills/profiled/SKILL.md",
+      ".harness/profiles/deploy/resources/skills/profiled/SKILL.md",
       "profiled skill"
     );
     await write(
       root,
-      ".harness/profiles/deploy/rules/profiled/RULE.md",
+      ".harness/profiles/deploy/resources/rules/profiled/RULE.md",
       "profiled rule"
     );
 
@@ -573,12 +763,20 @@ describe("HarnessConfig activation projection", () => {
     const root = await rootFixture();
     await writeHarnessConfig(root, { targets: ["./.claude"] });
     await write(root, ".harnessIgnore", "");
-    await write(root, ".harness/skills/review/SKILL.md", "base");
-    await write(root, ".harness/skills/review/.claude/SKILL.md", "claude");
-    await write(root, ".harness/skills/review/.claude/scratch.tmp", "tmp");
+    await write(root, ".harness/resources/skills/review/SKILL.md", "base");
     await write(
       root,
-      ".harness/skills/review/.claude/.harnessIgnore",
+      ".harness/resources/skills/review/.claude/SKILL.md",
+      "claude"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/review/.claude/scratch.tmp",
+      "tmp"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/review/.claude/.harnessIgnore",
       "[.cursor]\n*.tmp\n"
     );
 
@@ -589,7 +787,7 @@ describe("HarnessConfig activation projection", () => {
         expect.objectContaining({
           severity: "error",
           code: "harness.ignore_unsupported_scope",
-          path: ".harness/skills/review/.claude/.harnessIgnore",
+          path: ".harness/resources/skills/review/.claude/.harnessIgnore",
         }),
       ])
     );
@@ -598,12 +796,16 @@ describe("HarnessConfig activation projection", () => {
   it("propagates root ignore rules into deeply nested resource items", async () => {
     const root = await rootFixture();
     await write(root, ".harnessIgnore", ".harness/**/logs/\n");
-    await write(root, ".harness/skills/review/deep/logs/run.log", "log");
-    await write(root, ".harness/skills/review/deep/KEEP.md", "keep");
+    await write(
+      root,
+      ".harness/resources/skills/review/deep/logs/run.log",
+      "log"
+    );
+    await write(root, ".harness/resources/skills/review/deep/KEEP.md", "keep");
 
     await copyHarnessResourceItemProjection({
       root,
-      sourceDir: ".harness/skills/review",
+      sourceDir: ".harness/resources/skills/review",
       targetDir: ".agents/skills/review",
       targetPath: ".agents/skills",
     });
@@ -631,17 +833,29 @@ describe("HarnessConfig activation projection", () => {
       ".claude/skills/review/.harnessIgnore",
       "agents-only.md\n"
     );
-    await write(root, ".harness/skills/review/SKILL.md", "base skill");
-    await write(root, ".harness/skills/review/agents-only.md", "agents only");
-    await write(root, ".harness/skills/review/logs/run.log", "ignored");
     await write(
       root,
-      ".harness/skills/review/.agents/SKILL.md",
+      ".harness/resources/skills/review/SKILL.md",
+      "base skill"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/review/agents-only.md",
+      "agents only"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/review/logs/run.log",
+      "ignored"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/review/.agents/SKILL.md",
       "agents skill"
     );
     await write(
       root,
-      ".harness/skills/review/.claude/SKILL.md",
+      ".harness/resources/skills/review/.claude/SKILL.md",
       "claude skill"
     );
 
@@ -688,7 +902,11 @@ describe("HarnessConfig activation projection", () => {
     const root = await rootFixture();
     await writeHarnessConfig(root, { targets: ["./.agents", "./.cursor"] });
     await write(root, ".harnessIgnore", "");
-    await write(root, ".harness/skills/review/SKILL.md", "shared skill");
+    await write(
+      root,
+      ".harness/resources/skills/review/SKILL.md",
+      "shared skill"
+    );
 
     const plan = await planHarnessActivation(root);
     expect(
@@ -721,7 +939,11 @@ describe("HarnessConfig activation projection", () => {
     const root = await rootFixture();
     await writeHarnessConfig(root, { targets: [] });
     await write(root, ".harnessIgnore", "");
-    await write(root, ".harness/skills/review/SKILL.md", "shared skill");
+    await write(
+      root,
+      ".harness/resources/skills/review/SKILL.md",
+      "shared skill"
+    );
 
     const plan = await planHarnessActivation(root);
 
@@ -731,14 +953,13 @@ describe("HarnessConfig activation projection", () => {
   it("merges nested override folders and target-output ignores across resource kinds", async () => {
     const root = await rootFixture();
     await writeHarnessConfig(root, {
-      resources: ["skills", "plugins", "prompts"],
       targets: ["./.agents", "./.claude", "./.cursor"],
     });
     await write(
       root,
       ".harnessIgnore",
       `
-.harness/plugins/*/logs/
+.harness/resources/plugins/*/logs/
 `
     );
     await write(
@@ -756,46 +977,54 @@ describe("HarnessConfig activation projection", () => {
       ".claude/plugins/review-pack/.harnessIgnore",
       "not-cursor.md\n"
     );
-    await write(root, ".harness/plugins/review-pack/PLUGIN.md", "portable");
     await write(
       root,
-      ".harness/plugins/review-pack/assets/README.md",
+      ".harness/resources/plugins/review-pack/PLUGIN.md",
+      "portable"
+    );
+    await write(
+      root,
+      ".harness/resources/plugins/review-pack/assets/README.md",
       "shared asset"
     );
     await write(
       root,
-      ".harness/plugins/review-pack/not-cursor.md",
+      ".harness/resources/plugins/review-pack/not-cursor.md",
       "cursor-only by target-output ignore"
     );
     await write(
       root,
-      ".harness/plugins/review-pack/logs/run.log",
+      ".harness/resources/plugins/review-pack/logs/run.log",
       "source-only log"
     );
     await write(
       root,
-      ".harness/plugins/review-pack/.agents/.codex-plugin/plugin.json",
+      ".harness/resources/plugins/review-pack/.agents/.codex-plugin/plugin.json",
       '{"runtime":"codex"}'
     );
     await write(
       root,
-      ".harness/plugins/review-pack/.agents/hooks/hooks.json",
+      ".harness/resources/plugins/review-pack/.agents/hooks/hooks.json",
       '{"hidden":"agents-scoped-ignore"}'
     );
     await write(
       root,
-      ".harness/plugins/review-pack/.claude/.claude-plugin/plugin.json",
+      ".harness/resources/plugins/review-pack/.claude/.claude-plugin/plugin.json",
       '{"runtime":"claude"}'
     );
     await write(
       root,
-      ".harness/plugins/review-pack/.claude/skills/review/SKILL.md",
+      ".harness/resources/plugins/review-pack/.claude/skills/review/SKILL.md",
       "claude nested skill"
     );
-    await write(root, ".harness/prompts/triage/PROMPT.md", "portable prompt");
     await write(
       root,
-      ".harness/prompts/triage/.claude/PROMPT.md",
+      ".harness/resources/prompts/triage/PROMPT.md",
+      "portable prompt"
+    );
+    await write(
+      root,
+      ".harness/resources/prompts/triage/.claude/PROMPT.md",
       "claude prompt"
     );
 
@@ -870,7 +1099,7 @@ describe("HarnessConfig activation projection", () => {
     const root = await rootFixture();
     await writeHarnessConfig(root);
     await write(root, ".harnessIgnore", "");
-    await write(root, ".harness/skills/review/SKILL.md", "projected");
+    await write(root, ".harness/resources/skills/review/SKILL.md", "projected");
     await write(root, ".agents/skills/manual/SKILL.md", "manual skill");
     await write(root, ".agents/skills/manual/logs/run.log", "manual log");
     await write(root, ".agents/skills/review/local.md", "local note");
@@ -916,7 +1145,7 @@ describe("HarnessConfig activation projection", () => {
     const root = await rootFixture();
     await writeHarnessConfig(root);
     await write(root, ".harnessIgnore", "");
-    await write(root, ".harness/skills/review/SKILL.md", "projected");
+    await write(root, ".harness/resources/skills/review/SKILL.md", "projected");
     await write(root, ".agents/skills/manual/SKILL.md", "manual skill");
     await write(root, ".agents/skills/review/local.md", "local note");
 
@@ -960,10 +1189,10 @@ describe("HarnessConfig activation projection", () => {
     const root = await rootFixture();
     await writeHarnessConfig(root);
     await write(root, ".harnessIgnore", "");
-    await write(root, ".harness/skills/review/SKILL.md", "first");
+    await write(root, ".harness/resources/skills/review/SKILL.md", "first");
 
     await applyHarnessActivation(root, { dryRun: false, yes: true });
-    await write(root, ".harness/skills/review/SKILL.md", "second");
+    await write(root, ".harness/resources/skills/review/SKILL.md", "second");
     await write(root, ".agents/skills/review/stale.md", "stale");
 
     const plan = await planHarnessActivation(root, {
@@ -1012,7 +1241,11 @@ describe("HarnessConfig activation projection", () => {
     const root = await rootFixture();
     await writeHarnessConfig(root, { targets: ["./.cursor"] });
     await write(root, ".harnessIgnore", "");
-    await write(root, ".harness/skills/review/SKILL.md", "shared skill");
+    await write(
+      root,
+      ".harness/resources/skills/review/SKILL.md",
+      "shared skill"
+    );
     await symlink(
       path.relative(path.join(root), path.join(root, ".agents")),
       path.join(root, ".cursor"),
@@ -1042,7 +1275,11 @@ describe("HarnessConfig activation projection", () => {
     const root = await rootFixture();
     await writeHarnessConfig(root);
     await write(root, ".harnessIgnore", "");
-    await write(root, ".harness/skills/review/SKILL.md", "shared skill");
+    await write(
+      root,
+      ".harness/resources/skills/review/SKILL.md",
+      "shared skill"
+    );
     await write(root, "outside.md", "outside");
     await mkdir(path.join(root, ".agents/skills/review"), { recursive: true });
     await symlink(
@@ -1070,7 +1307,7 @@ describe("HarnessConfig activation projection", () => {
     const root = await rootFixture();
     await writeHarnessConfig(root);
     await write(root, ".harnessIgnore", "");
-    await write(root, ".harness/skills/review/SKILL.md", "projected");
+    await write(root, ".harness/resources/skills/review/SKILL.md", "projected");
     await write(root, ".agents", "not a directory");
 
     const plan = await planHarnessActivation(root);
@@ -1103,7 +1340,7 @@ describe("HarnessConfig activation projection", () => {
     const root = await rootFixture();
     await writeHarnessConfig(root);
     await write(root, ".harnessIgnore", "");
-    await write(root, ".harness/skills/review/SKILL.md", "stable");
+    await write(root, ".harness/resources/skills/review/SKILL.md", "stable");
 
     await applyHarnessActivation(root, { dryRun: false, yes: true });
     const target = path.join(root, ".agents/skills/review/SKILL.md");
@@ -1128,8 +1365,16 @@ describe("HarnessConfig activation projection", () => {
     const root = await rootFixture();
     await writeHarnessConfig(root);
     await write(root, ".harnessIgnore", "");
-    await write(root, ".harness/skills/review/hooks/config.json", "{}");
-    await write(root, ".harness/skills/review/.agents/hooks", "not a dir");
+    await write(
+      root,
+      ".harness/resources/skills/review/hooks/config.json",
+      "{}"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/review/.agents/hooks",
+      "not a dir"
+    );
 
     const plan = await planHarnessActivation(root);
 
@@ -1150,8 +1395,12 @@ describe("HarnessConfig activation projection", () => {
     const root = await rootFixture();
     await writeHarnessConfig(root);
     await write(root, ".harnessIgnore", "");
-    await write(root, ".harness/skills/review/hooks", "not a dir");
-    await write(root, ".harness/skills/review/.agents/hooks/config.json", "{}");
+    await write(root, ".harness/resources/skills/review/hooks", "not a dir");
+    await write(
+      root,
+      ".harness/resources/skills/review/.agents/hooks/config.json",
+      "{}"
+    );
 
     const plan = await planHarnessActivation(root);
 
@@ -1178,7 +1427,7 @@ describe("HarnessConfig activation projection", () => {
     );
     await write(
       root,
-      ".harness/skills/review/settings.local.json",
+      ".harness/resources/skills/review/settings.local.json",
       '{"allow":[]}'
     );
 
@@ -1227,7 +1476,7 @@ describe("HarnessConfig activation projection", () => {
     );
     await write(
       root,
-      ".harness/skills/review/settings.local.json",
+      ".harness/resources/skills/review/settings.local.json",
       '{"allow":[]}'
     );
 
@@ -1256,7 +1505,7 @@ describe("HarnessConfig activation projection", () => {
     );
     await write(
       root,
-      ".harness/skills/review/settings.local.json",
+      ".harness/resources/skills/review/settings.local.json",
       '{"allow":[]}'
     );
 
@@ -1308,10 +1557,14 @@ describe("HarnessConfig activation projection", () => {
         "",
       ].join("\n")
     );
-    await write(root, ".harness/skills/review/SKILL.md", "review skill");
     await write(
       root,
-      ".harness/skills/review/settings.local.json",
+      ".harness/resources/skills/review/SKILL.md",
+      "review skill"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/review/settings.local.json",
       '{"allow":[]}'
     );
 
@@ -1332,7 +1585,11 @@ describe("HarnessConfig activation projection", () => {
     const root = await rootFixture();
     await writeHarnessConfig(root);
     await write(root, ".harnessIgnore", "");
-    await write(root, ".harness/skills/review/SKILL.md", "review skill");
+    await write(
+      root,
+      ".harness/resources/skills/review/SKILL.md",
+      "review skill"
+    );
 
     await applyHarnessActivation(root, { dryRun: false, yes: true });
     await writeFile(
@@ -1363,10 +1620,10 @@ describe("HarnessConfig activation projection", () => {
     const root = await rootFixture();
     await writeHarnessConfig(root);
     await write(root, ".harnessIgnore", "");
-    await write(root, ".harness/skills/review/SKILL.md", "first");
+    await write(root, ".harness/resources/skills/review/SKILL.md", "first");
 
     await applyHarnessActivation(root, { dryRun: false, yes: true });
-    await write(root, ".harness/skills/review/SKILL.md", "second");
+    await write(root, ".harness/resources/skills/review/SKILL.md", "second");
 
     const plan = await planHarnessActivation(root);
     expect(
@@ -1380,10 +1637,14 @@ describe("HarnessConfig activation projection", () => {
     const root = await rootFixture();
     await writeHarnessConfig(root);
     await write(root, ".harnessIgnore", "");
-    await write(root, ".harness/skills/review/SKILL.md", "review skill");
+    await write(
+      root,
+      ".harness/resources/skills/review/SKILL.md",
+      "review skill"
+    );
 
     await applyHarnessActivation(root, { dryRun: false, yes: true });
-    await rm(path.join(root, ".harness/skills/review/SKILL.md"));
+    await rm(path.join(root, ".harness/resources/skills/review/SKILL.md"));
 
     const plan = await planHarnessActivation(root, {
       cleanupUnmanaged: "remove",

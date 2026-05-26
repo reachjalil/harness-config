@@ -17,8 +17,9 @@ update the prompts, skills, rules, and plugins a repository owns — without
 turning each agent's runtime folder into the source of truth.
 
 A repository keeps its durable source material under one folder, `./.harness`,
-declares the resource roots and runtime targets in `./.harness/harness.toml`,
-and lets tools materialize each target as a reviewable copy projection.
+stores target resources under `./.harness/resources`, declares runtime targets
+in `./.harness/harness.toml`, and lets tools materialize each target as a
+reviewable copy projection.
 
 ## The Problem It Solves
 
@@ -39,9 +40,10 @@ See [docs/RATIONALE.md](./docs/RATIONALE.md) for the long form.
 - **Explicit targets only.** A repo-local folder receives projection *only*
   when declared in `harness.toml`. No implicit targets or reserved target
   folder names.
-- **No reserved resource kinds.** `skills`, `rules`, and `plugins` are
-  common conventions; repositories may declare `prompts`, `workflows`,
-  `checks`, or any other kind under `./.harness/<kind>/`.
+- **No reserved resource kinds.** `skills`, `rules`, `hooks`, and `plugins`
+  are common conventions under `./.harness/resources`; repositories may add
+  `prompts`, `workflows`, `checks`, direct files such as `hooks.json`, or any
+  other durable target resource path there.
 - **Copy projection.** Targets are materialized as ordinary files, not
   symlinks. The plan (`create` / `update` / `remove` / `keep` / `preserve`
   / `mutable`) is shown before any write.
@@ -72,58 +74,61 @@ of `@harnessconfig/core`.
 
 ## Layout
 
-Conventional resource roots:
+Canonical resources source:
 
 ```text
 .harness/
   harness.toml
-  skills/
-    review/
-      SKILL.md
-      .claude/
+  resources/
+    hooks.json
+    hooks/
+      post-tool-use.sh
+    skills/
+      review/
         SKILL.md
-  rules/
-    release/
-      RULE.md
-  plugins/
-    browser/
-      PLUGIN.md
-      .cursor/
-        plugin.json
+        .claude/
+          SKILL.md
+    rules/
+      release/
+        RULE.md
+    plugins/
+      browser/
+        PLUGIN.md
+        .cursor/
+          plugin.json
+    .gemini/
+      hooks.json
 .harnessIgnore
 ```
 
-Custom resource roots use the same shape:
+Custom resource kinds use the same shape:
 
 ```text
 .harness/
-  prompts/
-    incident-response/
-      PROMPT.md
-  workflows/
-    release-check/
-      workflow.toml
+  resources/
+    prompts/
+      incident-response/
+        PROMPT.md
+    workflows/
+      release-check/
+        workflow.toml
 ```
 
-Each resource kind lives under `./.harness/<kind>`. Each resource item is one
-folder. Immediate dot-prefixed folders inside an item are target overrides.
+Each resource kind lives under `./.harness/resources/<kind>`. Conventional
+resource items are folders, and direct files under `./.harness/resources`
+project to the target root. Immediate dot-prefixed folders directly under
+`resources/` are target-root overrides; immediate dot-prefixed folders inside
+an item are item-level target overrides.
 
 ## `harness.toml`
 
-`harness.toml` declares the supported standard version, resource roots, and
-projection targets:
+`harness.toml` declares the supported standard version and projection targets:
 
 ```toml
 version = 1
 
 [standard]
 name = "harness-config"
-
-[resources.skills]
-path = "./.harness/skills"
-
-[resources.prompts]
-path = "./.harness/prompts"
 
 [[targets]]
 path = "./.agents"
@@ -135,9 +140,9 @@ path = "./.claude"
 path = "./.harness/dir"
 ```
 
-Resource declarations contain only `path`. Target declarations contain only
-`path`. A target path such as `./.claude` automatically uses `.claude` override
-folders when they exist inside a resource item. The optional `[dir]` section
+Target declarations contain only `path`. A target path such as `./.claude`
+automatically uses `.claude` override folders when they exist in
+`./.harness/resources` or inside a resource item. The optional `[dir]` section
 turns on dir composition + copy from `./.harness/dir` (or the configured
 path); see "Dir Composition And Copy" below. Extensions are declared under
 `[extensions.<id>]`; core owns `version` and `activation`, while each extension
@@ -145,32 +150,33 @@ owns its remaining fields.
 
 ## `.harnessIgnore`
 
-`.harnessIgnore` is the projection boundary. Targets receive all declared
-resource roots by default; nested source-local and target-output-local ignore
-files decide what does not enter a given subtree. The repo-root file can
-match source paths such as `.harness/skills/review/logs/run.log` and target
-output paths such as `.agents/skills/review/scratch.tmp`.
+`.harnessIgnore` is the projection boundary. Targets receive the canonical
+`.harness/resources` tree by default; nested source-local and
+target-output-local ignore files decide what does not enter a given subtree.
+The repo-root file can match source paths such as
+`.harness/resources/skills/review/logs/run.log` and target output paths such
+as `.agents/skills/review/scratch.tmp`.
 
 ```text
 # Global source-only state
 .harness/**/logs/
 .harness/**/*.log
-.harness/skills/*/metadata.toml
+.harness/resources/skills/*/metadata.toml
 
 # Target-specific rules live beside the target output subtree.
 # For example, .claude/plugins/.harnessIgnore can contain:
 *
 ```
 
-Use `harness.toml` to declare what exists and where projections may write. Use
-`.harnessIgnore` to control which files or whole subtrees are excluded from
-projection.
+Use `harness.toml` to declare targets, optional `[dir]` output sources, and
+extensions. Use `.harnessIgnore` to control which files or whole subtrees are
+excluded from projection.
 
 Local `.harnessIgnore` files may also live next to source subtrees or
 existing target-output subtrees:
 
 ```text
-.harness/skills/review/.harnessIgnore     # source-local
+.harness/resources/skills/review/.harnessIgnore     # source-local
 resources/AGENTS.md/.harnessIgnore        # custom [dir] source-local
 .agents/skills/review/.harnessIgnore      # target-output-local
 ```
@@ -187,14 +193,15 @@ with a small selector file:
 ```text
 .harnessProfile                      # contains: deploy
 .harness/
-  skills/
-    review/SKILL.md                  # normal source
-    review/aggressiveProfile/
-      .harnessProfileRoot            # contains: aggressive
-      SKILL.md                       # overlays .harness/skills/review
+  resources/
+    skills/
+      review/SKILL.md                # normal source
+      review/aggressiveProfile/
+        .harnessProfileRoot          # contains: aggressive
+        SKILL.md                     # overlays .harness/resources/skills/review
     deploy/                          # profile root, not a skill
       .harnessProfileRoot            # contains: deploy
-      review/SKILL.md                # overlays .harness/skills/review
+      skills/review/SKILL.md         # overlays .harness/resources/skills/review
   profiles/
     personal/
       .harnessProfileRoot            # overlays .harness
@@ -235,11 +242,11 @@ npx harnessc init --yes --resource prompts --target ./runtime/agent
 npx harnessc plan
 ```
 
-`harnessc init` writes conventional resource roots (`skills`, `rules`, and
-`plugins`) when no `--resource` flags are supplied. Passing one or more
-`--resource <kind>` flags writes only those resource roots. Passing
-`--target <path>` declares explicit projection targets. Init is a dry run
-unless `--yes` is supplied.
+`harnessc init` writes conventional resource folders under
+`.harness/resources` (`skills`, `rules`, and `plugins`) when no `--resource`
+flags are supplied. Passing one or more `--resource <kind>` flags writes only
+those resource folders. Passing `--target <path>` declares explicit projection
+targets. Init is a dry run unless `--yes` is supplied.
 
 `harnessc plan` is a read-only initialization/adoption plan. It is not a
 projection preview, and it does not infer targets from existing folders.
@@ -290,13 +297,13 @@ Summary: create 1, update 1, mutable 1, remove 0, keep 2, preserve unmanaged 2
 Unmanaged policy: keeping existing target entries that are not in .harness.
 
 Creates
-  - create: .claude/skills/review/SKILL.md <- .harness/skills/review/.claude/SKILL.md
+  - create: .claude/skills/review/SKILL.md <- .harness/resources/skills/review/.claude/SKILL.md
 Updates
-  - update: .claude/prompts/incident-response/PROMPT.md <- .harness/prompts/incident-response/PROMPT.md
+  - update: .claude/prompts/incident-response/PROMPT.md <- .harness/resources/prompts/incident-response/PROMPT.md
 Projected files already matching
-  - keep: .claude/rules/release/RULE.md <- .harness/rules/release/RULE.md
+  - keep: .claude/rules/release/RULE.md <- .harness/resources/rules/release/RULE.md
 Mutable target files (runtime-owned, left untouched)
-  - mutable: .claude/skills/review/settings.local.json <- .harness/skills/review/settings.local.json
+  - mutable: .claude/skills/review/settings.local.json <- .harness/resources/skills/review/settings.local.json
 Unmanaged target entries kept
   - preserve: .claude/skills/local-only
   - preserve: .claude/skills/review/local.md

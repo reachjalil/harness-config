@@ -33,16 +33,11 @@ version = 1
 [standard]
 name = "harness-config"
 
-[resources.skills]
-path = "./.harness/skills"
-
 [[targets]]
 path = "./.claude"
 `);
 
     expect(config.version).toBe(CURRENT_HARNESS_CONFIG_VERSION);
-    expect(config.resources.skills.path).toBe("./.harness/skills");
-    expect(config.resources.rules).toBeUndefined();
     expect(config.targets[0]?.path).toBe("./.claude");
     expect(config.extensions).toEqual({});
     expect(listHarnessProjectionTargets(config)).toEqual(["./.claude"]);
@@ -62,10 +57,9 @@ path = "./.cursor"
     expect(inferHarnessOverrideDirectory("./.claude/skills")).toBe(".claude");
   });
 
-  it("does not invent targets or resource roots that are not declared", () => {
+  it("does not invent targets that are not declared", () => {
     const config = parseHarnessConfigToml("version = 1");
 
-    expect(config.resources).toEqual({});
     expect(listHarnessProjectionTargets(config)).toEqual([]);
     expect(config.extensions).toEqual({});
   });
@@ -111,14 +105,13 @@ mode = "copy"
     ).toThrow(/Unrecognized key/);
   });
 
-  it("rejects resource fields other than path", () => {
+  it("rejects manifest resource declarations", () => {
     expect(() =>
       parseHarnessConfigToml(`
 version = 1
 
 [resources.skills]
-path = "./.harness/skills"
-entry = "SKILL.md"
+path = "./.harness/resources/skills"
 `)
     ).toThrow(/Unrecognized key/);
   });
@@ -423,9 +416,16 @@ path = "./.cursor"
 
     expect(paths.harnessDir).toBe(path.join(root, ".harness"));
     expect(paths.ignorePath).toBe(path.join(root, ".harnessIgnore"));
-    expect(paths.skillsDir).toBe(path.join(root, ".harness", "skills"));
-    expect(paths.rulesDir).toBe(path.join(root, ".harness", "rules"));
-    expect(paths.pluginsDir).toBe(path.join(root, ".harness", "plugins"));
+    expect(paths.resourcesDir).toBe(path.join(root, ".harness", "resources"));
+    expect(paths.skillsDir).toBe(
+      path.join(root, ".harness", "resources", "skills")
+    );
+    expect(paths.rulesDir).toBe(
+      path.join(root, ".harness", "resources", "rules")
+    );
+    expect(paths.pluginsDir).toBe(
+      path.join(root, ".harness", "resources", "plugins")
+    );
   });
 
   it("parses .harnessIgnore patterns for projection filtering", () => {
@@ -435,61 +435,77 @@ path = "./.cursor"
 .harness/reports/
 .harness/**/logs/
 *.tmp
-!.harness/skills/review/keep.tmp
-.harness/plugins/*/source-only.json
+!.harness/resources/skills/review/keep.tmp
+.harness/resources/plugins/*/source-only.json
 `)
     );
 
     expect(matcher.ignores(".harness/reports/release.toml")).toBe(true);
-    expect(matcher.ignores(".harness/skills/review/logs/run.log")).toBe(true);
     expect(
-      matcher.ignores(".harness/skills/review/logs", { isDirectory: false })
+      matcher.ignores(".harness/resources/skills/review/logs/run.log")
+    ).toBe(true);
+    expect(
+      matcher.ignores(".harness/resources/skills/review/logs", {
+        isDirectory: false,
+      })
     ).toBe(false);
     expect(
-      matcher.ignores(".harness/skills/review/logs", { isDirectory: true })
+      matcher.ignores(".harness/resources/skills/review/logs", {
+        isDirectory: true,
+      })
     ).toBe(true);
-    expect(matcher.ignores(".harness/skills/review/cache.tmp")).toBe(true);
-    expect(matcher.ignores(".harness/skills/review/keep.tmp")).toBe(false);
-    expect(matcher.ignores(".harness/skills/review/SKILL.md")).toBe(false);
-    expect(matcher.ignores(".harness/plugins/review/source-only.json")).toBe(
+    expect(matcher.ignores(".harness/resources/skills/review/cache.tmp")).toBe(
       true
     );
+    expect(matcher.ignores(".harness/resources/skills/review/keep.tmp")).toBe(
+      false
+    );
+    expect(matcher.ignores(".harness/resources/skills/review/SKILL.md")).toBe(
+      false
+    );
+    expect(
+      matcher.ignores(".harness/resources/plugins/review/source-only.json")
+    ).toBe(true);
   });
 
   it("resets mutable .harnessIgnore rules with an ignore section", () => {
     const matcher = createHarnessIgnoreMatcher(
       parseHarnessIgnore(`
 [mutable]
-.harness/skills/*/settings.local.json
+.harness/resources/skills/*/settings.local.json
 
 [ignore]
-.harness/skills/*/all-targets.md
+.harness/resources/skills/*/all-targets.md
 `)
     );
 
     expect(
-      matcher.isMutable(".harness/skills/review/settings.local.json")
+      matcher.isMutable(".harness/resources/skills/review/settings.local.json")
     ).toBe(true);
-    expect(matcher.ignores(".harness/skills/review/settings.local.json")).toBe(
-      false
-    );
-    expect(matcher.ignores(".harness/skills/review/all-targets.md")).toBe(true);
-    expect(matcher.isMutable(".harness/skills/review/all-targets.md")).toBe(
-      false
-    );
+    expect(
+      matcher.ignores(".harness/resources/skills/review/settings.local.json")
+    ).toBe(false);
+    expect(
+      matcher.ignores(".harness/resources/skills/review/all-targets.md")
+    ).toBe(true);
+    expect(
+      matcher.isMutable(".harness/resources/skills/review/all-targets.md")
+    ).toBe(false);
   });
 
   it("uses last matching .harnessIgnore rule precedence", () => {
     const matcher = createHarnessIgnoreMatcher(
       parseHarnessIgnore(`
-.harness/skills/review/target.md
-!.harness/skills/review/target.md
-.harness/skills/review/target.md
-!.harness/skills/review/target.md
+.harness/resources/skills/review/target.md
+!.harness/resources/skills/review/target.md
+.harness/resources/skills/review/target.md
+!.harness/resources/skills/review/target.md
 `)
     );
 
-    expect(matcher.ignores(".harness/skills/review/target.md")).toBe(false);
+    expect(matcher.ignores(".harness/resources/skills/review/target.md")).toBe(
+      false
+    );
   });
 
   it("parses [mutable] scopes and switches back to ignore scopes", () => {
@@ -499,47 +515,51 @@ path = "./.cursor"
 .harness/**/settings.local.json
 
 [ignore]
-.harness/skills/*/ignored-elsewhere.md
+.harness/resources/skills/*/ignored-elsewhere.md
 `)
     );
 
-    expect(matcher.isMutable(".harness/skills/x/settings.local.json")).toBe(
-      true
-    );
+    expect(
+      matcher.isMutable(".harness/resources/skills/x/settings.local.json")
+    ).toBe(true);
     // Ignore section after mutable scope returns kind to ignore.
-    expect(matcher.ignores(".harness/skills/x/ignored-elsewhere.md")).toBe(
-      true
-    );
-    expect(matcher.isMutable(".harness/skills/x/ignored-elsewhere.md")).toBe(
-      false
-    );
+    expect(
+      matcher.ignores(".harness/resources/skills/x/ignored-elsewhere.md")
+    ).toBe(true);
+    expect(
+      matcher.isMutable(".harness/resources/skills/x/ignored-elsewhere.md")
+    ).toBe(false);
   });
 
   it("treats nested .harnessIgnore patterns as relative to the file's directory", () => {
     const nested = parseHarnessIgnoreFile("*.tmp", {
       isRoot: false,
-      sourcePath: ".harness/skills/review/.harnessIgnore",
+      sourcePath: ".harness/resources/skills/review/.harnessIgnore",
     });
     const matcher = createHarnessIgnoreMatcher([
       {
         rules: nested.rules,
-        directory: ".harness/skills/review",
-        sourcePath: ".harness/skills/review/.harnessIgnore",
+        directory: ".harness/resources/skills/review",
+        sourcePath: ".harness/resources/skills/review/.harnessIgnore",
         isRoot: false,
       },
     ]);
 
-    expect(matcher.ignores(".harness/skills/review/scratch.tmp")).toBe(true);
-    expect(matcher.ignores(".harness/skills/review/nested/scratch.tmp")).toBe(
-      true
-    );
-    expect(matcher.ignores(".harness/skills/triage/scratch.tmp")).toBe(false);
+    expect(
+      matcher.ignores(".harness/resources/skills/review/scratch.tmp")
+    ).toBe(true);
+    expect(
+      matcher.ignores(".harness/resources/skills/review/nested/scratch.tmp")
+    ).toBe(true);
+    expect(
+      matcher.ignores(".harness/resources/skills/triage/scratch.tmp")
+    ).toBe(false);
   });
 
   it("lets a nested rule re-include a path the root file ignored", () => {
     const matcher = createHarnessIgnoreMatcher([
       {
-        rules: parseHarnessIgnore(".harness/skills/review/*.tmp"),
+        rules: parseHarnessIgnore(".harness/resources/skills/review/*.tmp"),
         directory: "",
         sourcePath: ".harnessIgnore",
         isRoot: true,
@@ -547,22 +567,26 @@ path = "./.cursor"
       {
         rules: parseHarnessIgnoreFile("!keep.tmp", {
           isRoot: false,
-          sourcePath: ".harness/skills/review/.harnessIgnore",
+          sourcePath: ".harness/resources/skills/review/.harnessIgnore",
         }).rules,
-        directory: ".harness/skills/review",
-        sourcePath: ".harness/skills/review/.harnessIgnore",
+        directory: ".harness/resources/skills/review",
+        sourcePath: ".harness/resources/skills/review/.harnessIgnore",
         isRoot: false,
       },
     ]);
 
-    expect(matcher.ignores(".harness/skills/review/drop.tmp")).toBe(true);
-    expect(matcher.ignores(".harness/skills/review/keep.tmp")).toBe(false);
+    expect(matcher.ignores(".harness/resources/skills/review/drop.tmp")).toBe(
+      true
+    );
+    expect(matcher.ignores(".harness/resources/skills/review/keep.tmp")).toBe(
+      false
+    );
   });
 
   it("lets a deeper nested rule override a shallower nested rule", () => {
     const matcher = createHarnessIgnoreMatcher([
       {
-        rules: parseHarnessIgnore(".harness/skills/**/draft.md"),
+        rules: parseHarnessIgnore(".harness/resources/skills/**/draft.md"),
         directory: "",
         sourcePath: ".harnessIgnore",
         isRoot: true,
@@ -570,31 +594,35 @@ path = "./.cursor"
       {
         rules: parseHarnessIgnoreFile("!review/draft.md", {
           isRoot: false,
-          sourcePath: ".harness/skills/.harnessIgnore",
+          sourcePath: ".harness/resources/skills/.harnessIgnore",
         }).rules,
-        directory: ".harness/skills",
-        sourcePath: ".harness/skills/.harnessIgnore",
+        directory: ".harness/resources/skills",
+        sourcePath: ".harness/resources/skills/.harnessIgnore",
         isRoot: false,
       },
       {
         rules: parseHarnessIgnoreFile("draft.md", {
           isRoot: false,
-          sourcePath: ".harness/skills/review/.harnessIgnore",
+          sourcePath: ".harness/resources/skills/review/.harnessIgnore",
         }).rules,
-        directory: ".harness/skills/review",
-        sourcePath: ".harness/skills/review/.harnessIgnore",
+        directory: ".harness/resources/skills/review",
+        sourcePath: ".harness/resources/skills/review/.harnessIgnore",
         isRoot: false,
       },
     ]);
 
-    expect(matcher.ignores(".harness/skills/review/draft.md")).toBe(true);
-    expect(matcher.ignores(".harness/skills/triage/draft.md")).toBe(true);
+    expect(matcher.ignores(".harness/resources/skills/review/draft.md")).toBe(
+      true
+    );
+    expect(matcher.ignores(".harness/resources/skills/triage/draft.md")).toBe(
+      true
+    );
   });
 
   it("evaluates rule sets shallow-first and applies last-match precedence across files", () => {
     const matcher = createHarnessIgnoreMatcher([
       {
-        rules: parseHarnessIgnore(".harness/skills/review/*.md"),
+        rules: parseHarnessIgnore(".harness/resources/skills/review/*.md"),
         directory: "",
         sourcePath: ".harnessIgnore",
         isRoot: true,
@@ -602,20 +630,24 @@ path = "./.cursor"
       {
         rules: parseHarnessIgnoreFile("!README.md", {
           isRoot: false,
-          sourcePath: ".harness/skills/review/.harnessIgnore",
+          sourcePath: ".harness/resources/skills/review/.harnessIgnore",
         }).rules,
-        directory: ".harness/skills/review",
-        sourcePath: ".harness/skills/review/.harnessIgnore",
+        directory: ".harness/resources/skills/review",
+        sourcePath: ".harness/resources/skills/review/.harnessIgnore",
         isRoot: false,
       },
     ]);
 
     expect(matcher.ruleSets.map((ruleSet) => ruleSet.directory)).toEqual([
       "",
-      ".harness/skills/review",
+      ".harness/resources/skills/review",
     ]);
-    expect(matcher.ignores(".harness/skills/review/NOTE.md")).toBe(true);
-    expect(matcher.ignores(".harness/skills/review/README.md")).toBe(false);
+    expect(matcher.ignores(".harness/resources/skills/review/NOTE.md")).toBe(
+      true
+    );
+    expect(matcher.ignores(".harness/resources/skills/review/README.md")).toBe(
+      false
+    );
   });
 
   it("matches target-based rule sets against output paths", () => {
@@ -633,11 +665,13 @@ path = "./.cursor"
     ]);
 
     expect(
-      matcher.ignores(".harness/skills/review/scratch.tmp", {
+      matcher.ignores(".harness/resources/skills/review/scratch.tmp", {
         outputPath: ".agents/skills/review/scratch.tmp",
       })
     ).toBe(true);
-    expect(matcher.ignores(".harness/skills/review/scratch.tmp")).toBe(false);
+    expect(
+      matcher.ignores(".harness/resources/skills/review/scratch.tmp")
+    ).toBe(false);
   });
 
   it("applies target-scoped ignore rule objects by target", () => {
@@ -665,29 +699,29 @@ path = "./.cursor"
             target: ".claude",
           },
         ],
-        directory: ".harness/skills/review",
-        sourcePath: ".harness/skills/review/.harnessIgnore",
+        directory: ".harness/resources/skills/review",
+        sourcePath: ".harness/resources/skills/review/.harnessIgnore",
         isRoot: false,
       },
     ]);
 
     expect(
-      matcher.ignores(".harness/skills/review/claude.md", {
+      matcher.ignores(".harness/resources/skills/review/claude.md", {
         targetPath: ".claude",
       })
     ).toBe(true);
     expect(
-      matcher.ignores(".harness/skills/review/claude.md", {
+      matcher.ignores(".harness/resources/skills/review/claude.md", {
         targetPath: ".agents",
       })
     ).toBe(false);
     expect(
-      matcher.ignores(".harness/skills/review/not-claude.md", {
+      matcher.ignores(".harness/resources/skills/review/not-claude.md", {
         targetPath: ".agents",
       })
     ).toBe(true);
     expect(
-      matcher.ignores(".harness/skills/review/not-claude.md", {
+      matcher.ignores(".harness/resources/skills/review/not-claude.md", {
         targetPath: ".claude",
       })
     ).toBe(false);
@@ -705,12 +739,12 @@ path = "./.cursor"
     ]);
 
     expect(
-      matcher.ignores(".harness/skills/review/logs/run.log", {
+      matcher.ignores(".harness/resources/skills/review/logs/run.log", {
         outputPath: ".agents/skills/review/logs/run.log",
       })
     ).toBe(true);
     expect(
-      matcher.ignores(".harness/skills/review/local.md", {
+      matcher.ignores(".harness/resources/skills/review/local.md", {
         outputPath: ".agents/skills/review/local.md",
       })
     ).toBe(true);
@@ -720,7 +754,7 @@ path = "./.cursor"
     const matcher = createHarnessIgnoreMatcher([
       {
         rules: parseHarnessIgnore(
-          ".agents/**/target.md\n!.harness/skills/review/target.md"
+          ".agents/**/target.md\n!.harness/resources/skills/review/target.md"
         ),
         directory: "",
         sourcePath: ".harnessIgnore",
@@ -730,7 +764,7 @@ path = "./.cursor"
     ]);
 
     expect(
-      matcher.ignores(".harness/skills/review/target.md", {
+      matcher.ignores(".harness/resources/skills/review/target.md", {
         outputPath: ".agents/skills/review/target.md",
       })
     ).toBe(false);
@@ -761,12 +795,12 @@ path = "./.cursor"
     ]);
 
     expect(
-      matcher.ignores(".harness/skills/review/NOTE.md", {
+      matcher.ignores(".harness/resources/skills/review/NOTE.md", {
         outputPath: ".agents/skills/review/NOTE.md",
       })
     ).toBe(true);
     expect(
-      matcher.ignores(".harness/skills/review/README.md", {
+      matcher.ignores(".harness/resources/skills/review/README.md", {
         outputPath: ".agents/skills/review/README.md",
       })
     ).toBe(false);
@@ -782,20 +816,20 @@ settings.local.json
 `,
           {
             isRoot: false,
-            sourcePath: ".harness/skills/review/.harnessIgnore",
+            sourcePath: ".harness/resources/skills/review/.harnessIgnore",
           }
         ).rules,
-        directory: ".harness/skills/review",
-        sourcePath: ".harness/skills/review/.harnessIgnore",
+        directory: ".harness/resources/skills/review",
+        sourcePath: ".harness/resources/skills/review/.harnessIgnore",
         isRoot: false,
       },
     ]);
 
     expect(
-      matcher.isMutable(".harness/skills/review/settings.local.json")
+      matcher.isMutable(".harness/resources/skills/review/settings.local.json")
     ).toBe(true);
     expect(
-      matcher.isMutable(".harness/skills/triage/settings.local.json")
+      matcher.isMutable(".harness/resources/skills/triage/settings.local.json")
     ).toBe(false);
   });
 
@@ -813,14 +847,14 @@ state.json
 `,
       {
         isRoot: false,
-        sourcePath: ".harness/skills/review/.harnessIgnore",
+        sourcePath: ".harness/resources/skills/review/.harnessIgnore",
       }
     );
     const matcher = createHarnessIgnoreMatcher([
       {
         rules: parsed.rules,
-        directory: ".harness/skills/review",
-        sourcePath: ".harness/skills/review/.harnessIgnore",
+        directory: ".harness/resources/skills/review",
+        sourcePath: ".harness/resources/skills/review/.harnessIgnore",
         isRoot: false,
       },
     ]);
@@ -837,16 +871,22 @@ state.json
         message: expect.stringContaining("[mutable .cursor]"),
       }),
     ]);
-    expect(matcher.ignores(".harness/skills/review/secret.md")).toBe(false);
-    expect(matcher.ignores(".harness/skills/review/shared.md")).toBe(true);
-    expect(matcher.isMutable(".harness/skills/review/state.json")).toBe(false);
+    expect(matcher.ignores(".harness/resources/skills/review/secret.md")).toBe(
+      false
+    );
+    expect(matcher.ignores(".harness/resources/skills/review/shared.md")).toBe(
+      true
+    );
+    expect(
+      matcher.isMutable(".harness/resources/skills/review/state.json")
+    ).toBe(false);
 
     const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
     await mkdir(path.join(root, ".harness"), { recursive: true });
     await write(root, ".harnessIgnore", "");
     await write(
       root,
-      ".harness/skills/review/.harnessIgnore",
+      ".harness/resources/skills/review/.harnessIgnore",
       "[.claude]\nsecret.md\n"
     );
     await expect(loadHarnessIgnoreRuleSets(root)).resolves.toMatchObject({
@@ -864,7 +904,7 @@ state.json
     await write(root, ".harnessIgnore", "");
     await write(
       root,
-      ".harness/skills/review/.claude/.harnessIgnore",
+      ".harness/resources/skills/review/.claude/.harnessIgnore",
       "[.claude]\nsecret.md\n"
     );
 
@@ -873,14 +913,15 @@ state.json
     expect(
       ruleSets.find(
         (ruleSet) =>
-          ruleSet.sourcePath === ".harness/skills/review/.claude/.harnessIgnore"
+          ruleSet.sourcePath ===
+          ".harness/resources/skills/review/.claude/.harnessIgnore"
       )?.rules
     ).toEqual([]);
     expect(diagnostics).toEqual([
       expect.objectContaining({
         severity: "error",
         code: "harness.ignore_unsupported_scope",
-        path: ".harness/skills/review/.claude/.harnessIgnore",
+        path: ".harness/resources/skills/review/.claude/.harnessIgnore",
       }),
     ]);
   });
@@ -891,7 +932,7 @@ state.json
     await write(root, ".harnessIgnore", "");
     await write(
       root,
-      ".harness/skills/review/.claude/.harnessIgnore",
+      ".harness/resources/skills/review/.claude/.harnessIgnore",
       "[!.cursor]\nshared.md\n"
     );
 
@@ -912,7 +953,7 @@ state.json
     await write(root, ".harnessIgnore", "");
     await write(
       root,
-      ".harness/skills/review/.claude/.harnessIgnore",
+      ".harness/resources/skills/review/.claude/.harnessIgnore",
       "[.cursor]\ndead.md\n"
     );
 
@@ -933,7 +974,7 @@ state.json
     await write(root, ".harnessIgnore", "");
     await write(
       root,
-      ".harness/skills/review/.claude/.harnessIgnore",
+      ".harness/resources/skills/review/.claude/.harnessIgnore",
       "[!.claude]\ndead.md\n"
     );
 
@@ -986,7 +1027,7 @@ path = "./.agents"
     await write(root, ".harnessIgnore", "");
     await write(
       root,
-      ".harness/skills/review/.claude/.harnessIgnore",
+      ".harness/resources/skills/review/.claude/.harnessIgnore",
       "[*]\nshared.md\n\n[mutable]\nsettings.local.json\n"
     );
 
@@ -1000,36 +1041,50 @@ path = "./.agents"
       {
         rules: parseHarnessIgnoreFile("secret.md\n", {
           isRoot: false,
-          sourcePath: ".harness/skills/review/.harnessIgnore",
+          sourcePath: ".harness/resources/skills/review/.harnessIgnore",
         }).rules,
-        directory: ".harness/skills/review",
-        sourcePath: ".harness/skills/review/.harnessIgnore",
+        directory: ".harness/resources/skills/review",
+        sourcePath: ".harness/resources/skills/review/.harnessIgnore",
         isRoot: false,
       },
     ]);
 
-    expect(matcher.ignores(".harness/skills/review/secret.md")).toBe(true);
-    expect(matcher.ignores(".harness/skills/other/secret.md")).toBe(false);
+    expect(matcher.ignores(".harness/resources/skills/review/secret.md")).toBe(
+      true
+    );
+    expect(matcher.ignores(".harness/resources/skills/other/secret.md")).toBe(
+      false
+    );
   });
 
   it("detects implicit override target via detectImplicitOverrideTarget()", () => {
     expect(
       detectImplicitOverrideTarget(
-        ".harness/skills/review/.claude/.harnessIgnore"
+        ".harness/resources/skills/review/.claude/.harnessIgnore"
       )
     ).toBe(".claude");
     expect(
       detectImplicitOverrideTarget(
-        ".harness/skills/review/.claude/nested/.harnessIgnore"
+        ".harness/resources/skills/review/.claude/nested/.harnessIgnore"
       )
     ).toBe(".claude");
     expect(
+      detectImplicitOverrideTarget(".harness/resources/.gemini/.harnessIgnore")
+    ).toBe(".gemini");
+    expect(
       detectImplicitOverrideTarget(
-        ".harness/skills/review/nested/.claude/.harnessIgnore"
+        ".harness/resources/skills/review/.gemini/.harnessIgnore"
+      )
+    ).toBe(".gemini");
+    expect(
+      detectImplicitOverrideTarget(
+        ".harness/resources/skills/review/nested/.claude/.harnessIgnore"
       )
     ).toBeUndefined();
     expect(
-      detectImplicitOverrideTarget(".harness/skills/review/.harnessIgnore")
+      detectImplicitOverrideTarget(
+        ".harness/resources/skills/review/.harnessIgnore"
+      )
     ).toBeUndefined();
   });
 
@@ -1038,16 +1093,20 @@ path = "./.agents"
       {
         rules: parseHarnessIgnoreFile("*.tmp", {
           isRoot: false,
-          sourcePath: ".harness/skills/review/.harnessIgnore",
+          sourcePath: ".harness/resources/skills/review/.harnessIgnore",
         }).rules,
-        directory: ".harness/skills/review",
-        sourcePath: ".harness/skills/review/.harnessIgnore",
+        directory: ".harness/resources/skills/review",
+        sourcePath: ".harness/resources/skills/review/.harnessIgnore",
         isRoot: false,
       },
     ]);
 
-    expect(matcher.ignores(".harness/skills/review/cache.tmp")).toBe(true);
-    expect(matcher.ignores(".harness/skills/triage/cache.tmp")).toBe(false);
+    expect(matcher.ignores(".harness/resources/skills/review/cache.tmp")).toBe(
+      true
+    );
+    expect(matcher.ignores(".harness/resources/skills/triage/cache.tmp")).toBe(
+      false
+    );
   });
 
   it("ignores .harnessIgnore files themselves from projection by default", () => {
@@ -1059,13 +1118,15 @@ path = "./.agents"
         pattern: "**/.harnessIgnore",
       })
     );
-    expect(matcher.ignores(".harness/skills/review/.harnessIgnore")).toBe(true);
-    expect(matcher.ignores(".harness/skills/review/.harnessProfile")).toBe(
-      true
-    );
-    expect(matcher.ignores(".harness/skills/deploy/.harnessProfileRoot")).toBe(
-      true
-    );
+    expect(
+      matcher.ignores(".harness/resources/skills/review/.harnessIgnore")
+    ).toBe(true);
+    expect(
+      matcher.ignores(".harness/resources/skills/review/.harnessProfile")
+    ).toBe(true);
+    expect(
+      matcher.ignores(".harness/resources/skills/deploy/.harnessProfileRoot")
+    ).toBe(true);
   });
 
   it("discovers root and target-local profile selectors", async () => {
@@ -1182,13 +1243,15 @@ path = "./.agents"
 `)
     );
 
-    expect(matcher.ignores(".harness/skills/x/run.log")).toBe(true);
-    expect(matcher.isMutable(".harness/skills/x/run.log")).toBe(false);
-    expect(matcher.ignores(".harness/skills/x/settings.local.json")).toBe(
+    expect(matcher.ignores(".harness/resources/skills/x/run.log")).toBe(true);
+    expect(matcher.isMutable(".harness/resources/skills/x/run.log")).toBe(
       false
     );
-    expect(matcher.isMutable(".harness/skills/x/settings.local.json")).toBe(
-      true
-    );
+    expect(
+      matcher.ignores(".harness/resources/skills/x/settings.local.json")
+    ).toBe(false);
+    expect(
+      matcher.isMutable(".harness/resources/skills/x/settings.local.json")
+    ).toBe(true);
   });
 });

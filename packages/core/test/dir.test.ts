@@ -17,9 +17,8 @@ async function write(root: string, relativePath: string, content: string) {
 
 async function writeConfig(
   root: string,
-  options: { resources?: string[]; targets?: string[]; dirPath?: string } = {}
+  options: { targets?: string[]; dirPath?: string } = {}
 ) {
-  const resources = options.resources ?? [];
   const targets = options.targets ?? [];
   await write(
     root,
@@ -27,11 +26,6 @@ async function writeConfig(
     [
       "version = 1",
       "",
-      ...resources.flatMap((resource) => [
-        `[resources.${resource}]`,
-        `path = "./.harness/${resource}"`,
-        "",
-      ]),
       ...targets.flatMap((target) => ["[[targets]]", `path = "${target}"`, ""]),
       "[dir]",
       `path = "${options.dirPath ?? "./.harness/dir"}"`,
@@ -565,7 +559,6 @@ describe("core dir (composable + copy)", () => {
   it("merges resource projection and dir outputs into the same managed target", async () => {
     const root = await fixtureRoot();
     await writeConfig(root, {
-      resources: ["skills"],
       targets: ["./.agents"],
     });
     await write(root, ".harnessIgnore", "");
@@ -574,7 +567,7 @@ describe("core dir (composable + copy)", () => {
       ".agents/skills/review/.harnessIgnore",
       "local-only.tmp\n"
     );
-    await write(root, ".harness/skills/review/SKILL.md", "resource");
+    await write(root, ".harness/resources/skills/review/SKILL.md", "resource");
     await write(root, ".harness/dir/.agents/skills/review/README.md", "dir");
     await write(
       root,
@@ -668,11 +661,10 @@ describe("core dir (composable + copy)", () => {
   it("reports a conflict when a dir output collides with a resource projection", async () => {
     const root = await fixtureRoot();
     await writeConfig(root, {
-      resources: ["skills"],
       targets: ["./.agents"],
     });
     await write(root, ".harnessIgnore", "");
-    await write(root, ".harness/skills/review/SKILL.md", "resource");
+    await write(root, ".harness/resources/skills/review/SKILL.md", "resource");
     await write(root, ".harness/dir/.agents/skills/review/SKILL.md", "dir");
 
     const plan = await planHarnessActivation(root);
@@ -693,7 +685,6 @@ describe("core dir (composable + copy)", () => {
   it("applies target-output ignores to resources without suppressing unrelated dir outputs", async () => {
     const root = await fixtureRoot();
     await writeConfig(root, {
-      resources: ["skills"],
       targets: ["./.agents"],
     });
     await write(root, ".harnessIgnore", "");
@@ -702,8 +693,12 @@ describe("core dir (composable + copy)", () => {
       ".agents/skills/review/.harnessIgnore",
       "agents-only.md\n"
     );
-    await write(root, ".harness/skills/review/SKILL.md", "resource");
-    await write(root, ".harness/skills/review/agents-only.md", "drop");
+    await write(root, ".harness/resources/skills/review/SKILL.md", "resource");
+    await write(
+      root,
+      ".harness/resources/skills/review/agents-only.md",
+      "drop"
+    );
     await write(root, ".harness/dir/.agents/notes/scoped.md", "dir");
 
     await applyHarnessActivation(root, { yes: true });

@@ -8,8 +8,8 @@ import { createInterface } from "node:readline/promises";
 import {
   applyHarnessActivation,
   applyHarnessInitialization,
+  CONVENTIONAL_HARNESS_RESOURCES,
   createDefaultHarnessConfig,
-  defaultHarnessResourcePath,
   formatActivationPlan,
   formatActivationResult,
   formatDiagnostics,
@@ -80,12 +80,12 @@ Commands:
   extension   Plan or apply registered HarnessConfig extensions.
   plan        Show a read-only initialization/adoption plan, not a projection preview.
 
-HarnessConfig standardizes the .harness/<kind>/<name> resource shape,
-harness.toml resource and target declarations, and .harnessIgnore projection
-boundaries. Init uses skills, rules, and plugins as conventional resource
-roots unless --resource is supplied. Targets are explicit repo-local paths
-declared with --target. Declaring [dir] in harness.toml turns on the dir
-source root (default ./.harness/dir): a folder that contains a
+HarnessConfig standardizes the .harness/resources projection tree,
+harness.toml target declarations, and .harnessIgnore projection boundaries.
+Init uses skills, rules, and plugins as conventional resource folders under
+.harness/resources unless --resource is supplied. Targets are explicit
+repo-local paths declared with --target. Declaring [dir] in harness.toml turns
+on the dir source root (default ./.harness/dir): a folder that contains a
 .harnessComposable marker file is composed from its numbered parts into a
 single output file, and any other folder copies its files to the matching
 repo-relative paths.
@@ -225,31 +225,25 @@ function parseArgs(argv: string[]): CliOptions {
   return options;
 }
 
-function initConfigFromOptions(
+function initOptionsFromCli(
   options: Pick<CliOptions, "resources" | "targets">
-): HarnessConfig | undefined {
-  if (options.resources.length === 0 && options.targets.length === 0) {
-    return undefined;
+): { config?: HarnessConfig; resourceKinds?: string[] } {
+  const resourceKinds =
+    options.resources.length > 0
+      ? options.resources
+      : [...CONVENTIONAL_HARNESS_RESOURCES];
+  if (options.targets.length === 0) {
+    return { resourceKinds };
   }
 
   const base = createDefaultHarnessConfig();
-  const resources =
-    options.resources.length > 0
-      ? Object.fromEntries(
-          options.resources.map((resource) => [
-            resource,
-            {
-              path: defaultHarnessResourcePath(resource),
-            },
-          ])
-        )
-      : base.resources;
-
-  return harnessConfigSchema.parse({
-    ...base,
-    resources,
-    targets: options.targets.map((target) => ({ path: target })),
-  });
+  return {
+    config: harnessConfigSchema.parse({
+      ...base,
+      targets: options.targets.map((target) => ({ path: target })),
+    }),
+    resourceKinds,
+  };
 }
 
 function hasUnmanagedEntries(plan: HarnessActivationPlan): boolean {
@@ -336,9 +330,10 @@ export async function runHarnessConfigCli(
     }
 
     if (options.command === "plan") {
-      const plan = await planHarnessInitialization(options.root, {
-        config: initConfigFromOptions(options),
-      });
+      const plan = await planHarnessInitialization(
+        options.root,
+        initOptionsFromCli(options)
+      );
       io.stdout(
         options.json
           ? JSON.stringify(plan, null, 2)
@@ -439,7 +434,7 @@ export async function runHarnessConfigCli(
       const result = await applyHarnessInitialization(options.root, {
         dryRun: options.dryRun || !options.yes,
         yes: options.yes,
-        config: initConfigFromOptions(options),
+        ...initOptionsFromCli(options),
       });
       io.stdout(
         options.json

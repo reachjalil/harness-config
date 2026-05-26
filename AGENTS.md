@@ -81,6 +81,7 @@ Expected manual evidence:
   runtime-owned files.
 - `.claude` receives its `.claude` override while `.agents` receives the base
   file.
+- Direct resource files project to target roots, with target-root overrides.
 - Root `.harnessIgnore` excludes source logs.
 - Target-output `.harnessIgnore` can filter one target while being preserved.
 - `[mutable]` files are created once, then left untouched until
@@ -98,20 +99,18 @@ Run from the repository root after `pnpm build`:
 tmp="$(mktemp -d)"
 
 mkdir -p \
-  "$tmp/.harness/skills/review/.claude" \
-  "$tmp/.harness/skills/review/logs" \
+  "$tmp/.harness/resources/.claude" \
+  "$tmp/.harness/resources/skills/review/.claude" \
+  "$tmp/.harness/resources/skills/review/logs" \
   "$tmp/.harness/dir/AGENTS.md" \
   "$tmp/.harness/dir/CLAUDE.md" \
   "$tmp/.harness/dir/.agents" \
   "$tmp/.harness/profiles/team/dir/AGENTS.md" \
-  "$tmp/.harness/profiles/team/skills/review" \
+  "$tmp/.harness/profiles/team/resources/skills/review" \
   "$tmp/.claude/skills/review"
 
 cat > "$tmp/.harness/harness.toml" <<'TOML'
 version = 1
-
-[resources.skills]
-path = "./.harness/skills"
 
 [[targets]]
 path = "./.agents"
@@ -132,11 +131,13 @@ EOF
 
 printf 'team\n' > "$tmp/.harnessProfile"
 printf 'team\n' > "$tmp/.harness/profiles/team/.harnessProfileRoot"
-printf 'base skill\n' > "$tmp/.harness/skills/review/SKILL.md"
-printf 'claude skill\n' > "$tmp/.harness/skills/review/.claude/SKILL.md"
-printf 'seed local\n' > "$tmp/.harness/skills/review/settings.local.json"
-printf 'ignore me\n' > "$tmp/.harness/skills/review/logs/run.log"
-printf 'filtered for claude\n' > "$tmp/.harness/skills/review/target-only.skip"
+printf 'base skill\n' > "$tmp/.harness/resources/skills/review/SKILL.md"
+printf 'claude skill\n' > "$tmp/.harness/resources/skills/review/.claude/SKILL.md"
+printf 'base hooks\n' > "$tmp/.harness/resources/hooks.json"
+printf 'claude hooks\n' > "$tmp/.harness/resources/.claude/hooks.json"
+printf 'seed local\n' > "$tmp/.harness/resources/skills/review/settings.local.json"
+printf 'ignore me\n' > "$tmp/.harness/resources/skills/review/logs/run.log"
+printf 'filtered for claude\n' > "$tmp/.harness/resources/skills/review/target-only.skip"
 printf '*.skip\n' > "$tmp/.claude/skills/review/.harnessIgnore"
 
 printf '' > "$tmp/.harness/dir/AGENTS.md/.harnessComposable"
@@ -147,7 +148,7 @@ printf 'claude tail\n' > "$tmp/.harness/dir/CLAUDE.md/200_claude.md"
 printf 'target dir merge\n' > "$tmp/.harness/dir/.agents/dir-note.md"
 
 printf 'profile agents\n' > "$tmp/.harness/profiles/team/dir/AGENTS.md/150_profile.md"
-printf 'profile skill\n' > "$tmp/.harness/profiles/team/skills/review/PROFILE.md"
+printf 'profile skill\n' > "$tmp/.harness/profiles/team/resources/skills/review/PROFILE.md"
 
 node packages/cli/dist/bin.js validate --root "$tmp"
 node packages/cli/dist/bin.js activate --root "$tmp"
@@ -165,6 +166,8 @@ grep -qx 'seed local' "$tmp/.agents/skills/review/settings.local.json"
 
 grep -qx 'base skill' "$tmp/.agents/skills/review/SKILL.md"
 grep -qx 'claude skill' "$tmp/.claude/skills/review/SKILL.md"
+grep -qx 'base hooks' "$tmp/.agents/hooks.json"
+grep -qx 'claude hooks' "$tmp/.claude/hooks.json"
 test -f "$tmp/.agents/skills/review/PROFILE.md"
 test -f "$tmp/.claude/skills/review/PROFILE.md"
 test -f "$tmp/.agents/skills/review/target-only.skip"

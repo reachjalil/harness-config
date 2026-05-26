@@ -42,20 +42,22 @@ replace or contain a declared target root are rejected.
 `[extensions.<id>]`. Core validates the shared `version` and `activation`
 fields and preserves extension-owned fields for registered extension packages.
 
-The core standard treats resource kinds as declared names. `skills`, `rules`,
-and `plugins` are conventional initialization defaults, not reserved schema
-concepts. Targets are also explicit repo-local paths; no target folder name is
-created, reserved, or projected by default.
+The core standard treats resource kinds as source-tree names under
+`.harness/resources`. `skills`, `rules`, `hooks`, and `plugins` are
+conventions, not reserved schema concepts, and direct files such as
+`.harness/resources/hooks.json` can project to target roots. Targets are
+explicit repo-local paths; no target folder name is created, reserved, or
+projected by default.
 
 Use the activation helpers when a consuming tool projects resource views into a
 live harness. Source catalogs can contain metadata, logs, or local state,
 but matched files are excluded by `.harnessIgnore`. Repeated activation with
 the same inputs, cleanup policy, and mutable policy should produce the same
 target tree.
-`.harnessIgnore` can be repo-root, source-local under declared source roots,
-or target-output-local under existing target/output folders. Target-output
-rules match final output paths and existing target-output `.harnessIgnore`
-files are preserved during cleanup.
+`.harnessIgnore` can be repo-root, source-local under `.harness/resources` or
+the declared `[dir]` source, or target-output-local under existing
+target/output folders. Target-output rules match final output paths and
+existing target-output `.harnessIgnore` files are preserved during cleanup.
 `.harnessProfile` selectors can activate `.harnessProfileRoot` overlays under
 `.harness`. Active profile roots merge by logical source path for resources
 and `[dir]`; generic profile overlays do not beat target-specific resource

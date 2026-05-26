@@ -63,31 +63,28 @@ describe("HarnessConfig initialization", () => {
     await applyHarnessInitialization(root, { yes: true });
 
     await expect(
-      lstat(path.join(root, ".harness", "skills"))
+      lstat(path.join(root, ".harness", "resources", "skills"))
     ).resolves.toBeTruthy();
     await expect(
-      lstat(path.join(root, ".harness", "rules"))
+      lstat(path.join(root, ".harness", "resources", "rules"))
     ).resolves.toBeTruthy();
     await expect(
-      lstat(path.join(root, ".harness", "plugins"))
+      lstat(path.join(root, ".harness", "resources", "plugins"))
     ).resolves.toBeTruthy();
     await expect(
-      lstat(path.join(root, ".harness", "reports"))
+      lstat(path.join(root, ".harness", "resources", "reports"))
     ).rejects.toThrow();
   });
 
-  it("can initialize custom resource roots and explicit targets", async () => {
+  it("can initialize custom resource folders and explicit targets", async () => {
     const root = await fixtureRoot();
 
     await applyHarnessInitialization(root, {
       yes: true,
+      resourceKinds: ["prompts", "workflows"],
       config: {
         version: 1,
         standard: { name: "harness-config" },
-        resources: {
-          prompts: { path: "./.harness/prompts" },
-          workflows: { path: "./.harness/workflows" },
-        },
         targets: [{ path: "./runtime/agent" }, { path: "./custom-target" }],
       },
     });
@@ -97,17 +94,17 @@ describe("HarnessConfig initialization", () => {
       "utf8"
     );
 
-    expect(rawConfig).toContain("[resources.prompts]");
+    expect(rawConfig).not.toContain("[resources.prompts]");
     expect(rawConfig).toContain('path = "./runtime/agent"');
     expect(rawConfig).toContain('path = "./custom-target"');
     await expect(
-      lstat(path.join(root, ".harness", "prompts"))
+      lstat(path.join(root, ".harness", "resources", "prompts"))
     ).resolves.toBeTruthy();
     await expect(
-      lstat(path.join(root, ".harness", "workflows"))
+      lstat(path.join(root, ".harness", "resources", "workflows"))
     ).resolves.toBeTruthy();
     await expect(
-      lstat(path.join(root, ".harness", "skills"))
+      lstat(path.join(root, ".harness", "resources", "skills"))
     ).rejects.toThrow();
   });
 
@@ -126,11 +123,9 @@ describe("HarnessConfig initialization", () => {
       config: {
         version: 1,
         standard: { name: "harness-config" },
-        resources: {
-          skills: { path: "./.harness/skills" },
-        },
         targets: [{ path: "./.agents" }],
       },
+      resourceKinds: ["skills"],
     });
 
     expect(plan.diagnostics).toEqual(
