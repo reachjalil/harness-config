@@ -21,7 +21,7 @@ import { type HarnessConfig, listHarnessProjectionTargets } from "./standard";
 import type { HarnessDiagnostic, HarnessIgnoreMatcher } from "./types";
 
 export const HARNESS_COMPOSABLE_MARKER = ".harnessComposable";
-export const HARNESS_COMPOSABLE_REF_FILE = ".ref";
+export const HARNESS_COMPOSABLE_REF_FILE = ".harnessRef";
 const COMPOSABLE_PART_PATTERN = /^(?<order>[0-9]+)_.+$/;
 
 export type DirOutputKind = "composable" | "copy";
@@ -59,6 +59,7 @@ type DirSourceLayer = {
 };
 
 type LocalPart = {
+  leafRelativePath: string;
   order: number;
   sourcePath: string;
   bytes: Buffer;
@@ -70,8 +71,8 @@ type ComposableLeaf = {
   absolutePath: string;
   relativePath: string;
   parts: LocalPart[];
-  refSourcePath?: string;
-  refTargetRelativePath?: string;
+  harnessRefSourcePath?: string;
+  harnessRefTargetRelativePath?: string;
 };
 
 type EntryType = "directory" | "file" | "symlink" | "other";
@@ -324,7 +325,7 @@ async function readComposableParts(
 ): Promise<void> {
   for (const file of files) {
     if (file.name === HARNESS_COMPOSABLE_REF_FILE) {
-      const rawRef = await readFile(file.absolutePath, "utf8").catch(
+      const rawHarnessRef = await readFile(file.absolutePath, "utf8").catch(
         (error: unknown) => {
           diagnostics.push({
             severity: "error",
@@ -335,10 +336,10 @@ async function readComposableParts(
           return undefined;
         }
       );
-      if (rawRef === undefined) {
+      if (rawHarnessRef === undefined) {
         continue;
       }
-      const refLines = rawRef
+      const refLines = rawHarnessRef
         .split(/\r?\n/)
         .map((line) => line.trim())
         .filter(Boolean);
@@ -346,7 +347,8 @@ async function readComposableParts(
         diagnostics.push({
           severity: "error",
           code: "harness.dir_ref_invalid",
-          message: ".ref must contain exactly one relative composable path.",
+          message:
+            ".harnessRef must contain exactly one relative composable path.",
           path: toRepoRelative(root, file.absolutePath),
         });
         continue;
@@ -356,13 +358,13 @@ async function readComposableParts(
         diagnostics.push({
           severity: "error",
           code: "harness.dir_ref_absolute",
-          message: ".ref targets must be relative paths.",
+          message: ".harnessRef targets must be relative paths.",
           path: toRepoRelative(root, file.absolutePath),
         });
         continue;
       }
-      leaf.refSourcePath = file.absolutePath;
-      leaf.refTargetRelativePath = normalizeRelative(
+      leaf.harnessRefSourcePath = file.absolutePath;
+      leaf.harnessRefTargetRelativePath = normalizeRelative(
         path.posix.normalize(path.posix.join(leaf.relativePath, refLine))
       );
       continue;
@@ -396,6 +398,7 @@ async function readComposableParts(
     }
 
     leaf.parts.push({
+      leafRelativePath: leaf.relativePath,
       order: Number.parseInt(partMatch.groups.order, 10),
       sourcePath: file.absolutePath,
       bytes,
@@ -410,7 +413,7 @@ function resolveRefTargets(
   diagnostics: HarnessDiagnostic[]
 ): void {
   for (const leaf of leaves.values()) {
-    const refTarget = leaf.refTargetRelativePath;
+    const refTarget = leaf.harnessRefTargetRelativePath;
     if (!refTarget) {
       continue;
     }
@@ -423,12 +426,12 @@ function resolveRefTargets(
       diagnostics.push({
         severity: "error",
         code: "harness.dir_ref_outside_root",
-        message: ".ref targets must stay inside the dir source root.",
-        path: leaf.refSourcePath
-          ? toRepoRelative(root, leaf.refSourcePath)
+        message: ".harnessRef targets must stay inside the dir source root.",
+        path: leaf.harnessRefSourcePath
+          ? toRepoRelative(root, leaf.harnessRefSourcePath)
           : toRepoRelative(root, leaf.absolutePath),
       });
-      leaf.refTargetRelativePath = undefined;
+      leaf.harnessRefTargetRelativePath = undefined;
       continue;
     }
 
@@ -436,14 +439,14 @@ function resolveRefTargets(
       diagnostics.push({
         severity: "error",
         code: "harness.dir_ref_missing",
-        message: `.ref target "${refTarget}" does not resolve to an included composable leaf.`,
-        path: leaf.refSourcePath
-          ? toRepoRelative(root, leaf.refSourcePath)
+        message: `.harnessRef target "${refTarget}" does not resolve to an included composable leaf.`,
+        path: leaf.harnessRefSourcePath
+          ? toRepoRelative(root, leaf.harnessRefSourcePath)
           : toRepoRelative(root, leaf.absolutePath),
         recommendation:
-          "Point .ref at another composable directory or update .harnessIgnore.",
+          "Point .harnessRef at another composable directory or update .harnessIgnore.",
       });
-      leaf.refTargetRelativePath = undefined;
+      leaf.harnessRefTargetRelativePath = undefined;
     }
   }
 }
@@ -458,19 +461,19 @@ function expandParts(
     diagnostics.push({
       severity: "error",
       code: "harness.dir_ref_cycle",
-      message: `Composable .ref cycle detected: ${[
+      message: `Composable .harnessRef cycle detected: ${[
         ...stack,
         leaf.relativePath,
       ].join(" -> ")}.`,
-      path: leaf.refSourcePath,
-      recommendation: "Remove one .ref edge from the cycle.",
+      path: leaf.harnessRefSourcePath,
+      recommendation: "Remove one .harnessRef edge from the cycle.",
     });
     return [];
   }
 
-  const imported = leaf.refTargetRelativePath
+  const imported = leaf.harnessRefTargetRelativePath
     ? expandParts(
-        leaves.get(leaf.refTargetRelativePath) ?? leaf,
+        leaves.get(leaf.harnessRefTargetRelativePath) ?? leaf,
         leaves,
         diagnostics,
         [...stack, leaf.relativePath]
@@ -490,6 +493,40 @@ function expandParts(
         normalizeRelative(right.sourcePath)
       );
     });
+}
+
+function recipientLocalImportedPartPath(
+  root: string,
+  leaf: ComposableLeaf,
+  part: LocalPart
+): string | undefined {
+  if (part.local) {
+    return undefined;
+  }
+  return normalizeRelative(
+    path.posix.join(
+      toRepoRelative(root, leaf.absolutePath),
+      part.leafRelativePath,
+      path.basename(part.sourcePath)
+    )
+  );
+}
+
+function filtersImportedPartForRecipient(
+  root: string,
+  matcher: HarnessIgnoreMatcher,
+  profileContext: HarnessProfileContext,
+  leaf: ComposableLeaf,
+  part: LocalPart
+): boolean {
+  const recipientLocalPath = recipientLocalImportedPartPath(root, leaf, part);
+  if (!recipientLocalPath) {
+    return false;
+  }
+  return matcher.ignores(recipientLocalPath, {
+    outputPath: leaf.relativePath,
+    profile: outputProfile(profileContext, leaf.relativePath),
+  });
 }
 
 async function walkDir(
@@ -742,9 +779,18 @@ async function collectDirOutputs(
     if (!targetPath) {
       continue;
     }
-    const parts = expandParts(leaf, composableLeaves, diagnostics);
+    const parts = expandParts(leaf, composableLeaves, diagnostics).filter(
+      (part) =>
+        !filtersImportedPartForRecipient(
+          root,
+          matcher,
+          profileContext,
+          leaf,
+          part
+        )
+    );
     const sourcePaths = [
-      ...(leaf.refSourcePath ? [leaf.refSourcePath] : []),
+      ...(leaf.harnessRefSourcePath ? [leaf.harnessRefSourcePath] : []),
       ...parts.map((part) => part.sourcePath),
     ];
     outputs.push({

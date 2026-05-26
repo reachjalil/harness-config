@@ -120,6 +120,11 @@ project to the target root. Immediate dot-prefixed folders directly under
 `resources/` are target-root overrides; immediate dot-prefixed folders inside
 an item are item-level target overrides.
 
+Resource files can also be composable leaves. For example,
+`.harness/resources/skills/review/SKILL.md/.harnessComposable` composes the
+numbered files inside `SKILL.md/` and projects one target file at
+`skills/review/SKILL.md`.
+
 ## `harness.toml`
 
 `harness.toml` declares the supported standard version and projection targets:
@@ -281,11 +286,11 @@ from mirrored leaf directories:
     100_intro.md
     200_rules.md
   CLAUDE.md/
-    .ref
+    .harnessRef
     150_claude.md
 ```
 
-`CLAUDE.md/.ref` can point to `../AGENTS.md`. Imported and local parts are
+`CLAUDE.md/.harnessRef` can point to `../AGENTS.md`. Imported and local parts are
 sorted together by numeric prefix and concatenated exactly, without generated
 headers or separators.
 
@@ -323,7 +328,7 @@ alongside target projection.
     200_rules.md
   CLAUDE.md/
     .harnessComposable
-    .ref                         # ../AGENTS.md
+    .harnessRef                         # ../AGENTS.md
     150_claude.md                # composed into ./CLAUDE.md
   .claude/
     settings.json                # copy-mode -> ./.claude/settings.json

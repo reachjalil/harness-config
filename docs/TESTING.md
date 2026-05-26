@@ -23,6 +23,7 @@ rules produce the same live target trees.
 | Profiles | Nested `.harnessProfileRoot` declarations and profile roots outside `.harness` are diagnostics | `packages/core/test/standard.test.ts` |
 | Projection | Explicit `.agents` copy projection with `.agents` overrides | `packages/core/test/projection.test.ts` |
 | Projection | Canonical `.harness/resources` tree projects without manifest resource declarations, including direct files and target-root overrides | `packages/core/test/projection.test.ts`, `packages/cli/test/run.test.ts` |
+| Projection | Resource files can be composed from `.harnessComposable` leaves, including `.harnessRef` imports, recipient-local `.harnessIgnore` filters, target-output `.harnessIgnore` boundaries, and profile overlays | `packages/core/test/projection.test.ts` |
 | Projection | Additional target copy projection with target-derived overrides | `packages/core/test/projection.test.ts` |
 | Projection | Nested override contents such as plugin manifests and nested skills | `packages/core/test/projection.test.ts` |
 | Projection | Arbitrary resource kinds under `.harness/resources` project without manifest declarations | `packages/core/test/projection.test.ts` |
@@ -50,14 +51,14 @@ rules produce the same live target trees.
 | Projection | Ignore rules win when a file is both ignored and marked mutable | `packages/core/test/projection.test.ts` |
 | Projection | Target byte changes plan `update` actions by direct comparison | `packages/core/test/projection.test.ts` |
 | Dir | `[dir]` composes top-level, nested, dot-directory, and extensionless outputs with the `.harnessComposable` marker | `packages/core/test/dir.test.ts` |
-| Dir | `[dir]` `.ref` imports parts and sorts them with local parts | `packages/core/test/dir.test.ts` |
+| Dir | `[dir]` `.harnessRef` imports parts and sorts them with local parts | `packages/core/test/dir.test.ts` |
 | Dir | `[dir]` honors only global `.harnessIgnore` rules during composition | `packages/core/test/dir.test.ts` |
 | Dir | `[dir]` honors source-local `.harnessIgnore` inside `.harnessComposable` leaves, including custom dir sources outside `.harness` | `packages/core/test/dir.test.ts` |
 | Dir | `[dir]` honors target-output `.harnessIgnore` for copy and composable outputs | `packages/core/test/dir.test.ts` |
 | Dir | `[dir]` active profile roots add composable parts and use logical `.harnessIgnore` files to suppress base parts | `packages/core/test/dir.test.ts` |
 | Dir | `[dir]` portable profile roots nested inside composable leaves can add profile parts | `packages/core/test/dir.test.ts` |
 | Dir | `[dir]` discovers target-output `.harnessProfile` selectors in the final bootstrap pass, including profile-only dir outputs with no base candidate | `packages/core/test/dir.test.ts` |
-| Dir | `[dir]` reports invalid parts, mixed containers, symlinks, ref errors, and target overlaps | `packages/core/test/dir.test.ts` |
+| Dir | `[dir]` reports invalid parts, mixed containers, symlinks, `.harnessRef` errors, and target overlaps | `packages/core/test/dir.test.ts` |
 | Dir | `[dir]` reports create, update, and keep actions across activations | `packages/core/test/dir.test.ts` |
 | Dir | `[dir]` copies files from directories without the `.harnessComposable` marker | `packages/core/test/dir.test.ts` |
 | Dir | `[dir]` never copies the `.harnessComposable` marker file itself | `packages/core/test/dir.test.ts` |
@@ -76,8 +77,9 @@ rules produce the same live target trees.
 | CLI | Invalid activation TOML returns diagnostics and a non-zero exit | `packages/cli/test/run.test.ts` |
 | CLI | Human output is colorized only for color-capable sinks, while `--json` stays unstyled | `packages/cli/test/run.test.ts` |
 | CLI | `harnessc extension activate` reports unsupported extension selections and conflicting flags | `packages/cli/test/run.test.ts` |
-| CLI E2E | `harnessc activate` runs composable + copy + ref + cross-target dir composition end-to-end | `packages/cli/test/run.test.ts` |
+| CLI E2E | `harnessc activate` runs composable + copy + `.harnessRef` + cross-target dir composition end-to-end | `packages/cli/test/run.test.ts` |
 | CLI E2E | `harnessc activate` honors target-output `.harnessIgnore`, custom dir source ignores, and cleanup preservation | `packages/cli/test/run.test.ts` |
+| CLI E2E | `harnessc activate` projects resource composables through target-output `.harnessIgnore`, target-local `.harnessProfile`, and unmanaged cleanup | `packages/cli/test/run.test.ts` |
 | CLI E2E | `harnessc activate` applies profile roots across resources and composable dir outputs | `packages/cli/test/run.test.ts` |
 
 ## Manual Smoke Command

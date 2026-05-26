@@ -15,6 +15,8 @@ specific runtime, CLI, or hosted service.
   `.harness/resources/<kind>/<name>`. A target-root override appears as a
   dot-prefixed folder directly under `.harness/resources`; an item override
   appears as a dot-prefixed folder directly inside a conventional item.
+  Resource files may also be composed from directories marked with
+  `.harnessComposable`.
 - Target conformance: a `[[targets]]` entry contains only a repo-local path.
   The matching override folder is inferred from the first path segment. No
   target may point at `.harness` or redeclare resource mappings.
@@ -41,6 +43,8 @@ specific runtime, CLI, or hosted service.
 - Durable target resources live under `.harness/resources`.
 - Conventional resource items live under `.harness/resources/<kind>/<name>`;
   direct resource files such as `.harness/resources/hooks.json` are allowed.
+- Resource composable leaves use a directory named for the projected file,
+  an empty `.harnessComposable` marker, and numeric-prefix parts.
 - Target-derived overrides appear only as dot-prefixed folders directly under
   `.harness/resources` or directly inside a conventional resource item.
 - `[[targets]]` entries contain only repo-local paths.
@@ -64,6 +68,9 @@ specific runtime, CLI, or hosted service.
   categories.
 - Additional resource kinds MAY be added when they live under
   `.harness/resources` and follow the same override contract.
+- Resource composable leaves MUST project as one file at the leaf path and
+  MUST NOT project their marker, `.harnessRef`, `.harnessIgnore`, or numbered
+  part files individually.
 - Overrides MUST be derived from the target path.
 - `harness.toml` MUST declare target paths only. Targets MUST NOT redefine
   resources, modes, or override names.

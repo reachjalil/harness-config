@@ -188,6 +188,15 @@ markdown filenames are conventions, not schema requirements. Other resource
 kinds MAY exist under `./.harness/resources` without any manifest
 declaration.
 
+Any directory under `./.harness/resources` MAY be a composable file source
+when it contains an empty `.harnessComposable` marker. The directory name is
+the projected file path, and its numeric-prefix parts compose with the same
+`.harnessRef` and `.harnessIgnore` semantics defined for `[dir]` composable
+leaves. For example,
+`./.harness/resources/skills/review/SKILL.md/.harnessComposable` projects one
+target file at `skills/review/SKILL.md`; the numbered files inside that
+directory are not projected individually.
+
 An immediate dot-prefixed directory directly under `./.harness/resources` is
 a target-root override. For target `./.gemini`, files under
 `./.harness/resources/.gemini/` overlay the canonical resources source and
@@ -363,8 +372,8 @@ filtering and makes dry-run output easier to reason about.
 Activation is a repeatable copy projection from source inputs to declared
 targets. The inputs are:
 
-1. the participating files and folders under `./.harness/resources`,
-   including their override folders,
+1. the participating files, composable leaves, and folders under
+   `./.harness/resources`, including their override folders,
 2. the versioned `harness.toml`,
 3. the repo-root `.harnessIgnore`,
 4. the cleanup policy (preserve unmanaged entries vs. remove them),
@@ -561,12 +570,13 @@ concatenate in `order` to produce the output file.
 
 The order prefix is a non-negative integer. Two parts MAY share the same
 order; ties break by source path. A composable leaf MAY also contain a
-`.ref` file with exactly one repo-relative path pointing at another
+`.harnessRef` file with exactly one repo-relative path pointing at another
 composable leaf; that leaf's expanded parts are imported before this leaf's
-local parts and re-sorted by `order`. Cycles, missing refs, refs that
-escape the dir source root, and absolute refs MUST be reported as errors.
+local parts and re-sorted by `order`. Cycles, missing `.harnessRef` targets,
+`.harnessRef` targets that escape the dir source root, and absolute
+`.harnessRef` targets MUST be reported as errors.
 
-A composable leaf MUST NOT contain subdirectories. A non-part, non-`.ref`
+A composable leaf MUST NOT contain subdirectories. A non-part, non-`.harnessRef`
 file inside a composable leaf MUST be reported as an invalid part error;
 the author either renames the file to match `<order>_<name>` or removes
 the `.harnessComposable` marker to switch to copy mode.

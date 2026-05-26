@@ -9,10 +9,17 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 
-import { type DirOutput, planHarnessDir } from "./dir";
+import {
+  HARNESS_COMPOSABLE_MARKER,
+  HARNESS_COMPOSABLE_REF_FILE,
+  type DirOutput,
+  planHarnessDir,
+} from "./dir";
 import { loadHarnessIgnoreMatcherDetailed } from "./ignore";
 import {
   assertRepoLocalPath,
+  HARNESS_IGNORE_FILE,
+  HARNESS_PROFILE_FILE,
   HARNESS_PROFILE_ROOT_FILE,
   resolveHarnessPaths,
   resolveRepoLocalPath,
@@ -75,6 +82,26 @@ type ExistingEntry = {
 };
 
 type ProjectionPhase = "canonical" | "override";
+
+type ResourceComposablePart = {
+  bytes: Buffer;
+  leafRelativePath: string;
+  local: boolean;
+  logicalSourcePath: string;
+  order: number;
+  sourcePath: string;
+};
+
+type ResourceComposableLeaf = {
+  absolutePath: string;
+  harnessRefSourcePath?: string;
+  harnessRefTargetRelativePath?: string;
+  logicalPath: string;
+  outputRelativePath: string;
+  parts: ResourceComposablePart[];
+  relativeFromSource: string;
+  targetOutputPath: string;
+};
 
 async function loadConfig(root: string): Promise<HarnessConfig> {
   const raw = await readFile(resolveHarnessPaths(root).configPath, "utf8");
@@ -319,6 +346,352 @@ async function hasProfileRootMarker(directory: string): Promise<boolean> {
   return Boolean(markerState?.isFile());
 }
 
+function isInsideRelativePath(parent: string, child: string): boolean {
+  return child === parent || child.startsWith(`${parent}/`);
+}
+
+function isComposableDeclarationFile(fileName: string): boolean {
+  return (
+    fileName === HARNESS_COMPOSABLE_MARKER ||
+    fileName === HARNESS_COMPOSABLE_REF_FILE ||
+    fileName === HARNESS_IGNORE_FILE ||
+    fileName === HARNESS_PROFILE_FILE ||
+    fileName === HARNESS_PROFILE_ROOT_FILE
+  );
+}
+
+async function findResourceComposableLeafPaths(
+  sourceDir: string
+): Promise<string[]> {
+  const files = await listFiles(sourceDir, { skipProfileRoots: true });
+  return [
+    ...new Set(
+      files
+        .filter(
+          (filePath) => path.basename(filePath) === HARNESS_COMPOSABLE_MARKER
+        )
+        .map((filePath) =>
+          normalizeTargetPathString(
+            path.relative(sourceDir, path.dirname(filePath))
+          )
+        )
+    ),
+  ].toSorted((left, right) => left.localeCompare(right));
+}
+
+async function readResourceComposableLeaf(options: {
+  activeProfile?: string;
+  diagnostics: HarnessDiagnostic[];
+  logicalSourceDir: string;
+  matcher: HarnessIgnoreMatcher;
+  outputBaseRelativePath?: string;
+  outputRelativePath: string;
+  profileRootDir?: string;
+  relativeFromSource: string;
+  root: string;
+  sourceDir: string;
+  targetOutputPath: string;
+  targetPath: string;
+}): Promise<ResourceComposableLeaf | undefined> {
+  const leafDir = path.join(options.sourceDir, options.relativeFromSource);
+  const logicalLeafPath = normalizeTargetPathString(
+    toRepoRelative(
+      options.root,
+      path.join(options.logicalSourceDir, options.relativeFromSource)
+    )
+  );
+
+  if (
+    options.matcher.ignores(logicalLeafPath, {
+      isDirectory: true,
+      outputPath: options.targetOutputPath,
+      profile: options.activeProfile,
+      targetPath: options.targetPath,
+    })
+  ) {
+    return undefined;
+  }
+
+  const entries = await readdir(leafDir, { withFileTypes: true }).catch(
+    () => []
+  );
+  const leaf: ResourceComposableLeaf = {
+    absolutePath: leafDir,
+    logicalPath: logicalLeafPath,
+    outputRelativePath: options.outputRelativePath,
+    parts: [],
+    relativeFromSource: options.relativeFromSource,
+    targetOutputPath: options.targetOutputPath,
+  };
+
+  for (const entry of entries.toSorted((left, right) =>
+    left.name.localeCompare(right.name)
+  )) {
+    const entryPath = path.join(leafDir, entry.name);
+    const relativeFromSource = normalizeTargetPathString(
+      path.join(options.relativeFromSource, entry.name)
+    );
+    const logicalSourcePath = normalizeTargetPathString(
+      toRepoRelative(
+        options.root,
+        path.join(options.logicalSourceDir, relativeFromSource)
+      )
+    );
+
+    if (entry.isDirectory()) {
+      options.diagnostics.push({
+        severity: "error",
+        code: "harness.resource_composable_mixed_container",
+        message:
+          "A resource composable directory cannot contain subdirectories.",
+        path: logicalLeafPath,
+        recommendation:
+          "Move subdirectories outside this composable leaf, or remove the .harnessComposable marker to project a directory.",
+      });
+      continue;
+    }
+
+    if (!entry.isFile()) {
+      options.diagnostics.push({
+        severity: "error",
+        code: "harness.resource_composable_invalid_entry",
+        message: "Resource composable entries must be regular files.",
+        path: logicalSourcePath,
+        recommendation: "Move this entry or exclude it with .harnessIgnore.",
+      });
+      continue;
+    }
+
+    if (isComposableDeclarationFile(entry.name)) {
+      if (entry.name === HARNESS_COMPOSABLE_REF_FILE) {
+        const rawHarnessRef = await readFile(entryPath, "utf8").catch(
+          (error: unknown) => {
+            options.diagnostics.push({
+              severity: "error",
+              code: "harness.resource_composable_ref_read_failed",
+              message: error instanceof Error ? error.message : String(error),
+              path: logicalSourcePath,
+            });
+            return undefined;
+          }
+        );
+        if (rawHarnessRef === undefined) {
+          continue;
+        }
+        const refLines = rawHarnessRef
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter(Boolean);
+        if (refLines.length !== 1) {
+          options.diagnostics.push({
+            severity: "error",
+            code: "harness.resource_composable_ref_invalid",
+            message:
+              ".harnessRef must contain exactly one relative composable path.",
+            path: logicalSourcePath,
+          });
+          continue;
+        }
+        const refLine = refLines[0] ?? "";
+        if (path.isAbsolute(refLine)) {
+          options.diagnostics.push({
+            severity: "error",
+            code: "harness.resource_composable_ref_absolute",
+            message: ".harnessRef targets must be relative paths.",
+            path: logicalSourcePath,
+          });
+          continue;
+        }
+        leaf.harnessRefSourcePath = entryPath;
+        leaf.harnessRefTargetRelativePath = normalizeTargetPathString(
+          path.posix.normalize(
+            path.posix.join(options.relativeFromSource, refLine)
+          )
+        );
+      }
+      continue;
+    }
+
+    const partMatch = entry.name.match(/^(?<order>[0-9]+)_.+$/);
+    if (!partMatch?.groups?.order) {
+      options.diagnostics.push({
+        severity: "error",
+        code: "harness.resource_composable_invalid_part",
+        message:
+          'Resource composable part files must start with a numeric prefix and underscore, such as "100_intro.md".',
+        path: logicalSourcePath,
+        recommendation:
+          "Rename this file, exclude it with .harnessIgnore, or remove the .harnessComposable marker to project a directory.",
+      });
+      continue;
+    }
+
+    const bytes = await readFile(entryPath).catch((error: unknown) => {
+      options.diagnostics.push({
+        severity: "error",
+        code: "harness.resource_composable_part_read_failed",
+        message: error instanceof Error ? error.message : String(error),
+        path: logicalSourcePath,
+      });
+      return undefined;
+    });
+    if (!bytes) {
+      continue;
+    }
+
+    leaf.parts.push({
+      bytes,
+      leafRelativePath: options.relativeFromSource,
+      local: true,
+      logicalSourcePath,
+      order: Number.parseInt(partMatch.groups.order, 10),
+      sourcePath: entryPath,
+    });
+  }
+
+  return leaf;
+}
+
+function resolveResourceComposableRefs(
+  leaves: Map<string, ResourceComposableLeaf>,
+  diagnostics: HarnessDiagnostic[],
+  root: string
+): void {
+  for (const leaf of leaves.values()) {
+    const refTarget = leaf.harnessRefTargetRelativePath;
+    if (!refTarget) {
+      continue;
+    }
+    if (
+      refTarget === ".." ||
+      refTarget.startsWith("../") ||
+      path.isAbsolute(refTarget)
+    ) {
+      diagnostics.push({
+        severity: "error",
+        code: "harness.resource_composable_ref_outside_root",
+        message: ".harnessRef targets must stay inside the resources source.",
+        path: leaf.harnessRefSourcePath
+          ? toRepoRelative(root, leaf.harnessRefSourcePath)
+          : leaf.logicalPath,
+      });
+      leaf.harnessRefTargetRelativePath = undefined;
+      continue;
+    }
+    if (!leaves.has(refTarget)) {
+      diagnostics.push({
+        severity: "error",
+        code: "harness.resource_composable_ref_missing",
+        message: `.harnessRef target "${refTarget}" does not resolve to an included resource composable leaf.`,
+        path: leaf.harnessRefSourcePath
+          ? toRepoRelative(root, leaf.harnessRefSourcePath)
+          : leaf.logicalPath,
+        recommendation:
+          "Point .harnessRef at another resource composable directory or update .harnessIgnore.",
+      });
+      leaf.harnessRefTargetRelativePath = undefined;
+    }
+  }
+}
+
+function expandResourceComposableParts(
+  leaf: ResourceComposableLeaf,
+  leaves: Map<string, ResourceComposableLeaf>,
+  diagnostics: HarnessDiagnostic[],
+  stack: string[] = []
+): ResourceComposablePart[] {
+  if (stack.includes(leaf.relativeFromSource)) {
+    diagnostics.push({
+      severity: "error",
+      code: "harness.resource_composable_ref_cycle",
+      message: `Resource composable .harnessRef cycle detected: ${[
+        ...stack,
+        leaf.relativeFromSource,
+      ].join(" -> ")}.`,
+      path: leaf.harnessRefSourcePath,
+      recommendation: "Remove one .harnessRef edge from the cycle.",
+    });
+    return [];
+  }
+
+  const imported = leaf.harnessRefTargetRelativePath
+    ? expandResourceComposableParts(
+        leaves.get(leaf.harnessRefTargetRelativePath) ?? leaf,
+        leaves,
+        diagnostics,
+        [...stack, leaf.relativeFromSource]
+      ).map((part) => ({ ...part, local: false }))
+    : [];
+
+  return [...imported, ...leaf.parts]
+    .map((part) => ({ ...part }))
+    .sort((left, right) => {
+      if (left.order !== right.order) {
+        return left.order - right.order;
+      }
+      if (left.local !== right.local) {
+        return left.local ? 1 : -1;
+      }
+      return normalizeTargetPathString(left.sourcePath).localeCompare(
+        normalizeTargetPathString(right.sourcePath)
+      );
+    });
+}
+
+function filtersResourceComposablePart(
+  root: string,
+  matcher: HarnessIgnoreMatcher,
+  leaf: ResourceComposableLeaf,
+  part: ResourceComposablePart,
+  targetPath: string,
+  activeProfile?: string
+): boolean {
+  const recipientLocalPath = normalizeTargetPathString(
+    path.posix.join(
+      leaf.logicalPath,
+      normalizeTargetPathString(
+        path.relative(
+          path.dirname(leaf.relativeFromSource),
+          part.leafRelativePath
+        )
+      ),
+      path.basename(part.sourcePath)
+    )
+  );
+  const physicalSourcePath = normalizeTargetPathString(
+    toRepoRelative(root, part.sourcePath)
+  );
+  for (const sourcePath of [
+    part.logicalSourcePath,
+    physicalSourcePath,
+    recipientLocalPath,
+  ]) {
+    if (
+      matcher.ignores(sourcePath, {
+        outputPath: leaf.targetOutputPath,
+        profile: activeProfile,
+        targetPath,
+      })
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function resourceComposableMutable(
+  matcher: HarnessIgnoreMatcher,
+  leaf: ResourceComposableLeaf,
+  targetPath: string,
+  activeProfile?: string
+): boolean {
+  return matcher.isMutable(leaf.logicalPath, {
+    outputPath: leaf.targetOutputPath,
+    profile: activeProfile,
+    targetPath,
+  });
+}
+
 async function projectResourcesTree(options: {
   diagnostics: HarnessDiagnostic[];
   logicalSourceDir: string;
@@ -334,13 +707,132 @@ async function projectResourcesTree(options: {
   sourceDir: string;
   targetPath: string;
 }): Promise<void> {
+  const composableLeafPaths = await findResourceComposableLeafPaths(
+    options.sourceDir
+  );
+  const composableLeaves = new Map<string, ResourceComposableLeaf>();
+  const emittedComposableLeafPaths = new Set<string>();
+  for (const relativeFromSource of composableLeafPaths) {
+    const relativeForOutput = path.join(
+      options.outputBaseRelativePath ?? "",
+      relativeFromSource
+    );
+    const outputRelativePath = resourceTreeOutputPath(
+      relativeForOutput,
+      options.phase,
+      options.overrideDir
+    );
+    const fallbackOutputRelativePath =
+      outputRelativePath ??
+      resourceTreeOutputPath(
+        relativeForOutput,
+        "canonical",
+        options.overrideDir
+      ) ??
+      resourceTreeOutputPath(
+        relativeForOutput,
+        "override",
+        options.overrideDir
+      );
+    if (!fallbackOutputRelativePath) {
+      continue;
+    }
+    const targetOutputPath = repoRelativeOutputPath(
+      options.targetPath,
+      fallbackOutputRelativePath
+    );
+    const activeProfile =
+      options.profileContext.profileForOutput(targetOutputPath);
+    if (options.requiredProfile && activeProfile !== options.requiredProfile) {
+      continue;
+    }
+    const leaf = await readResourceComposableLeaf({
+      activeProfile,
+      diagnostics: options.diagnostics,
+      logicalSourceDir: options.logicalSourceDir,
+      matcher: options.matcher,
+      outputBaseRelativePath: options.outputBaseRelativePath,
+      outputRelativePath: fallbackOutputRelativePath,
+      profileRootDir: options.profileRootDir,
+      relativeFromSource,
+      root: options.root,
+      sourceDir: options.sourceDir,
+      targetOutputPath,
+      targetPath: options.targetPath,
+    });
+    if (leaf) {
+      composableLeaves.set(relativeFromSource, leaf);
+      if (outputRelativePath) {
+        emittedComposableLeafPaths.add(relativeFromSource);
+      }
+    }
+  }
+  resolveResourceComposableRefs(
+    composableLeaves,
+    options.diagnostics,
+    options.root
+  );
+  for (const leaf of composableLeaves.values()) {
+    if (!emittedComposableLeafPaths.has(leaf.relativeFromSource)) {
+      continue;
+    }
+    const activeProfile = options.profileContext.profileForOutput(
+      leaf.targetOutputPath
+    );
+    const parts = expandResourceComposableParts(
+      leaf,
+      composableLeaves,
+      options.diagnostics
+    ).filter(
+      (part) =>
+        !filtersResourceComposablePart(
+          options.root,
+          options.matcher,
+          leaf,
+          part,
+          options.targetPath,
+          activeProfile
+        )
+    );
+    setProjectedFile(
+      options.projection,
+      leaf.outputRelativePath,
+      {
+        bytes: Buffer.concat(parts.map((part) => part.bytes)),
+        mutable: resourceComposableMutable(
+          options.matcher,
+          leaf,
+          options.targetPath,
+          activeProfile
+        ),
+        profileRootDir: options.profileRootDir,
+        relativePath: leaf.outputRelativePath,
+        sourcePath:
+          parts[0]?.sourcePath ??
+          leaf.harnessRefSourcePath ??
+          path.join(leaf.absolutePath, HARNESS_COMPOSABLE_MARKER),
+      },
+      options.root,
+      options.diagnostics
+    );
+  }
+
   const files = (
     await listFiles(options.sourceDir, {
       skipProfileRoots: true,
     })
   ).toSorted((left, right) => left.localeCompare(right));
   for (const filePath of files) {
-    const relativeFromSource = path.relative(options.sourceDir, filePath);
+    const relativeFromSource = normalizeTargetPathString(
+      path.relative(options.sourceDir, filePath)
+    );
+    if (
+      composableLeafPaths.some((leafPath) =>
+        isInsideRelativePath(leafPath, relativeFromSource)
+      )
+    ) {
+      continue;
+    }
     const relativeForOutput = path.join(
       options.outputBaseRelativePath ?? "",
       relativeFromSource

@@ -68,7 +68,7 @@ describe("core dir (composable + copy)", () => {
     );
   });
 
-  it("imports ref parts and sorts imported and local parts together", async () => {
+  it("imports .harnessRef parts and sorts imported and local parts together", async () => {
     const root = await fixtureRoot();
     await writeConfig(root);
     await write(root, ".harnessIgnore", "");
@@ -76,7 +76,7 @@ describe("core dir (composable + copy)", () => {
     await write(root, ".harness/dir/AGENTS.md/100_intro.md", "A");
     await write(root, ".harness/dir/AGENTS.md/300_rules.md", "C");
     await write(root, ".harness/dir/CLAUDE.md/.harnessComposable", "");
-    await write(root, ".harness/dir/CLAUDE.md/.ref", "../AGENTS.md\n");
+    await write(root, ".harness/dir/CLAUDE.md/.harnessRef", "../AGENTS.md\n");
     await write(root, ".harness/dir/CLAUDE.md/250_claude_note.md", "B");
 
     await applyHarnessActivation(root, { yes: true });
@@ -93,13 +93,45 @@ describe("core dir (composable + copy)", () => {
     await write(root, ".harness/dir/AGENTS.md/.harnessComposable", "");
     await write(root, ".harness/dir/AGENTS.md/100_same.md", "A");
     await write(root, ".harness/dir/CLAUDE.md/.harnessComposable", "");
-    await write(root, ".harness/dir/CLAUDE.md/.ref", "../AGENTS.md\n");
+    await write(root, ".harness/dir/CLAUDE.md/.harnessRef", "../AGENTS.md\n");
     await write(root, ".harness/dir/CLAUDE.md/100_same.md", "B");
 
     await applyHarnessActivation(root, { yes: true });
 
     await expect(readFile(path.join(root, "CLAUDE.md"), "utf8")).resolves.toBe(
       "AB"
+    );
+  });
+
+  it("lets a .harnessRef recipient ignore an imported composable part", async () => {
+    const root = await fixtureRoot();
+    await writeConfig(root);
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harness/dir/AGENTS.md/.harnessComposable", "");
+    await write(root, ".harness/dir/AGENTS.md/100_intro.md", "Intro\n");
+    await write(
+      root,
+      ".harness/dir/AGENTS.md/150_identity.md",
+      "Use .agents\n"
+    );
+    await write(root, ".harness/dir/AGENTS.md/200_rules.md", "Rules\n");
+    await write(root, ".harness/dir/CLAUDE.md/.harnessComposable", "");
+    await write(root, ".harness/dir/CLAUDE.md/.harnessRef", "../AGENTS.md\n");
+    await write(
+      root,
+      ".harness/dir/CLAUDE.md/.harnessIgnore",
+      "AGENTS.md/150_identity.md\n"
+    );
+    await write(
+      root,
+      ".harness/dir/CLAUDE.md/150_identity.md",
+      "Use .claude\n"
+    );
+
+    await applyHarnessActivation(root, { yes: true });
+
+    await expect(readFile(path.join(root, "CLAUDE.md"), "utf8")).resolves.toBe(
+      "Intro\nUse .claude\nRules\n"
     );
   });
 
@@ -368,7 +400,7 @@ describe("core dir (composable + copy)", () => {
     ).resolves.toBe("release.md\n");
   });
 
-  it("reports invalid parts, mixed containers, symlinks, missing refs, outside refs, and cycles", async () => {
+  it("reports invalid parts, mixed containers, symlinks, missing .harnessRef targets, outside .harnessRef targets, and cycles", async () => {
     const root = await fixtureRoot();
     await writeConfig(root);
     await write(root, ".harnessIgnore", "");
@@ -378,19 +410,19 @@ describe("core dir (composable + copy)", () => {
     await write(root, ".harness/dir/MIXED.md/100_intro.md", "bad");
     await write(root, ".harness/dir/MIXED.md/nested/100_intro.md", "bad");
     await write(root, ".harness/dir/MISSING.md/.harnessComposable", "");
-    await write(root, ".harness/dir/MISSING.md/.ref", "../NOPE.md\n");
+    await write(root, ".harness/dir/MISSING.md/.harnessRef", "../NOPE.md\n");
     await write(root, ".harness/dir/OUTSIDE.md/.harnessComposable", "");
-    await write(root, ".harness/dir/OUTSIDE.md/.ref", "../../outside\n");
+    await write(root, ".harness/dir/OUTSIDE.md/.harnessRef", "../../outside\n");
     await write(root, ".harness/dir/ABSOLUTE.md/.harnessComposable", "");
     await write(
       root,
-      ".harness/dir/ABSOLUTE.md/.ref",
+      ".harness/dir/ABSOLUTE.md/.harnessRef",
       `${path.join(root, ".harness/dir/AGENTS.md")}\n`
     );
     await write(root, ".harness/dir/A.md/.harnessComposable", "");
-    await write(root, ".harness/dir/A.md/.ref", "../B.md\n");
+    await write(root, ".harness/dir/A.md/.harnessRef", "../B.md\n");
     await write(root, ".harness/dir/B.md/.harnessComposable", "");
-    await write(root, ".harness/dir/B.md/.ref", "../A.md\n");
+    await write(root, ".harness/dir/B.md/.harnessRef", "../A.md\n");
     await symlink(
       path.join(root, ".harness/dir/BAD.md/intro.md"),
       path.join(root, ".harness/dir/BAD.md/200_link.md")

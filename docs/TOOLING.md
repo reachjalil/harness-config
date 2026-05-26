@@ -22,8 +22,9 @@ harnessc plan
   resource folders under `.harness/resources`, and `.harnessIgnore` when
   applied with `--yes`.
 - `harnessc validate` checks version support, repo-local paths, target
-  mappings, projection ignore syntax, mutable scope
-  syntax, symlink diagnostics, and `[dir]` composition/copy diagnostics.
+  mappings, projection ignore syntax, mutable scope syntax, resource
+  composable leaves, symlink diagnostics, and `[dir]` composition/copy
+  diagnostics.
 - `harnessc activate` dry-runs the activation projection and shows creates,
   updates, requested removals, kept files, mutable-skipped files, and preserved
   unmanaged entries before writing.
@@ -73,7 +74,7 @@ path = "./.harness/dir"
     200_rules.md
   CLAUDE.md/
     .harnessComposable
-    .ref                       # ../AGENTS.md
+    .harnessRef                       # ../AGENTS.md
     150_claude.md
   .github/
     copilot-instructions.md/
@@ -91,9 +92,9 @@ composable leaves: their numeric-prefix parts (for example `100_intro.md`,
 without the marker are copy folders: their files and nested files copy to
 the matching repo-relative path. Individual files at any depth also copy.
 
-`.ref` files inside a composable leaf import another leaf's parts. Imported
+`.harnessRef` files inside a composable leaf import another leaf's parts. Imported
 and local parts are sorted together, duplicate numbers remain additive, and
-cycles or missing refs are reported as errors.
+cycles or missing `.harnessRef` targets are reported as errors.
 
 Source-side `.harnessIgnore` rules apply during dir collection, including
 rules inside a `.harnessComposable` leaf and rules inside a custom `[dir]`

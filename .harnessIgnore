@@ -1,0 +1,3 @@
+# HarnessConfig projection boundaries for this repository.
+.harness/**/logs/
+.harness/**/*.tmp

@@ -589,7 +589,7 @@ mode = "copy"
     expect(secondPlan.stdout.join("\n")).toContain("keep");
   });
 
-  it("end-to-end: composable + copy + ref + mixed-target dir activation", async () => {
+  it("end-to-end: composable + copy + .harnessRef + mixed-target dir activation", async () => {
     const root = await rootFixture();
     await write(
       root,
@@ -610,7 +610,7 @@ mode = "copy"
     await write(root, ".harness/dir/AGENTS.md/100_intro.md", "# Intro\n\n");
     await write(root, ".harness/dir/AGENTS.md/300_rules.md", "## Rules\n");
     await write(root, ".harness/dir/CLAUDE.md/.harnessComposable", "");
-    await write(root, ".harness/dir/CLAUDE.md/.ref", "../AGENTS.md\n");
+    await write(root, ".harness/dir/CLAUDE.md/.harnessRef", "../AGENTS.md\n");
     await write(root, ".harness/dir/CLAUDE.md/250_claude.md", "Claude note\n");
     await write(root, ".harness/dir/.claude/settings.json", "{}");
     await write(root, ".harness/dir/.gitignore/.harnessComposable", "");
@@ -728,6 +728,79 @@ mode = "copy"
     await expect(
       readFile(path.join(root, ".agents/tools/.harnessIgnore"), "utf8")
     ).resolves.toBe("*.tmp\n");
+  });
+
+  it("end-to-end: resource composables honor target ignores and profile selectors", async () => {
+    const root = await rootFixture();
+    await writeConfig(root, ["./.agents", "./.claude"]);
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".agents/skills/.harnessProfile", "deploy\n");
+    await write(root, ".agents/skills/local.md", "local");
+    await write(root, ".claude/skills/blocked/.harnessIgnore", "SKILL.md\n");
+    await write(
+      root,
+      ".harness/resources/skills/review/SKILL.md/.harnessComposable",
+      ""
+    );
+    await write(
+      root,
+      ".harness/resources/skills/review/SKILL.md/100_base.md",
+      "Base\n"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/blocked/SKILL.md/.harnessComposable",
+      ""
+    );
+    await write(
+      root,
+      ".harness/resources/skills/blocked/SKILL.md/100_base.md",
+      "Blocked\n"
+    );
+    await write(
+      root,
+      ".harness/profiles/deploy/.harnessProfileRoot",
+      "deploy\n"
+    );
+    await write(
+      root,
+      ".harness/profiles/deploy/resources/skills/review/SKILL.md/.harnessComposable",
+      ""
+    );
+    await write(
+      root,
+      ".harness/profiles/deploy/resources/skills/review/SKILL.md/100_profile.md",
+      "Profile\n"
+    );
+
+    const capture = captureIo();
+    const exitCode = await runHarnessConfigCli(
+      ["activate", "--root", root, "--yes", "--remove-unmanaged"],
+      capture.io
+    );
+
+    expect(exitCode).toBe(0);
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/SKILL.md"), "utf8")
+    ).resolves.toBe("Profile\n");
+    await expect(
+      readFile(path.join(root, ".claude/skills/review/SKILL.md"), "utf8")
+    ).resolves.toBe("Base\n");
+    await expect(
+      readFile(path.join(root, ".agents/skills/blocked/SKILL.md"), "utf8")
+    ).resolves.toBe("Blocked\n");
+    await expect(
+      readFile(path.join(root, ".claude/skills/blocked/SKILL.md"))
+    ).rejects.toThrow();
+    await expect(
+      readFile(path.join(root, ".claude/skills/blocked/.harnessIgnore"), "utf8")
+    ).resolves.toBe("SKILL.md\n");
+    await expect(
+      readFile(path.join(root, ".agents/skills/.harnessProfile"), "utf8")
+    ).resolves.toBe("deploy\n");
+    await expect(
+      readFile(path.join(root, ".agents/skills/local.md"))
+    ).rejects.toThrow();
   });
 
   it("end-to-end: profile roots overlay resources and composable dir outputs", async () => {

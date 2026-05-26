@@ -95,6 +95,294 @@ describe("HarnessConfig activation projection", () => {
     ).rejects.toThrow();
   });
 
+  it("composes resource files from .harnessComposable leaves", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root);
+    await write(root, ".harnessIgnore", "");
+    await write(
+      root,
+      ".harness/resources/skills/review/SKILL.md/.harnessComposable",
+      ""
+    );
+    await write(
+      root,
+      ".harness/resources/skills/review/SKILL.md/100_frontmatter.md",
+      "---\nname: review\n---\n"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/review/SKILL.md/200_body.md",
+      "\n# Review\n"
+    );
+
+    await applyHarnessActivation(root, { dryRun: false, yes: true });
+
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/SKILL.md"), "utf8")
+    ).resolves.toBe("---\nname: review\n---\n\n# Review\n");
+    await expect(
+      readFile(
+        path.join(root, ".agents/skills/review/SKILL.md/100_frontmatter.md"),
+        "utf8"
+      )
+    ).rejects.toThrow();
+    await expect(
+      readFile(
+        path.join(root, ".agents/skills/review/SKILL.md/.harnessComposable"),
+        "utf8"
+      )
+    ).rejects.toThrow();
+  });
+
+  it("lets resource composable leaves import and filter parts", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root);
+    await write(
+      root,
+      ".harness/resources/skills/review/CLAUDE.md/.harnessIgnore",
+      "SKILL.md/150_identity.md\n"
+    );
+    await write(root, ".harnessIgnore", "");
+    await write(
+      root,
+      ".harness/resources/skills/review/SKILL.md/.harnessComposable",
+      ""
+    );
+    await write(
+      root,
+      ".harness/resources/skills/review/SKILL.md/100_intro.md",
+      "Intro\n"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/review/SKILL.md/150_identity.md",
+      "Use .agents\n"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/review/CLAUDE.md/.harnessComposable",
+      ""
+    );
+    await write(
+      root,
+      ".harness/resources/skills/review/CLAUDE.md/.harnessRef",
+      "../SKILL.md\n"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/review/CLAUDE.md/150_identity.md",
+      "Use .claude\n"
+    );
+
+    await applyHarnessActivation(root, { dryRun: false, yes: true });
+
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/SKILL.md"), "utf8")
+    ).resolves.toBe("Intro\nUse .agents\n");
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/CLAUDE.md"), "utf8")
+    ).resolves.toBe("Intro\nUse .claude\n");
+  });
+
+  it("lets target override resource composables import base composables", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root, { targets: ["./.agents", "./.claude"] });
+    await write(root, ".harnessIgnore", "");
+    await write(
+      root,
+      ".harness/resources/skills/review/SKILL.md/.harnessComposable",
+      ""
+    );
+    await write(
+      root,
+      ".harness/resources/skills/review/SKILL.md/100_base.md",
+      "Base\n"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/review/.claude/SKILL.md/.harnessComposable",
+      ""
+    );
+    await write(
+      root,
+      ".harness/resources/skills/review/.claude/SKILL.md/.harnessRef",
+      "../../SKILL.md\n"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/review/.claude/SKILL.md/.harnessIgnore",
+      "999_tmp.md\n"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/review/.claude/SKILL.md/200_claude.md",
+      "Claude\n"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/review/.claude/SKILL.md/999_tmp.md",
+      "ignore me\n"
+    );
+
+    await applyHarnessActivation(root, { dryRun: false, yes: true });
+
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/SKILL.md"), "utf8")
+    ).resolves.toBe("Base\n");
+    await expect(
+      readFile(path.join(root, ".claude/skills/review/SKILL.md"), "utf8")
+    ).resolves.toBe("Base\nClaude\n");
+  });
+
+  it("honors target-output ignores for resource composable outputs", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root, { targets: ["./.agents", "./.claude"] });
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".claude/skills/review/.harnessIgnore", "SKILL.md\n");
+    await write(
+      root,
+      ".harness/resources/skills/review/SKILL.md/.harnessComposable",
+      ""
+    );
+    await write(
+      root,
+      ".harness/resources/skills/review/SKILL.md/100_base.md",
+      "Base\n"
+    );
+
+    await applyHarnessActivation(root, { dryRun: false, yes: true });
+
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/SKILL.md"), "utf8")
+    ).resolves.toBe("Base\n");
+    await expect(
+      readFile(path.join(root, ".claude/skills/review/SKILL.md"))
+    ).rejects.toThrow();
+    await expect(
+      readFile(path.join(root, ".claude/skills/review/.harnessIgnore"), "utf8")
+    ).resolves.toBe("SKILL.md\n");
+  });
+
+  it("applies target-local profile selection to resource composable outputs", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root, { targets: ["./.agents", "./.claude"] });
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".agents/skills/.harnessProfile", "deploy\n");
+    await write(root, ".agents/skills/local.md", "local");
+    await write(
+      root,
+      ".harness/resources/skills/review/SKILL.md/.harnessComposable",
+      ""
+    );
+    await write(
+      root,
+      ".harness/resources/skills/review/SKILL.md/100_base.md",
+      "Base\n"
+    );
+    await write(
+      root,
+      ".harness/profiles/deploy/.harnessProfileRoot",
+      "deploy\n"
+    );
+    await write(
+      root,
+      ".harness/profiles/deploy/resources/skills/review/SKILL.md/.harnessComposable",
+      ""
+    );
+    await write(
+      root,
+      ".harness/profiles/deploy/resources/skills/review/SKILL.md/100_profile.md",
+      "Profile\n"
+    );
+
+    await applyHarnessActivation(root, {
+      dryRun: false,
+      yes: true,
+      cleanupUnmanaged: "remove",
+    });
+
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/SKILL.md"), "utf8")
+    ).resolves.toBe("Profile\n");
+    await expect(
+      readFile(path.join(root, ".claude/skills/review/SKILL.md"), "utf8")
+    ).resolves.toBe("Base\n");
+    await expect(
+      readFile(path.join(root, ".agents/skills/.harnessProfile"), "utf8")
+    ).resolves.toBe("deploy\n");
+    await expect(
+      readFile(path.join(root, ".agents/skills/local.md"))
+    ).rejects.toThrow();
+  });
+
+  it("lets profile target override resource composables win after base target overrides", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root, { targets: ["./.codex"] });
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harnessProfile", "deploy\n");
+    await write(
+      root,
+      ".harness/resources/skills/basic-shapes/SKILL.md/.harnessComposable",
+      ""
+    );
+    await write(
+      root,
+      ".harness/resources/skills/basic-shapes/SKILL.md/100_base.md",
+      "Base\n"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/basic-shapes/.codex/SKILL.md/.harnessComposable",
+      ""
+    );
+    await write(
+      root,
+      ".harness/resources/skills/basic-shapes/.codex/SKILL.md/.harnessRef",
+      "../../SKILL.md\n"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/basic-shapes/.codex/SKILL.md/200_codex.md",
+      "Codex base override\n"
+    );
+    await write(
+      root,
+      ".harness/profiles/deploy/.harnessProfileRoot",
+      "deploy\n"
+    );
+    await write(
+      root,
+      ".harness/profiles/deploy/resources/skills/basic-shapes/SKILL.md/.harnessComposable",
+      ""
+    );
+    await write(
+      root,
+      ".harness/profiles/deploy/resources/skills/basic-shapes/SKILL.md/100_profile.md",
+      "Profile generic\n"
+    );
+    await write(
+      root,
+      ".harness/profiles/deploy/resources/skills/basic-shapes/.codex/SKILL.md/.harnessComposable",
+      ""
+    );
+    await write(
+      root,
+      ".harness/profiles/deploy/resources/skills/basic-shapes/.codex/SKILL.md/.harnessRef",
+      "../../SKILL.md\n"
+    );
+    await write(
+      root,
+      ".harness/profiles/deploy/resources/skills/basic-shapes/.codex/SKILL.md/200_codex.md",
+      "Profile codex override\n"
+    );
+
+    await applyHarnessActivation(root, { dryRun: false, yes: true });
+
+    await expect(
+      readFile(path.join(root, ".codex/skills/basic-shapes/SKILL.md"), "utf8")
+    ).resolves.toBe("Profile generic\nProfile codex override\n");
+  });
+
   it("applies profile overlays to the canonical .harness/resources tree", async () => {
     const root = await rootFixture();
     await write(
