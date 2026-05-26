@@ -260,6 +260,12 @@ function ruleSetPhase(ruleSet: HarnessIgnoreRuleSet): number {
   if (ruleSet.directory === "") {
     return 0;
   }
+  if (
+    ruleSet.matchBase === "target" &&
+    normalizeIgnorePath(ruleSet.sourcePath).startsWith(".harness/")
+  ) {
+    return 1.5;
+  }
   return ruleSet.matchBase === "target" ? 2 : 1;
 }
 
@@ -526,6 +532,25 @@ export async function loadHarnessIgnoreRuleSets(
       },
     });
 
+    const targetOverrideDirectory =
+      !isRoot && ignoreEntry.matchBase === "source"
+        ? targetDirectoryForResourceOverrideDirectory(
+            path.posix.dirname(sourcePath)
+          )
+        : undefined;
+    if (targetOverrideDirectory) {
+      ruleSets.push({
+        index,
+        ruleSet: {
+          rules: parsed.rules,
+          directory: targetOverrideDirectory,
+          sourcePath,
+          isRoot: false,
+          matchBase: "target",
+        },
+      });
+    }
+
     if (ignoreEntry.matchBase === "target") {
       protectedTargetPaths.push(sourcePath);
     }
@@ -538,6 +563,19 @@ export async function loadHarnessIgnoreRuleSets(
       index: ignoreFiles.length + extraIndex,
       ruleSet: extraRuleSet,
     });
+    const targetOverrideDirectory = targetDirectoryForResourceOverrideDirectory(
+      extraRuleSet.directory
+    );
+    if (extraRuleSet.matchBase !== "target" && targetOverrideDirectory) {
+      ruleSets.push({
+        index: ignoreFiles.length + extraIndex,
+        ruleSet: {
+          ...extraRuleSet,
+          directory: targetOverrideDirectory,
+          matchBase: "target",
+        },
+      });
+    }
   }
 
   const sortedRuleSets = ruleSets
@@ -602,6 +640,35 @@ function sourceRootsForConfig(root: string, config: HarnessConfig): string[] {
     );
   }
   return [...roots];
+}
+
+function targetDirectoryForResourceOverrideDirectory(
+  sourceDirectory: string
+): string | undefined {
+  const prefix = ".harness/resources/";
+  const normalized = normalizeIgnorePath(sourceDirectory);
+  if (!normalized.startsWith(prefix)) {
+    return undefined;
+  }
+
+  const directory = normalized.slice(prefix.length);
+  if (!directory || directory === ".") {
+    return undefined;
+  }
+
+  const segments = directory.split("/").filter(Boolean);
+  const overrideIndex = segments.findIndex((segment) =>
+    segment.startsWith(".")
+  );
+  if (overrideIndex < 0) {
+    return undefined;
+  }
+
+  return [
+    segments[overrideIndex],
+    ...segments.slice(0, overrideIndex),
+    ...segments.slice(overrideIndex + 1),
+  ].join("/");
 }
 
 async function addNestedIgnoreFiles(

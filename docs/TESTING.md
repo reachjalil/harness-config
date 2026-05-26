@@ -25,6 +25,7 @@ rules produce the same live target trees.
 | Projection | Canonical `.harness/resources` tree projects without manifest resource declarations, including direct files and target-root overrides | `packages/core/test/projection.test.ts`, `packages/cli/test/run.test.ts` |
 | Projection | Resource files can be composed from `.harnessComposable` leaves, including `.harnessRef` imports, recipient-local `.harnessIgnore` filters, target-output `.harnessIgnore` boundaries, and profile overlays | `packages/core/test/projection.test.ts` |
 | Projection | Additional target copy projection with target-derived overrides | `packages/core/test/projection.test.ts` |
+| Projection | Override-local `.harnessIgnore` files act as target-output boundaries for base and profile resources while real target-output rules keep final precedence | `packages/core/test/projection.test.ts` |
 | Projection | Nested override contents such as plugin manifests and nested skills | `packages/core/test/projection.test.ts` |
 | Projection | Arbitrary resource kinds under `.harness/resources` project without manifest declarations | `packages/core/test/projection.test.ts` |
 | Projection | Scoped `.harnessIgnore` changes target output independently | `packages/core/test/projection.test.ts` |

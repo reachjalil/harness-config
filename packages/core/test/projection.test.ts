@@ -599,6 +599,161 @@ describe("HarnessConfig activation projection", () => {
     ).rejects.toThrow();
   });
 
+  it("uses override-local .harnessIgnore files as target-output boundaries for that override", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root, { targets: ["./.abc", "./.xyz"] });
+    await write(root, ".harnessIgnore", "");
+    await write(
+      root,
+      ".harness/resources/skills/secret-word/.abc/.harnessIgnore",
+      "summary.txt\n"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/secret-word/SKILL.md",
+      "base skill"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/secret-word/summary.txt",
+      "base summary"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/secret-word/.abc/pass.txt",
+      "abc pass"
+    );
+
+    const result = await applyHarnessActivation(root, {
+      dryRun: false,
+      yes: true,
+    });
+
+    expect(result.plan.diagnostics).toEqual([]);
+    await expect(
+      readFile(path.join(root, ".abc/skills/secret-word/SKILL.md"), "utf8")
+    ).resolves.toBe("base skill");
+    await expect(
+      readFile(path.join(root, ".abc/skills/secret-word/pass.txt"), "utf8")
+    ).resolves.toBe("abc pass");
+    await expect(
+      readFile(path.join(root, ".abc/skills/secret-word/summary.txt"), "utf8")
+    ).rejects.toThrow();
+    await expect(
+      readFile(path.join(root, ".xyz/skills/secret-word/summary.txt"), "utf8")
+    ).resolves.toBe("base summary");
+  });
+
+  it("uses resource-root override .harnessIgnore files as target-output boundaries", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root, { targets: ["./.abc", "./.xyz"] });
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harness/resources/.abc/.harnessIgnore", "hooks.json\n");
+    await write(root, ".harness/resources/hooks.json", "base hooks");
+    await write(root, ".harness/resources/.abc/abc-only.json", "abc only");
+
+    const result = await applyHarnessActivation(root, {
+      dryRun: false,
+      yes: true,
+    });
+
+    expect(result.plan.diagnostics).toEqual([]);
+    await expect(
+      readFile(path.join(root, ".abc/hooks.json"), "utf8")
+    ).rejects.toThrow();
+    await expect(
+      readFile(path.join(root, ".abc/abc-only.json"), "utf8")
+    ).resolves.toBe("abc only");
+    await expect(
+      readFile(path.join(root, ".xyz/hooks.json"), "utf8")
+    ).resolves.toBe("base hooks");
+  });
+
+  it("lets target-output .harnessIgnore override source override-local filters", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root, { targets: ["./.abc"] });
+    await write(root, ".harnessIgnore", "");
+    await write(
+      root,
+      ".harness/resources/skills/secret-word/.abc/.harnessIgnore",
+      "summary.txt\n"
+    );
+    await write(
+      root,
+      ".abc/skills/secret-word/.harnessIgnore",
+      "!summary.txt\n"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/secret-word/SKILL.md",
+      "base skill"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/secret-word/summary.txt",
+      "base summary"
+    );
+
+    const result = await applyHarnessActivation(root, {
+      dryRun: false,
+      yes: true,
+    });
+
+    expect(result.plan.diagnostics).toEqual([]);
+    await expect(
+      readFile(path.join(root, ".abc/skills/secret-word/summary.txt"), "utf8")
+    ).resolves.toBe("base summary");
+    await expect(
+      readFile(
+        path.join(root, ".abc/skills/secret-word/.harnessIgnore"),
+        "utf8"
+      )
+    ).resolves.toBe("!summary.txt\n");
+  });
+
+  it("applies profile override-local .harnessIgnore files as target-output boundaries", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root, { targets: ["./.abc", "./.xyz"] });
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harnessProfile", "deploy\n");
+    await write(
+      root,
+      ".harness/profiles/deploy/.harnessProfileRoot",
+      "deploy\n"
+    );
+    await write(
+      root,
+      ".harness/profiles/deploy/resources/skills/secret-word/.abc/.harnessIgnore",
+      "summary.txt\n"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/secret-word/SKILL.md",
+      "base skill"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/secret-word/summary.txt",
+      "base summary"
+    );
+
+    const result = await applyHarnessActivation(root, {
+      dryRun: false,
+      yes: true,
+    });
+
+    expect(result.plan.diagnostics).toEqual([]);
+    await expect(
+      readFile(path.join(root, ".abc/skills/secret-word/SKILL.md"), "utf8")
+    ).resolves.toBe("base skill");
+    await expect(
+      readFile(path.join(root, ".abc/skills/secret-word/summary.txt"), "utf8")
+    ).rejects.toThrow();
+    await expect(
+      readFile(path.join(root, ".xyz/skills/secret-word/summary.txt"), "utf8")
+    ).resolves.toBe("base summary");
+  });
+
   it("honors target-located .harnessIgnore files against output paths", async () => {
     const root = await rootFixture();
     await writeHarnessConfig(root, { targets: ["./.agents", "./.claude"] });
