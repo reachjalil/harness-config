@@ -1,4 +1,0 @@
-interface:
-  display_name: "Harness Config Migration"
-  short_description: "Migrate existing repos to Harness config"
-  default_prompt: "Use $harness-config-migration to migrate this repository's existing agent instructions and runtime folders into Harness config."

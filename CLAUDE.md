@@ -11,6 +11,35 @@ For `CLAUDE.md`, use `.claude` as your HarnessConfig runtime context for this
 repository instead of `.agents`. Treat `.claude` as a generated projection and
 edit `.harness` sources instead.
 
+## Work Mode Boundary
+
+Do not combine specification design and CLI implementation in one pass unless
+the user explicitly asks for a coupled change. Prefer two deliberate efforts:
+
+1. Specification work: decide the contract, conformance claim, and testing
+   scenario first.
+2. CLI work: implement the already-decided contract and prove it with focused
+   tests.
+
+When both are needed, recommend starting with the specification profile,
+recording the expected behavior, then switching to the CLI profile for
+implementation. This keeps design tradeoffs visible and prevents tests from
+being shaped around an accidental implementation.
+
+Local profile selection is intentionally not committed. To focus the agent,
+write one profile name to `.harnessProfile`, activate, and keep the task inside
+that boundary:
+
+```bash
+printf 'specification-development\n' > .harnessProfile
+npx harnessc activate --yes
+
+printf 'cli-development\n' > .harnessProfile
+npx harnessc activate --yes
+```
+
+Remove `.harnessProfile` and activate again to return to the neutral guide.
+
 ## Working Rules
 
 - Keep the standard implementation-neutral. Normative behavior belongs in
@@ -31,6 +60,22 @@ edit `.harness` sources instead.
   target-output-local, and `[mutable]` rules.
 - Prefer focused tests near the behavior being changed. Update
   `docs/TESTING.md` when a new standard or CLI scenario is added.
+## Specification Source Of Truth
+
+The open-source repository owns the specification source for both package
+development and website publishing.
+
+- Normative contract: `docs/STANDARD.md`.
+- Conformance contract: `docs/CONFORMANCE.md`.
+- CLI/tooling contract: `docs/TOOLING.md` and package READMEs.
+- Website-ready specification content: `content/spec`.
+
+The website copy at
+`/Users/jalillaaraichi/workspaces-hub/sites/harness-config-site/content/spec`
+is deployment content, not the authoritative source. When publishing the site,
+copy from this repository into the site; do not make the site copy the only
+place where specification changes live.
+
 
 ## Local Commands
 

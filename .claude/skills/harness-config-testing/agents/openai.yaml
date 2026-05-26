@@ -1,4 +1,0 @@
-interface:
-  display_name: "HarnessConfig Testing"
-  short_description: "Design HarnessConfig regression coverage"
-  default_prompt: "Use $harness-config-testing to add focused HarnessConfig regression tests for a projection edge case."

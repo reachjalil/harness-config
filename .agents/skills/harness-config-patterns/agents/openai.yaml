@@ -1,4 +1,0 @@
-interface:
-  display_name: "HarnessConfig Patterns"
-  short_description: "Apply HarnessConfig implementation patterns"
-  default_prompt: "Use $harness-config-patterns to design a HarnessConfig projection implementation change that fits this repository."
