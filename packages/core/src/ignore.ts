@@ -262,11 +262,20 @@ function ruleSetPhase(ruleSet: HarnessIgnoreRuleSet): number {
   }
   if (
     ruleSet.matchBase === "target" &&
-    normalizeIgnorePath(ruleSet.sourcePath).startsWith(".harness/")
+    !ruleSetSourceLivesInDirectory(ruleSet)
   ) {
     return 1.5;
   }
   return ruleSet.matchBase === "target" ? 2 : 1;
+}
+
+function ruleSetSourceLivesInDirectory(ruleSet: HarnessIgnoreRuleSet): boolean {
+  const sourcePath = normalizeIgnorePath(ruleSet.sourcePath);
+  const directory = normalizeIgnorePath(ruleSet.directory);
+  return (
+    sourcePath === directory ||
+    (Boolean(directory) && sourcePath.startsWith(`${directory}/`))
+  );
 }
 
 function compareRuleSetOrder(
@@ -485,7 +494,7 @@ export async function loadHarnessIgnoreRuleSets(
   diagnostics: HarnessDiagnostic[];
   protectedTargetPaths: string[];
 }> {
-  const paths = resolveHarnessPaths(root);
+  const paths = resolveHarnessPaths(root, { config: options.config });
   const ignoreFiles = await findHarnessIgnoreFileEntries(paths.root, options);
   const rootIgnorePath = path.resolve(paths.ignorePath);
   const diagnostics: HarnessDiagnostic[] = [];
@@ -535,7 +544,8 @@ export async function loadHarnessIgnoreRuleSets(
     const targetOverrideDirectory =
       !isRoot && ignoreEntry.matchBase === "source"
         ? targetDirectoryForResourceOverrideDirectory(
-            path.posix.dirname(sourcePath)
+            path.posix.dirname(sourcePath),
+            toRepoRelative(paths.root, paths.resourcesDir)
           )
         : undefined;
     if (targetOverrideDirectory) {
@@ -564,7 +574,8 @@ export async function loadHarnessIgnoreRuleSets(
       ruleSet: extraRuleSet,
     });
     const targetOverrideDirectory = targetDirectoryForResourceOverrideDirectory(
-      extraRuleSet.directory
+      extraRuleSet.directory,
+      toRepoRelative(paths.root, paths.resourcesDir)
     );
     if (extraRuleSet.matchBase !== "target" && targetOverrideDirectory) {
       ruleSets.push({
@@ -595,7 +606,7 @@ async function findHarnessIgnoreFileEntries(
   root: string,
   options: HarnessIgnoreDiscoveryOptions
 ): Promise<HarnessIgnoreFileEntry[]> {
-  const paths = resolveHarnessPaths(root);
+  const paths = resolveHarnessPaths(root, { config: options.config });
   const entries = new Map<string, HarnessIgnoreMatchBase>();
   await addIgnoreFileIfPresent(entries, paths.ignorePath, "both");
 
@@ -630,7 +641,7 @@ async function findHarnessIgnoreFileEntries(
 }
 
 function sourceRootsForConfig(root: string, config: HarnessConfig): string[] {
-  const paths = resolveHarnessPaths(root);
+  const paths = resolveHarnessPaths(root, { config });
   const roots = new Set<string>([paths.harnessDir, paths.resourcesDir]);
   if (config.dir) {
     roots.add(resolveRepoLocalPath(root, config.dir.path, "Dir source path"));
@@ -643,9 +654,10 @@ function sourceRootsForConfig(root: string, config: HarnessConfig): string[] {
 }
 
 function targetDirectoryForResourceOverrideDirectory(
-  sourceDirectory: string
+  sourceDirectory: string,
+  resourcesDirectory = ".harness/resources"
 ): string | undefined {
-  const prefix = ".harness/resources/";
+  const prefix = `${normalizeIgnorePath(resourcesDirectory)}/`;
   const normalized = normalizeIgnorePath(sourceDirectory);
   if (!normalized.startsWith(prefix)) {
     return undefined;

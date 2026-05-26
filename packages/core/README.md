@@ -4,8 +4,10 @@ Shared TypeScript implementation for the HarnessConfig standard.
 
 ## API
 
-- `resolveHarnessPaths(root)`: returns canonical `.harness` paths.
-- `parseHarnessConfigToml(raw)`: parses and validates `harness.toml`.
+- `resolveHarnessPaths(root, options)`: returns selected manifest,
+  conventional `.harness`, and configured resources paths.
+- `parseHarnessConfigToml(raw)`: parses and validates a HarnessConfig TOML
+  manifest.
 - `parseHarnessIgnore(raw)`: parses repo-relative `.harnessIgnore` rules.
 - `loadHarnessIgnoreMatcher(root)`: loads ignore rules for projection planning.
 - `listHarnessProjectionTargets(config)`: returns the explicitly declared
@@ -29,7 +31,12 @@ Shared TypeScript implementation for the HarnessConfig standard.
 This package does not run background services. Mutating helpers dry-run by
 default and require explicit confirmation before writing projection targets.
 
-`harness.toml` may also declare an optional `[dir]` source root. When
+The manifest defaults to `./.harness/harness.toml` and may also be selected from
+another repo-local path by callers that pass `configPath`. The manifest may
+declare `[resources] path = "./path"` to use a resources source other than
+`./.harness/resources`.
+
+The manifest may also declare an optional `[dir]` source root. When
 present (default path `./.harness/dir`), `planHarnessActivation` and
 `applyHarnessActivation` walk that source and produce dir outputs:
 directories carrying an empty `.harnessComposable` marker compose their
@@ -38,31 +45,33 @@ copies as-is to repo-relative paths. Dir outputs that fall under a declared
 `[[targets]]` are merged into that target's projection; outputs that would
 replace or contain a declared target root are rejected.
 
-`harness.toml` may also declare top-level extensions under
+The manifest may also declare top-level extensions under
 `[extensions.<id>]`. Core validates the shared `version` and `activation`
 fields and preserves extension-owned fields for registered extension packages.
 
-The core standard treats resource kinds as source-tree names under
-`.harness/resources`. `skills`, `rules`, `hooks`, and `plugins` are
+The core standard treats resource kinds as source-tree names under the
+configured resources source. `skills`, `rules`, `hooks`, and `plugins` are
 conventions, not reserved schema concepts, and direct files such as
-`.harness/resources/hooks.json` can project to target roots. Targets are
-explicit repo-local paths; no target folder name is created, reserved, or
-projected by default.
+`.harness/resources/hooks.json` can project to target roots when using the
+default source path. Targets are explicit repo-local paths; no target folder
+name is created, reserved, or projected by default.
 
 Use the activation helpers when a consuming tool projects resource views into a
 live harness. Source catalogs can contain metadata, logs, or local state,
 but matched files are excluded by `.harnessIgnore`. Repeated activation with
 the same inputs, cleanup policy, and mutable policy should produce the same
 target tree.
-`.harnessIgnore` can be repo-root, source-local under `.harness/resources` or
-the declared `[dir]` source, or target-output-local under existing
-target/output folders. Target-output rules match final output paths and
-existing target-output `.harnessIgnore` files are preserved during cleanup.
+`.harnessIgnore` can be repo-root, source-local under `.harness`, the
+configured resources source, or the declared `[dir]` source, or
+target-output-local under existing target/output folders. Target-output rules
+match final output paths and existing target-output `.harnessIgnore` files are
+preserved during cleanup.
 `.harnessProfile` selectors can activate `.harnessProfileRoot` overlays under
-`.harness`. Active profile roots merge by logical source path for resources
-and `[dir]`; generic profile overlays do not beat target-specific resource
-overrides. Profile-local `.harnessIgnore` files can suppress base files or
-composable parts.
+`.harness`, the configured resources source, or the configured `[dir]` source.
+Active profile roots merge by logical source path for resources and `[dir]`;
+generic profile overlays do not beat target-specific resource overrides.
+Profile-local `.harnessIgnore` files can suppress base files or composable
+parts.
 Unmanaged target entries are preserved by default and reported at one level;
 pass `{ cleanupUnmanaged: "remove" }` to plan and apply explicit cleanup.
 Files declared mutable in `.harnessIgnore` are created once and skipped on

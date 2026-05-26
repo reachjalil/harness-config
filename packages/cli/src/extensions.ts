@@ -54,6 +54,7 @@ const REGISTERED_EXTENSIONS: readonly RegisteredExtension[] = [];
 export type ExtensionActivationSelection = {
   allExtensions?: boolean;
   autoOnly?: boolean;
+  configPath?: string;
   extensionIds?: string[];
 };
 
@@ -83,9 +84,12 @@ function registeredExtension(id: string): RegisteredExtension | undefined {
 
 async function loadHarnessConfig(
   root: string,
-  diagnostics: HarnessDiagnostic[]
+  diagnostics: HarnessDiagnostic[],
+  configPathOption?: string
 ): Promise<HarnessConfig | undefined> {
-  const configPath = resolveHarnessPaths(root).configPath;
+  const configPath = resolveHarnessPaths(root, {
+    configPath: configPathOption,
+  }).configPath;
   const raw = await readFile(configPath, "utf8").catch((error: unknown) => {
     diagnostics.push({
       severity: "error",
@@ -93,7 +97,7 @@ async function loadHarnessConfig(
       message: error instanceof Error ? error.message : String(error),
       path: toRepoRelative(root, configPath),
       recommendation:
-        "Create a valid .harness/harness.toml before running extensions.",
+        "Create a valid HarnessConfig manifest before running extensions.",
     });
     return undefined;
   });
@@ -228,7 +232,11 @@ export async function planRegisteredExtensions(
   selection: ExtensionActivationSelection = {}
 ): Promise<ExtensionActivationPlan> {
   const diagnostics: HarnessDiagnostic[] = [];
-  const config = await loadHarnessConfig(root, diagnostics);
+  const config = await loadHarnessConfig(
+    root,
+    diagnostics,
+    selection.configPath
+  );
   const selected: ExtensionActivationPlan["selected"] = [];
 
   if (!config) {
@@ -283,7 +291,11 @@ export async function applyRegisteredExtensions(
   }
 
   const configDiagnostics: HarnessDiagnostic[] = [];
-  const config = await loadHarnessConfig(root, configDiagnostics);
+  const config = await loadHarnessConfig(
+    root,
+    configDiagnostics,
+    options.configPath
+  );
   if (!config) {
     return {
       root,

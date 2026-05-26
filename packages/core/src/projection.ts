@@ -103,8 +103,14 @@ type ResourceComposableLeaf = {
   targetOutputPath: string;
 };
 
-async function loadConfig(root: string): Promise<HarnessConfig> {
-  const raw = await readFile(resolveHarnessPaths(root).configPath, "utf8");
+async function loadConfig(
+  root: string,
+  configPath?: string
+): Promise<HarnessConfig> {
+  const raw = await readFile(
+    resolveHarnessPaths(root, { configPath }).configPath,
+    "utf8"
+  );
   return parseHarnessConfigToml(raw);
 }
 
@@ -878,6 +884,7 @@ async function projectResourcesTree(options: {
 }
 
 async function projectCanonicalResourcesTree(options: {
+  config: HarnessConfig;
   diagnostics: HarnessDiagnostic[];
   matcher: HarnessIgnoreMatcher;
   overrideDir: string | undefined;
@@ -887,7 +894,9 @@ async function projectCanonicalResourcesTree(options: {
   root: string;
   targetPath: string;
 }): Promise<void> {
-  const resourcesDir = resolveHarnessPaths(options.root).resourcesDir;
+  const resourcesDir = resolveHarnessPaths(options.root, {
+    config: options.config,
+  }).resourcesDir;
   const resourcesState = await lstat(resourcesDir).catch(() => undefined);
   if (resourcesState?.isDirectory() && !resourcesState.isSymbolicLink()) {
     await projectResourcesTree({
@@ -984,6 +993,7 @@ async function buildProjection(
   for (const phase of ["canonical", "override"] as const) {
     await projectCanonicalResourcesTree({
       diagnostics,
+      config,
       matcher,
       overrideDir,
       phase,
@@ -1719,21 +1729,24 @@ async function prepareHarnessActivation(
   root = process.cwd(),
   options: Pick<
     ApplyHarnessActivationOptions,
-    "cleanupUnmanaged" | "mutablePolicy"
+    "cleanupUnmanaged" | "configPath" | "mutablePolicy"
   > = {}
 ): Promise<ActivationPreparation> {
   const absoluteRoot = path.resolve(root);
   const cleanupUnmanaged = options.cleanupUnmanaged ?? "keep";
   const mutablePolicy = options.mutablePolicy ?? "skip";
-  const config = await loadConfig(absoluteRoot).catch((error: unknown) => {
-    void error;
-    return undefined;
-  });
+  const config = await loadConfig(absoluteRoot, options.configPath).catch(
+    (error: unknown) => {
+      void error;
+      return undefined;
+    }
+  );
   const profileContext = config
     ? await loadHarnessProfileContext(absoluteRoot, { config })
     : undefined;
   const inspection = await validateHarnessConfig(absoluteRoot, {
     config,
+    configPath: options.configPath,
     profileContext,
   });
   const diagnostics = [...inspection.diagnostics];
@@ -1749,14 +1762,16 @@ async function prepareHarnessActivation(
       code: "harness.activation_config_unavailable",
       message: `${toRepoRelative(
         absoluteRoot,
-        resolveHarnessPaths(absoluteRoot).configPath
+        resolveHarnessPaths(absoluteRoot, { configPath: options.configPath })
+          .configPath
       )} is not available as a valid activation manifest.`,
       path: toRepoRelative(
         absoluteRoot,
-        resolveHarnessPaths(absoluteRoot).configPath
+        resolveHarnessPaths(absoluteRoot, { configPath: options.configPath })
+          .configPath
       ),
       recommendation:
-        "Run harnessc init --yes or create a valid .harness/harness.toml before activating projections.",
+        "Run harnessc init --yes or create a valid HarnessConfig manifest before activating projections.",
     });
     return {
       config,
@@ -1872,7 +1887,7 @@ export async function planHarnessActivation(
   root = process.cwd(),
   options: Pick<
     ApplyHarnessActivationOptions,
-    "cleanupUnmanaged" | "mutablePolicy"
+    "cleanupUnmanaged" | "configPath" | "mutablePolicy"
   > = {}
 ): Promise<HarnessActivationPlan> {
   return (await prepareHarnessActivation(root, options)).plan;
@@ -1953,6 +1968,7 @@ export async function applyHarnessActivation(
 ): Promise<HarnessActivationResult> {
   const state = await prepareHarnessActivation(root, {
     cleanupUnmanaged: options.cleanupUnmanaged,
+    configPath: options.configPath,
     mutablePolicy: options.mutablePolicy,
   });
   const plan = state.plan;

@@ -3,6 +3,8 @@ import { z } from "zod";
 
 import type { HarnessExtensionDefinition } from "./types";
 
+export const DEFAULT_HARNESS_CONFIG_PATH = "./.harness/harness.toml";
+export const DEFAULT_HARNESS_RESOURCES_PATH = "./.harness/resources";
 export const DEFAULT_HARNESS_DIR_PATH = "./.harness/dir";
 
 export const CURRENT_HARNESS_CONFIG_VERSION = 1;
@@ -26,6 +28,14 @@ export const repoLocalPathSchema = z
   .refine((value) => !value.split(/[\\/]/).includes(".."), {
     message: "Paths must be repo-local and cannot contain .. segments.",
   });
+
+export const harnessSourcePathSchema = repoLocalPathSchema.refine((value) => {
+  const normalized = value
+    .replaceAll("\\", "/")
+    .replace(/^\.\//, "")
+    .replace(/\/+$/, "");
+  return Boolean(normalized && normalized !== ".");
+}, "Source paths must point at a repo-local folder, not the repository root.");
 
 export const harnessTargetPathSchema = repoLocalPathSchema
   .refine((value) => {
@@ -83,7 +93,13 @@ const harnessExtensionsSchema = z
 
 export const harnessDirSchema = z
   .object({
-    path: repoLocalPathSchema.default(DEFAULT_HARNESS_DIR_PATH),
+    path: harnessSourcePathSchema.default(DEFAULT_HARNESS_DIR_PATH),
+  })
+  .strict();
+
+export const harnessResourcesSchema = z
+  .object({
+    path: harnessSourcePathSchema.default(DEFAULT_HARNESS_RESOURCES_PATH),
   })
   .strict();
 
@@ -113,6 +129,9 @@ export const harnessConfigSchema = z
       .strict()
       .default({ name: "harness-config" }),
     targets: z.array(harnessTargetSchema).default([]),
+    resources: harnessResourcesSchema.default({
+      path: DEFAULT_HARNESS_RESOURCES_PATH,
+    }),
     dir: harnessDirSchema.optional(),
     extensions: harnessExtensionsSchema,
   })
@@ -189,6 +208,9 @@ export function stringifyHarnessConfig(config: HarnessConfig): string {
   const manifest: Record<string, unknown> = { ...config };
   if (config.targets.length === 0) {
     delete manifest.targets;
+  }
+  if (config.resources.path === DEFAULT_HARNESS_RESOURCES_PATH) {
+    delete manifest.resources;
   }
   if (Object.keys(config.extensions).length === 0) {
     delete manifest.extensions;

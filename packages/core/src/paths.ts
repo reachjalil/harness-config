@@ -1,7 +1,15 @@
 import { lstat, readdir } from "node:fs/promises";
 import path from "node:path";
 
-import type { ConventionalHarnessResource, HarnessConfigPaths } from "./types";
+import {
+  DEFAULT_HARNESS_CONFIG_PATH,
+  DEFAULT_HARNESS_RESOURCES_PATH,
+} from "./standard";
+import type {
+  ConventionalHarnessResource,
+  HarnessConfigPaths,
+  HarnessPathOptions,
+} from "./types";
 
 export const HARNESS_CONFIG_DIR = ".harness";
 export const HARNESS_CONFIG_FILE = "harness.toml";
@@ -15,36 +23,45 @@ export const CONVENTIONAL_HARNESS_RESOURCES = [
   "plugins",
 ] as const satisfies readonly ConventionalHarnessResource[];
 
-export function resolveHarnessPaths(root = process.cwd()): HarnessConfigPaths {
+export function resolveHarnessPaths(
+  root = process.cwd(),
+  options: HarnessPathOptions = {}
+): HarnessConfigPaths {
   const absoluteRoot = path.resolve(root);
   const harnessDir = path.join(absoluteRoot, HARNESS_CONFIG_DIR);
+  const configPath = resolveRepoLocalPath(
+    absoluteRoot,
+    options.configPath ?? DEFAULT_HARNESS_CONFIG_PATH,
+    "Harness config path"
+  );
+  const resourcesDir = resolveRepoLocalPath(
+    absoluteRoot,
+    options.config?.resources?.path ?? DEFAULT_HARNESS_RESOURCES_PATH,
+    "Resources source path"
+  );
 
   return {
     root: absoluteRoot,
     harnessDir,
-    configPath: path.join(harnessDir, HARNESS_CONFIG_FILE),
+    configPath,
     ignorePath: path.join(absoluteRoot, HARNESS_IGNORE_FILE),
-    resourcesDir: path.join(harnessDir, HARNESS_RESOURCES_DIR),
-    skillsDir: path.join(harnessDir, HARNESS_RESOURCES_DIR, "skills"),
-    rulesDir: path.join(harnessDir, HARNESS_RESOURCES_DIR, "rules"),
-    pluginsDir: path.join(harnessDir, HARNESS_RESOURCES_DIR, "plugins"),
+    resourcesDir,
+    skillsDir: path.join(resourcesDir, "skills"),
+    rulesDir: path.join(resourcesDir, "rules"),
+    pluginsDir: path.join(resourcesDir, "plugins"),
     workspaceReadmePath: path.join(harnessDir, "README.md"),
   };
 }
 
 export async function findHarnessIgnoreFiles(
-  root = process.cwd()
+  root = process.cwd(),
+  options: HarnessPathOptions = {}
 ): Promise<string[]> {
-  const paths = resolveHarnessPaths(root);
+  const paths = resolveHarnessPaths(root, options);
   const files: string[] = [];
   const rootIgnoreState = await lstat(paths.ignorePath).catch(() => undefined);
   if (rootIgnoreState?.isFile()) {
     files.push(paths.ignorePath);
-  }
-
-  const harnessDirState = await lstat(paths.harnessDir).catch(() => undefined);
-  if (!harnessDirState?.isDirectory() || harnessDirState.isSymbolicLink()) {
-    return files;
   }
 
   async function visit(directory: string): Promise<void> {
@@ -64,40 +81,60 @@ export async function findHarnessIgnoreFiles(
     }
   }
 
-  await visit(paths.harnessDir);
-  return files;
+  const sourceRoots = new Set([
+    paths.harnessDir,
+    paths.resourcesDir,
+    ...(options.config?.dir?.path
+      ? [resolveRepoLocalPath(paths.root, options.config.dir.path)]
+      : []),
+  ]);
+  for (const sourceRoot of sourceRoots) {
+    const state = await lstat(sourceRoot).catch(() => undefined);
+    if (!state?.isDirectory() || state.isSymbolicLink()) {
+      continue;
+    }
+    await visit(sourceRoot);
+  }
+  return files.toSorted((left, right) => left.localeCompare(right));
 }
 
 export function detectImplicitOverrideTarget(
-  repoRelativePath: string
+  repoRelativePath: string,
+  options: { resourcesPath?: string } = {}
 ): string | undefined {
-  const segments = repoRelativePath
+  const normalizedPath = repoRelativePath
     .replaceAll("\\", "/")
     .replace(/^\.\//, "")
-    .split("/")
-    .filter(Boolean);
+    .replace(/\/+/g, "/");
+  const resourcesPath = (
+    options.resourcesPath ?? DEFAULT_HARNESS_RESOURCES_PATH
+  )
+    .replaceAll("\\", "/")
+    .replace(/^\.\//, "")
+    .replace(/\/+/g, "/")
+    .replace(/\/+$/, "");
+  if (!normalizedPath.endsWith(`/${HARNESS_IGNORE_FILE}`)) {
+    return undefined;
+  }
   if (
-    segments.length < 4 ||
-    segments[0] !== HARNESS_CONFIG_DIR ||
-    segments.at(-1) !== HARNESS_IGNORE_FILE
+    normalizedPath !== resourcesPath &&
+    !normalizedPath.startsWith(`${resourcesPath}/`)
   ) {
     return undefined;
   }
 
-  if (segments[1] === HARNESS_RESOURCES_DIR) {
-    const rootOverrideSegment = segments[2];
-    if (rootOverrideSegment?.startsWith(".")) {
-      return rootOverrideSegment;
-    }
-    const itemOverrideSegment = segments.length >= 6 ? segments[4] : undefined;
-    if (itemOverrideSegment?.startsWith(".")) {
-      return itemOverrideSegment;
-    }
+  const segments = normalizedPath
+    .slice(resourcesPath.length)
+    .replace(/^\//, "")
+    .split("/")
+    .filter(Boolean);
+  const rootOverrideSegment = segments[0];
+  if (rootOverrideSegment?.startsWith(".")) {
+    return rootOverrideSegment;
   }
-
-  if (segments.length >= 5) {
-    const overrideSegment = segments[3];
-    return overrideSegment?.startsWith(".") ? overrideSegment : undefined;
+  const itemOverrideSegment = segments.length >= 4 ? segments[2] : undefined;
+  if (itemOverrideSegment?.startsWith(".")) {
+    return itemOverrideSegment;
   }
 
   return undefined;
@@ -106,27 +143,24 @@ export function detectImplicitOverrideTarget(
 export function defaultHarnessResourcePath(
   resource: ConventionalHarnessResource | string
 ): string {
-  return `./.harness/${HARNESS_RESOURCES_DIR}/${resource}`;
+  return `${DEFAULT_HARNESS_RESOURCES_PATH}/${resource}`;
 }
 
 export function resolveHarnessResourceDir(
   root: string,
-  resource: string
+  resource: string,
+  options: HarnessPathOptions = {}
 ): string {
-  return path.join(
-    path.resolve(root),
-    HARNESS_CONFIG_DIR,
-    HARNESS_RESOURCES_DIR,
-    resource
-  );
+  return path.join(resolveHarnessPaths(root, options).resourcesDir, resource);
 }
 
 export function resolveHarnessResourceItemDir(
   root: string,
   resource: string,
-  name: string
+  name: string,
+  options: HarnessPathOptions = {}
 ): string {
-  return path.join(resolveHarnessResourceDir(root, resource), name);
+  return path.join(resolveHarnessResourceDir(root, resource, options), name);
 }
 
 export function assertRepoLocalPath(

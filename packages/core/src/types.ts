@@ -16,6 +16,18 @@ export type HarnessDirDefinition = {
   path: string;
 };
 
+export type HarnessResourcesDefinition = {
+  path: string;
+};
+
+export type HarnessPathOptions = {
+  configPath?: string;
+  config?: {
+    resources?: HarnessResourcesDefinition;
+    dir?: HarnessDirDefinition;
+  };
+};
+
 export type HarnessConfigPaths = {
   root: string;
   harnessDir: string;
@@ -81,12 +93,16 @@ export type HarnessInitializationResult = {
 export type ApplyHarnessInitializationOptions = {
   dryRun?: boolean;
   yes?: boolean;
+  configPath?: string;
+  resourcesPath?: string;
   resourceKinds?: string[];
   config?: {
     version: number;
     standard: {
       name: string;
     };
+    resources?: HarnessResourcesDefinition;
+    dir?: HarnessDirDefinition;
     targets: HarnessTargetDefinition[];
     extensions?: Record<string, HarnessExtensionDefinition>;
   };
@@ -151,6 +167,7 @@ export type HarnessActivationResult = {
 export type ApplyHarnessActivationOptions = {
   dryRun?: boolean;
   yes?: boolean;
+  configPath?: string;
   cleanupUnmanaged?: "keep" | "remove";
   mutablePolicy?: "skip" | "force";
 };

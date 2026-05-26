@@ -18,9 +18,10 @@ harnessc extension activate
 harnessc plan
 ```
 
-- `harnessc init` creates `.harness/harness.toml`, conventional or custom
-  resource folders under `.harness/resources`, and `.harnessIgnore` when
-  applied with `--yes`.
+- `harnessc init` creates the selected manifest (`./.harness/harness.toml` by
+  default), conventional or custom resource folders under the configured
+  resources source (`./.harness/resources` by default), and `.harnessIgnore`
+  when applied with `--yes`.
 - `harnessc validate` checks version support, repo-local paths, target
   mappings, projection ignore syntax, mutable scope syntax, resource
   composable leaves, symlink diagnostics, and `[dir]` composition/copy
@@ -38,13 +39,22 @@ harnessc plan
 `init`, `activate`, and `extension activate` are dry runs unless `--yes` is
 supplied.
 Unmanaged target entries are kept by default. Use `--remove-unmanaged` when a
-target should be cleaned to match `.harness`; use `--keep-unmanaged` to make
-the default explicit.
+target should be cleaned to match configured sources; use `--keep-unmanaged`
+to make the default explicit.
 
-Cleanup applies only to targets that are still declared in `harness.toml`.
-After a target declaration is removed, base `harnessc activate` no longer
-inspects or cleans that folder. Clean it first with `--remove-unmanaged`, or use
-a higher-level activation-state workflow that can reconcile orphaned targets.
+Cleanup applies only to targets that are still declared in the selected
+manifest. After a target declaration is removed, base `harnessc activate` no
+longer inspects or cleans that folder. Clean it first with
+`--remove-unmanaged`, or use a higher-level activation-state workflow that can
+reconcile orphaned targets.
+
+The default manifest path is `./.harness/harness.toml`. Pass `--config <path>` to
+validate, plan, initialize, activate, or run extensions against a different
+repo-local TOML file. `harnessc init --resources-path <path>` writes a
+`[resources]` path into the manifest and creates resource folders below that
+configured source root. Manifest paths are selected by the tool invocation;
+paths inside the manifest remain repo-local, not relative to the manifest
+file's directory.
 
 Managed files are compared directly with the current source projection: if the
 target differs, `harnessc activate` reports `update` and applying activation
@@ -57,7 +67,7 @@ other product opinions belong above `harnessc`.
 
 ## Dir Composition And Copy
 
-Declaring `[dir]` in `harness.toml` activates a single dir source root
+Declaring `[dir]` in the selected manifest activates a single dir source root
 (default `./.harness/dir`). Running `harnessc activate` plans and applies
 dir outputs alongside target projection:
 
@@ -110,9 +120,10 @@ never copied to any output.
 Profile overrides use `.harnessProfile` selectors and `.harnessProfileRoot`
 source overlays. A root `.harnessProfile` applies globally; target/output
 selectors such as `.agents/skills/.harnessProfile` apply only to that output
-subtree. `.harnessProfileRoot` must live under `.harness`; when active, its
-contents overlay either the parent source root (for markers directly inside
-the resources source or dir root), the parent directory (for portable profile
+subtree. `.harnessProfileRoot` must live under `.harness`, the configured
+resources source, or the configured dir source; when active, its contents
+overlay either the parent source root (for markers directly inside the
+resources source or dir root), the parent directory (for portable profile
 roots nested inside a resource item or dir subtree), or `.harness` (for
 kit-style folders).
 Profile roots cannot be nested inside other profile roots. Profile-local
@@ -176,13 +187,13 @@ A conforming validator should:
 
 - Use the supplied `--root` path, or the current working directory when no root
   is supplied, as the repository root. Nested invocations should pass `--root`.
-- Parse `.harness/harness.toml` and reject malformed input with clear
-  diagnostics.
+- Parse the selected manifest, defaulting to `./.harness/harness.toml`, and reject
+  malformed input with clear diagnostics.
 - Refuse unsupported future standard versions.
-- Validate the canonical `.harness/resources` source tree and reject manifest
+- Validate the configured resources source path and reject per-kind manifest
   resource declarations.
 - Verify each `[[targets]]` entry contains only a repo-local path, points
-  below the repository root, and does not point at the source root.
+  below the repository root, and does not overlap configured source roots.
 - Parse `.harnessIgnore` with repo-root, source-local, profile-local,
   target-output-local, and `[mutable]` rules using the standard precedence
   phases.

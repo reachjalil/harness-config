@@ -675,17 +675,27 @@ function validateDirOutputPath(
     path.resolve(root, relativePath),
     `Dir output "${relativePath}"`
   );
-  const harnessDir = resolveHarnessPaths(root).harnessDir;
+  const paths = resolveHarnessPaths(root, { config });
+  const sourceRoots = [
+    { label: ".harness", path: paths.harnessDir },
+    { label: "resources", path: paths.resourcesDir },
+    ...(config.dir
+      ? [{ label: "dir", path: resolveDirRoot(root, config) }]
+      : []),
+  ];
 
-  if (isInsideOrEqual(harnessDir, targetPath)) {
-    diagnostics.push({
-      severity: "error",
-      code: "harness.dir_output_inside_harness",
-      message: `Dir output "${relativePath}" cannot write inside .harness.`,
-      path: relativePath,
-      recommendation: "Choose an output path outside .harness.",
-    });
-    return undefined;
+  for (const sourceRoot of sourceRoots) {
+    if (isInsideOrEqual(sourceRoot.path, targetPath)) {
+      diagnostics.push({
+        severity: "error",
+        code: "harness.dir_output_inside_source_root",
+        message: `Dir output "${relativePath}" cannot write inside the ${sourceRoot.label} source root.`,
+        path: relativePath,
+        recommendation:
+          "Choose an output path outside HarnessConfig source roots.",
+      });
+      return undefined;
+    }
   }
 
   // dir outputs may overlap declared targets — they become part of the

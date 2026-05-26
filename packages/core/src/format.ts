@@ -180,7 +180,7 @@ export function formatActivationPlan(
             const summary = summarizeActivationActions(target.actions);
             const policies = [
               target.actions.some((action) => action.kind === "preserve")
-                ? "Unmanaged policy: keeping existing target entries that are not in .harness. Use --remove-unmanaged to delete them."
+                ? "Unmanaged policy: keeping existing target entries that are not in configured sources. Use --remove-unmanaged to delete them."
                 : "",
               target.actions.some((action) => action.kind === "mutable")
                 ? "Mutable policy: leaving runtime-owned files in place. Use --force-mutable to re-project from source."
@@ -209,7 +209,7 @@ export function formatActivationPlan(
   return `${heading(options, "HarnessConfig activation plan")}\n\n${heading(
     options,
     "Idempotency:"
-  )}\nRunning activation with the same .harness tree, harness.toml, and .harnessIgnore files produces the same projections.\n\n${heading(
+  )}\nRunning activation with the same configured source trees, manifest, and .harnessIgnore files produces the same projections.\n\n${heading(
     options,
     "Diagnostics:"
   )}\n${diagnostics}\n\n${heading(
@@ -255,7 +255,8 @@ function formatActivationActionSections(
   }> = [
     { title: "Creates", kinds: ["create"], limit: 12 },
     {
-      title: "Updates (managed target files overwritten from .harness)",
+      title:
+        "Updates (managed target files overwritten from configured sources)",
       kinds: ["update"],
       limit: 12,
     },

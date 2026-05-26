@@ -61,7 +61,7 @@ describe("harnessc", () => {
     expect(capture.stdout.join("\n")).toContain(".harnessIgnore");
   });
 
-  it("validates a missing .harness root with warnings", async () => {
+  it("validates a missing default manifest with warnings", async () => {
     const root = await rootFixture();
     const capture = captureIo();
     const exitCode = await runHarnessConfigCli(
@@ -70,7 +70,8 @@ describe("harnessc", () => {
     );
 
     expect(exitCode).toBe(0);
-    expect(capture.stdout.join("\n")).toContain("harness.root_missing");
+    expect(capture.stdout.join("\n")).toContain("harness.config_missing");
+    expect(capture.stdout.join("\n")).toContain(".harness/harness.toml");
   });
 
   it("colors human output only when the output sink supports color", async () => {
@@ -164,6 +165,9 @@ describe("harnessc", () => {
     await expect(
       readFile(path.join(root, ".harnessIgnore"), "utf8")
     ).resolves.toContain("projecting .harness resources");
+    await expect(
+      readFile(path.join(root, ".harness", "harness.toml"), "utf8")
+    ).resolves.not.toContain("[resources]");
   });
 
   it("initializes custom resource folders and explicit targets when requested", async () => {
@@ -185,7 +189,7 @@ describe("harnessc", () => {
 
     expect(exitCode).toBe(0);
     const config = await readFile(
-      path.join(root, ".harness/harness.toml"),
+      path.join(root, ".harness", "harness.toml"),
       "utf8"
     );
     expect(config).not.toContain("[resources.prompts]");
@@ -199,6 +203,63 @@ describe("harnessc", () => {
     ).rejects.toThrow();
   });
 
+  it("initializes and activates with explicit config and resources paths", async () => {
+    const root = await rootFixture();
+    const initCapture = captureIo();
+    const initExitCode = await runHarnessConfigCli(
+      [
+        "init",
+        "--root",
+        root,
+        "--config",
+        "./config/harness.custom.toml",
+        "--resources-path",
+        "./agent-context/resources",
+        "--target",
+        "./.agents",
+        "--yes",
+      ],
+      initCapture.io
+    );
+
+    expect(initExitCode).toBe(0);
+    const rawConfig = await readFile(
+      path.join(root, "config", "harness.custom.toml"),
+      "utf8"
+    );
+    expect(rawConfig).toContain("[resources]");
+    expect(rawConfig).toContain('path = "./agent-context/resources"');
+    await expect(
+      lstat(path.join(root, "agent-context/resources/skills"))
+    ).resolves.toBeTruthy();
+    await expect(
+      readFile(path.join(root, ".harness", "harness.toml"))
+    ).rejects.toThrow();
+
+    await write(
+      root,
+      "agent-context/resources/skills/review/SKILL.md",
+      "custom"
+    );
+    const activateCapture = captureIo();
+    const activateExitCode = await runHarnessConfigCli(
+      [
+        "activate",
+        "--root",
+        root,
+        "--config",
+        "./config/harness.custom.toml",
+        "--yes",
+      ],
+      activateCapture.io
+    );
+
+    expect(activateExitCode).toBe(0);
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/SKILL.md"), "utf8")
+    ).resolves.toBe("custom");
+  });
+
   it("dry-runs init by default", async () => {
     const root = await rootFixture();
     const capture = captureIo();
@@ -210,7 +271,7 @@ describe("harnessc", () => {
     expect(exitCode).toBe(0);
     expect(capture.stdout.join("\n")).toContain("dry run");
     await expect(
-      readFile(path.join(root, ".harness/harness.toml"), "utf8")
+      readFile(path.join(root, ".harness", "harness.toml"), "utf8")
     ).rejects.toThrow();
   });
 
@@ -237,7 +298,7 @@ describe("harnessc", () => {
     ).rejects.toThrow();
   });
 
-  it("activates .harness/resources without manifest resource declarations", async () => {
+  it("activates the default .harness/resources tree when [resources] is omitted", async () => {
     const root = await rootFixture();
     await write(
       root,

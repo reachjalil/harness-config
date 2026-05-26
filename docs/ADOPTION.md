@@ -8,11 +8,13 @@ and migration (a repository that already has `.claude/`, `.cursor/`,
 
 HarnessConfig v1 starts from a small source contract:
 
-1. Create `.harness/harness.toml` with `version = 1`.
-2. Add resource folders and files under `.harness/resources`, such as
+1. Create `./.harness/harness.toml` with `version = 1`, or choose another repo-local
+   manifest path and pass it explicitly to tooling.
+2. Add resource folders and files under the configured resources source,
+   defaulting to `.harness/resources`, such as
    `.harness/resources/skills`, `.harness/resources/rules`, or
    `.harness/resources/hooks.json`.
-3. Declare every projection target explicitly in `harness.toml`.
+3. Declare every projection target explicitly in the selected manifest.
 4. Use `.harnessIgnore` to keep source-only files out of live targets and
    mark runtime-owned files with `[mutable]`.
 5. Dry-run activation before writing target folders.
@@ -31,23 +33,25 @@ harnessc activate --yes
 
 A repository that already has runtime-facing folders such as `.claude/` or
 `.cursor/` adopts HarnessConfig incrementally. The shape of the migration
-matters: the source root must become the canonical input, not the target.
+matters: the configured source roots must become the canonical input, not the
+target.
 
 Recommended sequence:
 
 1. **Snapshot existing targets.** Commit the current live folders, or copy
    them to a branch. Adoption is reversible, but a known-good baseline
    makes review easier.
-2. **Move durable content into `./.harness/resources/`.** Most
+2. **Move durable content into the resources source.** Most
    `.claude/skills/foo/` contents become
    `./.harness/resources/skills/foo/`. Files
    that differ only for one agent move into the matching override folder
    (e.g., `./.harness/resources/skills/foo/.claude/`). Target-root files
    such as `.claude/hooks.json` become `.harness/resources/hooks.json`, with
    target-specific versions under `.harness/resources/.claude/`.
-3. **Declare targets in `harness.toml`.** Add a `[[targets]]` entry for each
-   runtime folder you want regenerated. A target only receives projections
-   when it appears here; resource roots must not be declared in the manifest.
+3. **Declare targets in the selected manifest.** Add a `[[targets]]` entry for
+   each runtime folder you want regenerated. A target only receives projections
+   when it appears here. If the resources source is not
+   `./.harness/resources`, declare the shared source with `[resources] path`.
 4. **Write `.harnessIgnore` for source-only artifacts.** Logs, scratch
    files, per-tool metadata, and skill `metadata.toml` typically belong
    under ignore rules. Files the runtime writes back (permissions, learned
@@ -57,10 +61,11 @@ Recommended sequence:
    user/local output preferences can live in target-output files such as
    `runtime/agent/skills/foo/.harnessIgnore`.
 5. **Add profile overrides only where they clarify ownership.** Put
-   `.harnessProfileRoot` under `.harness` for optional kits or personal
-   overlays, and select them with repo-root or target-output
-   `.harnessProfile` files. Profile-local `.harnessIgnore` files can hide
-   base files or composable parts for that profile.
+   `.harnessProfileRoot` under `.harness`, the configured resources source, or
+   the configured dir source for optional kits or personal overlays, and
+   select them with repo-root or target-output `.harnessProfile` files.
+   Profile-local `.harnessIgnore` files can hide base files or composable
+   parts for that profile.
 6. **Dry run, review, then apply.** `harnessc activate` prints the plan
    without writing. Review `create` / `update` / `remove` actions against
    the snapshot, then re-run with `--yes`.
@@ -70,7 +75,7 @@ Recommended sequence:
    target; reconcile before relying on the standard.
 
 After migration, the live folders are derived: they can be removed and
-regenerated from `./.harness` plus the manifest at any time.
+regenerated from the configured source roots plus the manifest at any time.
 
 ## Common Pitfalls
 

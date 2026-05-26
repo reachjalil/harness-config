@@ -15,14 +15,16 @@ async function fixtureRoot(): Promise<string> {
 }
 
 describe("HarnessConfig initialization", () => {
-  it("plans greenfield .harness initialization without treating existing folders as implicit targets", async () => {
+  it("plans greenfield initialization without treating existing folders as implicit targets", async () => {
     const root = await fixtureRoot();
     await mkdir(path.join(root, "runtime", "skills"), { recursive: true });
 
     const plan = await planHarnessInitialization(root);
 
     expect(
-      plan.actions.some((action) => action.id === "harness.root.ensure")
+      plan.actions.some(
+        (action) => action.id === "harness.resource.skills.ensure"
+      )
     ).toBe(true);
     expect(plan.actions.some((action) => action.id.includes("runtime"))).toBe(
       false
@@ -40,7 +42,7 @@ describe("HarnessConfig initialization", () => {
     ).rejects.toThrow();
   });
 
-  it("applies initialization to .harness with explicit confirmation", async () => {
+  it("applies initialization with explicit confirmation", async () => {
     const root = await fixtureRoot();
 
     await applyHarnessInitialization(root, { yes: true });
@@ -52,6 +54,7 @@ describe("HarnessConfig initialization", () => {
     const validation = await validateHarnessConfig(root);
 
     expect(rawConfig).toContain("version = 1");
+    expect(rawConfig).not.toContain("[resources]");
     expect(rawIgnore).toContain("projecting .harness resources");
     expect(validation.hasHarnessDir).toBe(true);
     expect(validation.hasHarnessIgnore).toBe(true);
@@ -105,6 +108,31 @@ describe("HarnessConfig initialization", () => {
     ).resolves.toBeTruthy();
     await expect(
       lstat(path.join(root, ".harness", "resources", "skills"))
+    ).rejects.toThrow();
+  });
+
+  it("can initialize an explicit config path and resources source path", async () => {
+    const root = await fixtureRoot();
+
+    await applyHarnessInitialization(root, {
+      yes: true,
+      configPath: "./config/harness.custom.toml",
+      resourcesPath: "./agent-context/resources",
+      resourceKinds: ["skills"],
+    });
+
+    const rawConfig = await readFile(
+      path.join(root, "config", "harness.custom.toml"),
+      "utf8"
+    );
+
+    expect(rawConfig).toContain("[resources]");
+    expect(rawConfig).toContain('path = "./agent-context/resources"');
+    await expect(
+      lstat(path.join(root, "agent-context", "resources", "skills"))
+    ).resolves.toBeTruthy();
+    await expect(
+      readFile(path.join(root, ".harness", "harness.toml"))
     ).rejects.toThrow();
   });
 

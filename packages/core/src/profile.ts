@@ -56,7 +56,8 @@ export async function loadHarnessProfileContext(
   const profileRoots = await loadHarnessProfileRoots(
     absoluteRoot,
     profileOverlaySourceRoots(absoluteRoot, options),
-    diagnostics
+    diagnostics,
+    options.config
   );
   const { selectors, protectedTargetPaths } = await loadHarnessProfileSelectors(
     absoluteRoot,
@@ -64,7 +65,7 @@ export async function loadHarnessProfileContext(
     diagnostics
   );
   const { ruleSets, diagnostics: ignoreDiagnostics } =
-    await loadProfileIgnoreRuleSets(absoluteRoot, profileRoots);
+    await loadProfileIgnoreRuleSets(absoluteRoot, profileRoots, options.config);
   diagnostics.push(...ignoreDiagnostics);
 
   const sortedSelectors = selectors.toSorted((left, right) => {
@@ -150,7 +151,7 @@ function profileOverlaySourceRoots(
   root: string,
   options: HarnessProfileContextOptions
 ): string[] {
-  const paths = resolveHarnessPaths(root);
+  const paths = resolveHarnessPaths(root, { config: options.config });
   const roots = new Set<string>([paths.harnessDir, paths.resourcesDir]);
 
   for (const sourceRoot of options.sourceRoots ?? []) {
@@ -174,10 +175,19 @@ function profileOverlaySourceRoots(
 async function loadHarnessProfileRoots(
   root: string,
   sourceRoots: string[],
-  diagnostics: HarnessDiagnostic[]
+  diagnostics: HarnessDiagnostic[],
+  config?: HarnessConfig
 ): Promise<HarnessProfileRoot[]> {
-  const paths = resolveHarnessPaths(root);
-  const markerPaths = await findProfileRootMarkers(paths.harnessDir);
+  const paths = resolveHarnessPaths(root, { config });
+  const markerPaths = [
+    ...new Set(
+      (
+        await Promise.all(
+          sourceRoots.map((sourceRoot) => findProfileRootMarkers(sourceRoot))
+        )
+      ).flat()
+    ),
+  ].toSorted((left, right) => left.localeCompare(right));
   const markerRootDirs = markerPaths.map((markerPath) =>
     path.dirname(markerPath)
   );
@@ -393,13 +403,18 @@ async function addProfileSelectorIfPresent(
 
 async function loadProfileIgnoreRuleSets(
   root: string,
-  profileRoots: HarnessProfileRoot[]
+  profileRoots: HarnessProfileRoot[],
+  config?: HarnessConfig
 ): Promise<{
   diagnostics: HarnessDiagnostic[];
   ruleSets: HarnessIgnoreRuleSet[];
 }> {
   const diagnostics: HarnessDiagnostic[] = [];
   const ruleSets: HarnessIgnoreRuleSet[] = [];
+  const resourcesPath = toRepoRelative(
+    root,
+    resolveHarnessPaths(root, { config }).resourcesDir
+  );
 
   for (const profileRoot of profileRoots) {
     const ignoreFiles = await findNestedIgnoreFiles(profileRoot.rootDir);
@@ -429,7 +444,9 @@ async function loadProfileIgnoreRuleSets(
         sourcePath: physicalSourcePath,
         isRoot: false,
         matchBase: "source",
-        implicitTarget: detectImplicitOverrideTarget(logicalSourcePath),
+        implicitTarget: detectImplicitOverrideTarget(logicalSourcePath, {
+          resourcesPath,
+        }),
         profile: profileRoot.profile,
       });
     }

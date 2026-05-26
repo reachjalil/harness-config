@@ -4,10 +4,10 @@ Agent runtimes need live folders. Teams need a stable, reviewable source layout
 for the resources those runtimes consume. HarnessConfig separates those
 responsibilities without prescribing an application model for either.
 
-The source catalog lives under `./.harness`. Runtime surfaces such as
-`./.agents`, `./.claude`, or `./.cursor` remain live folders that their
-runtimes read. Activation projects the reviewed catalog view into those
-surfaces as ordinary files.
+The source catalog lives under configured source roots, with `./.harness` as
+the default convention. Runtime surfaces such as `./.agents`, `./.claude`, or
+`./.cursor` remain live folders that their runtimes read. Activation projects
+the reviewed catalog view into those surfaces as ordinary files.
 
 ## The Concrete Problem
 
@@ -37,15 +37,16 @@ This produces predictable, recurring pain in real repositories:
 5. **No portable contract.** A new agent shipped tomorrow has no path that
    lets it consume the same source material a repository already maintains.
 
-HarnessConfig addresses these by making one source layout (`./.harness/`)
-canonical and reviewable, and every runtime surface an explicit projection
-target derived from that source.
+HarnessConfig addresses these by making configured source layouts canonical
+and reviewable, and every runtime surface an explicit projection target
+derived from those sources.
 
 ## Roles
 
 HarnessConfig defines four roles:
 
-- Source catalog: durable resources under `./.harness/resources`.
+- Source catalog: durable resources under the configured resources source,
+  defaulting to `./.harness/resources`.
 - Target-derived override: a dot-prefixed folder inside a resource, such as
   `.claude`, that adjusts files for a target.
 - Activation projection: the computed copy of source plus matching overrides
@@ -61,8 +62,8 @@ HarnessConfig defines four roles:
   receives only the reviewed projection for that context.
 - The contract is implementation-neutral: folders, TOML, ignore rules,
   overrides, and projection intent.
-- New resource kinds and direct target-root files can use
-  `.harness/resources` before every runtime supports a native format.
+- New resource kinds and direct target-root files can use the configured
+  resources source before every runtime supports a native format.
 - Each declared target projection is explicit, reviewable, and reproducible
   from source, ignores, overrides, and cleanup policy.
 - Tools can show creates, updates, requested removals, unchanged projected

@@ -16,10 +16,11 @@ A small, repository-local standard that gives multiple AI coding agents
 update the prompts, skills, rules, and plugins a repository owns — without
 turning each agent's runtime folder into the source of truth.
 
-A repository keeps its durable source material under one folder, `./.harness`,
-stores target resources under `./.harness/resources`, declares runtime targets
-in `./.harness/harness.toml`, and lets tools materialize each target as a
-reviewable copy projection.
+A repository keeps durable source material in configured source roots, stores
+target resources under `./.harness/resources` by convention, declares runtime
+targets in `./.harness/harness.toml` by default, and lets tools materialize each target
+as a reviewable copy projection. Both the manifest path and resources source
+path can be explicit when a repository needs a different layout.
 
 ## The Problem It Solves
 
@@ -36,14 +37,16 @@ See [docs/RATIONALE.md](./docs/RATIONALE.md) for the long form.
 
 ## Core Properties
 
-- **One source root** (`./.harness`), reviewed in version control.
+- **Neutral source roots** reviewed in version control, with `./.harness` as
+  the default convention.
 - **Explicit targets only.** A repo-local folder receives projection *only*
-  when declared in `harness.toml`. No implicit targets or reserved target
+  when declared in the selected manifest. No implicit targets or reserved target
   folder names.
-- **No reserved resource kinds.** `skills`, `rules`, `hooks`, and `plugins`
-  are common conventions under `./.harness/resources`; repositories may add
-  `prompts`, `workflows`, `checks`, direct files such as `hooks.json`, or any
-  other durable target resource path there.
+- **Configurable resources source.** `./.harness/resources` is the default,
+  but `[resources] path = "./path"` can move it. `skills`, `rules`, `hooks`,
+  and `plugins` are common conventions; repositories may add `prompts`,
+  `workflows`, `checks`, direct files such as `hooks.json`, or any other
+  durable target resource path there.
 - **Copy projection.** Targets are materialized as ordinary files, not
   symlinks. The plan (`create` / `update` / `remove` / `keep` / `preserve`
   / `mutable`) is shown before any write.
@@ -74,9 +77,10 @@ of `@harnessconfig/core`.
 
 ## Layout
 
-Canonical resources source:
+Default resources source:
 
 ```text
+.harnessIgnore
 .harness/
   harness.toml
   resources/
@@ -98,7 +102,6 @@ Canonical resources source:
           plugin.json
     .gemini/
       hooks.json
-.harnessIgnore
 ```
 
 Custom resource kinds use the same shape:
@@ -114,26 +117,32 @@ Custom resource kinds use the same shape:
         workflow.toml
 ```
 
-Each resource kind lives under `./.harness/resources/<kind>`. Conventional
-resource items are folders, and direct files under `./.harness/resources`
-project to the target root. Immediate dot-prefixed folders directly under
-`resources/` are target-root overrides; immediate dot-prefixed folders inside
-an item are item-level target overrides.
+Each resource kind lives under `<resources>/<kind>`. Conventional resource
+items are folders, and direct files under the resources source project to the
+target root. Immediate dot-prefixed folders directly under `resources/` are
+target-root overrides; immediate dot-prefixed folders inside an item are
+item-level target overrides.
 
 Resource files can also be composable leaves. For example,
 `.harness/resources/skills/review/SKILL.md/.harnessComposable` composes the
 numbered files inside `SKILL.md/` and projects one target file at
 `skills/review/SKILL.md`.
 
-## `harness.toml`
+## Manifest
 
-`harness.toml` declares the supported standard version and projection targets:
+The selected `harness.toml` manifest declares the supported standard version,
+optional resources source path, projection targets, and optional dir source.
+The default path is `./.harness/harness.toml`, and tools may select another
+repo-local manifest path explicitly:
 
 ```toml
 version = 1
 
 [standard]
 name = "harness-config"
+
+[resources]
+path = "./.harness/resources"
 
 [[targets]]
 path = "./.agents"
@@ -147,17 +156,19 @@ path = "./.harness/dir"
 
 Target declarations contain only `path`. A target path such as `./.claude`
 automatically uses `.claude` override folders when they exist in
-`./.harness/resources` or inside a resource item. The optional `[dir]` section
-turns on dir composition + copy from `./.harness/dir` (or the configured
-path); see "Dir Composition And Copy" below. Extensions are declared under
+the configured resources source or inside a resource item. The optional
+`[resources]` table may contain only `path`; omit it to use
+`./.harness/resources`. The optional `[dir]` section turns on dir composition
+and copy from `./.harness/dir` (or the configured path); see "Dir Composition
+And Copy" below. Extensions are declared under
 `[extensions.<id>]`; core owns `version` and `activation`, while each extension
 owns its remaining fields.
 
 ## `.harnessIgnore`
 
-`.harnessIgnore` is the projection boundary. Targets receive the canonical
-`.harness/resources` tree by default; nested source-local and
-target-output-local ignore files decide what does not enter a given subtree.
+`.harnessIgnore` is the projection boundary. Targets receive the configured
+resources source by default; nested source-local and target-output-local
+ignore files decide what does not enter a given subtree.
 The repo-root file can match source paths such as
 `.harness/resources/skills/review/logs/run.log` and target output paths such
 as `.agents/skills/review/scratch.tmp`.
@@ -173,7 +184,7 @@ as `.agents/skills/review/scratch.tmp`.
 *
 ```
 
-Use `harness.toml` to declare targets, optional `[dir]` output sources, and
+Use the selected manifest to declare targets, optional `[dir]` output sources, and
 extensions. Use `.harnessIgnore` to control which files or whole subtrees are
 excluded from projection.
 
@@ -192,8 +203,8 @@ cleanup.
 
 ## Profile Overrides
 
-Profiles let a repo keep optional overlays in `.harness` and activate them
-with a small selector file:
+Profiles let a repo keep optional overlays in configured source roots and
+activate them with a small selector file:
 
 ```text
 .harnessProfile                      # contains: deploy
@@ -215,13 +226,14 @@ with a small selector file:
 
 `.harnessProfile` may live at the repo root or in an existing target/output
 subtree such as `.agents/skills/.harnessProfile`; the nearest selector chooses
-the active profile for that output path. `.harnessProfileRoot` may live only
-under `.harness`, cannot be nested inside another profile root, names the
-profile it contributes to, and is never projected as a resource item. Profile
-roots nested inside resource or dir source trees overlay their parent folder,
-which lets a skill carry its own portable profile override. Profile-local
-`.harnessIgnore` files match the logical overlay path, so a profile can
-suppress base files or composable parts while adding its own files.
+the active profile for that output path. `.harnessProfileRoot` may live under
+`.harness`, the configured resources source, or the configured dir source,
+cannot be nested inside another profile root, names the profile it contributes
+to, and is never projected as a resource item. Profile roots nested inside
+resource or dir source trees overlay their parent folder, which lets a skill
+carry its own portable profile override. Profile-local `.harnessIgnore` files
+match the logical overlay path, so a profile can suppress base files or
+composable parts while adding its own files.
 
 ## CLI
 
@@ -249,21 +261,25 @@ npx harnessc plan
 
 `harnessc init` writes conventional resource folders under
 `.harness/resources` (`skills`, `rules`, and `plugins`) when no `--resource`
-flags are supplied. Passing one or more `--resource <kind>` flags writes only
-those resource folders. Passing `--target <path>` declares explicit projection
-targets. Init is a dry run unless `--yes` is supplied.
+flags are supplied. Use `--resources-path <path>` to write a `[resources]`
+path and create folders under a custom resources source. Use `--config <path>`
+when the manifest should be somewhere other than `./.harness/harness.toml`. Passing one
+or more `--resource <kind>` flags writes only those resource folders. Passing
+`--target <path>` declares explicit projection targets. Init is a dry run
+unless `--yes` is supplied.
 
 `harnessc plan` is a read-only initialization/adoption plan. It is not a
 projection preview, and it does not infer targets from existing folders.
-Folders receive projection only after they are declared in `harness.toml`.
+Folders receive projection only after they are declared in the selected
+manifest.
 Run `harnessc activate` without `--yes` to preview the projection.
 
 `harnessc activate` is also a dry run unless `--yes` is supplied. The dry run
 prints the target strategy and the filesystem actions that would be taken.
-Existing target entries that are not in `.harness` are kept by default and
-shown as unmanaged preserved entries. Use `--remove-unmanaged` to delete those
-entries during activation, or `--keep-unmanaged` to make the preservation
-choice explicit.
+Existing target entries that are not in the configured projection are kept by
+default and shown as unmanaged preserved entries. Use `--remove-unmanaged` to
+delete those entries during activation, or `--keep-unmanaged` to make the
+preservation choice explicit.
 
 Managed files are compared directly with the current projection. If target
 bytes differ, activation reports `update` and applying activation overwrites
@@ -299,7 +315,7 @@ Example diff summary:
 ```text
 ./.claude (copy, override .claude)
 Summary: create 1, update 1, mutable 1, remove 0, keep 2, preserve unmanaged 2
-Unmanaged policy: keeping existing target entries that are not in .harness.
+Unmanaged policy: keeping existing target entries that are not in configured sources.
 
 Creates
   - create: .claude/skills/review/SKILL.md <- .harness/resources/skills/review/.claude/SKILL.md
@@ -379,14 +395,17 @@ and package dry-runs for every publishable package.
 
 ## Design Principles
 
-- `./.harness` is the durable repository-owned source root.
+- `./.harness` is the default durable repository-owned convention root.
+- `./.harness/harness.toml` is the default manifest, and tools may select another
+  repo-local TOML path explicitly.
+- The resources source is configurable and defaults to `./.harness/resources`.
 - Resource kinds are declarative names, not reserved schema concepts.
 - `skills`, `rules`, and `plugins` are conventional init defaults.
-- Every projection target is explicit in `harness.toml`.
+- Every projection target is explicit in the selected manifest.
 - Targets are path-only and copy-only in v1.
 - Live target folders are derived projection outputs, not source repositories.
-- Activation is idempotent for the same source, manifest, ignore rules, cleanup
-  policy, and mutable policy.
+- Activation is idempotent for the same configured sources, manifest, ignore
+  rules, cleanup policy, and mutable policy.
 - `.harnessIgnore` is the single projection filter, with target-specific
   exclusions expressed by target-output-local files.
 - `.harnessProfile` selects optional `.harnessProfileRoot` overlays without

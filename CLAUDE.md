@@ -5,10 +5,11 @@ reference implementation. Treat `docs/STANDARD.md` as the normative contract,
 `docs/TOOLING.md` as the CLI contract, and `docs/TESTING.md` as the scenario
 map that must stay in sync with tests.
 
-## Harness Identity
+## Claude Harness Identity
 
-Use `.agents` as your HarnessConfig runtime context for this repository.
-Treat `.agents` as a generated projection and edit `.harness` sources instead.
+For `CLAUDE.md`, use `.claude` as your HarnessConfig runtime context for this
+repository instead of `.agents`. Treat `.claude` as a generated projection and
+edit `.harness` sources instead.
 
 ## Working Rules
 

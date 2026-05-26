@@ -37,6 +37,7 @@ import {
 type CliOptions = {
   command: string;
   root: string;
+  configPath?: string;
   json: boolean;
   yes: boolean;
   dryRun: boolean;
@@ -46,6 +47,7 @@ type CliOptions = {
   allExtensions: boolean;
   extensions: string[];
   resources: string[];
+  resourcesPath?: string;
   targets: string[];
 };
 
@@ -64,36 +66,42 @@ const DEFAULT_IO: CliIo = {
 const HELP = `harnessc
 
 Usage:
-  harnessc validate [--root <path>] [--json]
-  harnessc init [--root <path>] [--dry-run] [--yes] [--resource <kind>] [--target <path>]
+  harnessc validate [--root <path>] [--config <path>] [--json]
+  harnessc init [--root <path>] [--config <path>] [--resources-path <path>]
+                [--dry-run] [--yes] [--resource <kind>] [--target <path>]
   harnessc activate [--root <path>] [--dry-run] [--yes]
+                    [--config <path>]
                     [--keep-unmanaged|--remove-unmanaged]
                     [--force-mutable] [--json]
-  harnessc extension activate [--root <path>] [--dry-run] [--yes]
+  harnessc extension activate [--root <path>] [--config <path>]
+                              [--dry-run] [--yes]
                               [--extension <id>|--all] [--json]
-  harnessc plan [--root <path>] [--resource <kind>] [--target <path>] [--json]
+  harnessc plan [--root <path>] [--config <path>] [--resources-path <path>]
+                [--resource <kind>] [--target <path>] [--json]
 
 Commands:
   validate    Validate the repository against the HarnessConfig standard.
   init        Plan or create .harness resource structure.
-  activate    Plan or apply idempotent .harness projections.
+  activate    Plan or apply idempotent HarnessConfig projections.
   extension   Plan or apply registered HarnessConfig extensions.
   plan        Show a read-only initialization/adoption plan, not a projection preview.
 
-HarnessConfig standardizes the .harness/resources projection tree,
-harness.toml target declarations, and .harnessIgnore projection boundaries.
-Init uses skills, rules, and plugins as conventional resource folders under
-.harness/resources unless --resource is supplied. Targets are explicit
-repo-local paths declared with --target. Declaring [dir] in harness.toml turns
-on the dir source root (default ./.harness/dir): a folder that contains a
+HarnessConfig standardizes a versioned TOML manifest, configured resources
+source tree, target declarations, and .harnessIgnore projection boundaries.
+The default manifest is ./.harness/harness.toml, but --config can point at any
+repo-local TOML file. Init uses skills, rules, and plugins as conventional
+resource folders under the configured resources path unless --resource is
+supplied. Targets are explicit repo-local paths declared with --target.
+Declaring [dir] in the manifest turns on the dir source root (default
+./.harness/dir): a folder that contains a
 .harnessComposable marker file is composed from its numbered parts into a
 single output file, and any other folder copies its files to the matching
 repo-relative paths.
 
 Activation without --yes is the projection preview. Activation keeps unmanaged
 target entries by default. Use --remove-unmanaged to delete target entries that
-are not present in the computed .harness projection. Managed target edits are
-overwritten from .harness on update. Mutable target files declared under
+are not present in the computed HarnessConfig projection. Managed target edits are
+overwritten from configured sources on update. Mutable target files declared under
 [mutable] in .harnessIgnore are created once and then left alone; use
 --force-mutable to re-project them from source. Extensions are activated
 separately with harnessc extension activate. Init, activate, and extension
@@ -170,6 +178,24 @@ function parseArgs(argv: string[]): CliOptions {
       index += 1;
       continue;
     }
+    if (arg === "--config") {
+      const value = argv[index + 1];
+      if (!value) {
+        throw new Error(`${arg} requires a path.`);
+      }
+      options.configPath = value;
+      index += 1;
+      continue;
+    }
+    if (arg === "--resources-path") {
+      const value = argv[index + 1];
+      if (!value) {
+        throw new Error(`${arg} requires a path.`);
+      }
+      options.resourcesPath = value;
+      index += 1;
+      continue;
+    }
     if (arg === "--resource") {
       const value = argv[index + 1];
       if (!value) {
@@ -226,23 +252,31 @@ function parseArgs(argv: string[]): CliOptions {
 }
 
 function initOptionsFromCli(
-  options: Pick<CliOptions, "resources" | "targets">
-): { config?: HarnessConfig; resourceKinds?: string[] } {
+  options: Pick<CliOptions, "resources" | "resourcesPath" | "targets">
+): {
+  config?: HarnessConfig;
+  resourceKinds?: string[];
+  resourcesPath?: string;
+} {
   const resourceKinds =
     options.resources.length > 0
       ? options.resources
       : [...CONVENTIONAL_HARNESS_RESOURCES];
   if (options.targets.length === 0) {
-    return { resourceKinds };
+    return { resourceKinds, resourcesPath: options.resourcesPath };
   }
 
   const base = createDefaultHarnessConfig();
   return {
     config: harnessConfigSchema.parse({
       ...base,
+      resources: options.resourcesPath
+        ? { path: options.resourcesPath }
+        : base.resources,
       targets: options.targets.map((target) => ({ path: target })),
     }),
     resourceKinds,
+    resourcesPath: options.resourcesPath,
   };
 }
 
@@ -316,7 +350,9 @@ export async function runHarnessConfigCli(
 
   try {
     if (options.command === "validate") {
-      const inspection = await validateHarnessConfig(options.root);
+      const inspection = await validateHarnessConfig(options.root, {
+        configPath: options.configPath,
+      });
       io.stdout(
         options.json
           ? JSON.stringify(inspection, null, 2)
@@ -330,10 +366,10 @@ export async function runHarnessConfigCli(
     }
 
     if (options.command === "plan") {
-      const plan = await planHarnessInitialization(
-        options.root,
-        initOptionsFromCli(options)
-      );
+      const plan = await planHarnessInitialization(options.root, {
+        configPath: options.configPath,
+        ...initOptionsFromCli(options),
+      });
       io.stdout(
         options.json
           ? JSON.stringify(plan, null, 2)
@@ -347,6 +383,7 @@ export async function runHarnessConfigCli(
       let mutableNotice = "";
       const autoExtensionPlan = await planRegisteredExtensions(options.root, {
         autoOnly: true,
+        configPath: options.configPath,
       });
       const autoExtensionHasOutput =
         hasExtensionActivationOutput(autoExtensionPlan);
@@ -360,6 +397,7 @@ export async function runHarnessConfigCli(
       }
       if (options.yes && !options.json) {
         const promptPlan = await planHarnessActivation(options.root, {
+          configPath: options.configPath,
           cleanupUnmanaged: cleanupUnmanaged ?? "keep",
           mutablePolicy: options.mutablePolicy,
         });
@@ -371,11 +409,12 @@ export async function runHarnessConfigCli(
           hasMutableEntries(promptPlan)
         ) {
           mutableNotice =
-            "\nNotice: mutable target files were left as-is. Re-run with --force-mutable to re-project them from .harness.";
+            "\nNotice: mutable target files were left as-is. Re-run with --force-mutable to re-project them from configured sources.";
         }
       }
 
       const result = await applyHarnessActivation(options.root, {
+        configPath: options.configPath,
         dryRun: options.dryRun || !options.yes,
         yes: options.yes,
         cleanupUnmanaged,
@@ -384,6 +423,7 @@ export async function runHarnessConfigCli(
       const extensionResult = autoExtensionHasOutput
         ? await applyRegisteredExtensions(options.root, {
             autoOnly: true,
+            configPath: options.configPath,
             dryRun: options.dryRun || !options.yes,
             yes: options.yes,
           })
@@ -418,6 +458,7 @@ export async function runHarnessConfigCli(
     if (options.command === "extension activate") {
       const result = await applyRegisteredExtensions(options.root, {
         allExtensions: options.allExtensions,
+        configPath: options.configPath,
         dryRun: options.dryRun || !options.yes,
         extensionIds: options.extensions,
         yes: options.yes,
@@ -432,6 +473,7 @@ export async function runHarnessConfigCli(
 
     if (options.command === "init") {
       const result = await applyHarnessInitialization(options.root, {
+        configPath: options.configPath,
         dryRun: options.dryRun || !options.yes,
         yes: options.yes,
         ...initOptionsFromCli(options),
@@ -450,11 +492,14 @@ export async function runHarnessConfigCli(
   } catch (error) {
     io.stderr(error instanceof Error ? error.message : String(error));
     if (options.command === "init") {
-      const plan = await planHarnessInitialization(options.root);
+      const plan = await planHarnessInitialization(options.root, {
+        configPath: options.configPath,
+      });
       io.stderr(formatInitializationPlan(plan, formatOptions));
     }
     if (options.command === "activate") {
       const plan = await planHarnessActivation(options.root, {
+        configPath: options.configPath,
         cleanupUnmanaged: options.cleanupUnmanaged,
         mutablePolicy: options.mutablePolicy,
       });
@@ -463,6 +508,7 @@ export async function runHarnessConfigCli(
     if (options.command === "extension activate") {
       const result = await applyRegisteredExtensions(options.root, {
         allExtensions: options.allExtensions,
+        configPath: options.configPath,
         dryRun: true,
         extensionIds: options.extensions,
         yes: false,

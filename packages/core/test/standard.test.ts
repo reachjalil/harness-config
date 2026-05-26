@@ -16,6 +16,7 @@ import {
   parseHarnessConfigToml,
   resolveHarnessPaths,
   safeParseHarnessConfigToml,
+  stringifyHarnessConfig,
   validateHarnessConfig,
 } from "../src/index";
 
@@ -41,6 +42,24 @@ path = "./.claude"
     expect(config.targets[0]?.path).toBe("./.claude");
     expect(config.extensions).toEqual({});
     expect(listHarnessProjectionTargets(config)).toEqual(["./.claude"]);
+  });
+
+  it("parses a configurable resources source root", () => {
+    const config = parseHarnessConfigToml(`
+version = 1
+
+[resources]
+path = "./agent-context/resources"
+
+[[targets]]
+path = "./.agents"
+`);
+
+    expect(config.resources.path).toBe("./agent-context/resources");
+    expect(stringifyHarnessConfig(config)).toContain("[resources]");
+    expect(
+      stringifyHarnessConfig(parseHarnessConfigToml("version = 1"))
+    ).not.toContain("[resources]");
   });
 
   it("infers override directories from target paths", () => {
@@ -105,7 +124,18 @@ mode = "copy"
     ).toThrow(/Unrecognized key/);
   });
 
-  it("rejects manifest resource declarations", () => {
+  it("parses a configurable resources root", () => {
+    const config = parseHarnessConfigToml(`
+version = 1
+
+[resources]
+path = "./agent-context/resources"
+`);
+
+    expect(config.resources.path).toBe("./agent-context/resources");
+  });
+
+  it("rejects per-kind manifest resource declarations", () => {
     expect(() =>
       parseHarnessConfigToml(`
 version = 1
@@ -215,11 +245,31 @@ path = "${targetPath}"
     }
   });
 
+  it("rejects source paths that point at the repository root", () => {
+    expect(() =>
+      parseHarnessConfigToml(`
+version = 1
+
+[resources]
+path = "."
+`)
+    ).toThrow(/Source paths must point at a repo-local folder/);
+
+    expect(() =>
+      parseHarnessConfigToml(`
+version = 1
+
+[dir]
+path = "./"
+`)
+    ).toThrow(/Source paths must point at a repo-local folder/);
+  });
+
   it("allows explicit .agents targets and reports declared duplicates", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
     await mkdir(path.join(root, ".harness"), { recursive: true });
     await writeFile(
-      path.join(root, ".harness/harness.toml"),
+      path.join(root, ".harness", "harness.toml"),
       `
 version = 1
 
@@ -290,7 +340,7 @@ path = "./.agents//skills"
     const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
     await mkdir(path.join(root, ".harness"), { recursive: true });
     await writeFile(
-      path.join(root, ".harness/harness.toml"),
+      path.join(root, ".harness", "harness.toml"),
       `
 version = 1
 [[targets]]
@@ -357,7 +407,7 @@ path = "./.cursor"
     );
   });
 
-  it("reports profile roots outside .harness during validation", async () => {
+  it("reports profile roots outside configured source roots during validation", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
     await write(
       root,
@@ -373,11 +423,72 @@ path = "./.cursor"
       expect.arrayContaining([
         expect.objectContaining({
           severity: "error",
-          code: "harness.profile_root_outside_harness",
+          code: "harness.profile_root_outside_source_roots",
           path: ".agents/skills/review/.harnessProfileRoot",
         }),
       ])
     );
+  });
+
+  it("allows profile roots under a configured resources root", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
+    await write(
+      root,
+      ".harness/harness.toml",
+      [
+        "version = 1",
+        "",
+        "[resources]",
+        'path = "./agent-context/resources"',
+        "",
+        "[[targets]]",
+        'path = "./.agents"',
+        "",
+      ].join("\n")
+    );
+    await write(root, ".harnessIgnore", "");
+    await write(
+      root,
+      "agent-context/resources/team/.harnessProfileRoot",
+      "team\n"
+    );
+
+    const inspection = await validateHarnessConfig(root);
+
+    expect(
+      inspection.diagnostics.some(
+        (diagnostic) =>
+          diagnostic.code === "harness.profile_root_outside_source_roots"
+      )
+    ).toBe(false);
+  });
+
+  it("reports configured source roots that overlap each other or targets", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
+    await write(
+      root,
+      ".harness/harness.toml",
+      [
+        "version = 1",
+        "",
+        "[resources]",
+        'path = "./agent-context"',
+        "",
+        "[dir]",
+        'path = "./agent-context/dir"',
+        "",
+        "[[targets]]",
+        'path = "./agent-context/out"',
+        "",
+      ].join("\n")
+    );
+    await write(root, ".harnessIgnore", "");
+
+    const inspection = await validateHarnessConfig(root);
+    const codes = inspection.diagnostics.map((diagnostic) => diagnostic.code);
+
+    expect(codes).toContain("harness.source_path_overlapping");
+    expect(codes).toContain("harness.target_overlaps_source_path");
   });
 
   it("reports dir planning diagnostics during validation", async () => {
@@ -415,6 +526,7 @@ path = "./.cursor"
     const paths = resolveHarnessPaths(root);
 
     expect(paths.harnessDir).toBe(path.join(root, ".harness"));
+    expect(paths.configPath).toBe(path.join(root, ".harness", "harness.toml"));
     expect(paths.ignorePath).toBe(path.join(root, ".harnessIgnore"));
     expect(paths.resourcesDir).toBe(path.join(root, ".harness", "resources"));
     expect(paths.skillsDir).toBe(
@@ -425,6 +537,55 @@ path = "./.cursor"
     );
     expect(paths.pluginsDir).toBe(
       path.join(root, ".harness", "resources", "plugins")
+    );
+  });
+
+  it("resolves repo-local custom config and resources paths", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
+    const paths = resolveHarnessPaths(root, {
+      configPath: "./config/harness.local.toml",
+      config: { resources: { path: "./agent-context/catalog" } },
+    });
+
+    expect(paths.configPath).toBe(
+      path.join(root, "config", "harness.local.toml")
+    );
+    expect(paths.resourcesDir).toBe(
+      path.join(root, "agent-context", "catalog")
+    );
+    expect(paths.skillsDir).toBe(
+      path.join(root, "agent-context", "catalog", "skills")
+    );
+  });
+
+  it("reports configured source paths that overlap targets", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
+    await write(
+      root,
+      ".harness/harness.toml",
+      [
+        "version = 1",
+        "",
+        "[resources]",
+        'path = "./agent-context"',
+        "",
+        "[[targets]]",
+        'path = "./agent-context/.agents"',
+        "",
+      ].join("\n")
+    );
+    await write(root, ".harnessIgnore", "");
+
+    const validation = await validateHarnessConfig(root);
+
+    expect(validation.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          severity: "error",
+          code: "harness.target_overlaps_source_path",
+          path: 'targets["./agent-context/.agents"].path',
+        }),
+      ])
     );
   });
 
@@ -1086,6 +1247,12 @@ path = "./.agents"
         ".harness/resources/skills/review/.harnessIgnore"
       )
     ).toBeUndefined();
+    expect(
+      detectImplicitOverrideTarget(
+        "agent-context/resources/skills/review/.abc/.harnessIgnore",
+        { resourcesPath: "./agent-context/resources" }
+      )
+    ).toBe(".abc");
   });
 
   it("scopes nested rules to the file's subtree (siblings unaffected)", () => {

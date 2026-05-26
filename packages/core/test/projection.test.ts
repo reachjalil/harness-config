@@ -46,7 +46,7 @@ async function writeHarnessConfig(
 }
 
 describe("HarnessConfig activation projection", () => {
-  it("projects the canonical .harness/resources tree without manifest resource declarations", async () => {
+  it("projects the default .harness/resources tree when [resources] is omitted", async () => {
     const root = await rootFixture();
     await write(
       root,
@@ -93,6 +93,200 @@ describe("HarnessConfig activation projection", () => {
     await expect(
       readFile(path.join(root, ".agents/.gemini/hooks.json"), "utf8")
     ).rejects.toThrow();
+  });
+
+  it("projects a configured resources source root with target overrides", async () => {
+    const root = await rootFixture();
+    await write(
+      root,
+      ".harness/harness.toml",
+      [
+        "version = 1",
+        "",
+        "[resources]",
+        'path = "./agent-context/resources"',
+        "",
+        "[[targets]]",
+        'path = "./.agents"',
+        "",
+        "[[targets]]",
+        'path = "./.claude"',
+        "",
+      ].join("\n")
+    );
+    await write(root, ".harnessIgnore", "agent-context/**/logs/\n");
+    await write(root, "agent-context/resources/skills/review/SKILL.md", "base");
+    await write(
+      root,
+      "agent-context/resources/skills/review/.claude/SKILL.md",
+      "claude"
+    );
+    await write(root, "agent-context/resources/hooks.json", "shared hooks");
+    await write(
+      root,
+      "agent-context/resources/skills/review/logs/run.log",
+      "ignore"
+    );
+
+    const result = await applyHarnessActivation(root, {
+      dryRun: false,
+      yes: true,
+    });
+
+    expect(result.plan.diagnostics).toEqual([]);
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/SKILL.md"), "utf8")
+    ).resolves.toBe("base");
+    await expect(
+      readFile(path.join(root, ".claude/skills/review/SKILL.md"), "utf8")
+    ).resolves.toBe("claude");
+    await expect(
+      readFile(path.join(root, ".agents/hooks.json"), "utf8")
+    ).resolves.toBe("shared hooks");
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/logs/run.log"), "utf8")
+    ).rejects.toThrow();
+  });
+
+  it("loads activation manifests from an explicit repo-local config path", async () => {
+    const root = await rootFixture();
+    await write(
+      root,
+      "config/harness.custom.toml",
+      [
+        "version = 1",
+        "",
+        "[resources]",
+        'path = "./agent-context/resources"',
+        "",
+        "[[targets]]",
+        'path = "./.agents"',
+        "",
+      ].join("\n")
+    );
+    await write(root, ".harnessIgnore", "");
+    await write(
+      root,
+      "agent-context/resources/skills/review/SKILL.md",
+      "custom"
+    );
+
+    await applyHarnessActivation(root, {
+      configPath: "./config/harness.custom.toml",
+      dryRun: false,
+      yes: true,
+    });
+
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/SKILL.md"), "utf8")
+    ).resolves.toBe("custom");
+    await expect(
+      readFile(path.join(root, ".harness", "harness.toml"))
+    ).rejects.toThrow();
+  });
+
+  it("combines a custom config path, resources root, dir root, profile source, and override ignores", async () => {
+    const root = await rootFixture();
+    await write(
+      root,
+      "config/harness.local.toml",
+      [
+        "version = 1",
+        "",
+        "[resources]",
+        'path = "./agent-context/resources"',
+        "",
+        "[[targets]]",
+        'path = "./.agents"',
+        "",
+        "[[targets]]",
+        'path = "./.abc"',
+        "",
+        "[dir]",
+        'path = "./agent-context/dir"',
+        "",
+      ].join("\n")
+    );
+    await write(root, ".harnessIgnore", "agent-context/resources/**/logs/\n");
+    await write(root, ".harnessProfile", "team\n");
+    await write(
+      root,
+      "agent-context/resources/skills/secret-word/.abc/.harnessIgnore",
+      "summary.txt\n"
+    );
+    await write(
+      root,
+      "agent-context/resources/skills/secret-word/SKILL.md",
+      "base"
+    );
+    await write(
+      root,
+      "agent-context/resources/skills/secret-word/summary.txt",
+      "summary"
+    );
+    await write(
+      root,
+      "agent-context/resources/skills/secret-word/pass.txt",
+      "pass"
+    );
+    await write(
+      root,
+      "agent-context/resources/skills/secret-word/.abc/pass.txt",
+      "abc pass"
+    );
+    await write(
+      root,
+      "agent-context/resources/skills/secret-word/logs/run.log",
+      "ignore"
+    );
+    await write(
+      root,
+      "agent-context/resources/team/.harnessProfileRoot",
+      "team\n"
+    );
+    await write(
+      root,
+      "agent-context/resources/team/skills/secret-word/PROFILE.md",
+      "profile"
+    );
+    await write(root, "agent-context/dir/AGENTS.md/.harnessComposable", "");
+    await write(root, "agent-context/dir/AGENTS.md/100_base.md", "agents\n");
+    await write(root, "agent-context/dir/.agents/dir-note.md", "dir merge");
+
+    const result = await applyHarnessActivation(root, {
+      configPath: "./config/harness.local.toml",
+      dryRun: false,
+      yes: true,
+    });
+
+    expect(result.plan.diagnostics).toEqual([]);
+    await expect(
+      readFile(path.join(root, ".agents/skills/secret-word/SKILL.md"), "utf8")
+    ).resolves.toBe("base");
+    await expect(
+      readFile(
+        path.join(root, ".agents/skills/secret-word/summary.txt"),
+        "utf8"
+      )
+    ).resolves.toBe("summary");
+    await expect(
+      readFile(path.join(root, ".abc/skills/secret-word/summary.txt"))
+    ).rejects.toThrow();
+    await expect(
+      readFile(path.join(root, ".abc/skills/secret-word/pass.txt"), "utf8")
+    ).resolves.toBe("abc pass");
+    await expect(
+      readFile(path.join(root, ".agents/skills/secret-word/logs/run.log"))
+    ).rejects.toThrow();
+    await expect(
+      readFile(path.join(root, ".agents/skills/secret-word/PROFILE.md"), "utf8")
+    ).resolves.toBe("profile");
+    await expect(readFile(path.join(root, "AGENTS.md"), "utf8")).resolves.toBe(
+      "agents\n"
+    );
+    await expect(
+      readFile(path.join(root, ".agents/dir-note.md"), "utf8")
+    ).resolves.toBe("dir merge");
   });
 
   it("composes resource files from .harnessComposable leaves", async () => {
@@ -383,7 +577,7 @@ describe("HarnessConfig activation projection", () => {
     ).resolves.toBe("Profile generic\nProfile codex override\n");
   });
 
-  it("applies profile overlays to the canonical .harness/resources tree", async () => {
+  it("applies profile overlays to the default .harness/resources convention", async () => {
     const root = await rootFixture();
     await write(
       root,
@@ -417,6 +611,46 @@ describe("HarnessConfig activation projection", () => {
     await expect(
       readFile(path.join(root, ".agents/hooks.json"), "utf8")
     ).resolves.toBe("profile hooks");
+  });
+
+  it("applies profile overlays under a configured resources source root", async () => {
+    const root = await rootFixture();
+    await write(
+      root,
+      ".harness/harness.toml",
+      [
+        "version = 1",
+        "",
+        "[resources]",
+        'path = "./agent-context/resources"',
+        "",
+        "[[targets]]",
+        'path = "./.agents"',
+        "",
+      ].join("\n")
+    );
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harnessProfile", "team\n");
+    await write(root, "agent-context/resources/skills/review/SKILL.md", "base");
+    await write(
+      root,
+      "agent-context/resources/team/.harnessProfileRoot",
+      "team\n"
+    );
+    await write(
+      root,
+      "agent-context/resources/team/skills/review/PROFILE.md",
+      "profile"
+    );
+
+    await applyHarnessActivation(root, { dryRun: false, yes: true });
+
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/SKILL.md"), "utf8")
+    ).resolves.toBe("base");
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/PROFILE.md"), "utf8")
+    ).resolves.toBe("profile");
   });
 
   it("applies portable profile roots nested inside canonical resource items", async () => {

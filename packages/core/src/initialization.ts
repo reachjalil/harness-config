@@ -26,6 +26,8 @@ import type {
 } from "./types";
 
 type PlanOptions = {
+  configPath?: string;
+  resourcesPath?: string;
   config?: ApplyHarnessInitializationOptions["config"];
   resourceKinds?: string[];
 };
@@ -47,26 +49,31 @@ export async function planHarnessInitialization(
   root = process.cwd(),
   options: PlanOptions = {}
 ): Promise<HarnessInitializationPlan> {
-  const inspection = await inspectHarnessConfig(root);
-  const paths = resolveHarnessPaths(root);
-  const actions: HarnessInitializationAction[] = [];
-  const diagnostics: HarnessDiagnostic[] = [...inspection.diagnostics];
-  const config = options.config
+  const baseConfig = options.config
     ? harnessConfigSchema.parse(options.config)
     : createDefaultHarnessConfig();
-  const configToml = options.config
-    ? stringifyHarnessConfig(config)
-    : createDefaultHarnessConfigToml();
+  const config = harnessConfigSchema.parse({
+    ...baseConfig,
+    resources: {
+      ...(baseConfig.resources ?? {}),
+      ...(options.resourcesPath ? { path: options.resourcesPath } : {}),
+    },
+  });
+  const inspection = await inspectHarnessConfig(root, {
+    config,
+    configPath: options.configPath,
+  });
+  const paths = resolveHarnessPaths(root, {
+    config,
+    configPath: options.configPath,
+  });
+  const actions: HarnessInitializationAction[] = [];
+  const diagnostics: HarnessDiagnostic[] = [...inspection.diagnostics];
+  const configToml =
+    options.config || options.resourcesPath
+      ? stringifyHarnessConfig(config)
+      : createDefaultHarnessConfigToml();
   const ignoreFile = createDefaultHarnessIgnore();
-
-  if (!inspection.hasHarnessDir) {
-    actions.push({
-      id: "harness.root.ensure",
-      kind: "ensure-dir",
-      summary: "Create the .harness root directory.",
-      target: paths.harnessDir,
-    });
-  }
 
   const resourceKinds =
     options.resourceKinds ??
@@ -103,10 +110,12 @@ export async function planHarnessInitialization(
       diagnostics.push({
         severity: "info",
         code: "harness.init_target_existing_entries",
-        message: `${targetRelative} already contains files. Init declares targets but does not adopt existing runtime files into .harness.`,
+        message: `${targetRelative} already contains files. Init declares targets but does not adopt existing runtime files into configured source roots.`,
         path: targetRelative,
-        recommendation:
-          "Move files that should be managed into .harness/resources before activation.",
+        recommendation: `Move files that should be managed into ${toRepoRelative(
+          paths.root,
+          paths.resourcesDir
+        )} before activation.`,
       });
     }
   }
@@ -115,7 +124,10 @@ export async function planHarnessInitialization(
     actions.push({
       id: "harness.config.write",
       kind: "write-file",
-      summary: "Write the versioned .harness/harness.toml manifest.",
+      summary: `Write the versioned ${toRepoRelative(
+        paths.root,
+        paths.configPath
+      )} manifest.`,
       target: paths.configPath,
       content: configToml,
     });
@@ -145,6 +157,8 @@ export async function applyHarnessInitialization(
 ): Promise<HarnessInitializationResult> {
   const plan = await planHarnessInitialization(root, {
     config: options.config,
+    configPath: options.configPath,
+    resourcesPath: options.resourcesPath,
     resourceKinds: options.resourceKinds,
   });
   const dryRun = options.dryRun === true || options.yes !== true;
@@ -192,7 +206,7 @@ export async function applyHarnessInitialization(
         });
         continue;
       }
-      await mkdir(resolveHarnessPaths(root).harnessDir, { recursive: true });
+      await mkdir(path.dirname(action.target), { recursive: true });
       await writeFile(action.target, action.content, "utf8");
       appliedActions.push({ ...action, applied: true });
     }

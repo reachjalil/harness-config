@@ -23,6 +23,7 @@ import type { HarnessDiagnostic, HarnessInspection } from "./types";
 
 export type HarnessValidationOptions = {
   config?: HarnessConfig;
+  configPath?: string;
   profileContext?: HarnessProfileContext;
 };
 
@@ -40,12 +41,15 @@ async function pathExists(path: string): Promise<boolean> {
   return Boolean(await lstat(path).catch(() => undefined));
 }
 
-async function findProfileRootsOutsideHarness(
+async function findProfileRootsOutsideAllowedRoots(
   root: string,
-  harnessDir: string
+  allowedRoots: string[]
 ): Promise<string[]> {
   const markers: string[] = [];
   const ignoredDirectories = new Set([".git", "node_modules"]);
+  const resolvedAllowedRoots = allowedRoots.map((allowedRoot) =>
+    path.resolve(allowedRoot)
+  );
 
   async function visit(directory: string): Promise<void> {
     const entries = await readdir(directory, { withFileTypes: true }).catch(
@@ -53,7 +57,12 @@ async function findProfileRootsOutsideHarness(
     );
     for (const entry of entries) {
       const absolutePath = path.join(directory, entry.name);
-      if (path.resolve(absolutePath) === path.resolve(harnessDir)) {
+      if (
+        entry.isDirectory() &&
+        resolvedAllowedRoots.some(
+          (allowedRoot) => path.resolve(absolutePath) === allowedRoot
+        )
+      ) {
         continue;
       }
       if (entry.isDirectory()) {
@@ -71,6 +80,22 @@ async function findProfileRootsOutsideHarness(
 
   await visit(root);
   return markers.toSorted((left, right) => left.localeCompare(right));
+}
+
+function profileRootAllowedRoots(
+  root: string,
+  config: HarnessConfig
+): string[] {
+  const paths = resolveHarnessPaths(root, { config });
+  const allowedRoots = [paths.harnessDir, paths.resourcesDir];
+  if (config.dir) {
+    try {
+      allowedRoots.push(resolveRepoLocalPath(root, config.dir.path));
+    } catch {
+      // Path validation reports the underlying invalid path separately.
+    }
+  }
+  return allowedRoots;
 }
 
 function validateRepoLocalPath(
@@ -118,9 +143,65 @@ function validateConfigSemantics(
   root: string,
   diagnostics: HarnessDiagnostic[]
 ): void {
+  const sourcePaths = [
+    { label: "resources", path: config.resources.path },
+    ...(config.dir ? [{ label: "dir", path: config.dir.path }] : []),
+  ];
+  validateRepoLocalPath(
+    diagnostics,
+    root,
+    config.resources.path,
+    "resources.path",
+    "Resources source path"
+  );
+  if (config.dir) {
+    validateRepoLocalPath(
+      diagnostics,
+      root,
+      config.dir.path,
+      "dir.path",
+      "Dir source path"
+    );
+  }
+  for (let leftIndex = 0; leftIndex < sourcePaths.length; leftIndex += 1) {
+    for (
+      let rightIndex = leftIndex + 1;
+      rightIndex < sourcePaths.length;
+      rightIndex += 1
+    ) {
+      const left = sourcePaths[leftIndex];
+      const right = sourcePaths[rightIndex];
+      const normalizedLeft = normalizeTargetPath(left.path);
+      const normalizedRight = normalizeTargetPath(right.path);
+      if (targetPathsOverlap(normalizedLeft, normalizedRight)) {
+        diagnostics.push({
+          severity: "error",
+          code: "harness.source_path_overlapping",
+          message: `${left.label} path "${left.path}" overlaps with ${right.label} path "${right.path}".`,
+          path: `${left.label}.path`,
+          recommendation:
+            "Use independent source roots for resources and dir composition.",
+        });
+      }
+    }
+  }
+
   const targetPaths = new Set<string>();
   for (const target of config.targets) {
     const normalizedTargetPath = normalizeTargetPath(target.path);
+    for (const source of sourcePaths) {
+      const normalizedSourcePath = normalizeTargetPath(source.path);
+      if (targetPathsOverlap(normalizedTargetPath, normalizedSourcePath)) {
+        diagnostics.push({
+          severity: "error",
+          code: "harness.target_overlaps_source_path",
+          message: `Target path "${target.path}" overlaps with ${source.label} source path "${source.path}".`,
+          path: `targets["${target.path}"].path`,
+          recommendation:
+            "Projection targets must be separate from configured source roots.",
+        });
+      }
+    }
     const overlappingTarget = [...targetPaths].find((existingPath) =>
       targetPathsOverlap(normalizedTargetPath, existingPath)
     );
@@ -134,7 +215,7 @@ function validateConfigSemantics(
         message: `Target path "${target.path}" overlaps with "${
           overlappingTarget
         }".`,
-        path: `targets.${target.path}`,
+        path: `targets["${target.path}"]`,
         recommendation:
           "Declare only independent projection paths. Each target is explicit.",
       });
@@ -144,7 +225,7 @@ function validateConfigSemantics(
       diagnostics,
       root,
       target.path,
-      `targets.${target.path}.path`,
+      `targets["${target.path}"].path`,
       `Target "${target.path}" output path`
     );
   }
@@ -241,7 +322,10 @@ export async function inspectHarnessConfig(
   root = process.cwd(),
   options: HarnessValidationOptions = {}
 ): Promise<HarnessInspection> {
-  const paths = resolveHarnessPaths(root);
+  let paths = resolveHarnessPaths(root, {
+    config: options.config,
+    configPath: options.configPath,
+  });
   const diagnostics: HarnessDiagnostic[] = [];
   const hasHarnessDir = await isDirectory(paths.harnessDir);
   const hasHarnessConfig = await pathExists(paths.configPath);
@@ -259,17 +343,7 @@ export async function inspectHarnessConfig(
     });
   }
 
-  if (!hasHarnessDir) {
-    diagnostics.push({
-      severity: "warning",
-      code: "harness.root_missing",
-      message: `${relativeHarnessDir} does not exist.`,
-      path: relativeHarnessDir,
-      recommendation: "Run harnessc plan, then harnessc init --yes.",
-    });
-  }
-
-  if (hasHarnessDir && !hasHarnessConfig) {
+  if (!hasHarnessConfig) {
     diagnostics.push({
       severity: "warning",
       code: "harness.config_missing",
@@ -301,20 +375,6 @@ export async function inspectHarnessConfig(
     });
   }
 
-  for (const markerPath of await findProfileRootsOutsideHarness(
-    paths.root,
-    paths.harnessDir
-  )) {
-    diagnostics.push({
-      severity: "error",
-      code: "harness.profile_root_outside_harness",
-      message: ".harnessProfileRoot may only exist under .harness.",
-      path: toRepoRelative(paths.root, markerPath),
-      recommendation:
-        "Move the profile root under .harness, or rename this file if it is not a HarnessConfig declaration.",
-    });
-  }
-
   if (hasHarnessConfig) {
     let config = options.config;
     if (!config) {
@@ -334,7 +394,25 @@ export async function inspectHarnessConfig(
     }
 
     if (config) {
+      paths = resolveHarnessPaths(root, {
+        config,
+        configPath: options.configPath,
+      });
       validateConfigSemantics(config, paths.root, diagnostics);
+      for (const markerPath of await findProfileRootsOutsideAllowedRoots(
+        paths.root,
+        profileRootAllowedRoots(paths.root, config)
+      )) {
+        diagnostics.push({
+          severity: "error",
+          code: "harness.profile_root_outside_source_roots",
+          message:
+            ".harnessProfileRoot may only exist under the convention .harness folder, the configured resources path, or the configured dir path.",
+          path: toRepoRelative(paths.root, markerPath),
+          recommendation:
+            "Move the profile root under a configured source root, or rename this file if it is not a HarnessConfig declaration.",
+        });
+      }
       await validateTargetSymlinks(config, paths.root, diagnostics);
       const profileContext =
         options.profileContext ??

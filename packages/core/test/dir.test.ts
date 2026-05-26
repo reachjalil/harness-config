@@ -501,7 +501,7 @@ describe("core dir (composable + copy)", () => {
     );
   });
 
-  it("rejects dir outputs that overlap .harness or replace a declared target root", async () => {
+  it("rejects dir outputs that overlap source roots or replace a declared target root", async () => {
     const root = await fixtureRoot();
     await writeConfig(root, { targets: ["./.agents"] });
     await write(root, ".harnessIgnore", "");
@@ -518,7 +518,7 @@ describe("core dir (composable + copy)", () => {
     const plan = await planHarnessActivation(root);
     const codes = plan.diagnostics.map((diagnostic) => diagnostic.code);
 
-    expect(codes).toContain("harness.dir_output_inside_harness");
+    expect(codes).toContain("harness.dir_output_inside_source_root");
     expect(codes).toContain("harness.dir_output_target_overlap");
   });
 
