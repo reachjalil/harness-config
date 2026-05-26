@@ -248,16 +248,19 @@ pnpm --filter @harnessconfig/cli exec harnessc init --resource prompts --target 
 pnpm --filter @harnessconfig/cli exec harnessc plan
 ```
 
-After publishing `@harnessconfig/cli`, run the `harnessc` binary through npm:
+After publishing, run the CLI through npm. During alpha, use the alpha tag:
 
 ```bash
-npx @harnessconfig/cli validate
-npx @harnessconfig/cli init
-npx @harnessconfig/cli activate
-npx @harnessconfig/cli activate --yes
-npx @harnessconfig/cli init --yes --resource prompts --target ./runtime/agent
-npx @harnessconfig/cli plan
+npx harnessc@alpha validate
+npx harnessc@alpha init
+npx harnessc@alpha activate
+npx harnessc@alpha activate --yes
+npx harnessc@alpha init --yes --resource prompts --target ./runtime/agent
+npx harnessc@alpha plan
 ```
+
+The canonical package remains `@harnessconfig/cli`; `harnessc` is the short npm
+alias package for one-off execution.
 
 `harnessc init` writes conventional resource folders under
 `.harness/resources` (`skills`, `rules`, and `plugins`) when no `--resource`
