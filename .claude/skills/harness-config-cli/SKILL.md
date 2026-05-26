@@ -44,26 +44,14 @@ node packages/cli/dist/bin.js activate --root . --yes
 5. Re-run dry activation after applying. A clean dogfood projection should
    converge to `keep` for managed files and preserve unmanaged target files
    unless `--remove-unmanaged` is explicit.
-## Projection Model
+## Reference Map
 
-- Source of truth: configured source roots, with `.harness` as this repo's
-  convention root.
-- Manifest: `./.harness/harness.toml` by default, or the repo-local path passed with
-  `--config`.
-- Resource source: configured by `[resources]`, defaulting to
-  `.harness/resources`.
-- Dogfood skill source:
-  `.harness/resources/skills/harness-config-cli/SKILL.md/`, a resource
-  composable leaf that projects to `SKILL.md`.
-- Declared targets: `.agents` and `.claude`.
-- Root instruction output: `AGENTS.md`, composed from
-  `.harness/dir/AGENTS.md`.
-- Claude instruction output: `CLAUDE.md`, composed from
-  `.harness/dir/CLAUDE.md`, which imports `AGENTS.md` with `.harnessRef` and uses a
-  local `.harnessIgnore` to suppress inherited parts that need replacement.
+Load the narrowest reference needed:
 
-Use top-level `[resources] path = "./path"` only to move the shared resource
-source. Do not add `[resources.<kind>]`; resource kinds remain directories.
+- `references/dogfood-projection.md`: repo source/target ownership, generated
+  files, skill projection shape, `.harnessRef`, and `.harnessIgnore` examples.
+- `references/activation-checks.md`: validate, plan, activate, convergence,
+  and manual evidence for dogfood projection checks.
 ## Claude Override Verification
 
 This projected skill is using the `.claude` resource override. Keep this
@@ -74,19 +62,7 @@ composition.
 
 When asked to explain projection in this repo, describe it concretely:
 
-- `activate` composes
-  `.harness/resources/skills/harness-config-cli/SKILL.md/` into `SKILL.md`
-  and copies it to both `.agents/skills/harness-config-cli/SKILL.md` and
-  `.claude/skills/harness-config-cli/SKILL.md`.
-- Resource composable leaves use `.harnessComposable` and numbered parts
-  under a directory whose name is the projected file path, such as
-  `SKILL.md/100_frontmatter.md`.
-- `[dir]` composes `.harness/dir/AGENTS.md` into root `AGENTS.md`.
-- `[dir]` composes `.harness/dir/CLAUDE.md` into root `CLAUDE.md`.
-  `CLAUDE.md/.harnessRef` imports `../AGENTS.md`; `CLAUDE.md/.harnessIgnore` can
-  hide an imported part with a recipient-local path such as
-  `AGENTS.md/150_identity.md`, then `CLAUDE.md/150_identity.md` supplies the
-  Claude-specific replacement.
+- Read `references/dogfood-projection.md` first.
 - Running without `--yes` is a dry run; running with `--yes` writes outputs.
 - Target folders are generated outputs and should not be edited as source.
 
