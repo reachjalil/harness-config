@@ -1,6 +1,20 @@
 # @harnessconfig/core
 
-Shared TypeScript implementation for the HarnessConfig standard.
+[![Website](https://img.shields.io/badge/website-harnessconfig.dev-111827)](https://www.harnessconfig.dev/)
+[![Specification](https://img.shields.io/badge/spec-v1-111827)](https://www.harnessconfig.dev/specifications/v1/)
+[![npm @harnessconfig/core](https://img.shields.io/npm/v/@harnessconfig/core?label=%40harnessconfig%2Fcore)](https://www.npmjs.com/package/@harnessconfig/core)
+[![Security](https://img.shields.io/badge/security-policy-111827)](https://github.com/reachjalil/harness-config/security/policy)
+[![License](https://img.shields.io/badge/license-Apache--2.0-green)](./LICENSE)
+
+Shared TypeScript reference implementation for the Harness config v1 standard.
+
+Harness config lets tools validate, preview, and activate repository-owned AI
+agent configuration from a neutral `.harness` source tree into explicit runtime
+folders.
+
+Website: https://www.harnessconfig.dev/
+
+Specification: https://www.harnessconfig.dev/specifications/v1/
 
 ## API
 

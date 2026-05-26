@@ -2,7 +2,30 @@
   "name": "harness-config",
   "private": true,
   "type": "module",
-  "version": "1.0.0-alpha.0",
+  "version": "1.0.0-alpha.1",
+  "description": "Harness config v1 standard and TypeScript reference implementation for portable AI agent configuration.",
+  "homepage": "https://www.harnessconfig.dev/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/reachjalil/harness-config.git"
+  },
+  "bugs": {
+    "url": "https://github.com/reachjalil/harness-config/issues"
+  },
+  "license": "Apache-2.0",
+  "keywords": [
+    "harness-config",
+    "harnessc",
+    "ai-agents",
+    "agent-configuration",
+    "codex",
+    "claude",
+    "cursor",
+    "gemini",
+    "skills",
+    "prompts",
+    "cli"
+  ],
   "packageManager": "pnpm@10.30.2",
   "engines": {
     "node": ">=22.12.0"

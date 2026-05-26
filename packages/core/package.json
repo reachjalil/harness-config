@@ -1,16 +1,37 @@
 {
   "name": "@harnessconfig/core",
-  "version": "1.0.0-alpha.0",
-  "description": "Schemas, path helpers, validation, initialization, extension declarations, and projection utilities for the HarnessConfig standard.",
+  "version": "1.0.0-alpha.1",
+  "description": "TypeScript core for the Harness config v1 standard: validation, projection, profiles, ignores, dir composition, and activation planning.",
   "type": "module",
   "license": "Apache-2.0",
   "sideEffects": false,
+  "homepage": "https://www.harnessconfig.dev/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/reachjalil/harness-config.git",
+    "directory": "packages/core"
+  },
+  "bugs": {
+    "url": "https://github.com/reachjalil/harness-config/issues"
+  },
+  "keywords": [
+    "harness-config",
+    "ai-agents",
+    "agent-configuration",
+    "projection",
+    "codex",
+    "claude",
+    "cursor",
+    "gemini",
+    "typescript"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
     "dist",
     "src",
     "README.md",
+    "SECURITY.md",
     "LICENSE",
     "NOTICE"
   ],

@@ -1,17 +1,25 @@
 # @harnessconfig/cli
 
+[![Website](https://img.shields.io/badge/website-harnessconfig.dev-111827)](https://www.harnessconfig.dev/)
+[![Specification](https://img.shields.io/badge/spec-v1-111827)](https://www.harnessconfig.dev/specifications/v1/)
+[![npm harnessc](https://img.shields.io/npm/v/harnessc?label=harnessc)](https://www.npmjs.com/package/harnessc)
+[![npm @harnessconfig/cli](https://img.shields.io/npm/v/@harnessconfig/cli?label=%40harnessconfig%2Fcli)](https://www.npmjs.com/package/@harnessconfig/cli)
+[![Security](https://img.shields.io/badge/security-policy-111827)](https://github.com/reachjalil/harness-config/security/policy)
+[![License](https://img.shields.io/badge/license-Apache--2.0-green)](./LICENSE)
+
 Scoped implementation package for the Harness config CLI. The public CLI
 package is `harnessc`.
 
-Run it directly from npm:
+Most users should run:
 
 ```bash
-npx harnessc@alpha validate
-npx harnessc@alpha init
-npx harnessc@alpha activate
+npx harnessc validate
 ```
 
-After installing the package, use the binary name:
+This package exists so the public `harnessc` package can depend on a scoped
+implementation package while keeping `npx harnessc` clean.
+
+## Commands
 
 ```bash
 harnessc validate
@@ -23,6 +31,10 @@ harnessc init --resource prompts --target ./runtime/agent
 harnessc init --yes --resource prompts --target ./runtime/agent
 harnessc plan
 ```
+
+Website: https://www.harnessconfig.dev/
+
+Specification: https://www.harnessconfig.dev/specifications/v1/
 
 The CLI is local-first, read-only by default for validation and planning, and
 does not create standard files or mutate projection targets unless the relevant

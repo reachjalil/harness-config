@@ -1,13 +1,19 @@
 # HarnessConfig
 
-[![npm @harnessconfig/core](https://img.shields.io/npm/v/@harnessconfig/core?label=%40harnessconfig%2Fcore)](https://www.npmjs.com/package/@harnessconfig/core)
+[![Website](https://img.shields.io/badge/website-harnessconfig.dev-111827)](https://www.harnessconfig.dev/)
+[![Specification](https://img.shields.io/badge/spec-v1-111827)](https://www.harnessconfig.dev/specifications/v1/)
 [![npm harnessc](https://img.shields.io/npm/v/harnessc?label=harnessc)](https://www.npmjs.com/package/harnessc)
-[![CI](https://img.shields.io/badge/ci-pnpm%20quality-blue)](#quality-gate)
+[![npm @harnessconfig/core](https://img.shields.io/npm/v/@harnessconfig/core?label=%40harnessconfig%2Fcore)](https://www.npmjs.com/package/@harnessconfig/core)
+[![Security](https://img.shields.io/badge/security-policy-111827)](./SECURITY.md)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](./LICENSE)
 
 **Status:** Standard v1 — stable. Reference implementation is published as
 [`@harnessconfig/core`](https://www.npmjs.com/package/@harnessconfig/core)
 and the [`harnessc`](https://www.npmjs.com/package/harnessc) CLI.
+
+Website: https://www.harnessconfig.dev/
+
+Specification: https://www.harnessconfig.dev/specifications/v1/
 
 ## What HarnessConfig Is
 
@@ -75,6 +81,24 @@ of `@harnessconfig/core`.
   projection helpers, and the `[dir]` composable + copy module.
 - `harnessc`: Publishable CLI package and one-off `npx` command.
 - `@harnessconfig/cli`: Scoped implementation package used by `harnessc`.
+
+## Quick Start
+
+```bash
+npx harnessc init
+npx harnessc validate
+npx harnessc activate
+npx harnessc activate --yes
+```
+
+Use the website and specification as the reference when asking an AI agent to
+adopt the standard:
+
+```text
+Update this repository to use Harness config. Use https://www.harnessconfig.dev/
+as the reference, keep reusable agent instructions under .harness, and project
+explicit targets with harnessc.
+```
 
 ## Layout
 

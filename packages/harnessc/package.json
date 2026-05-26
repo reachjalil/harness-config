@@ -1,21 +1,44 @@
 {
   "name": "harnessc",
-  "version": "1.0.0-alpha.0",
-  "description": "CLI for validating, initializing, and activating Harness config repositories.",
+  "version": "1.0.0-alpha.1",
+  "description": "Harness config CLI for validating, initializing, previewing, and activating AI agent configuration.",
   "type": "module",
   "license": "Apache-2.0",
   "sideEffects": false,
+  "homepage": "https://www.harnessconfig.dev/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/reachjalil/harness-config.git",
+    "directory": "packages/harnessc"
+  },
+  "bugs": {
+    "url": "https://github.com/reachjalil/harness-config/issues"
+  },
+  "keywords": [
+    "harnessc",
+    "harness-config",
+    "cli",
+    "ai-agents",
+    "agent-configuration",
+    "codex",
+    "claude",
+    "cursor",
+    "gemini",
+    "prompts",
+    "skills"
+  ],
   "bin": {
     "harnessc": "./bin.js"
   },
   "files": [
     "bin.js",
     "README.md",
+    "SECURITY.md",
     "LICENSE",
     "NOTICE"
   ],
   "dependencies": {
-    "@harnessconfig/cli": "1.0.0-alpha.0"
+    "@harnessconfig/cli": "1.0.0-alpha.1"
   },
   "engines": {
     "node": ">=22.12.0"

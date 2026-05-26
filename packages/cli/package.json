@@ -1,10 +1,30 @@
 {
   "name": "@harnessconfig/cli",
-  "version": "1.0.0-alpha.0",
-  "description": "CLI for validating, initializing, and activating HarnessConfig repositories.",
+  "version": "1.0.0-alpha.1",
+  "description": "Scoped implementation package for the harnessc CLI.",
   "type": "module",
   "license": "Apache-2.0",
   "sideEffects": false,
+  "homepage": "https://www.harnessconfig.dev/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/reachjalil/harness-config.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/reachjalil/harness-config/issues"
+  },
+  "keywords": [
+    "harness-config",
+    "harnessc",
+    "cli",
+    "ai-agents",
+    "agent-configuration",
+    "codex",
+    "claude",
+    "cursor",
+    "gemini"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
@@ -13,6 +33,7 @@
   "files": [
     "dist",
     "README.md",
+    "SECURITY.md",
     "LICENSE",
     "NOTICE"
   ],
@@ -32,7 +53,7 @@
     }
   },
   "dependencies": {
-    "@harnessconfig/core": "1.0.0-alpha.0"
+    "@harnessconfig/core": "1.0.0-alpha.1"
   },
   "devDependencies": {
     "@types/node": "catalog:",
