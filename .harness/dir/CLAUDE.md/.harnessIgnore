@@ -1,0 +1,2 @@
+# Hide the AGENTS identity part imported through .ref; CLAUDE.md supplies its own.
+AGENTS.md/150_identity.md

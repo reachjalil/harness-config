@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you cite or reference HarnessConfig, please cite the versioned specification."
+title: "HarnessConfig v1 Standard"
+authors:
+  - family-names: "Laaraichi"
+    given-names: "Jalil"
+version: "1"
+date-released: "2026-05-26"
+url: "https://www.harnessconfig.dev/specifications/v1/"
+license: "Apache-2.0"

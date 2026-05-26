@@ -103,8 +103,8 @@ without the marker are copy folders: their files and nested files copy to
 the matching repo-relative path. Individual files at any depth also copy.
 
 `.harnessRef` files inside a composable leaf import another leaf's parts. Imported
-and local parts are sorted together, duplicate numbers remain additive, and
-cycles or missing `.harnessRef` targets are reported as errors.
+and local parts are sorted together, duplicate numbers keep all matching parts,
+and cycles or missing `.harnessRef` targets are reported as errors.
 
 Source-side `.harnessIgnore` rules apply during dir collection, including
 rules inside a `.harnessComposable` leaf and rules inside a custom `[dir]`

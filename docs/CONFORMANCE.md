@@ -68,7 +68,7 @@ specific runtime, CLI, or hosted service.
 - Resource categories MUST be treated as source-tree names. `skills`, `rules`,
   `hooks`, and `plugins` are common conventions, not required schema
   categories.
-- Additional resource kinds MAY be added when they live under
+- Resource kinds outside common conventions MAY be used when they live under
   the configured resources source and follow the same override contract.
 - Resource composable leaves MUST project as one file at the leaf path and
   MUST NOT project their marker, `.harnessRef`, `.harnessIgnore`, or numbered

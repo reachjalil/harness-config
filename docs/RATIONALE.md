@@ -41,18 +41,29 @@ HarnessConfig addresses these by making configured source layouts canonical
 and reviewable, and every runtime surface an explicit projection target
 derived from those sources.
 
-## Roles
+## Core Concepts
 
-HarnessConfig defines four roles:
+HarnessConfig defines a small set of coordinated concepts rather than a product
+object model:
 
+- Selected manifest: a repo-local TOML file, defaulting to
+  `./.harness/harness.toml`, that declares the standard version, configured
+  source roots, explicit targets, optional `[dir]`, and extension declarations.
 - Source catalog: durable resources under the configured resources source,
-  defaulting to `./.harness/resources`.
+  defaulting to `./.harness/resources`, plus optional repo-relative `[dir]`
+  outputs under the configured dir source.
+- Declared target: a runtime-facing folder, such as `./.agents` or
+  `./.claude`, that receives projection only when listed in the manifest.
 - Target-derived override: a dot-prefixed folder inside a resource, such as
-  `.claude`, that adjusts files for a target.
-- Activation projection: the computed copy of source plus matching overrides
-  into declared target paths.
-- Projection boundary: `.harnessIgnore`, which decides which source files stay
-  out of runtime surfaces.
+  `.claude`, that adjusts files for the matching target.
+- Profile overlay: optional source content selected by `.harnessProfile` and
+  declared with `.harnessProfileRoot`, merged by logical source path without
+  making the profile folder a normal projected item.
+- Projection boundary: `.harnessIgnore`, including repo-root, source-local,
+  profile-local, target-output-local, and `[mutable]` rules.
+- Activation projection: the dry-run-first computed plan from selected inputs
+  to target files, including create/update/remove/keep/preserve/mutable
+  actions and explicit cleanup and mutable-file policies.
 
 ## Why A Shared Standard
 
@@ -69,14 +80,20 @@ HarnessConfig defines four roles:
 - Tools can show creates, updates, requested removals, unchanged projected
   files, and preserved unmanaged entries before changing a live folder.
 
-## Extensions
+## Core And Extensions
 
-Some workflows need repository-local behavior beyond target copy projection,
-such as composing reviewed text fragments into root-level instruction files.
-HarnessConfig keeps those workflows out of the core resource/target model by
-declaring them as extensions. The base standard defines extension discovery and
-activation policy fields, while each extension owns its schema, compatibility,
-and behavior.
+Behavior that changes the base projection plan is part of the core standard:
+resources, declared targets, target-derived overrides, profile overlays,
+`.harnessIgnore`, `[mutable]`, cleanup, and `[dir]` composition/copy. These
+features interact directly with idempotency, unmanaged cleanup, and target
+preservation, so they need one shared contract.
+
+Extensions are reserved for registered behavior adjacent to that contract. The
+base standard defines extension discovery and activation policy fields, while
+each extension owns its schema, compatibility, diagnostics, planning, and
+writes. An extension must not redefine the resources source, targets,
+overrides, profiles, `.harnessIgnore`, mutable files, cleanup, or the core
+activation plan.
 
 ## Stakeholders
 
@@ -138,7 +155,7 @@ repo-local source-to-runtime projection problem and leaves the rest.
 - **Profile-specific dotfile overlays** inspire `.harnessProfile` and
   `.harnessProfileRoot`: teams can keep optional kits or personal overlays
   under `.harness`, select them per repo or target-output subtree, and still
-  review the final projection as file-level additions and replacements.
+  review the final projection as file-level creates and replacements.
 - **EditorConfig** inspired the choice of a single repo-root file with a
   small, declarative grammar that any tool can implement without runtime
   coupling.
@@ -154,7 +171,7 @@ repo-local source-to-runtime projection problem and leaves the rest.
 - **`AGENTS.md`, `CLAUDE.md`, and `copilot-instructions.md`** are the
   immediate prior art for *what* gets projected. HarnessConfig does not
   define their content; it gives them one shared source location and a
-  consistent way to compose them through the optional `dir` extension
+  consistent way to compose them through the optional `[dir]` source
   rather than hand-syncing duplicate prose.
 
 What HarnessConfig deliberately does *not* try to be: a package manager, a

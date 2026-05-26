@@ -2,9 +2,8 @@
 
 **Status:** Version 1 — Stable. The file shape, manifest schema, projection
 contract, and ignore grammar described here are intended to be implementable
-without consulting the reference code. Changes that would break a conforming
-v1 repository or v1 implementation are reserved for a future version of the
-standard.
+without consulting the reference code. Changes that would invalidate a v1
+repository or v1 implementation are reserved for v2.
 
 HarnessConfig is a repository-local standard for declaring durable agent
 *harness resources* (the prompts, skills, rules, plugins, and similar files
@@ -96,9 +95,14 @@ authoritative.
 
 ## Versioning
 
-The current standard version is `1`. Implementations MUST reject selected
-manifest files whose top-level `version` is not a supported integer, with a
-diagnostic that names both the encountered value and the supported version(s).
+The current standard version is `1`. Specification versions are full standard
+versions. Patch, minor, prerelease, and package versions belong to CLI,
+tooling, extension, and implementation releases, not to the specification URL
+space or manifest `version` field.
+
+Implementations MUST reject selected manifest files whose top-level `version`
+is not a supported integer, with a diagnostic that names both the encountered
+value and the supported version(s).
 
 ```toml
 version = 1
@@ -118,8 +122,8 @@ Version `1` standardizes:
 - `.harnessIgnore` projection ignore files, including repo-root rules,
   source-local rules, target-output-local rules, and `[mutable]` sections.
 
-Within v1, this document MAY receive editorial clarifications and additive,
-backward-compatible normative additions (for example, new optional fields with
+Within v1, this document MAY receive editorial clarifications and
+backward-compatible normative refinements (for example, optional fields with
 defined defaults). Changes that would invalidate a v1 repository or v1
 implementation are reserved for v2.
 
@@ -407,7 +411,7 @@ inputs (1)–(5). For every `n ≥ 2`:
 - every mutable file present in `T_1` MUST remain present in `T_n` with the
   same bytes it had at the end of activation `n − 1` (i.e., the runtime owns
   it; activation does not write to it), and
-- no additional filesystem writes to managed files SHOULD occur beyond what
+- no extra filesystem writes to managed files SHOULD occur beyond what
   is required to converge.
 
 This property is what makes activation reviewable: a clean re-run against
@@ -793,9 +797,9 @@ The following rules apply:
   that file in place MUST also be preserved. Existing target-output
   `.harnessProfile` files have the same protection.
 
-Local files are an additive convenience; a repository that uses only the
-repo-root file remains conforming. Target-output-local files participate only
-after they exist on disk; implementations are not required to infer the
+Local files are optional scoped boundary inputs; a repository that uses only
+the repo-root file remains conforming. Target-output-local files participate
+only after they exist on disk; implementations are not required to infer the
 contents of a file that has not been created yet.
 
 ## Profile Overrides
@@ -977,5 +981,5 @@ The following changes are reserved for v2:
 
 Implementations SHOULD treat manifests whose `version` is a positive
 integer greater than the maximum they support as an "unsupported version"
-diagnostic, not as a malformed manifest. This lets newer manifests fail
+diagnostic, not as a malformed manifest. This lets unsupported future manifests fail
 informatively against older tools.

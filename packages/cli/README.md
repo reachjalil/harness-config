@@ -2,6 +2,17 @@
 
 Publishable CLI for the HarnessConfig standard.
 
+Run it directly from npm as the `harnessc` binary exposed by
+`@harnessconfig/cli`:
+
+```bash
+npx @harnessconfig/cli validate
+npx @harnessconfig/cli init
+npx @harnessconfig/cli activate
+```
+
+After installing the package, use the binary name:
+
 ```bash
 harnessc validate
 harnessc init

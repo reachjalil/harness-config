@@ -248,15 +248,15 @@ pnpm --filter @harnessconfig/cli exec harnessc init --resource prompts --target 
 pnpm --filter @harnessconfig/cli exec harnessc plan
 ```
 
-After publishing:
+After publishing `@harnessconfig/cli`, run the `harnessc` binary through npm:
 
 ```bash
-npx harnessc validate
-npx harnessc init
-npx harnessc activate
-npx harnessc activate --yes
-npx harnessc init --yes --resource prompts --target ./runtime/agent
-npx harnessc plan
+npx @harnessconfig/cli validate
+npx @harnessconfig/cli init
+npx @harnessconfig/cli activate
+npx @harnessconfig/cli activate --yes
+npx @harnessconfig/cli init --yes --resource prompts --target ./runtime/agent
+npx @harnessconfig/cli plan
 ```
 
 `harnessc init` writes conventional resource folders under
