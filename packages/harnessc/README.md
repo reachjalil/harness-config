@@ -36,11 +36,22 @@ harnessc activate --yes
 harnessc plan
 ```
 
+## Filesystem Semantics
+
+- Symlinks are treated as leaf entries and are not followed.
+- Managed target files update from the current source projection.
+- `[mutable]` files are created once, then left to the runtime.
+- Unmanaged target files are preserved unless cleanup is explicit.
+- Target-output `.harnessIgnore` and `.harnessProfile` files are protected
+  local controls.
+- Fixed inputs produce deterministic activation plans.
+
 ## Links
 
 - Website: https://www.harnessconfig.dev/
 - Specification proposal: https://www.harnessconfig.dev/specifications/v1/
 - GitHub: https://github.com/reachjalil/harness-config
+- Release notes: https://github.com/reachjalil/harness-config/blob/main/docs/RELEASE_NOTES.md
 - Issues: https://github.com/reachjalil/harness-config/issues
 - Security policy: https://github.com/reachjalil/harness-config/security/policy
 

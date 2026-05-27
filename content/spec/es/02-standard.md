@@ -87,6 +87,16 @@ Las reglas se evalúan desde archivos menos profundos hacia mas profundos. La ul
 
 La activacion calcula la proyeccion desde recursos, sobrescrituras, perfiles, ignores, `[dir]`, politica de limpieza y politica mutable. El mismo conjunto de entradas debe producir el mismo arbol destino.
 
-## Symlinks
+## Semantica del sistema de archivos
 
-Harness config v1 trata los symlinks como entradas hoja y no los sigue al descubrir fuentes, destinos, ignores, perfiles o salidas `[dir]`. Si un symlink ocupa un camino que la activacion debe escribir, la activacion puede reemplazar el enlace mismo segun las mismas reglas de conflicto usadas para otros archivos o entradas que no son directorios.
+Harness config v1 fija un comportamiento conservador para el sistema de archivos:
+
+- Los symlinks son entradas hoja y nunca se siguen al descubrir fuentes, destinos, ignores, perfiles o salidas `[dir]`.
+- Los archivos gestionados se actualizan desde la proyeccion fuente actual cuando los bytes del destino difieren.
+- Los archivos que coinciden con `[mutable]` se crean una vez y luego pertenecen al runtime.
+- Los archivos no gestionados en destinos se preservan salvo que la limpieza sea explicita.
+- Los `.harnessIgnore` y `.harnessProfile` dentro de salidas de destino son estado local protegido.
+- Con el mismo arbol fuente, manifest, perfiles, reglas ignore, politica de limpieza y politica mutable, la activacion es determinista.
+- Los destinos no pueden apuntar a `.harness`, solaparse con fuentes configuradas ni solaparse entre si.
+
+Por ejemplo, un archivo fuente como `.harness/resources/hooks.json` puede actualizar `.agents/hooks.json`, mientras que un archivo target-owned como `.agents/skills/review/settings.local.json` marcado por `[mutable]` queda intacto despues de la primera proyeccion. Un archivo target-output como `.claude/skills/review/.harnessIgnore` puede filtrar ese subarbol de destino y se preserva durante la limpieza.

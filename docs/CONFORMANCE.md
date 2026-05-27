@@ -82,6 +82,14 @@ specific runtime, CLI, or hosted service.
 - Activation MUST be idempotent for the same configured source trees,
   manifest, overrides, `.harnessIgnore` rules, cleanup choice, and mutable
   policy.
+- Implementations MUST NOT follow symlinks while discovering configured source
+  roots, declared target trees, ignore files, profile selectors, or `[dir]`
+  outputs.
+- Implementations MUST report managed target files as updates when the target
+  bytes differ from the computed source projection, and applying activation
+  MUST write the current source projection.
+- Implementations MUST preserve unmanaged target entries by default and MUST
+  require an explicit cleanup choice before removal.
 - Implementations MUST support `.harnessIgnore` for global, source-local, and
   target-output-local files that stay out of live projections. Target-output
   `.harnessIgnore` files that already exist MUST be preserved during
@@ -96,6 +104,8 @@ specific runtime, CLI, or hosted service.
   target bytes still match the source template.
 - Declared target folders MUST be treated as projection outputs, not source
   repositories.
+- Declared target folders MUST NOT point at `./.harness`, overlap configured
+  source roots, or overlap each other.
 - When `[dir]` is declared, activation MUST compose every directory with a
   `.harnessComposable` marker from its numeric-prefix parts and MUST copy
   every other directory and file under the dir source to its matching
