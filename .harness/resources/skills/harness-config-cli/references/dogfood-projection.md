@@ -9,14 +9,15 @@ agent instructions and skills.
   convention root.
 - Manifest: `./.harness/harness.toml` by default, or the repo-local path passed
   with `--config`.
-- Resource source: configured by `[resources]`, defaulting to
-  `.harness/resources`.
+- Resource sources: declared with ordered `[[resources]]` entries. This repo
+  uses `.harness/resources`.
 - Declared targets: `.agents` and `.claude`.
 - Generated outputs: `.agents`, `.claude`, root `AGENTS.md`, and root
   `CLAUDE.md`.
 
-Use top-level `[resources] path = "./path"` only to move the shared resource
-source. Do not add `[resources.<kind>]`; resource kinds remain directories.
+Use top-level `[[resources]] path = "./path"` entries to declare shared
+resource sources. Do not add `[resources.<kind>]`; resource kinds remain
+directories.
 
 ## Skill Projection
 
@@ -29,8 +30,8 @@ source. Do not add `[resources.<kind>]`; resource kinds remain directories.
 
 ## Root Instruction Projection
 
-- `[dir]` composes `.harness/dir/AGENTS.md` into root `AGENTS.md`.
-- `[dir]` composes `.harness/dir/CLAUDE.md` into root `CLAUDE.md`.
+- `[[dir]]` composes `.harness/dir/AGENTS.md` into root `AGENTS.md`.
+- `[[dir]]` composes `.harness/dir/CLAUDE.md` into root `CLAUDE.md`.
 - `CLAUDE.md/.harnessRef` imports `../AGENTS.md`.
 - `CLAUDE.md/.harnessIgnore` can hide an imported part with a recipient-local
   path such as `AGENTS.md/150_identity.md`, then `CLAUDE.md/150_identity.md`

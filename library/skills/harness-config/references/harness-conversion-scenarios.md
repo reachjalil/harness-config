@@ -75,7 +75,10 @@ path = "./.gemini"
 [[targets]]
 path = "./.cursor"
 
-[dir]
+[[resources]]
+path = "./.harness/resources"
+
+[[dir]]
 path = "./.harness/dir"
 ```
 
@@ -122,7 +125,8 @@ Rules:
 
 ## Scenario: Root Instructions
 
-Use `.harness/dir` for repo-root instruction files:
+Use configured `[[dir]]` roots such as `.harness/dir` for repo-root
+instruction files:
 
 ```text
 .harness/dir/AGENTS.md/

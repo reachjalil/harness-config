@@ -12,7 +12,7 @@ clear non-zero diagnostics for:
 - `.harnessProfileRoot` outside `.harness` and the configured source roots,
 - overlapping configured resources, dir, or target paths,
 - non-default manifest paths selected with `--config`,
-- `[dir]` `.harnessRef` cycles, missing `.harnessRef` targets, mixed
+- `[[dir]]` `.harnessRef` cycles, missing `.harnessRef` targets, mixed
   file/directory conflicts, and target root overlaps.
 
 For changes touching cleanup, verify both defaults:

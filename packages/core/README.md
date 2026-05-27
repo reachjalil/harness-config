@@ -20,7 +20,7 @@ Specification: https://www.harnessconfig.dev/specifications/v1/
 ## API
 
 - `resolveHarnessPaths(root, options)`: returns selected manifest,
-  conventional `.harness`, and configured resources paths.
+  conventional `.harness`, and configured resources source paths.
 - `parseHarnessConfigToml(raw)`: parses and validates a Harness config TOML
   manifest.
 - `parseHarnessIgnore(raw)`: parses repo-relative `.harnessIgnore` rules.
@@ -42,7 +42,8 @@ Specification: https://www.harnessconfig.dev/specifications/v1/
 - `harnessResourceItemProjectionMatchesTarget(options)`: checks whether one
   resource item already matches a target copy.
 - `planHarnessDir(root, config)`: returns the dir composition + copy plan
-  for the `[dir]` source root, including `.harnessComposable` leaves.
+  for configured `[[dir]]` source roots, including `.harnessComposable`
+  leaves.
 
 This package does not run background services. Mutating helpers preview by
 default and require explicit confirmation before writing projection targets.
@@ -52,12 +53,12 @@ locally.
 
 The manifest defaults to `./.harness/harness.toml` and may also be selected from
 another repo-local path by callers that pass `configPath`. The manifest may
-declare `[resources] path = "./path"` to use a resources source other than
-`./.harness/resources`.
+declare ordered `[[resources]]` source roots. If none are declared, resource
+projection is disabled.
 
-The manifest may also declare an optional `[dir]` source root. When
-present (default path `./.harness/dir`), `planHarnessActivation` and
-`applyHarnessActivation` walk that source and produce dir outputs:
+The manifest may also declare ordered `[[dir]]` source roots. When present,
+`planHarnessActivation` and `applyHarnessActivation` walk those sources and
+produce dir outputs:
 directories carrying an empty `.harnessComposable` marker compose their
 numeric-prefix parts into one output file, and any other directory or file
 copies as-is to repo-relative paths. Dir outputs that fall under a declared
@@ -68,8 +69,8 @@ The manifest may also declare top-level extensions under
 `[extensions.<id>]`. Core validates the shared `version` and `activation`
 fields and preserves extension-owned fields for registered extension packages.
 
-The core standard treats resource kinds as source-tree names under the
-configured resources source. `skills`, `rules`, `hooks`, and `plugins` are
+The core standard treats resource kinds as source-tree names under configured
+resources sources. `skills`, `rules`, `hooks`, and `plugins` are
 conventions, not reserved schema concepts, and direct files such as
 `.harness/resources/hooks.json` can project to target roots when using the
 default source path. Targets are explicit repo-local paths; no target folder
@@ -82,14 +83,14 @@ same inputs, cleanup policy, and mutable policy should produce the same target
 tree.
 
 `.harnessIgnore` can be repo-root, source-local under `.harness`, the
-configured resources source, or the declared `[dir]` source, or
+configured resources sources, or configured dir sources, or
 target-output-local under existing target/output folders. Target-output rules
 match final output paths and existing target-output `.harnessIgnore` files are
 preserved during cleanup.
 
 `.harnessProfile` selectors can activate `.harnessProfileRoot` overlays under
-`.harness`, the configured resources source, or the configured `[dir]` source.
-Active profile roots merge by logical source path for resources and `[dir]`;
+`.harness`, a configured resources source, or a configured dir source.
+Active profile roots merge by logical source path for resources and dir outputs;
 generic profile overlays do not beat target-specific resource overrides.
 Profile-local `.harnessIgnore` files can suppress base files or composable
 parts.

@@ -27,7 +27,7 @@ Read the narrowest reference file needed before making changes. The references
 contain the detailed instructions for each area of the skill:
 
 - `references/quick-start.md`: greenfield setup with a minimal manifest,
-  resources source, and `[dir]` source.
+  ordered `[[resources]]` sources, and ordered `[[dir]]` sources.
 - `references/migration.md`: migration from existing root instruction files,
   runtime folders, skills, plugins, rules, and local settings.
 - `references/skills-sh-adoption.md`: user installed this skill from
@@ -53,8 +53,10 @@ contain the detailed instructions for each area of the skill:
 5. Choose explicit targets only; do not infer targets from folders that happen
    to exist.
 6. Create or update `.harness/harness.toml`.
-7. Move durable shared content into `.harness/resources` or `.harness/dir`.
-8. Keep runtime state, secrets, caches, and local settings out of `.harness`.
+7. Move durable shared content into configured resources or dir sources.
+8. Keep runtime state, secrets, caches, and local settings out of committed
+   `.harness` source; offer optional local layers when they fit the user's
+   workflow.
 9. Add `.harnessIgnore` rules, including `[mutable]` entries for runtime-owned
    files.
 10. Run `npx harnessc validate`, `npx harnessc activate`, then
@@ -115,6 +117,11 @@ Recognize these common states and choose the matching path:
   harness surfaces.
 - Use `.harness/dir` for repo-relative files such as root `AGENTS.md` and
   `CLAUDE.md` outputs.
+- For single-developer or experimental customization, offer optional ordered
+  local source roots such as `.harness/local/resources` and
+  `.harness/local/dir`. Explain that later roots override earlier exact paths,
+  and suggest `.gitignore` entries only when the user wants that local space
+  uncommitted.
 - Use target-derived overrides such as `.harness/resources/.claude/...` only
   for files that must differ by harness surface.
 - Keep secrets, credentials, runtime caches, and local machine settings out of
@@ -156,8 +163,10 @@ When setting up or migrating a repository:
 2. Choose explicit targets only; do not infer targets from folders that happen
    to exist.
 3. Create or update `.harness/harness.toml`.
-4. Move durable shared content into `.harness/resources` or `.harness/dir`.
-5. Keep runtime state, secrets, caches, and local settings out of `.harness`.
+4. Move durable shared content into configured resources or dir sources.
+5. Keep runtime state, secrets, caches, and local settings out of committed
+   `.harness` source; offer optional local roots when the user wants private
+   overrides or experiments.
 6. Add `.harnessIgnore` rules, including `[mutable]` entries for runtime-owned
    files.
 7. Run `npx harnessc validate`, `npx harnessc activate`, then

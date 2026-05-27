@@ -12,19 +12,19 @@ export type HarnessExtensionDefinition = {
   [key: string]: unknown;
 };
 
-export type HarnessDirDefinition = {
+export type HarnessSourceDefinition = {
   path: string;
 };
 
-export type HarnessResourcesDefinition = {
-  path: string;
-};
+export type HarnessDirDefinition = HarnessSourceDefinition;
+
+export type HarnessResourcesDefinition = HarnessSourceDefinition;
 
 export type HarnessPathOptions = {
   configPath?: string;
   config?: {
-    resources?: HarnessResourcesDefinition;
-    dir?: HarnessDirDefinition;
+    resources?: HarnessResourcesDefinition[];
+    dir?: HarnessDirDefinition[];
   };
 };
 
@@ -33,6 +33,8 @@ export type HarnessConfigPaths = {
   harnessDir: string;
   configPath: string;
   ignorePath: string;
+  resourcesDirs: string[];
+  dirDirs: string[];
   resourcesDir: string;
   skillsDir: string;
   rulesDir: string;
@@ -101,8 +103,8 @@ export type ApplyHarnessInitializationOptions = {
     standard: {
       name: string;
     };
-    resources?: HarnessResourcesDefinition;
-    dir?: HarnessDirDefinition;
+    resources?: HarnessResourcesDefinition[];
+    dir?: HarnessDirDefinition[];
     targets: HarnessTargetDefinition[];
     extensions?: Record<string, HarnessExtensionDefinition>;
   };
@@ -145,6 +147,7 @@ export type HarnessActivationDirAction = {
 export type HarnessActivationDirPlan = {
   enabled: boolean;
   path?: string;
+  paths?: string[];
   actions: HarnessActivationDirAction[];
 };
 

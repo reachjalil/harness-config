@@ -125,11 +125,13 @@ function formatDirPlanSection(
     return `${heading(
       options,
       "Dir composition:"
-    )}\n[dir] is not declared; no dir composition or copy.`;
+    )}\nNo [[dir]] entries are declared; no dir composition or copy.`;
   }
   const header = heading(
     options,
-    `Dir composition (source ${dir.path ?? "./.harness/dir"}):`
+    `Dir composition (sources ${
+      dir.paths?.length ? dir.paths.join(", ") : (dir.path ?? "none")
+    }):`
   );
   if (dir.actions.length === 0) {
     return `${header}\nNo repo-root dir outputs. Dir outputs targeting declared [[targets]] paths are merged into those target plans above.`;

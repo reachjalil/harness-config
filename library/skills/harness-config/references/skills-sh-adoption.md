@@ -58,13 +58,15 @@ For a repo that is not yet using `.harness`, propose or implement this sequence:
 2. Create `.harness/resources` for projected target resources.
 3. Create `.harness/dir` for repo-relative outputs such as `AGENTS.md` or
    `CLAUDE.md`.
-4. Move durable, reviewed instructions and reusable skills into `.harness`.
-5. Use target-derived overrides for target-specific differences.
-6. Add `.harnessIgnore`, including `[mutable]` for runtime-owned local settings.
-7. Run `npx harnessc validate`.
-8. Run `npx harnessc activate` and review the dry-run plan.
-9. Apply with `npx harnessc activate --yes` only when the plan matches intent.
-10. Run `npx harnessc activate` again and confirm convergence.
+4. Offer optional `.harness/local/resources` and `.harness/local/dir` roots
+   for personal overrides or experiments when the user wants them.
+5. Move durable, reviewed instructions and reusable skills into `.harness`.
+6. Use target-derived overrides for target-specific differences.
+7. Add `.harnessIgnore`, including `[mutable]` for runtime-owned local settings.
+8. Run `npx harnessc validate`.
+9. Run `npx harnessc activate` and review the dry-run plan.
+10. Apply with `npx harnessc activate --yes` only when the plan matches intent.
+11. Run `npx harnessc activate` again and confirm convergence.
 
 After triage, summarize the plan to the user in terms of supported CLI steps
 and file-edit steps. Example:
@@ -82,6 +84,9 @@ When the user is coming from skills.sh, prefer defaults that are easy to review:
 
 - use `npx harnessc` instead of assuming a local dependency;
 - keep the first manifest small;
+- add local source roots only when they help the user's workflow, and suggest
+  `.harness/local/` in `.gitignore` only if the user wants those overrides
+  private;
 - avoid declaring targets for folders that merely happen to exist;
 - keep existing live surfaces in place until activation output is understood;
 - do not move secrets, credentials, caches, runtime permission grants, or local

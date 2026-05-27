@@ -11,7 +11,7 @@ import {
   resolveRepoLocalPath,
   toRepoRelative,
 } from "./paths";
-import { DEFAULT_HARNESS_DIR_PATH, type HarnessConfig } from "./standard";
+import type { HarnessConfig } from "./standard";
 import type { HarnessDiagnostic, HarnessIgnoreRuleSet } from "./types";
 
 export type HarnessProfileRoot = {
@@ -152,21 +152,14 @@ function profileOverlaySourceRoots(
   options: HarnessProfileContextOptions
 ): string[] {
   const paths = resolveHarnessPaths(root, { config: options.config });
-  const roots = new Set<string>([paths.harnessDir, paths.resourcesDir]);
+  const roots = new Set<string>([
+    paths.harnessDir,
+    ...paths.resourcesDirs,
+    ...paths.dirDirs,
+  ]);
 
   for (const sourceRoot of options.sourceRoots ?? []) {
     roots.add(path.resolve(sourceRoot));
-  }
-
-  const config = options.config;
-  if (config) {
-    roots.add(
-      resolveRepoLocalPath(
-        root,
-        config.dir?.path ?? DEFAULT_HARNESS_DIR_PATH,
-        "Dir source path"
-      )
-    );
   }
 
   return [...roots];
@@ -411,10 +404,9 @@ async function loadProfileIgnoreRuleSets(
 }> {
   const diagnostics: HarnessDiagnostic[] = [];
   const ruleSets: HarnessIgnoreRuleSet[] = [];
-  const resourcesPath = toRepoRelative(
-    root,
-    resolveHarnessPaths(root, { config }).resourcesDir
-  );
+  const resourcesPaths = resolveHarnessPaths(root, {
+    config,
+  }).resourcesDirs.map((resourcesDir) => toRepoRelative(root, resourcesDir));
 
   for (const profileRoot of profileRoots) {
     const ignoreFiles = await findNestedIgnoreFiles(profileRoot.rootDir);
@@ -444,9 +436,13 @@ async function loadProfileIgnoreRuleSets(
         sourcePath: physicalSourcePath,
         isRoot: false,
         matchBase: "source",
-        implicitTarget: detectImplicitOverrideTarget(logicalSourcePath, {
-          resourcesPath,
-        }),
+        implicitTarget: resourcesPaths
+          .map((resourcesPath) =>
+            detectImplicitOverrideTarget(logicalSourcePath, {
+              resourcesPath,
+            })
+          )
+          .find(Boolean),
         profile: profileRoot.profile,
       });
     }

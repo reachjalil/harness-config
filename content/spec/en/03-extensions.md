@@ -40,9 +40,9 @@ Every other field belongs to the extension implementation. Unknown extension dec
 
 ## Boundary With Core
 
-An extension may add behavior, but it must not redefine the resources source, target mappings, target-derived overrides, `.harnessIgnore` semantics, `.harnessProfile` overlay semantics, mutable file behavior, unmanaged cleanup, or the activation plan contract.
+An extension may add behavior, but it must not redefine resources sources, target mappings, target-derived overrides, `.harnessIgnore` semantics, `.harnessProfile` overlay semantics, mutable file behavior, unmanaged cleanup, or the activation plan contract.
 
-The top-level `[dir]` source is part of core v1 activation, not an extension. It is documented in the Standard and Tooling pages because its outputs interact directly with declared targets, cleanup, and target-output `.harnessIgnore` files.
+Configured `[[dir]]` sources are part of core v1 activation, not an extension. They are documented in the Standard and Tooling pages because their outputs interact directly with declared targets, cleanup, and target-output `.harnessIgnore` files.
 
 ## Implementation Expectations
 

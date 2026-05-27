@@ -11,9 +11,9 @@
 - Use the standard filenames exactly: `.harnessIgnore`, `.harnessProfile`,
   `.harnessProfileRoot`, `.harnessComposable`, and `.harnessRef`.
 - Treat `.harnessProfileRoot` as profile source only. It must live under
-  `.harness`, the configured resources source, or the configured `[dir]`
-  source, must not be projected as a resource item, and must overlay resources
-  or `[dir]` outputs by logical source path.
+  `.harness`, a configured resources source, or a configured dir source, must
+  not be projected as a resource item, and must overlay resources or dir
+  outputs by logical source path.
 - Keep `.harnessIgnore` as the projection boundary for global, source-local,
   target-output-local, and `[mutable]` rules.
 - Prefer focused tests near the behavior being changed. Update

@@ -35,11 +35,11 @@ npx harnessc extension activate
 
 El manifiesto por defecto es `./.harness/harness.toml`. `--config <path>` selecciona otro TOML repo-local.
 
-## `[dir]`
+## `[[dir]]`
 
-Cuando `[dir]` esta declarado, las hojas `.harnessComposable` dentro de esa fuente componen partes numeradas en salidas relativas al repositorio, y el resto de archivos se copia hacia rutas relativas al repositorio. Los `.harnessIgnore` de fuente filtran la recoleccion y los `.harnessIgnore` de salida filtran resultados finales.
+Cuando `[[dir]]` esta declarado, las hojas `.harnessComposable` dentro de esas fuentes componen partes numeradas en salidas relativas al repositorio, y el resto de archivos se copia hacia rutas relativas al repositorio. Los `.harnessIgnore` de fuente filtran la recoleccion y los `.harnessIgnore` de salida filtran resultados finales.
 
-El mismo marcador `.harnessComposable` puede usarse bajo la fuente de recursos configurada. Alli compone un archivo de recurso proyectado en cada destino declarado; no es una salida repo-relativa de `[dir]`.
+El mismo marcador `.harnessComposable` puede usarse bajo una fuente de recursos configurada. Alli compone un archivo de recurso proyectado en cada destino declarado; no es una salida repo-relativa de `[[dir]]`.
 
 ## Helpers TypeScript
 

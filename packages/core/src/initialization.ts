@@ -4,7 +4,6 @@ import path from "node:path";
 import { createDefaultHarnessIgnore } from "./ignore";
 import {
   createDefaultHarnessConfig,
-  createDefaultHarnessConfigToml,
   harnessConfigSchema,
   resourceIdSchema,
   stringifyHarnessConfig,
@@ -12,6 +11,7 @@ import {
 import { inspectHarnessConfig } from "./validation";
 import {
   CONVENTIONAL_HARNESS_RESOURCES,
+  defaultHarnessResourcesDefinition,
   resolveHarnessPaths,
   resolveRepoLocalPath,
   toRepoRelative,
@@ -51,13 +51,23 @@ export async function planHarnessInitialization(
 ): Promise<HarnessInitializationPlan> {
   const baseConfig = options.config
     ? harnessConfigSchema.parse(options.config)
-    : createDefaultHarnessConfig();
+    : harnessConfigSchema.parse({
+        ...createDefaultHarnessConfig(),
+        resources: [
+          {
+            path:
+              options.resourcesPath ?? defaultHarnessResourcesDefinition().path,
+          },
+        ],
+        targets: [{ path: "./.agents" }],
+      });
   const config = harnessConfigSchema.parse({
     ...baseConfig,
-    resources: {
-      ...(baseConfig.resources ?? {}),
-      ...(options.resourcesPath ? { path: options.resourcesPath } : {}),
-    },
+    resources: options.resourcesPath
+      ? [{ path: options.resourcesPath }]
+      : baseConfig.resources.length > 0
+        ? baseConfig.resources
+        : [defaultHarnessResourcesDefinition()],
   });
   const inspection = await inspectHarnessConfig(root, {
     config,
@@ -69,10 +79,7 @@ export async function planHarnessInitialization(
   });
   const actions: HarnessInitializationAction[] = [];
   const diagnostics: HarnessDiagnostic[] = [...inspection.diagnostics];
-  const configToml =
-    options.config || options.resourcesPath
-      ? stringifyHarnessConfig(config)
-      : createDefaultHarnessConfigToml();
+  const configToml = stringifyHarnessConfig(config);
   const ignoreFile = createDefaultHarnessIgnore();
 
   const resourceKinds =

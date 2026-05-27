@@ -10,9 +10,9 @@ Prefer the existing projection pipeline:
 1. Parse and validate the manifest.
 2. Load profile context once for the activation.
 3. Load ignore matcher with profile rule sets and protected target paths.
-4. Build desired projections from the configured resources source for every
+4. Build desired projections from configured resources sources for every
    declared target.
-5. Plan `[dir]` outputs and merge outputs that land under declared targets.
+5. Plan `[[dir]]` outputs and merge outputs that land under declared targets.
 6. Compare desired files to live target files to produce actions.
 7. Apply only when requested.
 
@@ -40,7 +40,7 @@ preservation of filtered files.
 
 ## Composables
 
-Composable leaves are shared by `[dir]` and resource files:
+Composable leaves are shared by `[[dir]]` and resource files:
 
 - Marker: `.harnessComposable`.
 - Ref file: `.harnessRef`.
@@ -57,7 +57,7 @@ For resource composables:
 - Source-local, recipient-local, target-output-local, and profile-local
   `.harnessIgnore` rules can affect composed parts or whole composed files.
 
-For `[dir]` composables:
+For `[[dir]]` composables:
 
 - The leaf output path is repo-relative.
 - Outputs under declared targets merge into the target plan.

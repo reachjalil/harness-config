@@ -7,7 +7,7 @@ Read this to locate the closest existing tests and helper style.
 - `packages/core/test/projection.test.ts`: resource projection, overrides,
   target-output ignores, profiles, mutable files, cleanup, symlink handling,
   action planning, and apply behavior.
-- `packages/core/test/dir.test.ts`: `[dir]` copy and composition,
+- `packages/core/test/dir.test.ts`: `[[dir]]` copy and composition,
   `.harnessRef`, dir profile layers, dir ignores, and target merge behavior.
 - `packages/core/test/docs.test.ts`: docs constraints such as keeping the
   standard implementation-neutral.

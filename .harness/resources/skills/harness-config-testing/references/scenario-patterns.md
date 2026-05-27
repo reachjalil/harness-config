@@ -27,7 +27,7 @@ For a projection behavior, cover at least the observable result:
   receives the file.
 - A target-local `.harnessProfile` selecting a profile overlay for only one
   output subtree.
-- `[dir]` outputs that produce root files and also merge files under a
+- `[[dir]]` outputs that produce root files and also merge files under a
   declared target.
 - Cleanup with unmanaged local files beside preserved `.harnessIgnore` and
   `.harnessProfile` selectors.

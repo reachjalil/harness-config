@@ -39,6 +39,26 @@ Move repo-root instruction outputs into `.harness/dir`:
   200_workflows.md
 ```
 
+When the user wants single-developer customization or experiments, add an
+ordered local layer after the shared root instead of editing generated targets:
+
+```toml
+[[resources]]
+path = "./.harness/resources"
+
+[[resources]]
+path = "./.harness/local/resources"
+
+[[dir]]
+path = "./.harness/dir"
+
+[[dir]]
+path = "./.harness/local/dir"
+```
+
+Suggest `.harness/local/` in `.gitignore` only when those changes should stay
+private. The spec does not require git awareness.
+
 ## Preserve target differences
 
 Use target-derived overrides for exact target-specific files:

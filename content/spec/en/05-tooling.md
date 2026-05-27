@@ -43,6 +43,7 @@ repository. The CLI does not make network requests during normal operation.
 npx harnessc
 npx harnessc init
 npx harnessc validate
+npx harnessc explain <path>
 npx harnessc activate
 npx harnessc extension activate
 npx harnessc plan
@@ -52,11 +53,15 @@ npx harnessc plan
   prints the detected manifest path with suggested next steps.
 - `npx harnessc init` creates the selected manifest (`./.harness/harness.toml` by
   default), conventional or custom resource folders under the configured
-  resources source (`./.harness/resources` by default), and `.harnessIgnore`
-  when applied with `--yes`.
+  resources source root, and `.harnessIgnore` when applied with `--yes`. The
+  generated starter manifest declares `[[resources]] path =
+  "./.harness/resources"` explicitly.
 - `npx harnessc validate` checks version support, repo-local paths, target
   mappings, projection ignore syntax, mutable scope syntax, resource
-  composable leaves, symlink leaf handling, and `[dir]` composition/copy issues.
+  composable leaves, symlink leaf handling, and dir composition/copy issues.
+- `npx harnessc explain <path>` explains how a source or output path
+  participates in the current projection plan, including winning source paths,
+  configured source roots, dir outputs, and blocking diagnostics.
 - `npx harnessc activate` dry-runs the activation projection and shows creates,
   updates, requested removals, kept files, mutable-skipped files, and preserved
   unmanaged entries before writing.
@@ -84,7 +89,7 @@ The default manifest path is `./.harness/harness.toml`. When `--root` and
 directory for that manifest. Pass `--config <path>` to validate, plan,
 initialize, activate, or run extensions against a different repo-local TOML file.
 `npx harnessc init --resources-path <path>` writes a
-`[resources]` path into the manifest and creates resource folders below that
+one `[[resources]]` entry into the manifest and creates resource folders below that
 configured source root. Manifest paths are selected by the tool invocation;
 paths inside the manifest remain repo-local, not relative to the manifest
 file's directory.
@@ -106,13 +111,16 @@ other product opinions belong above `npx harnessc`.
 
 ## Dir Composition And Copy
 
-Declaring `[dir]` in the selected manifest activates a single dir source root
-(default `./.harness/dir`). Running `npx harnessc activate` plans and applies
-dir outputs alongside target projection:
+Declaring one or more `[[dir]]` entries in the selected manifest activates
+ordered dir source roots. Running `npx harnessc activate` plans and applies dir
+outputs alongside target projection:
 
 ```toml
-[dir]
+[[dir]]
 path = "./.harness/dir"
+
+[[dir]]
+path = "./.harness/local/dir"
 ```
 
 ```text
@@ -135,23 +143,23 @@ path = "./.harness/dir"
     01_dev_intro.md            # copy mode (no marker)
 ```
 
-Inside `[dir]`, directories that contain an empty `.harnessComposable` marker
+Inside each `[[dir]]` source, directories that contain an empty `.harnessComposable` marker
 file are composable leaves: their numeric-prefix parts (for example
 `100_intro.md`, `200_rules.md`) concatenate in order to produce one
 repo-relative output file. Directories without the marker are copy folders:
 their files and nested files copy to the matching repo-relative path.
 Individual files at any depth also copy.
 
-The same `.harnessComposable` marker can also be used under the configured
+The same `.harnessComposable` marker can also be used under a configured
 resources source. In that location it composes one projected resource file
-inside each declared target; it is not a `[dir]` repo-relative output.
+inside each declared target; it is not a `[[dir]]` repo-relative output.
 
 `.harnessRef` files inside a composable leaf import another leaf's parts. Imported
 and local parts are sorted together, duplicate numbers keep all matching parts,
 and cycles or missing `.harnessRef` targets are reported as errors.
 
 Source-side `.harnessIgnore` rules apply during dir collection, including
-rules inside a `.harnessComposable` leaf and rules inside a custom `[dir]`
+rules inside a `.harnessComposable` leaf and rules inside a custom `[[dir]]`
 source outside `./.harness`. Ignoring a container skips all dir outputs
 below it, ignoring a leaf skips that output, and ignoring a part excludes
 that part from composition. Target-output `.harnessIgnore` files can also
@@ -164,8 +172,8 @@ never copied to any output.
 Profile overrides use `.harnessProfile` selectors and `.harnessProfileRoot`
 source overlays. A root `.harnessProfile` applies globally; target/output
 selectors such as `.agents/skills/.harnessProfile` apply only to that output
-subtree. `.harnessProfileRoot` must live under `.harness`, the configured
-resources source, or the configured dir source; when active, its contents
+subtree. `.harnessProfileRoot` must live under `.harness`, a configured
+resources source, or a configured dir source; when active, its contents
 overlay either the parent source root (for markers directly inside the
 resources source or dir root), the parent directory (for portable profile
 roots nested inside a resource item or dir subtree), or `.harness` (for
@@ -234,7 +242,7 @@ A conforming validator should:
 - Parse the selected manifest, defaulting to `./.harness/harness.toml`, and reject
   malformed input with clear diagnostics.
 - Refuse unsupported future standard versions.
-- Validate the configured resources source path and reject per-kind manifest
+- Validate configured resources source paths and reject per-kind manifest
   resource declarations.
 - Verify each `[[targets]]` entry contains only a repo-local path, points
   below the repository root, and does not overlap configured source roots.
@@ -242,7 +250,7 @@ A conforming validator should:
   target-output-local, and `[mutable]` rules using the standard precedence
   phases.
 - Resolve `.harnessProfile` selectors and `.harnessProfileRoot` overlays
-  before projection, including the `[dir]` bootstrap/final pass for output
+  before projection, including the dir bootstrap/final pass for output
   selectors.
 - Show create, update, remove, keep, preserve, and mutable actions before any
   write.

@@ -35,4 +35,4 @@ El nucleo posee solo `version` y `activation`. Todos los demas campos pertenecen
 
 ## Limite con el nucleo
 
-Una extension no debe redefinir la fuente de recursos, destinos, sobrescrituras, `.harnessIgnore`, archivos mutables ni el contrato de planificacion. `[dir]` es superficie del nucleo v1, no una extension.
+Una extension no debe redefinir fuentes de recursos, destinos, sobrescrituras, `.harnessIgnore`, archivos mutables ni el contrato de planificacion. `[[dir]]` es superficie del nucleo v1, no una extension.

@@ -3,6 +3,7 @@ import path from "node:path";
 
 import {
   DEFAULT_HARNESS_CONFIG_PATH,
+  DEFAULT_HARNESS_DIR_PATH,
   DEFAULT_HARNESS_RESOURCES_PATH,
 } from "./standard";
 import type {
@@ -34,17 +35,35 @@ export function resolveHarnessPaths(
     options.configPath ?? DEFAULT_HARNESS_CONFIG_PATH,
     "Harness config path"
   );
-  const resourcesDir = resolveRepoLocalPath(
-    absoluteRoot,
-    options.config?.resources?.path ?? DEFAULT_HARNESS_RESOURCES_PATH,
-    "Resources source path"
+  const resourcesDirs = (options.config?.resources ?? []).map((source) =>
+    resolveRepoLocalPath(
+      absoluteRoot,
+      source.path,
+      `Resources source path "${source.path}"`
+    )
   );
+  const dirDirs = (options.config?.dir ?? []).map((source) =>
+    resolveRepoLocalPath(
+      absoluteRoot,
+      source.path,
+      `Dir source path "${source.path}"`
+    )
+  );
+  const resourcesDir =
+    resourcesDirs[0] ??
+    resolveRepoLocalPath(
+      absoluteRoot,
+      DEFAULT_HARNESS_RESOURCES_PATH,
+      "Resources source path"
+    );
 
   return {
     root: absoluteRoot,
     harnessDir,
     configPath,
     ignorePath: path.join(absoluteRoot, HARNESS_IGNORE_FILE),
+    resourcesDirs,
+    dirDirs,
     resourcesDir,
     skillsDir: path.join(resourcesDir, "skills"),
     rulesDir: path.join(resourcesDir, "rules"),
@@ -83,10 +102,8 @@ export async function findHarnessIgnoreFiles(
 
   const sourceRoots = new Set([
     paths.harnessDir,
-    paths.resourcesDir,
-    ...(options.config?.dir?.path
-      ? [resolveRepoLocalPath(paths.root, options.config.dir.path)]
-      : []),
+    ...paths.resourcesDirs,
+    ...paths.dirDirs,
   ]);
   for (const sourceRoot of sourceRoots) {
     const state = await lstat(sourceRoot).catch(() => undefined);
@@ -152,6 +169,28 @@ export function resolveHarnessResourceDir(
   options: HarnessPathOptions = {}
 ): string {
   return path.join(resolveHarnessPaths(root, options).resourcesDir, resource);
+}
+
+export function resolveHarnessResourceDirs(
+  root = process.cwd(),
+  options: HarnessPathOptions = {}
+): string[] {
+  return resolveHarnessPaths(root, options).resourcesDirs;
+}
+
+export function resolveHarnessDirDirs(
+  root = process.cwd(),
+  options: HarnessPathOptions = {}
+): string[] {
+  return resolveHarnessPaths(root, options).dirDirs;
+}
+
+export function defaultHarnessResourcesDefinition(): { path: string } {
+  return { path: DEFAULT_HARNESS_RESOURCES_PATH };
+}
+
+export function defaultHarnessDirDefinition(): { path: string } {
+  return { path: DEFAULT_HARNESS_DIR_PATH };
 }
 
 export function resolveHarnessResourceItemDir(

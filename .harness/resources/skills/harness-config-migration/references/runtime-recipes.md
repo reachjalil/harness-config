@@ -4,7 +4,7 @@ Read this for common migrations from existing runtime folders.
 
 ## Root AGENTS.md
 
-Move reusable root instructions into a `[dir]` composable:
+Move reusable root instructions into a `[[dir]]` composable:
 
 ```text
 .harness/dir/AGENTS.md/
