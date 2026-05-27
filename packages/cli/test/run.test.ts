@@ -74,6 +74,27 @@ describe("harnessc", () => {
     expect(capture.stdout.join("\n")).toContain(".harness/harness.toml");
   });
 
+  it("discovers the repository root from a nested working directory", async () => {
+    const root = await rootFixture();
+    await writeConfig(root);
+    await write(root, ".harnessIgnore", "# projection boundary\n");
+    const nestedRoot = path.join(root, "packages", "example");
+    await mkdir(nestedRoot, { recursive: true });
+    const originalCwd = process.cwd();
+    process.chdir(nestedRoot);
+    try {
+      const capture = captureIo();
+      const exitCode = await runHarnessConfigCli(["validate"], capture.io);
+
+      expect(exitCode).toBe(0);
+      expect(capture.stdout.join("\n")).toContain(
+        "No HarnessConfig diagnostics found."
+      );
+    } finally {
+      process.chdir(originalCwd);
+    }
+  });
+
   it("colors human output only when the output sink supports color", async () => {
     const root = await rootFixture();
     const originalNoColor = process.env.NO_COLOR;

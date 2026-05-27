@@ -1,6 +1,8 @@
 packages:
   - packages/*
 
+linkWorkspacePackages: true
+
 catalogs:
   default:
     "@types/node": ^25.5.0

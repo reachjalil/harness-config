@@ -1,3 +1,5 @@
+import { access } from "node:fs/promises";
+import path from "node:path";
 import {
   env as processEnv,
   stdin as processStdin,
@@ -37,6 +39,7 @@ import {
 type CliOptions = {
   command: string;
   root: string;
+  rootExplicit: boolean;
   configPath?: string;
   json: boolean;
   yes: boolean;
@@ -89,9 +92,11 @@ Commands:
 HarnessConfig standardizes a versioned TOML manifest, configured resources
 source tree, target declarations, and .harnessIgnore projection boundaries.
 The default manifest is ./.harness/harness.toml, but --config can point at any
-repo-local TOML file. Init uses skills, rules, and plugins as conventional
-resource folders under the configured resources path unless --resource is
-supplied. Targets are explicit repo-local paths declared with --target.
+repo-local TOML file. When --root and --config are omitted, harnessc searches
+upward for the nearest .harness/harness.toml. Init uses skills, rules, and
+plugins as conventional resource folders under the configured resources path
+unless --resource is supplied. Targets are explicit repo-local paths declared
+with --target.
 Declaring [dir] in the manifest turns on the dir source root (default
 ./.harness/dir): a folder that contains a
 .harnessComposable marker file is composed from its numbered parts into a
@@ -112,6 +117,7 @@ function parseArgs(argv: string[]): CliOptions {
   const options: CliOptions = {
     command: "",
     root: process.cwd(),
+    rootExplicit: false,
     json: false,
     yes: false,
     dryRun: false,
@@ -175,6 +181,7 @@ function parseArgs(argv: string[]): CliOptions {
         throw new Error(`${arg} requires a path.`);
       }
       options.root = value;
+      options.rootExplicit = true;
       index += 1;
       continue;
     }
@@ -249,6 +256,31 @@ function parseArgs(argv: string[]): CliOptions {
   }
 
   return options;
+}
+
+async function pathExists(filePath: string): Promise<boolean> {
+  try {
+    await access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function discoverHarnessRoot(start: string): Promise<string> {
+  let current = path.resolve(start);
+  while (true) {
+    const defaultManifestPath = path.join(current, ".harness", "harness.toml");
+    if (await pathExists(defaultManifestPath)) {
+      return current;
+    }
+
+    const parent = path.dirname(current);
+    if (parent === current) {
+      return path.resolve(start);
+    }
+    current = parent;
+  }
 }
 
 function initOptionsFromCli(
@@ -344,6 +376,10 @@ export async function runHarnessConfigCli(
   if (options.help) {
     io.stdout(HELP);
     return 0;
+  }
+
+  if (!options.rootExplicit && !options.configPath) {
+    options.root = await discoverHarnessRoot(options.root);
   }
 
   const formatOptions = formatOptionsForCli(options, io);
