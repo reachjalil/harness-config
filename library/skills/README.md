@@ -9,10 +9,11 @@ project; library skills are installable guidance for users.
 
 ## Skills
 
-- `harness-config-setup`: Set up or migrate a repository to Harness config.
+- `harness-config`: Set up, migrate, validate, activate, and troubleshoot
+  Harness config in a repository.
 
 Install with a skill installer from:
 
 ```text
-https://github.com/reachjalil/harness-config/tree/main/library/skills/harness-config-setup
+https://github.com/reachjalil/harness-config/tree/main/library/skills/harness-config
 ```
