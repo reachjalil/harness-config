@@ -15,6 +15,12 @@ outputs.
 Use `harnessconfig.dev` as the public reference when the user needs the
 standard or CLI behavior.
 
+Always explain the current repository state, what can be converted or improved,
+and the safest next step before making broad changes. Prefer supported
+`npx harnessc` commands whenever the CLI can initialize, validate, preview, or
+apply the transition. Use regular file edits only for source authoring,
+manual migration, or cases the CLI does not yet automate.
+
 ## Reference Map
 
 Read the narrowest reference file needed before making changes. The references
@@ -27,6 +33,9 @@ contain the detailed instructions for each area of the skill:
 - `references/skills-sh-adoption.md`: user installed this skill from
   skills.sh or GitHub and wants help transitioning the current repository to
   `.harness`.
+- `references/harness-conversion-scenarios.md`: detailed scenarios for
+  converting Codex, Claude Code, Gemini CLI, Cursor, plugins/extensions, hooks,
+  MCP, rules, commands, and subagents into a `.harness` source layout.
 - `references/cli.md`: CLI command usage, dry-run behavior, activation flags,
   and common troubleshooting.
 - `references/verification.md`: validation, dry-run activation, apply,
@@ -52,6 +61,21 @@ contain the detailed instructions for each area of the skill:
    `npx harnessc activate --yes`.
 11. Re-run dry activation and confirm convergence.
 
+## User Communication
+
+Before changing a repository with existing agent files, summarize:
+
+- what Harness config can manage in the current repo;
+- which existing files look like durable source, target-specific wrappers, or
+  runtime state;
+- which targets should be declared and why;
+- which steps can use `npx harnessc`;
+- which steps require ordinary file edits because they are source migration,
+  content authoring, or currently outside CLI automation.
+
+Keep the explanation short but concrete. Do not imply that installing the skill
+or running `harnessc` automatically decides the migration policy for the user.
+
 ## Adoption Scenarios
 
 Recognize these common states and choose the matching path:
@@ -65,8 +89,13 @@ Recognize these common states and choose the matching path:
   wants.
 - **Existing agent surfaces.** Root instructions, `.agents`, `.claude`,
   `.cursor`, `.gemini`, skills, rules, hooks, commands, or settings already
-  exist. Use `references/migration.md` and preserve current behavior before
-  simplifying.
+  exist. Use `references/migration.md` and
+  `references/harness-conversion-scenarios.md`, then preserve current behavior
+  before simplifying.
+- **Plugins or extension packs.** Codex plugins, Claude plugins, Gemini
+  extensions, Cursor plugin packaging, local marketplaces, or shared plugin
+  roots already exist. Use `references/harness-conversion-scenarios.md` to
+  split portable components from target-specific packaging wrappers.
 - **Already using `.harness`.** Inspect the manifest, sources, ignores, and
   targets before editing. Use `references/cli.md` and
   `references/verification.md` for validation and activation.

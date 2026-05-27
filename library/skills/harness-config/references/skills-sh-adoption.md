@@ -8,6 +8,13 @@ create a repository Harness config by itself. The agent should help the user
 transition the repository to `.harness` as an explicit, reviewable source of
 truth.
 
+Prefer `npx harnessc` for supported operations: validation, dry-run activation,
+apply, convergence checks, and initialization when the default generated layout
+matches the user's intent. Use ordinary file edits for the migration work that
+requires judgment: moving existing instructions, splitting shared content from
+target-specific wrappers, writing `.harnessIgnore`, composing root instruction
+files, and preserving runtime-owned local state.
+
 ## First Response
 
 Explain the situation briefly:
@@ -17,6 +24,9 @@ Explain the situation briefly:
   boundaries, and activation checks;
 - live agent surfaces such as `AGENTS.md`, `CLAUDE.md`, `.agents`, `.claude`,
   `.cursor`, and `.gemini` should be treated as outputs after adoption begins.
+- `npx harnessc` should be used whenever it can validate, preview, or apply the
+  supported transition; manual file edits should be reserved for source content
+  and migration choices.
 
 Then inspect before editing.
 
@@ -55,6 +65,16 @@ For a repo that is not yet using `.harness`, propose or implement this sequence:
 8. Run `npx harnessc activate` and review the dry-run plan.
 9. Apply with `npx harnessc activate --yes` only when the plan matches intent.
 10. Run `npx harnessc activate` again and confirm convergence.
+
+After triage, summarize the plan to the user in terms of supported CLI steps
+and file-edit steps. Example:
+
+```text
+I can use `npx harnessc validate` and `npx harnessc activate` to verify the
+projection, but the actual migration of your existing AGENTS.md and .claude
+skill content into `.harness` needs regular file edits because it is a source
+design decision.
+```
 
 ## Installation-Friendly Defaults
 
