@@ -12,8 +12,8 @@ Keep durable agent configuration in reviewed source roots and treat live harness
 surfaces such as `.agents`, `.claude`, `.cursor`, and `.gemini` as generated
 outputs.
 
-Use `harnessconfig.dev` as the public reference when the user needs the
-standard or CLI behavior.
+Use https://www.harnessconfig.dev/ as the public reference when the user needs
+the standard or CLI behavior.
 
 Always explain the current repository state, what can be converted or improved,
 and the safest next step before making broad changes. Prefer supported
@@ -139,6 +139,12 @@ For command details and troubleshooting, read `references/cli.md`.
   activation, and verification.
 - Do not move secrets, credentials, runtime caches, or local machine settings
   into `.harness`.
+- Do not run unreviewed hook scripts, plugin install scripts, MCP servers, or
+  generated commands from a repository before explaining the trust boundary and
+  getting user approval.
+- Use `npx harnessc activate` as a dry run before any `--yes` activation.
+- Prefer reversible source edits and show the user what changed with `git diff`
+  when practical.
 - Preserve existing behavior first; simplify only after activation is stable
   and reviewable.
 

@@ -13,6 +13,23 @@ file edits. Prefer `npx harnessc validate`, `npx harnessc activate`, and
 manual file edits for content migration, manifest/source authoring, and
 harness-specific wrapper design.
 
+## Contents
+
+- [Core Conversion Model](#core-conversion-model)
+- [Target Mapping](#target-mapping)
+- [Scenario: Merge Duplicate Skills](#scenario-merge-duplicate-skills)
+- [Scenario: Root Instructions](#scenario-root-instructions)
+- [Scenario: Codex Plugin](#scenario-codex-plugin)
+- [Scenario: Claude Plugin](#scenario-claude-plugin)
+- [Scenario: Gemini Extension](#scenario-gemini-extension)
+- [Scenario: Cursor Configuration](#scenario-cursor-configuration)
+- [Scenario: Hooks](#scenario-hooks)
+- [Scenario: MCP Servers](#scenario-mcp-servers)
+- [Scenario: Rules, Commands, and Subagents](#scenario-rules-commands-and-subagents)
+- [Scenario: Multi-Harness Plugin Pack](#scenario-multi-harness-plugin-pack)
+- [Security Review](#security-review)
+- [Merge Checklist](#merge-checklist)
+
 ## Core Conversion Model
 
 Separate every existing file into one of four layers:
@@ -404,6 +421,23 @@ Rules:
 - Keep component directories shared where possible.
 - Keep wrappers thin and explicit.
 - Validate every target harness separately.
+
+## Security Review
+
+Before running or projecting active harness behavior, review trust boundaries:
+
+- Do not move secrets, credentials, OAuth tokens, API keys, machine-local
+  settings, generated auth files, logs, or caches into `.harness`.
+- Do not execute migrated hook scripts, plugin install scripts, MCP servers, or
+  generated shell commands until the user has reviewed what they do.
+- Treat hook trust, MCP approval policy, local plugin trust, and tool allowlists
+  as runtime state unless the user explicitly wants managed policy.
+- Keep shared scripts small, readable, and time-bounded.
+- Prefer dry-run activation before writing outputs.
+- Use `[mutable]` for files that should be seeded once and then left
+  runtime-owned.
+- Preserve existing live outputs until `npx harnessc activate` explains the
+  planned creates, updates, mutable entries, and preserves.
 
 ## Merge Checklist
 

@@ -3,6 +3,7 @@
 [![Website](https://img.shields.io/badge/website-harnessconfig.dev-111827)](https://www.harnessconfig.dev/)
 [![Specification](https://img.shields.io/badge/spec-proposal-111827)](https://www.harnessconfig.dev/specifications/v1/)
 [![CI](https://github.com/reachjalil/harness-config/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/reachjalil/harness-config/actions/workflows/ci.yml)
+[![skills.sh](https://skills.sh/b/reachjalil/harness-config)](https://skills.sh/reachjalil/harness-config)
 [![npm harnessc](https://img.shields.io/npm/v/harnessc?label=harnessc)](https://www.npmjs.com/package/harnessc)
 [![npm @harnessconfig/core](https://img.shields.io/npm/v/@harnessconfig/core?label=%40harnessconfig%2Fcore)](https://www.npmjs.com/package/@harnessconfig/core)
 [![Security](https://img.shields.io/badge/security-policy-111827)](./SECURITY.md)
