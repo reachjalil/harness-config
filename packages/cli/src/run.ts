@@ -83,13 +83,13 @@ Usage:
                 [--resource <kind>] [--target <path>] [--json]
 
 Commands:
-  validate    Validate the repository against the HarnessConfig standard.
+  validate    Validate the repository against the Harness config standard.
   init        Plan or create .harness resource structure.
-  activate    Plan or apply idempotent HarnessConfig projections.
-  extension   Plan or apply registered HarnessConfig extensions.
+  activate    Plan or apply idempotent Harness config projections.
+  extension   Plan or apply registered Harness config extensions.
   plan        Show a read-only initialization/adoption plan, not a projection preview.
 
-HarnessConfig standardizes a versioned TOML manifest, configured resources
+Harness config standardizes a versioned TOML manifest, configured resources
 source tree, target declarations, and .harnessIgnore projection boundaries.
 The default manifest is ./.harness/harness.toml, but --config can point at any
 repo-local TOML file. When --root and --config are omitted, harnessc searches
@@ -105,7 +105,7 @@ repo-relative paths.
 
 Activation without --yes is the projection preview. Activation keeps unmanaged
 target entries by default. Use --remove-unmanaged to delete target entries that
-are not present in the computed HarnessConfig projection. Managed target edits are
+are not present in the computed Harness config projection. Managed target edits are
 overwritten from configured sources on update. Mutable target files declared under
 [mutable] in .harnessIgnore are created once and then left alone; use
 --force-mutable to re-project them from source. Extensions are activated

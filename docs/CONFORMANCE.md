@@ -1,6 +1,6 @@
-# HarnessConfig Conformance
+# Harness config Conformance
 
-A claim of HarnessConfig support should be testable from the file shape and
+A claim of Harness config support should be testable from the file shape and
 activation contract alone. A repository, tool, or organization policy may claim
 support when the relevant checks below can be reproduced without depending on a
 specific runtime, CLI, or hosted service.

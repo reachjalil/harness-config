@@ -254,7 +254,7 @@ async function validateTargetSymlinks(
           "Declared target paths must be real directories, not symlinks.",
         path: toRepoRelative(root, targetRoot),
         recommendation:
-          "Replace the symlink with a real directory before activating HarnessConfig.",
+          "Replace the symlink with a real directory before activating Harness config.",
       });
       continue;
     }
@@ -280,10 +280,10 @@ async function validateNestedTargetSymlinks(
         severity: "error",
         code: "harness.target_symlink_unsupported",
         message:
-          "Declared target trees must not contain symlinks. HarnessConfig v1 does not follow or replace nested target symlinks.",
+          "Declared target trees must not contain symlinks. Harness config v1 does not follow or replace nested target symlinks.",
         path: toRepoRelative(root, absolutePath),
         recommendation:
-          "Replace the symlink with a regular file or directory before activating HarnessConfig.",
+          "Replace the symlink with a regular file or directory before activating Harness config.",
       });
       continue;
     }
@@ -339,7 +339,8 @@ export async function inspectHarnessConfig(
       code: "harness.root_not_directory",
       message: `${relativeHarnessDir} exists but is not a directory.`,
       path: relativeHarnessDir,
-      recommendation: "Replace it with a directory before using HarnessConfig.",
+      recommendation:
+        "Replace it with a directory before using Harness config.",
     });
   }
 
@@ -410,7 +411,7 @@ export async function inspectHarnessConfig(
             ".harnessProfileRoot may only exist under the convention .harness folder, the configured resources path, or the configured dir path.",
           path: toRepoRelative(paths.root, markerPath),
           recommendation:
-            "Move the profile root under a configured source root, or rename this file if it is not a HarnessConfig declaration.",
+            "Move the profile root under a configured source root, or rename this file if it is not a Harness config declaration.",
         });
       }
       await validateTargetSymlinks(config, paths.root, diagnostics);

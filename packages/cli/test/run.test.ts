@@ -88,7 +88,7 @@ describe("harnessc", () => {
 
       expect(exitCode).toBe(0);
       expect(capture.stdout.join("\n")).toContain(
-        "No HarnessConfig diagnostics found."
+        "No Harness config diagnostics found."
       );
     } finally {
       process.chdir(originalCwd);

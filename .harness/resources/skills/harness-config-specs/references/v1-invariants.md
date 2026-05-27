@@ -1,4 +1,4 @@
-# HarnessConfig v1 Invariants Reference
+# Harness config v1 Invariants Reference
 
 Read this when changing normative behavior, conformance claims, or tests.
 

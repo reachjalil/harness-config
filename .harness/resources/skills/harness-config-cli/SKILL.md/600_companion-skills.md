@@ -1,7 +1,7 @@
 
 ## Companion Skills
 
-Use these focused skills instead of loading every HarnessConfig concern into
+Use these focused skills instead of loading every Harness config concern into
 this CLI workflow:
 
 - `$harness-config-specs` for normative standard wording, conformance claims,

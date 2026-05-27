@@ -116,7 +116,7 @@ export const harnessConfigSchema = z
         if (!isSupported) {
           context.addIssue({
             code: "custom",
-            message: `Unsupported HarnessConfig version ${version}. Supported versions: ${SUPPORTED_HARNESS_CONFIG_VERSIONS.join(
+            message: `Unsupported Harness config version ${version}. Supported versions: ${SUPPORTED_HARNESS_CONFIG_VERSIONS.join(
               ", "
             )}`,
           });

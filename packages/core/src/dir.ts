@@ -692,7 +692,7 @@ function validateDirOutputPath(
         message: `Dir output "${relativePath}" cannot write inside the ${sourceRoot.label} source root.`,
         path: relativePath,
         recommendation:
-          "Choose an output path outside HarnessConfig source roots.",
+          "Choose an output path outside Harness config source roots.",
       });
       return undefined;
     }

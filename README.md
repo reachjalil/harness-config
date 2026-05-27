@@ -1,4 +1,4 @@
-# HarnessConfig
+# Harness config
 
 [![Website](https://img.shields.io/badge/website-harnessconfig.dev-111827)](https://www.harnessconfig.dev/)
 [![Specification](https://img.shields.io/badge/spec-v1-111827)](https://www.harnessconfig.dev/specifications/v1/)
@@ -15,7 +15,7 @@ Website: https://www.harnessconfig.dev/
 
 Specification: https://www.harnessconfig.dev/specifications/v1/
 
-## What HarnessConfig Is
+## What Harness config is
 
 A small, repository-local standard that gives multiple AI coding agents
 (Claude, Cursor, Copilot, custom in-house tools) one shared way to read and
@@ -36,7 +36,7 @@ several near-duplicate runtime folders (`.claude/`, `.cursor/`, `.agents/`,
 `copilot-instructions.md`). The same prompt or skill gets copy-pasted into
 each, runtime-written files (permissions, learned commands) leak into version
 control, and there is no clean way to add a new agent without another
-folder. HarnessConfig replaces that pattern with one canonical source layout
+folder. Harness config replaces that pattern with one canonical source layout
 plus an explicit, reproducible projection into each runtime target.
 
 See [docs/RATIONALE.md](./docs/RATIONALE.md) for the long form.
@@ -65,9 +65,9 @@ See [docs/RATIONALE.md](./docs/RATIONALE.md) for the long form.
 - **One projection filter** (`.harnessIgnore`) covers global,
   target-output-local, and runtime-owned (`[mutable]`) exclusions.
 
-## What HarnessConfig Is Not
+## What Harness config is not
 
-HarnessConfig does not define product workflows, hosted services,
+Harness config does not define product workflows, hosted services,
 marketplaces, distribution systems, target edit review, capture, grouping,
 or selection policy. Those belong in product layers that build on top of
 the standard — for example, [Harnex](https://github.com/reachjalil/harnex),

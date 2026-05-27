@@ -517,7 +517,7 @@ path = "./.cursor"
 
   it("rejects unsupported schema versions", () => {
     expect(() => parseHarnessConfigToml("version = 99")).toThrow(
-      /Unsupported HarnessConfig version 99/
+      /Unsupported Harness config version 99/
     );
   });
 

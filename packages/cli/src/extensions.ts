@@ -14,7 +14,7 @@ import type {
   HarnessFormatOptions,
 } from "@harnessconfig/core";
 
-// Extensions remain part of the HarnessConfig v1 schema for discovery and
+// Extensions remain part of the Harness config v1 schema for discovery and
 // activation policy. This build does not ship any extension implementations:
 // dir composition and copy are now part of core activation.
 type RegisteredExtension = {
@@ -97,7 +97,7 @@ async function loadHarnessConfig(
       message: error instanceof Error ? error.message : String(error),
       path: toRepoRelative(root, configPath),
       recommendation:
-        "Create a valid HarnessConfig manifest before running extensions.",
+        "Create a valid Harness config manifest before running extensions.",
     });
     return undefined;
   });
@@ -185,7 +185,7 @@ function validateSelectedExtension(
     diagnostics.push({
       severity: "error",
       code: "harness.extension_incompatible",
-      message: `Extension "${id}" is not compatible with HarnessConfig version ${CURRENT_HARNESS_CONFIG_VERSION}.`,
+      message: `Extension "${id}" is not compatible with Harness config version ${CURRENT_HARNESS_CONFIG_VERSION}.`,
       path: `extensions.${id}`,
     });
     return undefined;
@@ -349,7 +349,7 @@ export function formatExtensionActivationPlan(
           })
           .join("\n\n");
 
-  return `HarnessConfig extension activation plan\n\nDiagnostics:\n${diagnostics}\n\nExtensions:\n${extensionPlans}`;
+  return `Harness config extension activation plan\n\nDiagnostics:\n${diagnostics}\n\nExtensions:\n${extensionPlans}`;
 }
 
 export function formatExtensionActivationResult(
@@ -368,7 +368,7 @@ export function formatExtensionActivationResult(
           })
           .join("\n\n");
 
-  return `HarnessConfig extension activation ${
+  return `Harness config extension activation ${
     result.dryRun ? "dry run" : "result"
   }\n\n${formatExtensionActivationPlan(
     result.plan,

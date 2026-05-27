@@ -1,7 +1,7 @@
-# HarnessConfig Rationale
+# Harness config Rationale
 
 Agent runtimes need live folders. Teams need a stable, reviewable source layout
-for the resources those runtimes consume. HarnessConfig separates those
+for the resources those runtimes consume. Harness config separates those
 responsibilities without prescribing an application model for either.
 
 The source catalog lives under configured source roots, with `./.harness` as
@@ -37,13 +37,13 @@ This produces predictable, recurring pain in real repositories:
 5. **No portable contract.** A new agent shipped tomorrow has no path that
    lets it consume the same source material a repository already maintains.
 
-HarnessConfig addresses these by making configured source layouts canonical
+Harness config addresses these by making configured source layouts canonical
 and reviewable, and every runtime surface an explicit projection target
 derived from those sources.
 
 ## Core Concepts
 
-HarnessConfig defines a small set of coordinated concepts rather than a product
+Harness config defines a small set of coordinated concepts rather than a product
 object model:
 
 - Selected manifest: a repo-local TOML file, defaulting to
@@ -113,7 +113,7 @@ single agent runtime as the canonical format.
 
 Agent runtimes frequently write into the folders they read. Permission grants,
 allow-listed commands, and learned hooks land in files like
-`.claude/settings.local.json`. HarnessConfig keeps activation one-directional
+`.claude/settings.local.json`. Harness config keeps activation one-directional
 on purpose — projection always flows from source to target. The base standard
 recognizes repo-declared mutable files but does not try to infer why target
 bytes changed:
@@ -131,14 +131,14 @@ practices and product UX. They belong in product layers on top of v1.
 
 ## Non-Goals
 
-HarnessConfig does not standardize product workflows, hosted services,
+Harness config does not standardize product workflows, hosted services,
 marketplaces, distribution systems, recovery state, runtime behavior, grouping,
 selection policy, target edit review, capture, or remote sync. Those belong in
 products that build on top of the base standard.
 
 ## Relation To Existing Approaches
 
-HarnessConfig draws on patterns that work in widely deployed systems. It is
+Harness config draws on patterns that work in widely deployed systems. It is
 not a generalization of any one of them; it borrows the parts that fit a
 repo-local source-to-runtime projection problem and leaves the rest.
 
@@ -147,7 +147,7 @@ repo-local source-to-runtime projection problem and leaves the rest.
   source-local and target-output-local files plus a `[mutable]` kind, because
   projection has more dimensions than "tracked vs. untracked".
 - **Helm / Kustomize overlays** (Kubernetes) inspire the idea of a base
-  source tree composed with per-target overrides. HarnessConfig keeps the
+  source tree composed with per-target overrides. Harness config keeps the
   overlay scope narrower: a dot-prefixed folder *inside the resource item*
   whose first segment matches the target's first path segment, with no
   patch language and no templating. Override files either replace exact
@@ -169,11 +169,11 @@ repo-local source-to-runtime projection problem and leaves the rest.
   [STANDARD.md](./STANDARD.md). A spec that future implementers can read
   in isolation is more likely to survive a change of maintainer.
 - **`AGENTS.md`, `CLAUDE.md`, and `copilot-instructions.md`** are the
-  immediate prior art for *what* gets projected. HarnessConfig does not
+  immediate prior art for *what* gets projected. Harness config does not
   define their content; it gives them one shared source location and a
   consistent way to compose them through the optional `[dir]` source
   rather than hand-syncing duplicate prose.
 
-What HarnessConfig deliberately does *not* try to be: a package manager, a
+What Harness config deliberately does *not* try to be: a package manager, a
 plugin runtime, a service mesh, a permission system, a templating engine,
 or an agent SDK. Those are valuable but separable problems.

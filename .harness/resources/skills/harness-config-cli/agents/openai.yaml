@@ -1,4 +1,4 @@
 interface:
-  display_name: "HarnessConfig CLI"
+  display_name: "Harness config CLI"
   short_description: "Use this repo's harnessc CLI safely"
-  default_prompt: "Use $harness-config-cli to validate, plan, and activate this repository's HarnessConfig projection."
+  default_prompt: "Use $harness-config-cli to validate, plan, and activate this repository's Harness config projection."

@@ -1246,7 +1246,7 @@ async function planCopyActions(
       message: "Declared target paths must be real directories, not symlinks.",
       path: toRepoRelative(root, targetRoot),
       recommendation:
-        "Replace the symlink with a real directory before activating HarnessConfig.",
+        "Replace the symlink with a real directory before activating Harness config.",
     });
     return [];
   } else if (targetState && !targetState.isDirectory()) {
@@ -1267,10 +1267,10 @@ async function planCopyActions(
       severity: "error",
       code: "harness.target_symlink_unsupported",
       message:
-        "Declared target trees must not contain symlinks. HarnessConfig v1 does not follow or replace nested target symlinks.",
+        "Declared target trees must not contain symlinks. Harness config v1 does not follow or replace nested target symlinks.",
       path: toRepoRelative(root, path.join(targetRoot, relativePath)),
       recommendation:
-        "Replace the symlink with a regular file or directory before activating HarnessConfig.",
+        "Replace the symlink with a regular file or directory before activating Harness config.",
     });
   }
 
@@ -1771,7 +1771,7 @@ async function prepareHarnessActivation(
           .configPath
       ),
       recommendation:
-        "Run harnessc init --yes or create a valid HarnessConfig manifest before activating projections.",
+        "Run harnessc init --yes or create a valid Harness config manifest before activating projections.",
     });
     return {
       config,
@@ -1991,7 +1991,7 @@ export async function applyHarnessActivation(
 
   if (hasErrors) {
     throw new Error(
-      "Cannot activate while HarnessConfig validation has errors."
+      "Cannot activate while Harness config validation has errors."
     );
   }
 

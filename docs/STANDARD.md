@@ -1,11 +1,11 @@
-# HarnessConfig Standard
+# Harness config standard
 
 **Status:** Version 1 — Stable. The file shape, manifest schema, projection
 contract, and ignore grammar described here are intended to be implementable
 without consulting the reference code. Changes that would invalidate a v1
 repository or v1 implementation are reserved for v2.
 
-HarnessConfig is a repository-local standard for declaring durable agent
+Harness config is a repository-local standard for declaring durable agent
 *harness resources* (the prompts, skills, rules, plugins, and similar files
 that condition an AI coding agent's behavior) and projecting them into
 runtime-facing folders in a reviewable, reproducible way.
@@ -129,7 +129,7 @@ implementation are reserved for v2.
 
 ## Scope
 
-HarnessConfig standardizes:
+Harness config standardizes:
 
 - the selected manifest file and its schema,
 - the resource layout under the configured resources source,
@@ -144,7 +144,7 @@ HarnessConfig standardizes:
 
 ### Out of Scope
 
-HarnessConfig does **not** standardize:
+Harness config does **not** standardize:
 
 - product workflows, command surfaces, or end-user UX,
 - hosted services, registries, or marketplaces,
@@ -264,7 +264,7 @@ projected output paths MUST remain inside their declared target.
 
 ### Targets
 
-Every target is explicit. HarnessConfig does not reserve, prefer, or imply any
+Every target is explicit. Harness config does not reserve, prefer, or imply any
 runtime target folder name. Each `[[targets]]` entry in the selected manifest
 declares one repo-local target path and MUST contain only `path`.
 
@@ -297,7 +297,7 @@ ids MUST use lowercase letters, numbers, underscores, or dashes, and MUST
 begin with a letter.
 
 Each extension declaration MUST contain a positive integer `version`. This is
-the extension's own configuration schema version, not the HarnessConfig
+the extension's own configuration schema version, not the Harness config
 standard version.
 
 Each extension declaration MAY contain `activation` with one of two values:
@@ -310,11 +310,11 @@ Each extension declaration MAY contain `activation` with one of two values:
 When omitted, `activation` defaults to `"explicit"`.
 
 Fields other than `version` and `activation` are owned by the extension. The
-HarnessConfig standard defines extension *discovery* (how a tool sees that an
+Harness config standard defines extension *discovery* (how a tool sees that an
 extension is declared) and *activation policy* (whether a tool may run it
 without explicit user action). It does not define extension behavior, output
 shape, commands, or compatibility rules. Extension compatibility with
-HarnessConfig versions belongs to the extension implementation metadata.
+Harness config versions belongs to the extension implementation metadata.
 
 A tool that encounters an `[extensions.<id>]` table for an extension it does
 not implement MUST NOT apply that extension's behavior, MUST NOT fail
@@ -921,7 +921,7 @@ The source/projection boundary makes cross-harness differences reviewable:
 
 ## Security Considerations
 
-HarnessConfig describes a system that copies files from version control into
+Harness config describes a system that copies files from version control into
 folders that an AI agent or other tool will subsequently read. The integrity
 of those copies has a direct effect on what the agent does. Implementations
 SHOULD consider the following threats explicitly:

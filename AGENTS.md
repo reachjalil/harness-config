@@ -1,13 +1,13 @@
 # Repository Agent Guide
 
-This repository defines the HarnessConfig v1 standard and its TypeScript
+This repository defines the Harness config v1 standard and its TypeScript
 reference implementation. Treat `docs/STANDARD.md` as the normative contract,
 `docs/TOOLING.md` as the CLI contract, and `docs/TESTING.md` as the scenario
 map that must stay in sync with tests.
 
 ## Harness Identity
 
-Use `.agents` as your HarnessConfig runtime context for this repository.
+Use `.agents` as your Harness config runtime context for this repository.
 Treat `.agents` as a generated projection and edit `.harness` sources instead.
 
 ## Work Mode Boundary

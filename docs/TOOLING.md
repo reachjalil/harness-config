@@ -1,6 +1,6 @@
-# HarnessConfig Tooling
+# Harness config tooling
 
-`harnessc` is the standard implementation of HarnessConfig. It exists so
+`harnessc` is the standard implementation of Harness config. It exists so
 repositories can validate the file shape, preview activation, and materialize
 copy projections without writing a custom tool first.
 

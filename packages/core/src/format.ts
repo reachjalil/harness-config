@@ -206,7 +206,7 @@ export function formatActivationPlan(
 
   const dirSection = formatDirPlanSection(plan.root, plan.dir, options);
 
-  return `${heading(options, "HarnessConfig activation plan")}\n\n${heading(
+  return `${heading(options, "Harness config activation plan")}\n\n${heading(
     options,
     "Idempotency:"
   )}\nRunning activation with the same configured source trees, manifest, and .harnessIgnore files produces the same projections.\n\n${heading(
@@ -315,7 +315,7 @@ export function formatActivationResult(
 
   return `${heading(
     options,
-    `HarnessConfig activation ${result.dryRun ? "dry run" : "result"}`
+    `Harness config activation ${result.dryRun ? "dry run" : "result"}`
   )}\n\n${formatActivationPlan(result.plan, options)}\n\n${heading(
     options,
     "Applied:"
@@ -327,7 +327,7 @@ export function formatDiagnostics(
   options: HarnessFormatOptions = {}
 ): string {
   if (diagnostics.length === 0) {
-    return style(options, ANSI.green, "No HarnessConfig diagnostics found.");
+    return style(options, ANSI.green, "No Harness config diagnostics found.");
   }
 
   return diagnostics
@@ -375,7 +375,7 @@ export function formatInitializationPlan(
 
   return `${heading(
     options,
-    "HarnessConfig initialization plan"
+    "Harness config initialization plan"
   )}\n\n${heading(options, "Diagnostics:")}\n${diagnostics}\n\n${heading(
     options,
     "Actions:"
@@ -411,6 +411,6 @@ export function formatInitializationResult(
 
   return `${heading(
     options,
-    `HarnessConfig initialization ${result.dryRun ? "dry run" : "result"}`
+    `Harness config initialization ${result.dryRun ? "dry run" : "result"}`
   )}\n\n${actions}`;
 }

@@ -1,4 +1,4 @@
-# HarnessConfig Adoption
+# Harness config Adoption
 
 This guide describes two paths: greenfield (no existing live agent folders)
 and migration (a repository that already has `.claude/`, `.cursor/`,
@@ -6,7 +6,7 @@ and migration (a repository that already has `.claude/`, `.cursor/`,
 
 ## Greenfield
 
-HarnessConfig v1 starts from a small source contract:
+Harness config v1 starts from a small source contract:
 
 1. Create `./.harness/harness.toml` with `version = 1`, or choose another repo-local
    manifest path and pass it explicitly to tooling.
@@ -32,7 +32,7 @@ harnessc activate --yes
 ## Migrating An Existing Repository
 
 A repository that already has runtime-facing folders such as `.claude/` or
-`.cursor/` adopts HarnessConfig incrementally. The shape of the migration
+`.cursor/` adopts Harness config incrementally. The shape of the migration
 matters: the configured source roots must become the canonical input, not the
 target.
 

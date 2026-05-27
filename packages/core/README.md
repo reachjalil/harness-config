@@ -20,7 +20,7 @@ Specification: https://www.harnessconfig.dev/specifications/v1/
 
 - `resolveHarnessPaths(root, options)`: returns selected manifest,
   conventional `.harness`, and configured resources paths.
-- `parseHarnessConfigToml(raw)`: parses and validates a HarnessConfig TOML
+- `parseHarnessConfigToml(raw)`: parses and validates a Harness config TOML
   manifest.
 - `parseHarnessIgnore(raw)`: parses repo-relative `.harnessIgnore` rules.
 - `loadHarnessIgnoreMatcher(root)`: loads ignore rules for projection planning.
