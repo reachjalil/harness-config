@@ -88,8 +88,29 @@ describe("harnessc", () => {
 
       expect(exitCode).toBe(0);
       expect(capture.stdout.join("\n")).toContain(
-        "No Harness config diagnostics found."
+        "No Harness config issues found."
       );
+    } finally {
+      process.chdir(originalCwd);
+    }
+  });
+
+  it("shows next steps when run without a command", async () => {
+    const root = await rootFixture();
+    await writeConfig(root);
+    await write(root, ".harnessIgnore", "# projection boundary\n");
+    const originalCwd = process.cwd();
+    process.chdir(root);
+    try {
+      const capture = captureIo();
+      const exitCode = await runHarnessConfigCli([], capture.io);
+      const output = capture.stdout.join("\n");
+
+      expect(exitCode).toBe(0);
+      expect(output).toContain("No Harness config issues found.");
+      expect(output).toContain("Config: .harness/harness.toml");
+      expect(output).toContain("harnessc activate");
+      expect(output).toContain("harnessc activate --yes");
     } finally {
       process.chdir(originalCwd);
     }

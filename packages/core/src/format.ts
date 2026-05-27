@@ -327,7 +327,7 @@ export function formatDiagnostics(
   options: HarnessFormatOptions = {}
 ): string {
   if (diagnostics.length === 0) {
-    return style(options, ANSI.green, "No Harness config diagnostics found.");
+    return style(options, ANSI.green, "No Harness config issues found.");
   }
 
   return diagnostics

@@ -20,12 +20,14 @@ import {
   harnessConfigSchema,
   planHarnessActivation,
   planHarnessInitialization,
+  toRepoRelative,
   validateHarnessConfig,
 } from "@harnessconfig/core";
 import type {
   HarnessActivationPlan,
   HarnessConfig,
   HarnessFormatOptions,
+  HarnessInspection,
 } from "@harnessconfig/core";
 import {
   applyRegisteredExtensions,
@@ -38,6 +40,7 @@ import {
 
 type CliOptions = {
   command: string;
+  commandExplicit: boolean;
   root: string;
   rootExplicit: boolean;
   configPath?: string;
@@ -116,6 +119,7 @@ activate are dry runs unless --yes is supplied.
 function parseArgs(argv: string[]): CliOptions {
   const options: CliOptions = {
     command: "",
+    commandExplicit: false,
     root: process.cwd(),
     rootExplicit: false,
     json: false,
@@ -226,11 +230,13 @@ function parseArgs(argv: string[]): CliOptions {
         const subcommand = argv[index + 1];
         if (subcommand && !subcommand.startsWith("-")) {
           options.command = `extension ${subcommand}`;
+          options.commandExplicit = true;
           index += 1;
           continue;
         }
       }
       options.command = arg;
+      options.commandExplicit = true;
       continue;
     }
     throw new Error(`Unknown argument: ${arg}`);
@@ -281,6 +287,25 @@ async function discoverHarnessRoot(start: string): Promise<string> {
     }
     current = parent;
   }
+}
+
+function formatBareCommandGuidance(inspection: HarnessInspection): string {
+  const hasErrors = inspection.diagnostics.some(
+    (diagnostic) => diagnostic.severity === "error"
+  );
+  const configLine = inspection.hasHarnessConfig
+    ? `Config: ${toRepoRelative(inspection.root, inspection.paths.configPath)}`
+    : "Config: not found";
+
+  if (hasErrors) {
+    return `${configLine}\n\nNext steps:\n  harnessc validate --json  Show detected paths and issue details\n  harnessc --help           Show all commands`;
+  }
+
+  if (!inspection.hasHarnessConfig) {
+    return `${configLine}\n\nNext steps:\n  harnessc init        Preview the default .harness setup\n  harnessc init --yes  Create the default Harness config files\n  harnessc --help      Show all commands`;
+  }
+
+  return `${configLine}\n\nNext steps:\n  harnessc activate        Preview projected file changes\n  harnessc activate --yes  Apply the projection\n  harnessc validate --json Show detected paths and config details`;
 }
 
 function initOptionsFromCli(
@@ -389,10 +414,13 @@ export async function runHarnessConfigCli(
       const inspection = await validateHarnessConfig(options.root, {
         configPath: options.configPath,
       });
+      const diagnostics = options.json
+        ? JSON.stringify(inspection, null, 2)
+        : formatDiagnostics(inspection.diagnostics, formatOptions);
       io.stdout(
-        options.json
-          ? JSON.stringify(inspection, null, 2)
-          : formatDiagnostics(inspection.diagnostics, formatOptions)
+        !options.commandExplicit && !options.json
+          ? `${diagnostics}\n\n${formatBareCommandGuidance(inspection)}`
+          : diagnostics
       );
       return inspection.diagnostics.some(
         (diagnostic) => diagnostic.severity === "error"
