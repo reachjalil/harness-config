@@ -14,16 +14,19 @@ llmSummary: Define la forma de repositorio .harness, contrato TOML, proyeccion d
 audience: Autores de herramientas, revisores del estandar e implementadores tecnicos.
 contentKind: spec
 status: draft
-updated: 2026-05-26
+updated: 2026-05-27
 ---
 
 # Especificacion Harness config
 
-**Estado:** Version 1 — estable. La forma de archivos, el schema del
-manifiesto, el contrato de proyeccion y la gramatica de ignores estan pensados
-para implementarse sin consultar el codigo de referencia. Los cambios que
-invalidarian un repositorio v1 o una implementacion v1 quedan reservados para
-v2.
+**Estado:** propuesta de especificacion Version 1. La forma de archivos, el
+schema del manifiesto, el contrato de proyeccion y la gramatica de ignores
+estan pensados para implementarse sin consultar el codigo de referencia, pero
+el contrato publico sigue en revision. Hasta que haya releases publicas,
+fixtures de conformidad, repositorios adoptantes y feedback externo suficiente,
+los paquetes TypeScript deben tratarse como una implementacion de referencia
+alpha. Una vez aceptada v1, los cambios que invalidarian un repositorio v1 o
+una implementacion v1 quedan reservados para v2.
 
 Las versiones de especificacion son versiones completas. Las versiones patch,
 minor, prerelease y package pertenecen a la CLI, al tooling, a las extensiones y

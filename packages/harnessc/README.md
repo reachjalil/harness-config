@@ -1,12 +1,12 @@
 # harnessc
 
 [![Website](https://img.shields.io/badge/website-harnessconfig.dev-111827)](https://www.harnessconfig.dev/)
-[![Specification](https://img.shields.io/badge/spec-v1-111827)](https://www.harnessconfig.dev/specifications/v1/)
+[![Specification](https://img.shields.io/badge/spec-proposal-111827)](https://www.harnessconfig.dev/specifications/v1/)
 [![npm harnessc](https://img.shields.io/npm/v/harnessc?label=harnessc)](https://www.npmjs.com/package/harnessc)
 [![Security](https://img.shields.io/badge/security-policy-111827)](https://github.com/reachjalil/harness-config/security/policy)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](./LICENSE)
 
-Public npm package for the Harness config CLI.
+Public npm package for the alpha Harness config CLI.
 
 Harness config is a repository-local standard for keeping AI agent prompts,
 skills, rules, plugins, and root instruction files in one reviewed `.harness`
@@ -39,7 +39,7 @@ harnessc plan
 ## Links
 
 - Website: https://www.harnessconfig.dev/
-- v1 specification: https://www.harnessconfig.dev/specifications/v1/
+- Specification proposal: https://www.harnessconfig.dev/specifications/v1/
 - GitHub: https://github.com/reachjalil/harness-config
 - Issues: https://github.com/reachjalil/harness-config/issues
 - Security policy: https://github.com/reachjalil/harness-config/security/policy
