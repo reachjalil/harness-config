@@ -30,6 +30,8 @@ minor, prerelease y package pertenecen a la CLI, al tooling, a las extensiones y
 a las implementaciones, no al espacio de URL de la especificacion ni al campo
 `version` del manifiesto.
 
+Un harness es el runtime de agente o herramienta para desarrolladores que consume instrucciones, contexto, herramientas y configuracion del repositorio. Una superficie de harness es el conjunto de archivos o carpetas repo-locales que ese harness lee, por ejemplo `AGENTS.md`, `.agents`, `.claude` o `.cursor`.
+
 Un repositorio conforme contiene un manifiesto seleccionado, por defecto `./.harness/harness.toml`, una fuente de recursos configurada, destinos explicitos, un posible `.harnessIgnore` en la raiz y una fuente `[dir]` opcional para salidas compuestas o copiadas.
 
 ## Forma del repositorio
@@ -50,7 +52,7 @@ Un repositorio conforme contiene un manifiesto seleccionado, por defecto `./.har
       .harnessIgnore
 ```
 
-Los recursos viven bajo la fuente `[resources]` configurada. Tipos como `skills`, `rules` o `plugins` son carpetas, no tablas TOML por tipo. Las carpetas runtime solo son salidas cuando aparecen en `[[targets]]`.
+Los recursos viven bajo la fuente `[resources]` configurada. Tipos como `skills`, `rules` o `plugins` son carpetas, no tablas TOML por tipo. Las superficies de harness solo son salidas cuando aparecen en `[[targets]]`.
 
 Una carpeta de recurso tambien puede contener el marcador vacio `.harnessComposable`. En ese caso compone un unico archivo de recurso proyectado en cada destino declarado, por ejemplo `skills/review/SKILL.md`. La hoja sigue siendo un recurso: participa en sobrescrituras de destino, perfiles y reglas `.harnessIgnore` de recursos.
 

@@ -10,7 +10,7 @@ order: 4
 locale: es
 sectionCode: "04"
 summary: Flujos practicos para greenfield, migracion, perfiles, instrucciones componibles y limpieza.
-llmSummary: Cubre workflows para crear un catalogo .harness, declarar destinos, previsualizar activacion, migrar carpetas runtime, usar perfiles y mantener limpieza segura.
+llmSummary: Cubre workflows para crear un catalogo .harness, declarar destinos, previsualizar activacion, migrar superficies de harness, usar perfiles y mantener limpieza segura.
 audience: Desarrolladores que introducen .harness en repositorios nuevos o existentes.
 contentKind: spec
 status: draft
@@ -19,7 +19,7 @@ updated: 2026-05-26
 
 # Adopcion
 
-Este guia cubre dos caminos: greenfield, sin carpetas runtime existentes, y migracion, cuando un repositorio ya contiene `.claude/`, `.cursor/`, `.agents/` u otra carpeta similar.
+Este guia cubre dos caminos: greenfield, sin superficies de harness existentes, y migracion, cuando un repositorio ya contiene `.claude/`, `.cursor/`, `.agents/` u otra superficie similar.
 
 ## Greenfield
 
@@ -38,7 +38,7 @@ npx harnessc activate --yes
 
 ## Migrar un repositorio existente
 
-Primero conserva una fotografia de las carpetas runtime actuales. Luego mueve el contenido durable a la fuente de recursos, coloca diferencias por destino en carpetas como `.claude`, declara los destinos en el manifiesto y revisa el plan antes de aplicar.
+Primero conserva una fotografia de las superficies de harness actuales. Luego mueve el contenido durable a la fuente de recursos, coloca diferencias por destino en carpetas como `.claude`, declara los destinos en el manifiesto y revisa el plan antes de aplicar.
 
 Un segundo dry run sin cambios debe converger hacia `keep` para archivos gestionados y `mutable` para archivos propiedad del runtime.
 

@@ -28,7 +28,7 @@ Une revendication de support Harness config doit être testable depuis la forme 
 - Conformité cible: chaque `[[targets]]` contient seulement un chemin repo-local et ne pointe pas vers `.harness`.
 - Conformité dir: `[dir]` compose ses feuilles `.harnessComposable` et copie les autres fichiers vers des chemins repo-relatifs; ces sorties sont séparées des ressources projetées dans les cibles.
 - Conformité projection: l'activation applique `.harnessIgnore`, y compris les fichiers racine, source-locaux, target-output-locaux et les sections `[mutable]`. Les sections ciblées comme `[.claude]` sont invalides.
-- Conformité outil: l'outil rapporte le plan avant écriture et ne lit jamais une surface runtime comme source de vérité.
+- Conformité outil: l'outil rapporte le plan avant écriture et ne lit jamais une surface de harness comme source de vérité.
 
 ## Exigences Clés
 

@@ -23,7 +23,7 @@ updated: 2026-05-26
 
 ## 针对单个输出表面的 ignore
 
-当规则属于某个 runtime 输出子树，而不是规范源时，把 `.harnessIgnore` 放在目标输出中。
+当规则属于某个 harness surface，而不是规范源时，把 `.harnessIgnore` 放在目标输出中。
 
 ```text
 .agents/skills/deploy-plan/.harnessIgnore

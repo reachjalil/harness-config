@@ -31,7 +31,7 @@ harnessc activate --yes
 
 ## Migrating an existing repository
 
-A repository that already has runtime-facing folders such as `.claude/` or
+A repository that already has harness surfaces such as `.claude/` or
 `.cursor/` adopts Harness config incrementally. The shape of the migration
 matters: the configured source roots must become the canonical input, not the
 target.
@@ -49,7 +49,7 @@ Recommended sequence:
    such as `.claude/hooks.json` become `.harness/resources/hooks.json`, with
    target-specific versions under `.harness/resources/.claude/`.
 3. **Declare targets in the selected manifest.** Add a `[[targets]]` entry for
-   each runtime folder you want regenerated. A target only receives projections
+   each harness surface you want regenerated. A target only receives projections
    when it appears here. If the resources source is not
    `./.harness/resources`, declare the shared source with `[resources] path`.
 4. **Write `.harnessIgnore` for source-only artifacts.** Logs, scratch

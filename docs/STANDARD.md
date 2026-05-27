@@ -8,7 +8,7 @@ repository or v1 implementation are reserved for v2.
 Harness config is a repository-local standard for declaring durable agent
 *harness resources* (the prompts, skills, rules, plugins, and similar files
 that condition an AI coding agent's behavior) and projecting them into
-runtime-facing folders in a reviewable, reproducible way.
+harness surfaces in a reviewable, reproducible way.
 
 A repository keeps neutral source roots and projects them into declared target
 folders. The default manifest is `./.harness/harness.toml`; tools MAY also use another
@@ -50,8 +50,12 @@ These terms have specific meanings throughout this document. Where a section
 later in the document gives a more detailed definition, that section is
 authoritative.
 
-- **Harness** — the collection of files an AI agent or developer-facing tool
-  reads as instructions, context, or configuration for a repository.
+- **Harness** — the AI agent or developer-facing tool runtime that consumes
+  repository instructions, context, tools, and configuration to operate on a
+  project.
+- **Harness surface** — the repository-local files and folders a harness reads,
+  such as `AGENTS.md`, `.agents`, `.claude`, `.cursor`, or another declared
+  target output.
 - **Convention root** — the directory `./.harness` at the root of a
   repository, commonly used for resources, dir source files, profiles, and
   other source storage. It is not the required manifest location.
@@ -153,7 +157,7 @@ Harness config does **not** standardize:
 - product workflows, command surfaces, or end-user UX,
 - hosted services, registries, or marketplaces,
 - distribution, dependency resolution, or package management for resources,
-- agent runtime behavior or how runtimes consume target files,
+- harness runtime behavior or how harnesses consume target files,
 - skill, prompt, or rule schemas beyond "folder with files",
 - selection, grouping, sessions, presets, or kits,
 - target-to-source capture or reverse projection,
@@ -887,7 +891,7 @@ directory does not repeat the `.harnessComposable` marker.
 
 ## Reviewability
 
-The source/projection boundary makes cross-harness differences reviewable:
+The source/projection boundary makes cross-surface differences reviewable:
 
 - A diff under the configured resources source affects every target that
   projects that resource path.
@@ -913,13 +917,13 @@ The source/projection boundary makes cross-harness differences reviewable:
 - Activation commands SHOULD offer a dry run and explain creates, updates,
   removals, keeps, unmanaged preserved entries, and mutable skips before
   mutation.
-- Live target folders MUST be treated as projection targets, not source
+- Live harness surfaces MUST be treated as projection targets, not source
   repositories.
 - Activation MUST be idempotent for the same selected manifest, configured
   source roots, `.harnessIgnore`, participating resources, cleanup policy, and
   mutable policy.
 - Projection MUST honor `.harnessIgnore` so logs, metadata, caches, and
-  implementation state stay out of runtime folders.
+  implementation state stay out of live harness surfaces.
 - Tools MUST merge target-derived overrides when present and fall back to the
   canonical files when no override exists.
 - Unknown resource kinds MAY be used as directories under the configured

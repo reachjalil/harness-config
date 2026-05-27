@@ -23,7 +23,7 @@ Esta pagina muestra como combinar las piezas sin perder la regla principal: `.ha
 
 ## Ignore de salida para una superficie
 
-Usa un `.harnessIgnore` dentro de una salida cuando la regla pertenece a un subarbol runtime especifico.
+Usa un `.harnessIgnore` dentro de una salida cuando la regla pertenece a una superficie de harness especifica.
 
 ```text
 .agents/skills/deploy-plan/.harnessIgnore

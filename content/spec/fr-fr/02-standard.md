@@ -29,6 +29,8 @@ mineures, prerelease et package appartiennent a la CLI, au tooling, aux
 extensions et aux implementations, pas a l'espace d'URL de la specification ni
 au champ `version` du manifeste.
 
+Un harness est le runtime agent ou outil développeur qui consomme les instructions, le contexte, les outils et la configuration du dépôt. Une surface de harness est l'ensemble de fichiers ou dossiers repo-locaux que ce harness lit, par exemple `AGENTS.md`, `.agents`, `.claude` ou `.cursor`.
+
 Un dépôt conforme contient un manifeste sélectionné, par défaut `./.harness/harness.toml`, une source de ressources configurée, par défaut `.harness/resources`, des cibles explicites, un éventuel `.harnessIgnore` à la racine et une éventuelle source `[dir]` pour les sorties composées ou copiées.
 
 ## Forme Du Dépôt
@@ -49,7 +51,7 @@ Un dépôt conforme contient un manifeste sélectionné, par défaut `./.harness
       .harnessIgnore
 ```
 
-Les ressources vivent sous la source `[resources]` configurée. Les types comme `skills`, `rules` ou `plugins` sont des dossiers, pas des tables TOML par type. Les dossiers runtime ne sont des sorties que lorsqu'ils sont déclarés dans `[[targets]]`.
+Les ressources vivent sous la source `[resources]` configurée. Les types comme `skills`, `rules` ou `plugins` sont des dossiers, pas des tables TOML par type. Les surfaces de harness ne sont des sorties que lorsqu'elles sont déclarées dans `[[targets]]`.
 
 Un dossier de ressource peut aussi contenir le marqueur vide `.harnessComposable`. Dans ce cas, il compose un seul fichier de ressource projeté dans chaque cible déclarée, par exemple `skills/review/SKILL.md`. Cette feuille reste une ressource: elle suit les surcharges de cible, les profils et les règles `.harnessIgnore` de ressources.
 

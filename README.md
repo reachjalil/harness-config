@@ -20,11 +20,11 @@ Specification: https://www.harnessconfig.dev/specifications/v1/
 A small, repository-local standard that gives multiple AI coding agents
 (Claude, Cursor, Copilot, custom in-house tools) one shared way to read and
 update the prompts, skills, rules, and plugins a repository owns — without
-turning each agent's runtime folder into the source of truth.
+turning each agent's harness surface into the source of truth.
 
 A repository keeps durable source material in configured source roots, stores
-target resources under `./.harness/resources` by convention, declares runtime
-targets in `./.harness/harness.toml` by default, and lets tools materialize
+target resources under `./.harness/resources` by convention, declares harness
+surface targets in `./.harness/harness.toml` by default, and lets tools materialize
 each target as a reviewable copy projection. Both the manifest path and
 resources source path can be explicit when a repository needs a different
 layout.
@@ -32,13 +32,13 @@ layout.
 ## The Problem It Solves
 
 Repositories that work with more than one AI coding agent tend to grow
-several near-duplicate runtime folders (`.claude/`, `.cursor/`, `.agents/`,
+several near-duplicate harness surfaces (`.claude/`, `.cursor/`, `.agents/`,
 `.codeium/`, plus root-level `AGENTS.md`, `CLAUDE.md`,
 `copilot-instructions.md`). The same prompt or skill gets copy-pasted into
 each, runtime-written files (permissions, learned commands) leak into version
 control, and there is no clean way to add a new agent without another
-folder. Harness config replaces that pattern with one canonical source layout
-plus an explicit, reproducible projection into each runtime target.
+surface. Harness config replaces that pattern with one canonical source layout
+plus an explicit, reproducible projection into each harness surface target.
 
 See [docs/RATIONALE.md](./docs/RATIONALE.md) for the long form.
 

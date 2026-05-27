@@ -1,16 +1,16 @@
 ---
 title: Justificacion
 seoTitle: Justificacion de .harness config
-socialTitle: Por que .harness separa fuentes y carpetas runtime
-description: Por que la especificacion separa un catalogo fuente durable de superficies runtime vivas.
-socialDescription: La razon de tratar carpetas runtime como proyecciones generadas en lugar de fuente canonica.
+socialTitle: Por que .harness separa fuentes y superficies de harness
+description: Por que la especificacion separa un catalogo fuente durable de superficies de harness vivas.
+socialDescription: La razon de tratar superficies de harness como proyecciones generadas en lugar de fuente canonica.
 canonicalPath: /specifications/v1/rationale/
 slug: rationale
 order: 1
 locale: es
 sectionCode: "01"
-summary: Por que el estandar separa un catalogo fuente durable de superficies runtime vivas.
-llmSummary: Explica por que las carpetas runtime deben ser salidas derivadas mientras .harness sigue siendo la fuente revisable.
+summary: Por que el estandar separa un catalogo fuente durable de superficies de harness vivas.
+llmSummary: Explica por que las superficies de harness deben ser salidas derivadas mientras .harness sigue siendo la fuente revisable.
 audience: Implementadores que organizan configuracion multi-runtime de agentes.
 contentKind: spec
 status: draft
@@ -19,14 +19,14 @@ updated: 2026-05-26
 
 # Justificacion
 
-Los runtimes de agentes necesitan carpetas vivas. Los equipos necesitan una fuente estable y revisable para los recursos que esos runtimes consumen. Harness config separa esas responsabilidades sin imponer un modelo de producto.
+Los harnesses necesitan superficies vivas en el repositorio. Los equipos necesitan una fuente estable y revisable para los recursos que esos harnesses consumen. Harness config separa esas responsabilidades sin imponer un modelo de producto.
 
-El catalogo fuente vive bajo raices configuradas, con `./.harness` como convencion por defecto. Superficies como `./.agents`, `./.claude` o `./.cursor` siguen siendo carpetas activas que leen sus runtimes. La activacion proyecta la vista revisada del catalogo hacia esas superficies.
+El catalogo fuente vive bajo raices configuradas, con `./.harness` como convencion por defecto. Superficies de harness como `./.agents`, `./.claude` o `./.cursor` siguen siendo archivos y carpetas activos que leen sus harnesses. La activacion proyecta la vista revisada del catalogo hacia esas superficies.
 
 ## Problemas resueltos
 
-- Las copias casi iguales en varias carpetas runtime se desincronizan facilmente.
-- Los archivos escritos por un runtime son dificiles de revisar como fuente durable.
+- Las copias casi iguales en varias superficies de harness se desincronizan facilmente.
+- Los archivos escritos por un harness son dificiles de revisar como fuente durable.
 - Desactivar un recurso para un agente se convierte en regla de proyeccion, no en borrado manual.
 - `AGENTS.md`, `CLAUDE.md` y otras instrucciones pueden componerse desde una fuente `[dir]` revisable.
 - Un nuevo agente puede consumir el mismo catalogo cuando se declara su destino.
@@ -35,7 +35,7 @@ El catalogo fuente vive bajo raices configuradas, con `./.harness` como convenci
 
 - Manifiesto seleccionado: TOML repo-local, por defecto `./.harness/harness.toml`, que declara version, fuentes configuradas, destinos explicitos, `[dir]` opcional y extensiones.
 - Catalogo fuente: recursos durables bajo la fuente de recursos configurada y salidas `[dir]` repo-relativas bajo la fuente dir configurada.
-- Destino declarado: carpeta runtime como `./.agents` o `./.claude` que recibe proyeccion solo cuando esta en el manifiesto.
+- Destino declarado: superficie de harness como `./.agents` o `./.claude` que recibe proyeccion solo cuando esta en el manifiesto.
 - Sobrescritura derivada del destino: carpeta como `.claude` dentro de un recurso para ajustar archivos del destino correspondiente.
 - Perfil: overlay seleccionado por `.harnessProfile` y declarado con `.harnessProfileRoot`, fusionado por ruta fuente logica sin proyectar el directorio de perfil.
 - Limite de proyeccion: `.harnessIgnore`, incluyendo reglas de raiz, fuente-locales, profile-locales, target-output-locales y `[mutable]`.

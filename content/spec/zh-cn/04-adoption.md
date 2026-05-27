@@ -10,7 +10,7 @@ order: 4
 locale: zh-cn
 sectionCode: "04"
 summary: 新项目、迁移、profile、可组合指令和清理的实践流程。
-llmSummary: 覆盖创建 .harness 目录、声明目标、预览激活、迁移 runtime 文件夹、使用 profile overlay 和保持目标清理安全的流程。
+llmSummary: 覆盖创建 .harness 目录、声明目标、预览激活、迁移 harness surface、使用 profile overlay 和保持目标清理安全的流程。
 audience: 在新仓库或现有仓库中引入 .harness 的开发者。
 contentKind: spec
 status: draft
@@ -38,7 +38,7 @@ npx harnessc activate --yes
 
 ## 迁移现有仓库
 
-先保存当前 runtime 文件夹的快照。然后把持久内容移到资源源，把目标差异放入 `.claude` 等覆盖文件夹，在 manifest 中声明目标，并在应用前审查计划。
+先保存当前 harness surface 的快照。然后把持久内容移到资源源，把目标差异放入 `.claude` 等覆盖文件夹，在 manifest 中声明目标，并在应用前审查计划。
 
 没有变更时，第二次 dry-run 应当收敛为：受管理文件为 `keep`，runtime 拥有文件为 `mutable`。
 

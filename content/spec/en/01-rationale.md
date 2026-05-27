@@ -1,16 +1,16 @@
 ---
 title: Rationale
 seoTitle: .harness Config Rationale
-socialTitle: Why .harness separates source catalogs from runtime folders
-description: Why the standard separates a durable source catalog from live runtime surfaces.
-socialDescription: The design rationale for treating runtime folders as generated projections instead of canonical source.
+socialTitle: Why .harness separates source catalogs from harness surfaces
+description: Why the standard separates a durable source catalog from live harness surfaces.
+socialDescription: The design rationale for treating harness surfaces as generated projections instead of canonical source.
 canonicalPath: /specifications/v1/rationale/
 slug: rationale
 order: 1
 locale: en
 sectionCode: "01"
-summary: Why the standard separates a durable source catalog from live runtime surfaces.
-llmSummary: Explains why live agent runtime folders should be derived outputs while .harness remains the reviewable source of truth, including profiles, target-output controls, and composable instruction files.
+summary: Why the standard separates a durable source catalog from live harness surfaces.
+llmSummary: Explains why live harness surfaces should be derived outputs while .harness remains the reviewable source of truth, including profiles, target-output controls, and composable instruction files.
 audience: Implementers deciding how to organize cross-runtime agent configuration.
 contentKind: spec
 status: draft
@@ -19,14 +19,14 @@ updated: 2026-05-26
 
 # Harness config rationale
 
-Agent runtimes need live folders. Teams need a stable, reviewable source layout
-for the resources those runtimes consume. Harness config separates those
-responsibilities without prescribing an application model for either.
+Harnesses need live repository surfaces. Teams need a stable, reviewable source
+layout for the resources those harnesses consume. Harness config separates
+those responsibilities without prescribing an application model for either.
 
 The source catalog lives under configured source roots, with `./.harness` as
-the default convention. Runtime surfaces such as `./.agents`, `./.claude`, or
-`./.cursor` remain live folders that their runtimes read. Activation projects
-the reviewed catalog view into those surfaces as ordinary files.
+the default convention. Harness surfaces such as `./.agents`, `./.claude`, or
+`./.cursor` remain live files and folders that their harnesses read. Activation
+projects the reviewed catalog view into those surfaces as ordinary files.
 
 ## The Concrete Problem
 
@@ -57,7 +57,7 @@ This produces predictable, recurring pain in real repositories:
    lets it consume the same source material a repository already maintains.
 
 Harness config addresses these by making configured source layouts canonical
-and reviewable, and every runtime surface an explicit projection target
+and reviewable, and every harness surface an explicit projection target
 derived from those sources.
 
 ## Core Concepts
@@ -71,8 +71,8 @@ object model:
 - Source catalog: durable resources under the configured resources source,
   defaulting to `./.harness/resources`, plus optional repo-relative `[dir]`
   outputs under the configured dir source.
-- Declared target: a runtime-facing folder, such as `./.agents` or
-  `./.claude`, that receives projection only when listed in the manifest.
+- Declared target: a harness surface, such as `./.agents` or `./.claude`, that
+  receives projection only when listed in the manifest.
 - Target-derived override: a dot-prefixed folder inside a resource, such as
   `.claude`, that adjusts files for the matching target.
 - Profile overlay: optional source content selected by `.harnessProfile` and
@@ -86,9 +86,9 @@ object model:
 
 ## Why A Shared Standard
 
-- Teams can inspect one repository-local contract across multiple agent tools
-  instead of treating every live surface as a source format.
-- A repository can hold the complete resource catalog while each runtime
+- Teams can inspect one repository-local contract across multiple harnesses
+  instead of treating every harness surface as a source format.
+- A repository can hold the complete resource catalog while each harness
   receives only the reviewed projection for that context.
 - The contract is implementation-neutral: folders, TOML, ignore rules,
   overrides, and projection intent.
@@ -120,7 +120,7 @@ Platform teams can define one repo-local policy for storing harness resources,
 reviewing changes, and validating paths in CI.
 
 Tool builders can consume a stable resource model instead of scraping live
-runtime folders or inventing another layout.
+harness surfaces or inventing another layout.
 
 Security teams can review canonical source resources, activation intent, and
 ignored files before anything reaches an execution surface.
@@ -130,7 +130,7 @@ single agent runtime as the canonical format.
 
 ## Runtime-Owned Files
 
-Agent runtimes frequently write into the folders they read. Permission grants,
+Harnesses frequently write into the surfaces they read. Permission grants,
 allow-listed commands, and learned hooks land in files like
 `.claude/settings.local.json`. Harness config keeps activation one-directional
 on purpose — projection always flows from source to target. The base standard

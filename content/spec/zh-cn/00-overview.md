@@ -17,17 +17,17 @@ status: draft
 updated: 2026-05-26
 ---
 
-# 面向智能体 harness 配置的中立源层
+# 面向 harness surface 的中立源层
 
-`.agents`、`.claude`、`.gemini` 和 `.cursor` 这样的 runtime 文件夹很有用，但当多个工具需要同一组 skills、rules、plugins 和指令文件时，它们不是稳定的事实来源。
+Harness 会暴露 `AGENTS.md`、`.agents`、`.claude`、`.gemini` 和 `.cursor` 这样的实时文件和文件夹。这些 harness surface 很有用，但当多个工具需要同一组 skills、rules、plugins 和指令文件时，它们不是稳定的事实来源。
 
-Harness config 把可复用资源保存在配置过的仓库源目录中，约定放在 `.harness` 下；每个 runtime 输出都必须显式声明为目标；激活时先 dry-run 预览，再通过复制投影写入目标。
+Harness config 把可复用资源保存在配置过的仓库源目录中，约定放在 `.harness` 下；每个 harness surface 输出都必须显式声明为目标；激活时先 dry-run 预览，再通过复制投影写入目标。
 
 ## 为什么激活重要
 
 激活把分散的实时文件夹变成可重复的投影步骤：读取源目录，应用 profile 和目标差异，过滤边界，预览计划，然后只在审查后写入普通文件。
 
-这种边界让 CI 可以验证开发者本地使用的同一 manifest。编辑器可以预览每个 runtime 将收到什么。审查工具可以说明哪些目标文件会被创建、更新、保留或作为 mutable 留给 runtime。
+这种边界让 CI 可以验证开发者本地使用的同一 manifest。编辑器可以预览每个 harness 将收到什么。审查工具可以说明哪些目标文件会被创建、更新、保留或作为 mutable 留给 harness。
 
 ## 可预测的形状
 

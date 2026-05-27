@@ -17,23 +17,23 @@ status: draft
 updated: 2026-05-26
 ---
 
-# Une couche source neutre pour la configuration des harness agents
+# Une couche source neutre pour les surfaces de harness
 
-Les dossiers runtime comme `.agents`, `.claude` et `.cursor` sont utiles, mais ils ne remplacent pas un catalogue source durable et révisable.
+Les harnesses exposent des fichiers et dossiers vivants comme `AGENTS.md`, `.agents`, `.claude` et `.cursor`. Ces surfaces de harness sont utiles, mais elles ne remplacent pas un catalogue source durable et révisable.
 
-Harness config garde les ressources réutilisables dans des sources configurées, sous `.harness` par défaut, déclare chaque sortie runtime comme cible explicite et matérialise chaque cible par une projection de copie prévisualisée avant écriture.
+Harness config garde les ressources réutilisables dans des sources configurées, sous `.harness` par défaut, déclare chaque sortie de surface de harness comme cible explicite et matérialise chaque cible par une projection de copie prévisualisée avant écriture.
 
 ## Pourquoi l'activation compte
 
 L'activation est le bénéfice opérationnel du standard. Elle transforme la configuration d'agents, souvent dispersée dans des dossiers actifs, en étape de projection répétable: lire le catalogue source, appliquer les profils et différences propres à une cible, filtrer la frontière, prévisualiser le plan, puis écrire des fichiers ordinaires seulement après revue.
 
-Cette frontière apporte des bénéfices indirects sans transformer `.harness` en plateforme produit complète. La CI peut valider le même manifeste qu'un développeur utilise localement. Un éditeur peut prévisualiser ce qu'un runtime recevra. Les outils de revue peuvent montrer quels fichiers cible sont créés, mis à jour, préservés ou laissés mutables intentionnellement. Plusieurs runtimes peuvent consommer la même ressource source sans traiter un dossier runtime comme format canonique.
+Cette frontière apporte des bénéfices indirects sans transformer `.harness` en plateforme produit complète. La CI peut valider le même manifeste qu'un développeur utilise localement. Un éditeur peut prévisualiser ce qu'un harness recevra. Les outils de revue peuvent montrer quels fichiers cible sont créés, mis à jour, préservés ou laissés mutables intentionnellement. Plusieurs harnesses peuvent consommer la même ressource source sans traiter une surface de harness comme format canonique.
 
 Le résultat n'est pas plus de cérémonie autour de la configuration agent. C'est moins d'état caché: un petit standard qui rend l'activation explicable, répétable et assez sûre pour être automatisée.
 
 ## Configuration avancée, forme prévisible
 
-Le standard permet une configuration expressive sans rendre l'activation opaque. Les profils permettent à une équipe, un développeur ou un sous-arbre cible de sélectionner une couche de configuration. La composition `[dir]` permet d'assembler des fichiers d'instructions partagés depuis des fragments révisés. Les fichiers `.harnessIgnore` et `.harnessProfile` dans les sorties cible permettent à une surface runtime de garder des contrôles locaux sans les promouvoir dans la source canonique.
+Le standard permet une configuration expressive sans rendre l'activation opaque. Les profils permettent à une équipe, un développeur ou un sous-arbre cible de sélectionner une couche de configuration. La composition `[dir]` permet d'assembler des fichiers d'instructions partagés depuis des fragments révisés. Les fichiers `.harnessIgnore` et `.harnessProfile` dans les sorties cible permettent à une surface de harness de garder des contrôles locaux sans les promouvoir dans la source canonique.
 
 Ces fonctionnalités sont volontairement indirectes. Elles ne demandent pas à chaque outil d'inventer une nouvelle UI de settings, un registry ou un service de synchronisation. Elles donnent aux outils un contrat fichier stable à inspecter: quelle source existe, quel profil est actif, quelle cible reçoit quelle projection, ce qui est filtré, et ce qui sera préservé pendant le nettoyage.
 

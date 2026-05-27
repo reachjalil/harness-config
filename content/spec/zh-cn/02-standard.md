@@ -27,6 +27,8 @@ ignore 语法应当无需参考实现代码即可实现。会使 v1 仓库或 v1
 tooling、extension 和实现发布，不属于规范 URL 空间，也不属于 manifest
 `version` 字段。
 
+Harness 是消费仓库指令、上下文、工具和配置的智能体 runtime 或开发者工具。Harness surface 是该 harness 读取的仓库本地文件或文件夹，例如 `AGENTS.md`、`.agents`、`.claude` 或 `.cursor`。
+
 一个一致的仓库包含选中的 manifest，默认 `./.harness/harness.toml`；配置过的资源源；显式目标；可选的根 `.harnessIgnore`；以及可选 `[dir]` 源，用于组合或复制输出。
 
 ## 仓库形状
@@ -47,7 +49,7 @@ tooling、extension 和实现发布，不属于规范 URL 空间，也不属于 
       .harnessIgnore
 ```
 
-资源位于配置的 `[resources]` 源下。`skills`、`rules`、`plugins` 等类型是文件夹，不是每种类型一张 TOML 表。Runtime 文件夹只有在 `[[targets]]` 中声明后才是输出。
+资源位于配置的 `[resources]` 源下。`skills`、`rules`、`plugins` 等类型是文件夹，不是每种类型一张 TOML 表。Harness surface 只有在 `[[targets]]` 中声明后才是输出。
 
 资源文件夹也可以包含空的 `.harnessComposable` 标记。此时它组合的是一个会投影到每个声明目标中的资源文件，例如 `skills/review/SKILL.md`。这个叶子仍然是资源：它参与目标覆盖、profile 和资源侧 `.harnessIgnore` 规则。
 

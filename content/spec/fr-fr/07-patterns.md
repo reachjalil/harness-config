@@ -23,7 +23,7 @@ Cette page montre comment combiner les pièces du standard sans perdre la règle
 
 ## Ignore De Sortie Pour Une Surface
 
-Utilisez un `.harnessIgnore` dans une sortie cible quand la règle appartient à un sous-arbre runtime précis, pas à la source canonique.
+Utilisez un `.harnessIgnore` dans une sortie cible quand la règle appartient à une surface de harness précise, pas à la source canonique.
 
 ```text
 .agents/skills/deploy-plan/.harnessIgnore

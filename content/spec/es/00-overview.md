@@ -17,21 +17,21 @@ status: draft
 updated: 2026-05-26
 ---
 
-# Una capa fuente neutral para configuracion de harness de agentes
+# Una capa fuente neutral para superficies de harness
 
-Las carpetas runtime como `.agents`, `.claude`, `.gemini` y `.cursor` son utiles, pero no son una buena fuente de verdad cuando varios agentes necesitan las mismas skills, reglas, plugins e instrucciones.
+Los harnesses exponen archivos y carpetas vivas como `AGENTS.md`, `.agents`, `.claude`, `.gemini` y `.cursor`. Esas superficies de harness son utiles, pero no son una buena fuente de verdad cuando varias herramientas necesitan las mismas skills, reglas, plugins e instrucciones.
 
-Harness config mantiene los recursos reutilizables en fuentes configuradas, por convencion bajo `.harness`, declara cada salida runtime como un destino explicito y materializa cada destino mediante una proyeccion de copia revisable antes de escribir.
+Harness config mantiene los recursos reutilizables en fuentes configuradas, por convencion bajo `.harness`, declara cada salida de superficie de harness como un destino explicito y materializa cada destino mediante una proyeccion de copia revisable antes de escribir.
 
 ## Por que importa la activacion
 
 La activacion convierte carpetas vivas dispersas en un paso repetible: leer el catalogo fuente, aplicar perfiles y diferencias por destino, filtrar el limite, previsualizar el plan y escribir archivos ordinarios solo despues de la revision.
 
-Esa frontera permite que CI valide el mismo manifiesto que usa un desarrollador localmente. Los editores pueden mostrar que recibira cada runtime. Las herramientas de revision pueden explicar que archivos se crean, actualizan, preservan o quedan mutables.
+Esa frontera permite que CI valide el mismo manifiesto que usa un desarrollador localmente. Los editores pueden mostrar que recibira cada harness. Las herramientas de revision pueden explicar que archivos se crean, actualizan, preservan o quedan mutables.
 
 ## Forma predecible
 
-El estandar soporta configuracion avanzada sin hacer opaca la activacion. Los perfiles seleccionan capas de configuracion. `[dir]` compone instrucciones compartidas desde partes revisadas. Los archivos `.harnessIgnore` y `.harnessProfile` en una salida runtime conservan controles locales sin convertirlos en fuente canonica.
+El estandar soporta configuracion avanzada sin hacer opaca la activacion. Los perfiles seleccionan capas de configuracion. `[dir]` compone instrucciones compartidas desde partes revisadas. Los archivos `.harnessIgnore` y `.harnessProfile` en una salida de superficie de harness conservan controles locales sin convertirlos en fuente canonica.
 
 ## Que define
 

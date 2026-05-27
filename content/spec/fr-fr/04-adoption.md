@@ -19,9 +19,9 @@ updated: 2026-05-26
 
 # Adoption
 
-Ce guide décrit deux chemins: greenfield, sans dossier runtime agent existant,
+Ce guide décrit deux chemins: greenfield, sans surface de harness existante,
 et migration, quand un dépôt contient déjà `.claude/`, `.cursor/`, `.agents/`
-ou un dossier similaire.
+ou une surface similaire.
 
 ## Greenfield
 
@@ -45,7 +45,7 @@ npx harnessc activate --yes
 
 ## Migrer Un Dépôt Existant
 
-Un dépôt qui contient déjà des dossiers runtime comme `.claude/` ou `.cursor/`
+Un dépôt qui contient déjà des surfaces de harness comme `.claude/` ou `.cursor/`
 adopte Harness config progressivement. La règle importante: les sources
 configurées deviennent l'entrée canonique, pas la cible.
 
@@ -53,7 +53,7 @@ Séquence recommandée:
 
 1. **Snapshot des cibles existantes.** Commitez les dossiers live actuels ou copiez-les sur une branche pour garder une base de comparaison.
 2. **Déplacez le contenu durable dans la source de ressources.** Le contenu de `.claude/skills/foo/` devient souvent `./.harness/resources/skills/foo/`. Les différences propres à une cible vont dans un dossier de surcharge comme `./.harness/resources/skills/foo/.claude/`.
-3. **Déclarez les cibles dans le manifeste sélectionné.** Ajoutez un `[[targets]]` pour chaque dossier runtime à régénérer. Si la source de ressources n'est pas `./.harness/resources`, déclarez-la avec `[resources] path`.
+3. **Déclarez les cibles dans le manifeste sélectionné.** Ajoutez un `[[targets]]` pour chaque surface de harness à régénérer. Si la source de ressources n'est pas `./.harness/resources`, déclarez-la avec `[resources] path`.
 4. **Écrivez `.harnessIgnore` pour les artefacts source-only.** Logs, scratch files, métadonnées et fixtures appartiennent généralement aux règles d'ignore. Les fichiers écrits par le runtime appartiennent à `[mutable]`.
 5. **Ajoutez des profils seulement quand ils clarifient l'ownership.** Placez `.harnessProfileRoot` sous `.harness`, sous la source de ressources configurée ou sous la source `[dir]`, puis sélectionnez ces profils avec `.harnessProfile`.
 6. **Dry run, revue, puis apply.** `npx harnessc activate` affiche le plan sans écrire; relancez avec `--yes` après revue.

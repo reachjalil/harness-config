@@ -241,7 +241,7 @@ and keep local live controls where they already make sense.
 .agents/skills/review/.harnessIgnore
 ```
 
-The `.agents` ignore file can stay in the live surface to control only that
+The `.agents` ignore file can stay in the live harness surface to control only that
 output subtree. The durable skill source moves to `.harness`, and the
 `.claude` difference becomes a target-derived override inside the resource.
 
@@ -257,7 +257,7 @@ Keep the source and target roles separate:
 - Replace target and source symlinks with real files or directories before activation.
 
 These recommendations keep activation one-way: configured source roots produce
-target outputs, and live runtime folders never become the next source of truth.
+target outputs, and live harness surfaces never become the next source of truth.
 
 ## Cleanup Checklist
 

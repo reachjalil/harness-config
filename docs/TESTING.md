@@ -40,7 +40,7 @@ the same source trees, selected manifest, override folders, and
 | Projection | Multiple active profile roots projecting the same file emit a warning and resolve deterministically | `packages/core/test/projection.test.ts` |
 | Projection | Activation planning reports profile diagnostics once despite shared dir/resource phases | `packages/core/test/projection.test.ts` |
 | TOML | Target paths determine override folders from the first path segment | `packages/core/test/standard.test.ts` |
-| TOML | Target paths are explicit repo-local paths and are not constrained to named runtime folders | `packages/core/test/standard.test.ts`, `packages/cli/test/run.test.ts` |
+| TOML | Target paths are explicit repo-local paths and are not constrained to named harness surfaces | `packages/core/test/standard.test.ts`, `packages/cli/test/run.test.ts` |
 | Projection | Identical declared targets are still materialized as copy projections | `packages/core/test/projection.test.ts` |
 | Projection | Target root and nested target symlinks are reported as unsupported diagnostics | `packages/core/test/projection.test.ts` |
 | Projection | Changed source files plan `update` actions | `packages/core/test/projection.test.ts` |
