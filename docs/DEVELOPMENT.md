@@ -90,4 +90,5 @@ publishable package:
 - allowed action: `npm publish`.
 
 No `NPM_TOKEN` repository secret is used. The release workflow publishes through
-GitHub Actions OIDC with `id-token: write`.
+GitHub Actions OIDC with `id-token: write`. The release job uses Node 24 so
+the bundled npm CLI is new enough for trusted publishing.
