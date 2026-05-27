@@ -1,4 +1,0 @@
-interface:
-  display_name: "Harness config setup"
-  short_description: "Set up or migrate a repo to Harness config."
-  default_prompt: "Use $harness-config-setup to set up Harness config in this repo using harnessconfig.dev as the reference."
