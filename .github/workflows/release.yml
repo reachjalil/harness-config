@@ -32,7 +32,7 @@ jobs:
 
       - name: Verify tag is on main
         run: |
-          git fetch origin main --tags
+          git fetch --no-tags origin main
           tag_commit="$(git rev-list -n 1 "$GITHUB_REF_NAME")"
           git merge-base --is-ancestor "$tag_commit" origin/main
 
