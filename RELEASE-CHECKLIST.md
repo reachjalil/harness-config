@@ -9,6 +9,10 @@ evidence note in the release PR or release issue.
 - [ ] Release version, npm dist-tag, and target git ref are confirmed.
 - [ ] Package versions are updated consistently across publishable packages.
 - [ ] The release branch contains only intentional release changes.
+- [ ] The release pull request targets `main` from `dev`.
+- [ ] The maintainer self-review and Codex review notes are linked from the
+      pull request when behavior, release automation, or security posture
+      changed.
 
 ## Required gates
 
@@ -53,7 +57,9 @@ evidence note in the release PR or release issue.
 
 ## Final publish check
 
-- [ ] The git tag points at the validated commit.
+- [ ] The git tag uses `vX.Y.Z` or `vX.Y.Z-prerelease` and points at the
+      validated `main` commit.
+- [ ] `pnpm run release:verify` passes.
 - [ ] Published package versions match the tag and release notes.
 - [ ] Post-publish install smoke check passes with the published package.
 - [ ] Website and external documentation links resolve to the released version.

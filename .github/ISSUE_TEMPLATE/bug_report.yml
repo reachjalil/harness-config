@@ -1,0 +1,31 @@
+name: Bug report
+description: Report behavior that looks incorrect or surprising.
+title: "bug: "
+labels:
+  - bug
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Include a minimal fixture, command, or repository layout.
+      value: |
+        ```bash
+        npx harnessc validate
+        ```
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Node.js version, package version, and install method.
+    validations:
+      required: false

@@ -21,8 +21,8 @@ For a projection behavior, cover at least the observable result:
 
 - `.agents` and `.claude` targets receiving the same resource with one
   target-specific override.
-- A resource composable `SKILL.md/` with `.harnessRef`, a target override
-  composable, and a recipient-local `.harnessIgnore`.
+- A dedicated fixture for resource composables, `.harnessRef`, target
+  overrides, and recipient-local `.harnessIgnore`.
 - A target-output `.harnessIgnore` suppressing one target while another target
   receives the file.
 - A target-local `.harnessProfile` selecting a profile overlay for only one

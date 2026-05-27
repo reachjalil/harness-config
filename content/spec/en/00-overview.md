@@ -2,15 +2,15 @@
 title: Overview
 seoTitle: .harness Config Overview
 socialTitle: A neutral source layout for harness surfaces
-description: A source layout and activation model for advanced, predictable harness surface configuration across runtimes, teams, profiles, and local controls.
-socialDescription: An overview of how .harness uses dry-run activation, projection boundaries, profile overlays, target-local controls, and explicit targets to make agent configuration more capable without making it implicit.
+description: A source layout and local activation model for advanced, predictable harness surface configuration across runtimes, teams, profiles, local controls, and runtime-owned state.
+socialDescription: An overview of how .harness uses local dry-run activation, projection boundaries, profile overlays, target-local controls, runtime-owned mutable files, no-telemetry tooling, and explicit targets to make agent configuration more capable without making it implicit.
 canonicalPath: /specifications/v1/
 slug: overview
 order: 0
 locale: en
 sectionCode: "00"
-summary: The source layout, activation model, projection controls, profile overlays, target-local controls, and practical operating benefits in one read.
-llmSummary: Introduces .harness as a repository-owned source catalog for agent configuration, with dry-run activation, composable instruction files, profile overlays, target-local controls, and explicit runtime projections that make advanced configuration predictable, reviewable, and reusable.
+summary: The source layout, local activation model, projection controls, runtime-owned mutable files, profile overlays, target-local controls, no-telemetry tooling, and practical operating benefits in one read.
+llmSummary: Introduces .harness as a repository-owned source catalog for agent configuration, with local dry-run activation, no-telemetry tooling, composable instruction files, profile overlays, runtime-owned mutable files, target-local controls, and explicit runtime projections that make advanced configuration predictable, reviewable, and reusable.
 audience: Technical readers and implementers evaluating repository-local agent configuration.
 contentKind: spec
 status: draft
@@ -23,11 +23,15 @@ Harnesses expose live files and folders such as `AGENTS.md`, `.agents`, `.claude
 
 Harness config keeps reusable agent resources in configured repository-owned source roots, conventionally under `.harness`, declares every harness surface output as an explicit target, and materializes each target through a dry-run-first copy projection. Harness surfaces stay live and tool-friendly; teams can commit them, gitignore them, or use them for local experiments because the reviewed source remains stable.
 
+The key idea is an ownership boundary. Canonical prompts, skills, rules, hooks, and instruction parts are repo-owned source. Live harness surfaces are generated outputs. Files declared under `[mutable]` are seeded from source once, then become runtime-owned target state for settings, permissions, learned commands, and other local data that should survive future activation.
+
+The privacy model follows from the same file contract. Validation, planning, and activation operate on repository files locally; the standard does not require telemetry, analytics, hosted services, or network access.
+
 ## Why Activation Matters
 
 Activation is the operational payoff of the standard. It turns agent configuration from a set of live folders into a repeatable projection step: read the source catalog, apply profiles and target-specific differences, filter the boundary, preview the plan, then write ordinary files only after review.
 
-That boundary gives useful secondary behavior without making `.harness` a full product platform. CI can validate the same manifest a developer uses locally. Editors can preview what a harness will receive. Review tools can show which target files are created, updated, preserved, or intentionally left mutable. Multiple harnesses can consume the same source resource without treating any one harness surface as the canonical format.
+That boundary gives useful secondary behavior without making `.harness` a full product platform. CI can validate the same manifest a developer uses locally. Editors can preview what a harness will receive. Review tools can show which target files are created, updated, preserved, or intentionally left mutable. Multiple harnesses can consume the same source resource without treating any one harness surface as the canonical format, while each runtime can keep its own mutable state.
 
 The result is not more ceremony around agent configuration. It is less hidden state: a small standard that makes activation explainable, repeatable, and safe enough to automate.
 
@@ -46,6 +50,7 @@ Harness config answers four practical questions:
 - **Where does durable agent configuration live?** In configured source roots, under `.harness/` by default, not in a harness surface that a tool may also write.
 - **Which live folders receive generated files?** Only the paths declared as `[[targets]]` in the selected manifest, which defaults to `./.harness/harness.toml`.
 - **What is allowed to cross the projection boundary?** `.harnessIgnore` files can filter by source path and by final output path.
+- **Which target files can the runtime own?** `[mutable]` rules seed files once and then preserve the live target bytes as runtime-owned state.
 - **How do teams vary the output safely?** Target-derived overrides handle runtime differences; profile overlays handle team kits, personal customizations, and target-local variants.
 - **How does local variation stay accountable?** Target-output profiles and ignores are preserved as live controls, while activation still reports the computed plan before writing.
 
@@ -60,7 +65,7 @@ Harness config answers four practical questions:
 
 ## Why It Helps
 
-The complete catalog stays reviewable in one place. Harness surfaces stay ordinary live files and folders that can be regenerated, cleaned, or ignored by Git when a team chooses. That flexibility is useful for experiments: a developer can try local harness settings, scratch files, or runtime state without turning those edits into shared source.
+The complete catalog stays reviewable in one place. Harness surfaces stay ordinary live files and folders that can be regenerated, cleaned, or ignored by Git when a team chooses. That flexibility is useful for experiments: a developer can try local harness settings, scratch files, or runtime state without turning those edits into shared source. The mutable-file model makes that distinction explicit rather than relying on convention or hidden product state.
 
 Ignore and profile controls matter because real repositories have local variation. A team may want `.claude` to exclude one generated scratch file while `.agents` keeps it. A developer may want a personal `AGENTS.md` preface without changing team instructions. A platform group may ship a deploy kit that contributes skills and instruction parts only when selected. These workflows need precise output control, not another source tree hidden inside a harness surface.
 
@@ -73,7 +78,7 @@ Ignore and profile controls matter because real repositories have local variatio
 5. Compose or copy `[dir]` outputs and merge outputs that land under declared targets.
 6. Preview creates, updates, mutable skips, removals, keeps, and preserved unmanaged entries before writing.
 
-The important constraint is one-way ownership: `.harness/` is canonical, live targets are generated outputs, and target-output declaration files such as `.harnessIgnore` and `.harnessProfile` are protected local controls rather than projected source files.
+The important constraint is one-way ownership: `.harness/` is canonical, live targets are generated outputs, target-output declaration files such as `.harnessIgnore` and `.harnessProfile` are protected local controls rather than projected source files, and `[mutable]` files are runtime-owned after their first projection.
 
 ## Open Proposal
 

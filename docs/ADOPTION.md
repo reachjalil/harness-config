@@ -16,7 +16,9 @@ Harness config v1 starts from a small source contract:
    `.harness/resources/hooks.json`.
 3. Declare every projection target explicitly in the selected manifest.
 4. Use `.harnessIgnore` to keep source-only files out of live targets and
-   mark runtime-owned files with `[mutable]`.
+   mark runtime-owned files with `[mutable]`. A mutable file should usually
+   be a source template for local target state, not durable shared
+   configuration.
 5. Dry-run activation before writing target folders.
 
 `harnessc` is the standard implementation for this workflow:
@@ -52,10 +54,13 @@ Recommended sequence:
    each harness surface you want regenerated. A target only receives projections
    when it appears here. If the resources source is not
    `./.harness/resources`, declare the shared source with `[resources] path`.
-4. **Write `.harnessIgnore` for source-only artifacts.** Logs, scratch
-   files, per-tool metadata, and skill `metadata.toml` typically belong
-   under ignore rules. Files the runtime writes back (permissions, learned
-   commands) belong under `[mutable]` so they survive future activations.
+4. **Write `.harnessIgnore` for source-only and runtime-owned artifacts.**
+   Logs, scratch files, per-tool metadata, and skill `metadata.toml`
+   typically belong under ignore rules because they should not cross the
+   projection boundary. Files the runtime writes back (permissions, local
+   settings, learned commands) belong under `[mutable]` because the source
+   catalog should seed them once and the target runtime should own them after
+   that.
    Repository-wide rules usually live in `./.harnessIgnore`; resource- or
    dir-specific rules can live in source-local `.harnessIgnore` files, and
    user/local output preferences can live in target-output files such as
@@ -81,7 +86,8 @@ regenerated from the configured source roots plus the manifest at any time.
 Teams may also gitignore those live harness surfaces when they want more room
 for local experiments, runtime state, or tool-specific scratch files. The
 tradeoff is deliberate: review happens in `.harness` and the selected manifest,
-while the surface stays flexible and regenerable.
+managed target files stay reproducible, and `[mutable]` target files keep
+runtime-owned state out of the canonical source tree.
 
 ## Common Pitfalls
 
@@ -103,7 +109,9 @@ while the surface stays flexible and regenerable.
   separate resource item over a deep override tree.
 - **Committing runtime-written files as if they were source.** Files like
   `.claude/settings.local.json` should typically be declared under
-  `[mutable]` so projection seeds them once and then leaves them alone.
+  `[mutable]` so projection seeds them once and then leaves them alone. If the
+  file later becomes shared policy, promote the desired bytes back into the
+  configured source root and force mutable re-projection deliberately.
 - **Expecting a target-output ignore file before it exists.** A
   target-output `.harnessIgnore` only participates after it is already on
   disk. Use the repo-root file for rules that must apply on first activation.

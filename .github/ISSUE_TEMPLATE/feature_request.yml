@@ -1,0 +1,32 @@
+name: Feature request
+description: Propose a new capability or workflow.
+title: "feature: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What use case should Harness config handle?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: Describe the expected behavior, file shape, or CLI surface.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Standard
+        - CLI
+        - Docs
+        - Release process
+        - Unsure
+    validations:
+      required: true

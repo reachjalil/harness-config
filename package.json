@@ -2,7 +2,7 @@
   "name": "harness-config",
   "private": true,
   "type": "module",
-  "version": "1.0.0-alpha.1",
+  "version": "1.0.0-alpha.2",
   "description": "Harness config specification proposal and alpha TypeScript reference implementation for portable AI agent configuration.",
   "homepage": "https://www.harnessconfig.dev/",
   "repository": {
@@ -41,6 +41,10 @@
     "pack:dry-run": "pnpm -r --sort --filter \"./packages/*\" exec npm pack --dry-run",
     "publish:dry-run": "pnpm run pack:dry-run",
     "quality": "pnpm run lint && pnpm run check && pnpm run test && pnpm run build && pnpm run pack:dry-run",
+    "release:notes": "node scripts/extract-release-notes.mjs",
+    "release:publish:npm": "node scripts/publish-npm.mjs",
+    "release:publish:npm:dry-run": "node scripts/publish-npm.mjs --dry-run",
+    "release:verify": "node scripts/verify-release-tag.mjs",
     "test": "pnpm -r --sort run test"
   },
   "devDependencies": {

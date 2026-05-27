@@ -17,6 +17,16 @@ Run `harnessc` from anywhere inside a repository. It searches upward for
 `./.harness/harness.toml`, validates the selected config, and prints the next
 useful command.
 
+## Privacy And Telemetry
+
+Harness config does not collect telemetry. The `harnessc` CLI does not send
+analytics, usage events, file paths, repository names, command history, machine
+identifiers, or error reports. Activation, validation, and planning run locally
+against files in your repository, and the CLI does not make network requests
+during normal operation.
+
+## Quick Start
+
 ```bash
 npx harnessc
 npx harnessc init

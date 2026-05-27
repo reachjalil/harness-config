@@ -2,15 +2,15 @@
 title: Rationale
 seoTitle: .harness Config Rationale
 socialTitle: Why .harness separates source catalogs from harness surfaces
-description: Why the standard separates a durable source catalog from live harness surfaces.
-socialDescription: The design rationale for treating harness surfaces as generated projections instead of canonical source.
+description: Why the standard separates a durable source catalog, generated harness surfaces, and runtime-owned mutable state.
+socialDescription: The design rationale for treating harness surfaces as generated projections while keeping runtime-owned mutable state out of canonical source.
 canonicalPath: /specifications/v1/rationale/
 slug: rationale
 order: 1
 locale: en
 sectionCode: "01"
-summary: Why the standard separates a durable source catalog from live harness surfaces.
-llmSummary: Explains why live harness surfaces should be derived outputs while .harness remains the reviewable source of truth, including profiles, target-output controls, and composable instruction files.
+summary: Why the standard separates a durable source catalog from live harness surfaces and runtime-owned mutable state.
+llmSummary: Explains why live harness surfaces should be derived outputs while .harness remains the reviewable source of truth, including profiles, target-output controls, runtime-owned mutable files, and composable instruction files.
 audience: Implementers deciding how to organize cross-runtime agent configuration.
 contentKind: spec
 status: draft
@@ -28,6 +28,12 @@ the default convention. Harness surfaces such as `./.agents`, `./.claude`, or
 `./.cursor` remain live files and folders that their harnesses read. Activation
 projects the reviewed catalog view into those surfaces as ordinary files.
 
+The important split is ownership, not only storage. Durable source files are
+repo-owned and reviewable. Live target files are generated outputs. A file
+declared under `[mutable]` is seeded from source once, then treated as
+runtime-owned state so a harness can safely write local settings without
+turning those writes into canonical source.
+
 ## The Concrete Problem
 
 As of 2026, repositories that work with multiple AI coding agents commonly
@@ -44,10 +50,10 @@ This produces predictable, recurring pain in real repositories:
    copy-pasted into `.claude/skills/foo/`, `.cursor/skills/foo/`, and so on.
    Edits in one runtime diverge from the others until a human reconciles
    them.
-2. **Live folders are unreviewable as source.** A runtime-written file
-   (`settings.local.json`, learned commands) ends up committed and reviewed
-   as if it were authored content, or it is `.gitignore`d and silently
-   diverges across contributors.
+2. **Live folders mix authored source with runtime state.** A runtime-written
+   file (`settings.local.json`, learned commands) ends up committed and
+   reviewed as if it were authored content, or it is `.gitignore`d and
+   silently diverges across contributors.
 3. **No clean way to "turn off" a skill for one agent.** Removing files
    from a live folder either deletes work or requires per-runtime branching
    in CI scripts.
@@ -80,6 +86,9 @@ object model:
   making the profile folder a normal projected item.
 - Projection boundary: `.harnessIgnore`, including repo-root, source-local,
   profile-local, target-output-local, and `[mutable]` rules.
+- Runtime-owned mutable file: a projected target file that starts from a
+  repo-owned source template, then becomes local runtime state after first
+  activation.
 - Activation projection: the dry-run-first computed plan from selected inputs
   to target files, including create/update/remove/keep/preserve/mutable
   actions and explicit cleanup and mutable-file policies.
@@ -96,6 +105,8 @@ object model:
   resources source before every runtime supports a native format.
 - Each declared target projection is explicit, reviewable, and reproducible
   from source, ignores, overrides, and cleanup policy.
+- Runtime-owned mutable files give live harnesses a stable place for local
+  state without making target folders the next source of truth.
 - Tools can show creates, updates, requested removals, unchanged projected
   files, and preserved unmanaged entries before changing a live folder.
 
@@ -123,7 +134,7 @@ Tool builders can consume a stable resource model instead of scraping live
 harness surfaces or inventing another layout.
 
 Security teams can review canonical source resources, activation intent, and
-ignored files before anything reaches an execution surface.
+ignored or mutable files before anything reaches an execution surface.
 
 Open-source projects can publish reusable agent instructions without choosing a
 single agent runtime as the canonical format.
@@ -143,6 +154,13 @@ bytes changed:
   scope. The runtime owns them after the first projection. Projection creates
   them once and then leaves them alone, even when their bytes still match the
   source template.
+
+This is different from ignoring a file. Ignored files do not cross the
+projection boundary. Mutable files do cross it: the source catalog provides the
+initial shape, review can see that the file is expected, and subsequent
+activation preserves the target bytes because the runtime is now the owner.
+That makes permission files, local settings, and learned state auditable
+without making them source-controlled configuration.
 
 Target edit review, reverse projection, and target-to-source capture are
 legitimate follow-on workflows, but they depend heavily on version-control
@@ -164,7 +182,8 @@ repo-local source-to-runtime projection problem and leaves the rest.
 - **`.gitignore`-style pattern files** inspire `.harnessIgnore`'s syntax and
   ordered, last-match-wins precedence. Differences: `.harnessIgnore` adds
   source-local and target-output-local files plus a `[mutable]` kind, because
-  projection has more dimensions than "tracked vs. untracked".
+  projection has more dimensions than "tracked vs. untracked": a file can be
+  seeded from source while remaining runtime-owned after activation.
 - **Helm / Kustomize overlays** (Kubernetes) inspire the idea of a base
   source tree composed with per-target overrides. Harness config keeps the
   overlay scope narrower: a dot-prefixed folder *inside the resource item*

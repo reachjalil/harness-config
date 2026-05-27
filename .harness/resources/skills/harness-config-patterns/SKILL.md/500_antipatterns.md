@@ -1,9 +1,0 @@
-## Antipatterns
-
-Read `references/antipatterns.md` for the full list. High-risk mistakes:
-
-- Adding compatibility for per-kind `[resources.<kind>]` declarations in v1.
-- Treating `.agents`, `.claude`, or any runtime folder as source input.
-- Inferring undeclared targets from folders that happen to exist.
-- Updating generated `.agents` or `.claude` dogfood files directly. Edit
-  `.harness` and activate.

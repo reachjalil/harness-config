@@ -1,0 +1,20 @@
+name: Specification question
+description: Ask about the Harness config v1 contract or conformance model.
+title: "spec: "
+labels:
+  - specification
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: Which rule, file shape, or conformance claim is unclear?
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Link the relevant docs section, fixture, or tool behavior.
+    validations:
+      required: false
