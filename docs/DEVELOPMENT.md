@@ -79,4 +79,15 @@ Npm dist-tags are selected from the version:
 - `1.2.3-rc.1` publishes with `next`;
 - `1.2.3` publishes with `latest`.
 
-Configure the repository secret `NPM_TOKEN` before pushing a release tag.
+Before pushing a release tag, configure npm trusted publishing for each
+publishable package:
+
+- publisher: GitHub Actions;
+- organization/user: `reachjalil`;
+- repository: `harness-config`;
+- workflow filename: `release.yml`;
+- environment name: blank;
+- allowed action: `npm publish`.
+
+No `NPM_TOKEN` repository secret is used. The release workflow publishes through
+GitHub Actions OIDC with `id-token: write`.

@@ -55,8 +55,6 @@ jobs:
 
       - name: Publish npm packages
         run: pnpm run release:publish:npm
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create GitHub release
         env:
