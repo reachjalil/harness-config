@@ -24,6 +24,7 @@ implementation package while keeping `npx harnessc` clean.
 
 ```bash
 harnessc validate
+harnessc explain .agents/skills/review/SKILL.md
 harnessc init
 harnessc activate
 harnessc activate --yes
@@ -62,7 +63,7 @@ inspection object.
 `./.harness/harness.toml` by default, resource folders under `./.harness/resources` by
 default, and a commented repo-root `./.harnessIgnore`. Use `--config <path>`
 to write a different repo-local manifest and `--resources-path <path>` to set
-`[resources] path` and create resource folders below that source. With no
+an explicit `[[resources]]` entry and create resource folders below that source root. With no
 `--resource` flags, init uses the conventional resource folders `skills`,
 `rules`, and `plugins`. With one or more `--resource <kind>` flags, init
 creates only those folders. Targets are explicit and path-only; declare them
@@ -72,6 +73,10 @@ with `--target <path>` or edit the selected manifest.
 projection preview, and it does not infer targets from existing folder names.
 Declare targets with `--target <path>` during init or edit the selected
 manifest.
+
+`harnessc explain <path>` is read-only introspection for a source or output
+path. It reports matching target outputs, configured source roots, source-use
+paths, dir actions, and diagnostics. Use `--json` for automation.
 
 `harnessc activate` is the reference projection command. Without `--yes`, it
 prints a dry run for every declared target, including creates, updates,
@@ -83,7 +88,8 @@ copy projection.
 explicit activation; use `--extension <id>` for one extension or `--all` for
 all declared supported extensions. This release ships no built-in extension
 implementations. Dir composition and copy are now part of core activation;
-declare `[dir]` in the selected manifest and let `harnessc activate` handle it.
+declare `[[dir]]` entries in the selected manifest and let `harnessc activate`
+handle them.
 
 Unmanaged target entries are kept by default. Use `--remove-unmanaged` when a
 target should be cleaned to match configured sources; use `--keep-unmanaged`
@@ -102,8 +108,8 @@ final output paths for that subtree and are preserved even when activation is
 run with `--remove-unmanaged`.
 
 `.harnessProfile` files select optional profile overlays. A matching
-`.harnessProfileRoot` under `.harness`, the configured resources source, or
-the configured dir source merges into resources and `[dir]` outputs by logical
+`.harnessProfileRoot` under `.harness`, a configured resources source, or
+a configured dir source merges into resources and dir outputs by logical
 source path, so local or team-specific kits can add files or replace
 composable parts without turning target folders into source roots.
 

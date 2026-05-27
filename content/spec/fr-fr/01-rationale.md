@@ -28,13 +28,13 @@ Le catalogue source vit sous `./.harness`. Les surfaces de harness comme `./.age
 - Les copies proches dans plusieurs surfaces de harness dérivent facilement.
 - Les fichiers écrits par un harness sont difficiles à relire comme source durable.
 - Désactiver une ressource pour un seul agent devient une règle de projection, pas une suppression manuelle.
-- Les fichiers `AGENTS.md`, `CLAUDE.md` et autres instructions peuvent être assemblés depuis une source `[dir]` révisable.
+- Les fichiers `AGENTS.md`, `CLAUDE.md` et autres instructions peuvent être assemblés depuis des sources `[[dir]]` révisables.
 - Un nouvel agent peut consommer le même catalogue dès qu'une cible est déclarée.
 
 ## Concepts Du Noyau
 
-- Manifeste sélectionné: TOML repo-local, par défaut `./.harness/harness.toml`, qui déclare version, sources configurées, cibles explicites, `[dir]` optionnel et extensions.
-- Catalogue source: ressources durables sous la source de ressources configurée et sorties `[dir]` repo-relatives sous la source dir configurée.
+- Manifeste sélectionné: TOML repo-local, par défaut `./.harness/harness.toml`, qui déclare version, sources configurées, cibles explicites, `[[dir]]` et extensions.
+- Catalogue source: ressources durables sous les sources `[[resources]]` configurées et sorties repo-relatives sous les sources `[[dir]]` configurées.
 - Cible déclarée: surface de harness comme `./.agents` ou `./.claude` qui reçoit une projection seulement quand elle est listée dans le manifeste.
 - Surcharge dérivée de cible: dossier comme `.claude` dans une ressource pour ajuster les fichiers de la cible correspondante.
 - Profil: overlay sélectionné par `.harnessProfile` et déclaré avec `.harnessProfileRoot`, fusionné par chemin source logique sans projeter le dossier de profil.
@@ -43,6 +43,6 @@ Le catalogue source vit sous `./.harness`. Les surfaces de harness comme `./.age
 
 ## Non-Objectifs
 
-`[dir]` fait partie du noyau v1, pas d'une extension: ses sorties participent à la projection, au nettoyage et aux règles target-output. Les extensions restent réservées au comportement enregistré qui ne redéfinit pas sources, cibles, profils, ignores, mutables, nettoyage ni plan d'activation.
+`[[dir]]` fait partie du noyau v1, pas d'une extension: ses sorties participent à la projection, au nettoyage et aux règles target-output. Les extensions restent réservées au comportement enregistré qui ne redéfinit pas sources, cibles, profils, ignores, mutables, nettoyage ni plan d'activation.
 
 La spécification ne standardise pas marketplaces, services hébergés, capture inverse, revue de modifications runtime, politique de sélection, état de récupération ou comportement interne des agents. Ces choix appartiennent aux produits construits au-dessus du standard.

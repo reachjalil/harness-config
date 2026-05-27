@@ -57,6 +57,10 @@ If the plan includes unexpected creates or updates, stop and inspect the source
 layout, manifest targets, `.harnessIgnore`, and target-derived overrides before
 applying.
 
+Use `npx harnessc explain <path>` when the user asks why a specific source or
+output path participates, is overridden, is ignored, or is missing from the
+projection.
+
 ## Troubleshooting
 
 - Missing target output usually means the target is not declared in

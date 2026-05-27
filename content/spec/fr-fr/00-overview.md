@@ -33,7 +33,7 @@ Le résultat n'est pas plus de cérémonie autour de la configuration agent. C'e
 
 ## Configuration avancée, forme prévisible
 
-Le standard permet une configuration expressive sans rendre l'activation opaque. Les profils permettent à une équipe, un développeur ou un sous-arbre cible de sélectionner une couche de configuration. La composition `[dir]` permet d'assembler des fichiers d'instructions partagés depuis des fragments révisés. Les fichiers `.harnessIgnore` et `.harnessProfile` dans les sorties cible permettent à une surface de harness de garder des contrôles locaux sans les promouvoir dans la source canonique.
+Le standard permet une configuration expressive sans rendre l'activation opaque. Les profils permettent à une équipe, un développeur ou un sous-arbre cible de sélectionner une couche de configuration. La composition `[[dir]]` permet d'assembler des fichiers d'instructions partagés depuis des fragments révisés. Les fichiers `.harnessIgnore` et `.harnessProfile` dans les sorties cible permettent à une surface de harness de garder des contrôles locaux sans les promouvoir dans la source canonique.
 
 Ces fonctionnalités sont volontairement indirectes. Elles ne demandent pas à chaque outil d'inventer une nouvelle UI de settings, un registry ou un service de synchronisation. Elles donnent aux outils un contrat fichier stable à inspecter: quelle source existe, quel profil est actif, quelle cible reçoit quelle projection, ce qui est filtré, et ce qui sera préservé pendant le nettoyage.
 
@@ -41,11 +41,11 @@ C'est la valeur centrale du standard: une configurabilité avancée avec un plan
 
 ## Ce que définit la spécification
 
-- Le manifeste sélectionné, par défaut `./.harness/harness.toml`, déclare la version, la source `[resources]` optionnelle, la source optionnelle `[dir]` et les `[[targets]]` explicites.
+- Le manifeste sélectionné, par défaut `./.harness/harness.toml`, déclare la version, les sources `[[resources]]`, les sources `[[dir]]` et les `[[targets]]` explicites.
 - Les ressources vivent sous la source de ressources configurée, par défaut `.harness/resources`, par exemple `.harness/resources/skills/<name>` ou un type personnalisé. Une feuille `.harnessComposable` dans la source de ressources compose un fichier de ressource projeté pour chaque cible déclarée.
 - Les surcharges dérivées de cible comme `.claude` ou `.agents` se trouvent dans une ressource et fusionnent seulement pour la cible correspondante.
 - Les fichiers `.harnessIgnore` définissent la limite de projection. Le fichier racine peut viser les chemins source et les chemins de sortie; les fichiers locaux peuvent vivre dans les sources déclarées ou dans des sorties cible existantes.
-- La source `[dir]` est séparée des ressources; elle compose des feuilles `.harnessComposable` en sorties repo-relatives, ou copie des fichiers vers des chemins relatifs au dépôt, même si la source `[dir]` est hors de `.harness`.
+- Les sources `[[dir]]` sont séparées des ressources; elles composent des feuilles `.harnessComposable` en sorties repo-relatives, ou copient des fichiers vers des chemins relatifs au dépôt, même si une source `[[dir]]` est hors de `.harness`.
 - Les profils et exclusions locaux aux cibles restent des contrôles runtime préservés, tandis que l'activation rapporte toujours le plan calculé avant écriture.
 
 ## Proposition ouverte

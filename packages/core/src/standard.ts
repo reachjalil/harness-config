@@ -93,13 +93,13 @@ const harnessExtensionsSchema = z
 
 export const harnessDirSchema = z
   .object({
-    path: harnessSourcePathSchema.default(DEFAULT_HARNESS_DIR_PATH),
+    path: harnessSourcePathSchema,
   })
   .strict();
 
 export const harnessResourcesSchema = z
   .object({
-    path: harnessSourcePathSchema.default(DEFAULT_HARNESS_RESOURCES_PATH),
+    path: harnessSourcePathSchema,
   })
   .strict();
 
@@ -129,10 +129,8 @@ export const harnessConfigSchema = z
       .strict()
       .default({ name: "harness-config" }),
     targets: z.array(harnessTargetSchema).default([]),
-    resources: harnessResourcesSchema.default({
-      path: DEFAULT_HARNESS_RESOURCES_PATH,
-    }),
-    dir: harnessDirSchema.optional(),
+    resources: z.array(harnessResourcesSchema).default([]),
+    dir: z.array(harnessDirSchema).default([]),
     extensions: harnessExtensionsSchema,
   })
   .strict();
@@ -142,9 +140,19 @@ export type HarnessConfig = z.infer<typeof harnessConfigSchema>;
 export function createDefaultHarnessConfig(): HarnessConfig {
   return harnessConfigSchema.parse({
     version: CURRENT_HARNESS_CONFIG_VERSION,
+    resources: [],
+    dir: [],
     targets: [],
     extensions: {},
   });
+}
+
+export function listHarnessResourceSources(config: HarnessConfig): string[] {
+  return config.resources.map((source) => source.path);
+}
+
+export function listHarnessDirSources(config: HarnessConfig): string[] {
+  return config.dir.map((source) => source.path);
 }
 
 export function listHarnessProjectionTargets(config: HarnessConfig): string[] {
@@ -209,8 +217,11 @@ export function stringifyHarnessConfig(config: HarnessConfig): string {
   if (config.targets.length === 0) {
     delete manifest.targets;
   }
-  if (config.resources.path === DEFAULT_HARNESS_RESOURCES_PATH) {
+  if (config.resources.length === 0) {
     delete manifest.resources;
+  }
+  if (config.dir.length === 0) {
+    delete manifest.dir;
   }
   if (Object.keys(config.extensions).length === 0) {
     delete manifest.extensions;

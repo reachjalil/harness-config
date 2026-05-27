@@ -54,7 +54,9 @@ describe("HarnessConfig initialization", () => {
     const validation = await validateHarnessConfig(root);
 
     expect(rawConfig).toContain("version = 1");
-    expect(rawConfig).not.toContain("[resources]");
+    expect(rawConfig).toContain("[[resources]]");
+    expect(rawConfig).toContain('path = "./.harness/resources"');
+    expect(rawConfig).toContain('path = "./.agents"');
     expect(rawIgnore).toContain("projecting .harness resources");
     expect(validation.hasHarnessDir).toBe(true);
     expect(validation.hasHarnessIgnore).toBe(true);
@@ -126,7 +128,7 @@ describe("HarnessConfig initialization", () => {
       "utf8"
     );
 
-    expect(rawConfig).toContain("[resources]");
+    expect(rawConfig).toContain("[[resources]]");
     expect(rawConfig).toContain('path = "./agent-context/resources"');
     await expect(
       lstat(path.join(root, "agent-context", "resources", "skills"))

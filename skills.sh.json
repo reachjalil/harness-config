@@ -1,0 +1,11 @@
+{
+  "$schema": "https://skills.sh/schemas/skills.sh.schema.json",
+  "notGrouped": "bottom",
+  "groupings": [
+    {
+      "title": "Harness config",
+      "description": "Skill for adopting .harness, migrating agent configuration, and using the harnessc CLI. Website: https://www.harnessconfig.dev/",
+      "skills": ["harness-config"]
+    }
+  ]
+}

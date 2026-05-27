@@ -87,15 +87,7 @@ function profileRootAllowedRoots(
   config: HarnessConfig
 ): string[] {
   const paths = resolveHarnessPaths(root, { config });
-  const allowedRoots = [paths.harnessDir, paths.resourcesDir];
-  if (config.dir) {
-    try {
-      allowedRoots.push(resolveRepoLocalPath(root, config.dir.path));
-    } catch {
-      // Path validation reports the underlying invalid path separately.
-    }
-  }
-  return allowedRoots;
+  return [paths.harnessDir, ...paths.resourcesDirs, ...paths.dirDirs];
 }
 
 function validateRepoLocalPath(
@@ -144,23 +136,22 @@ function validateConfigSemantics(
   diagnostics: HarnessDiagnostic[]
 ): void {
   const sourcePaths = [
-    { label: "resources", path: config.resources.path },
-    ...(config.dir ? [{ label: "dir", path: config.dir.path }] : []),
+    ...config.resources.map((source, index) => ({
+      label: `resources[${index}]`,
+      path: source.path,
+    })),
+    ...config.dir.map((source, index) => ({
+      label: `dir[${index}]`,
+      path: source.path,
+    })),
   ];
-  validateRepoLocalPath(
-    diagnostics,
-    root,
-    config.resources.path,
-    "resources.path",
-    "Resources source path"
-  );
-  if (config.dir) {
+  for (const source of sourcePaths) {
     validateRepoLocalPath(
       diagnostics,
       root,
-      config.dir.path,
-      "dir.path",
-      "Dir source path"
+      source.path,
+      `${source.label}.path`,
+      `${source.label} source path`
     );
   }
   for (let leftIndex = 0; leftIndex < sourcePaths.length; leftIndex += 1) {

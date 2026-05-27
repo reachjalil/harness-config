@@ -6,10 +6,6 @@ const root = process.cwd();
 const packageDirs = ["packages/core", "packages/cli", "packages/harnessc"];
 const dryRun = process.argv.includes("--dry-run");
 
-if (!dryRun && !process.env.NODE_AUTH_TOKEN) {
-  throw new Error("NODE_AUTH_TOKEN is required to publish npm packages.");
-}
-
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
     cwd: options.cwd ?? root,
