@@ -44,19 +44,25 @@ path = "./.claude"
     expect(listHarnessProjectionTargets(config)).toEqual(["./.claude"]);
   });
 
-  it("parses a configurable resources source root", () => {
+  it("parses ordered configurable resources source roots", () => {
     const config = parseHarnessConfigToml(`
 version = 1
 
-[resources]
+[[resources]]
 path = "./agent-context/resources"
+
+[[resources]]
+path = "./agent-context/local/resources"
 
 [[targets]]
 path = "./.agents"
 `);
 
-    expect(config.resources.path).toBe("./agent-context/resources");
-    expect(stringifyHarnessConfig(config)).toContain("[resources]");
+    expect(config.resources.map((source) => source.path)).toEqual([
+      "./agent-context/resources",
+      "./agent-context/local/resources",
+    ]);
+    expect(stringifyHarnessConfig(config)).toContain("[[resources]]");
     expect(
       stringifyHarnessConfig(parseHarnessConfigToml("version = 1"))
     ).not.toContain("[resources]");
@@ -124,18 +130,16 @@ mode = "copy"
     ).toThrow(/Unrecognized key/);
   });
 
-  it("parses a configurable resources root", () => {
-    const config = parseHarnessConfigToml(`
+  it("rejects legacy single-table and per-kind manifest resource declarations", () => {
+    expect(() =>
+      parseHarnessConfigToml(`
 version = 1
 
 [resources]
 path = "./agent-context/resources"
-`);
+`)
+    ).toThrow(/expected array/);
 
-    expect(config.resources.path).toBe("./agent-context/resources");
-  });
-
-  it("rejects per-kind manifest resource declarations", () => {
     expect(() =>
       parseHarnessConfigToml(`
 version = 1
@@ -143,7 +147,16 @@ version = 1
 [resources.skills]
 path = "./.harness/resources/skills"
 `)
-    ).toThrow(/Unrecognized key/);
+    ).toThrow(/expected array/);
+
+    expect(() =>
+      parseHarnessConfigToml(`
+version = 1
+
+[dir]
+path = "./.harness/dir"
+`)
+    ).toThrow(/expected array/);
   });
 
   it("rejects invalid extension ids and core extension fields", () => {
@@ -250,7 +263,7 @@ path = "${targetPath}"
       parseHarnessConfigToml(`
 version = 1
 
-[resources]
+[[resources]]
 path = "."
 `)
     ).toThrow(/Source paths must point at a repo-local folder/);
@@ -259,7 +272,7 @@ path = "."
       parseHarnessConfigToml(`
 version = 1
 
-[dir]
+[[dir]]
 path = "./"
 `)
     ).toThrow(/Source paths must point at a repo-local folder/);
@@ -438,7 +451,7 @@ path = "./.cursor"
       [
         "version = 1",
         "",
-        "[resources]",
+        "[[resources]]",
         'path = "./agent-context/resources"',
         "",
         "[[targets]]",
@@ -471,10 +484,10 @@ path = "./.cursor"
       [
         "version = 1",
         "",
-        "[resources]",
+        "[[resources]]",
         'path = "./agent-context"',
         "",
-        "[dir]",
+        "[[dir]]",
         'path = "./agent-context/dir"',
         "",
         "[[targets]]",
@@ -491,12 +504,46 @@ path = "./.cursor"
     expect(codes).toContain("harness.target_overlaps_source_path");
   });
 
+  it("allows missing configured source roots as empty layers", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
+    await write(
+      root,
+      ".harness/harness.toml",
+      [
+        "version = 1",
+        "",
+        "[[resources]]",
+        'path = "./.harness/resources"',
+        "",
+        "[[resources]]",
+        'path = "./.harness/local/resources"',
+        "",
+        "[[dir]]",
+        'path = "./.harness/dir"',
+        "",
+        "[[dir]]",
+        'path = "./.harness/local/dir"',
+        "",
+      ].join("\n")
+    );
+    await write(root, ".harnessIgnore", "");
+
+    const inspection = await validateHarnessConfig(root);
+
+    expect(inspection.diagnostics).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ severity: "error" }),
+        expect.objectContaining({ code: "harness.dir_root_missing" }),
+      ])
+    );
+  });
+
   it("reports dir planning diagnostics during validation", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
     await write(
       root,
       ".harness/harness.toml",
-      ["version = 1", "", "[dir]", 'path = "./.harness/dir"', ""].join("\n")
+      ["version = 1", "", "[[dir]]", 'path = "./.harness/dir"', ""].join("\n")
     );
     await write(root, ".harnessIgnore", "");
     await write(root, ".harness/dir/AGENTS.md/.harnessComposable", "");
@@ -544,7 +591,7 @@ path = "./.cursor"
     const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
     const paths = resolveHarnessPaths(root, {
       configPath: "./config/harness.local.toml",
-      config: { resources: { path: "./agent-context/catalog" } },
+      config: { resources: [{ path: "./agent-context/catalog" }] },
     });
 
     expect(paths.configPath).toBe(
@@ -566,7 +613,7 @@ path = "./.cursor"
       [
         "version = 1",
         "",
-        "[resources]",
+        "[[resources]]",
         'path = "./agent-context"',
         "",
         "[[targets]]",

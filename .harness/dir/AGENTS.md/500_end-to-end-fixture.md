@@ -19,13 +19,16 @@ mkdir -p \
 cat > "$tmp/.harness/harness.toml" <<'TOML'
 version = 1
 
+[[resources]]
+path = "./.harness/resources"
+
 [[targets]]
 path = "./.agents"
 
 [[targets]]
 path = "./.claude"
 
-[dir]
+[[dir]]
 path = "./.harness/dir"
 TOML
 

@@ -9,7 +9,7 @@ import {
   resolveRepoLocalPath,
   toRepoRelative,
 } from "./paths";
-import { DEFAULT_HARNESS_DIR_PATH, type HarnessConfig } from "./standard";
+import type { HarnessConfig } from "./standard";
 import type {
   HarnessDiagnostic,
   HarnessIgnoreMatcher,
@@ -543,10 +543,14 @@ export async function loadHarnessIgnoreRuleSets(
 
     const targetOverrideDirectory =
       !isRoot && ignoreEntry.matchBase === "source"
-        ? targetDirectoryForResourceOverrideDirectory(
-            path.posix.dirname(sourcePath),
-            toRepoRelative(paths.root, paths.resourcesDir)
-          )
+        ? paths.resourcesDirs
+            .map((resourcesDir) =>
+              targetDirectoryForResourceOverrideDirectory(
+                path.posix.dirname(sourcePath),
+                toRepoRelative(paths.root, resourcesDir)
+              )
+            )
+            .find(Boolean)
         : undefined;
     if (targetOverrideDirectory) {
       ruleSets.push({
@@ -573,10 +577,14 @@ export async function loadHarnessIgnoreRuleSets(
       index: ignoreFiles.length + extraIndex,
       ruleSet: extraRuleSet,
     });
-    const targetOverrideDirectory = targetDirectoryForResourceOverrideDirectory(
-      extraRuleSet.directory,
-      toRepoRelative(paths.root, paths.resourcesDir)
-    );
+    const targetOverrideDirectory = paths.resourcesDirs
+      .map((resourcesDir) =>
+        targetDirectoryForResourceOverrideDirectory(
+          extraRuleSet.directory,
+          toRepoRelative(paths.root, resourcesDir)
+        )
+      )
+      .find(Boolean);
     if (extraRuleSet.matchBase !== "target" && targetOverrideDirectory) {
       ruleSets.push({
         index: ignoreFiles.length + extraIndex,
@@ -642,14 +650,11 @@ async function findHarnessIgnoreFileEntries(
 
 function sourceRootsForConfig(root: string, config: HarnessConfig): string[] {
   const paths = resolveHarnessPaths(root, { config });
-  const roots = new Set<string>([paths.harnessDir, paths.resourcesDir]);
-  if (config.dir) {
-    roots.add(resolveRepoLocalPath(root, config.dir.path, "Dir source path"));
-  } else {
-    roots.add(
-      resolveRepoLocalPath(root, DEFAULT_HARNESS_DIR_PATH, "Dir source path")
-    );
-  }
+  const roots = new Set<string>([
+    paths.harnessDir,
+    ...paths.resourcesDirs,
+    ...paths.dirDirs,
+  ]);
   return [...roots];
 }
 

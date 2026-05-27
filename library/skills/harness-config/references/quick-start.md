@@ -11,13 +11,16 @@ should actually receive:
 ```toml
 version = 1
 
+[[resources]]
+path = "./.harness/resources"
+
 [[targets]]
 path = "./.agents"
 
 [[targets]]
 path = "./.claude"
 
-[dir]
+[[dir]]
 path = "./.harness/dir"
 ```
 
@@ -56,6 +59,30 @@ Use `.harness/dir` for repo-relative files such as root instructions:
 
 `AGENTS.md` can hold shared instructions. `CLAUDE.md` can reference it with
 `.harnessRef` and add Claude-specific tail content.
+
+## Optional local customization
+
+For a solo developer or an experimental repository, offer an optional local
+layer after the committed source roots:
+
+```toml
+[[resources]]
+path = "./.harness/resources"
+
+[[resources]]
+path = "./.harness/local/resources"
+
+[[dir]]
+path = "./.harness/dir"
+
+[[dir]]
+path = "./.harness/local/dir"
+```
+
+Later roots win at the same logical output path. This lets the user try a
+personal `AGENTS.md` part, override a skill, or add a target wrapper without
+editing the shared source first. If the user wants that layer private, suggest
+adding `.harness/local/` to `.gitignore`; do not require it.
 
 ## First activation
 

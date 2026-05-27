@@ -7,7 +7,7 @@ verify the TypeScript implementation.
 Scope:
 
 - `packages/core/src/**` for standard parsing, validation, profiles, ignores,
-  `[dir]`, projection planning, and apply behavior.
+  dir planning, projection planning, and apply behavior.
 - `packages/cli/src/**` for command routing, flags, output, JSON mode, and
   exit codes.
 - `packages/harnessc/**` for the public `npx harnessc` wrapper.
@@ -33,4 +33,3 @@ Testing requirements:
   absence/preservation of files. Avoid broad snapshots for projection behavior.
 - Update `docs/TESTING.md` when a new scenario or edge case is added.
 - Run `pnpm run quality` before claiming a CLI implementation is complete.
-

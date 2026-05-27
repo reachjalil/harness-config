@@ -53,9 +53,9 @@ Séquence recommandée:
 
 1. **Snapshot des cibles existantes.** Commitez les dossiers live actuels ou copiez-les sur une branche pour garder une base de comparaison.
 2. **Déplacez le contenu durable dans la source de ressources.** Le contenu de `.claude/skills/foo/` devient souvent `./.harness/resources/skills/foo/`. Les différences propres à une cible vont dans un dossier de surcharge comme `./.harness/resources/skills/foo/.claude/`.
-3. **Déclarez les cibles dans le manifeste sélectionné.** Ajoutez un `[[targets]]` pour chaque surface de harness à régénérer. Si la source de ressources n'est pas `./.harness/resources`, déclarez-la avec `[resources] path`.
+3. **Déclarez les cibles dans le manifeste sélectionné.** Ajoutez un `[[targets]]` pour chaque surface de harness à régénérer. Déclarez chaque source partagée avec une entrée `[[resources]]`.
 4. **Écrivez `.harnessIgnore` pour les artefacts source-only.** Logs, scratch files, métadonnées et fixtures appartiennent généralement aux règles d'ignore. Les fichiers écrits par le runtime appartiennent à `[mutable]`.
-5. **Ajoutez des profils seulement quand ils clarifient l'ownership.** Placez `.harnessProfileRoot` sous `.harness`, sous la source de ressources configurée ou sous la source `[dir]`, puis sélectionnez ces profils avec `.harnessProfile`.
+5. **Ajoutez des profils seulement quand ils clarifient l'ownership.** Placez `.harnessProfileRoot` sous `.harness`, sous une source de ressources configurée ou sous une source `[[dir]]`, puis sélectionnez ces profils avec `.harnessProfile`.
 6. **Dry run, revue, puis apply.** `npx harnessc activate` affiche le plan sans écrire; relancez avec `--yes` après revue.
 7. **Relancez l'activation.** Un second dry run sans changement doit converger vers `keep` pour les fichiers gérés et `mutable` pour les fichiers runtime-owned.
 
@@ -66,7 +66,7 @@ Utilisez `.harnessIgnore` pour garder logs, caches, métadonnées, fixtures et p
 - Les règles globales vont souvent dans `./.harnessIgnore`.
 - Les règles qui voyagent avec une ressource vont dans un fichier source-local, par exemple `.harness/resources/skills/review/.harnessIgnore`.
 - Les préférences locales ou d'entreprise pour une sortie peuvent vivre dans un fichier target-output-local, par exemple `.agents/skills/review/.harnessIgnore`.
-- Les sources `[dir]` personnalisées peuvent aussi contenir des `.harnessIgnore`, y compris dans une feuille `.harnessComposable` hors de `.harness`.
+- Les sources `[[dir]]` personnalisées peuvent aussi contenir des `.harnessIgnore`, y compris dans une feuille `.harnessComposable` hors de `.harness`.
 
 Un fichier target-output-local ne participe qu'après avoir été créé dans la sortie. Il est ensuite préservé par activation et par le nettoyage des fichiers non gérés.
 

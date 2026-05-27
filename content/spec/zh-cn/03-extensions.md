@@ -35,4 +35,4 @@ activation = "explicit"
 
 ## 与核心的边界
 
-扩展不得重新定义资源源、目标、覆盖、`.harnessIgnore`、mutable 文件或计划合同。`[dir]` 是 v1 核心表面，不是扩展。
+扩展不得重新定义资源源、目标、覆盖、`.harnessIgnore`、mutable 文件或计划合同。`[[dir]]` 是 v1 核心表面，不是扩展。

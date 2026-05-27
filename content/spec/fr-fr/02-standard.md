@@ -35,7 +35,7 @@ au champ `version` du manifeste.
 
 Un harness est le runtime agent ou outil développeur qui consomme les instructions, le contexte, les outils et la configuration du dépôt. Une surface de harness est l'ensemble de fichiers ou dossiers repo-locaux que ce harness lit, par exemple `AGENTS.md`, `.agents`, `.claude` ou `.cursor`.
 
-Un dépôt conforme contient un manifeste sélectionné, par défaut `./.harness/harness.toml`, une source de ressources configurée, par défaut `.harness/resources`, des cibles explicites, un éventuel `.harnessIgnore` à la racine et une éventuelle source `[dir]` pour les sorties composées ou copiées.
+Un dépôt conforme contient un manifeste sélectionné, par défaut `./.harness/harness.toml`, des sources `[[resources]]` configurées, des cibles explicites, un éventuel `.harnessIgnore` à la racine et des sources `[[dir]]` pour les sorties composées ou copiées.
 
 ## Forme Du Dépôt
 
@@ -55,7 +55,7 @@ Un dépôt conforme contient un manifeste sélectionné, par défaut `./.harness
       .harnessIgnore
 ```
 
-Les ressources vivent sous la source `[resources]` configurée. Les types comme `skills`, `rules` ou `plugins` sont des dossiers, pas des tables TOML par type. Les surfaces de harness ne sont des sorties que lorsqu'elles sont déclarées dans `[[targets]]`.
+Les ressources vivent sous les sources `[[resources]]` configurées. Les types comme `skills`, `rules` ou `plugins` sont des dossiers, pas des tables TOML par type. Les surfaces de harness ne sont des sorties que lorsqu'elles sont déclarées dans `[[targets]]`.
 
 Un dossier de ressource peut aussi contenir le marqueur vide `.harnessComposable`. Dans ce cas, il compose un seul fichier de ressource projeté dans chaque cible déclarée, par exemple `skills/review/SKILL.md`. Cette feuille reste une ressource: elle suit les surcharges de cible, les profils et les règles `.harnessIgnore` de ressources.
 
@@ -75,18 +75,18 @@ Le premier segment du chemin choisit la surcharge correspondante dans chaque res
 
 ## Source Dir Et `.harnessComposable`
 
-La table `[dir]` déclare une seule source repo-locale, par défaut `./.harness/dir`. Cette source peut aussi être hors de `.harness`, par exemple `./resources`.
+Chaque table `[[dir]]` déclare une source repo-locale. Cette source peut aussi être hors de `.harness`, par exemple `./resources`.
 
-Dans `[dir]`, un dossier qui contient le fichier vide `.harnessComposable` est une feuille composable de dir: ses parties à préfixe numérique se concatènent pour produire le fichier de sortie repo-relatif correspondant. Les autres dossiers et fichiers se copient tels quels vers leurs chemins relatifs au dépôt. Contrairement aux ressources, `[dir]` n'est pas projeté comme arbre de ressources dans chaque cible; il sert aux sorties repo-relatives comme `AGENTS.md`, `CLAUDE.md` ou des fichiers propres à une cible.
+Dans une source `[[dir]]`, un dossier qui contient le fichier vide `.harnessComposable` est une feuille composable de dir: ses parties à préfixe numérique se concatènent pour produire le fichier de sortie repo-relatif correspondant. Les autres dossiers et fichiers se copient tels quels vers leurs chemins relatifs au dépôt. Contrairement aux ressources, `[[dir]]` n'est pas projeté comme arbre de ressources dans chaque cible; il sert aux sorties repo-relatives comme `AGENTS.md`, `CLAUDE.md` ou des fichiers propres à une cible.
 
-Les fichiers `.harnessIgnore` source-locaux dans la source `[dir]`, y compris dans une feuille `.harnessComposable` hors de `.harness`, filtrent les parties, feuilles et dossiers. Les fichiers `.harnessIgnore` target-output-local filtrent aussi les sorties `[dir]` par chemin final une fois les sorties candidates connues. Pendant la collecte `[dir]`, seules les règles globales participent; `[mutable]` ne s'applique qu'aux projections de ressources vers les cibles.
+Les fichiers `.harnessIgnore` source-locaux dans une source `[[dir]]`, y compris dans une feuille `.harnessComposable` hors de `.harness`, filtrent les parties, feuilles et dossiers. Les fichiers `.harnessIgnore` target-output-local filtrent aussi les sorties dir par chemin final une fois les sorties candidates connues. Pendant la collecte dir, seules les règles globales participent; `[mutable]` ne s'applique qu'aux projections de ressources vers les cibles.
 
 ## `.harnessIgnore`
 
 `.harnessIgnore` définit ce qui ne doit pas entrer dans les projections.
 
 - Le fichier à la racine du dépôt peut viser les chemins source comme `.harness/resources/skills/review/logs/` et les chemins de sortie comme `.agents/skills/review/local.tmp`.
-- Un fichier source-local sous `.harness`, sous la source de ressources configurée ou sous la source `[dir]` s'applique à son sous-arbre source.
+- Un fichier source-local sous `.harness`, sous une source de ressources configurée ou sous une source `[[dir]]` s'applique à son sous-arbre source.
 - Un fichier target-output-local sous une cible existante comme `.agents/skills/review/.harnessIgnore` s'applique aux chemins de sortie sous ce dossier.
 - Les fichiers `.harnessIgnore` dans des sorties cible existantes sont protégés: la projection ne les copie pas, ne les écrase pas et ne les supprime pas pendant le nettoyage.
 
@@ -94,13 +94,13 @@ Les règles sont évaluées des fichiers les moins profonds aux plus profonds, d
 
 ## Activation
 
-L'activation calcule la projection depuis la source de ressources configurée, les surcharges, `.harnessIgnore`, la source `[dir]`, la politique de nettoyage et la politique mutable. Le même ensemble d'entrées doit produire le même arbre cible.
+L'activation calcule la projection depuis les sources de ressources configurées, les surcharges, `.harnessIgnore`, les sources `[[dir]]`, la politique de nettoyage et la politique mutable. Le même ensemble d'entrées doit produire le même arbre cible.
 
 ## Semantique Du Systeme De Fichiers
 
 Harness config v1 fige un comportement conservateur pour le systeme de fichiers:
 
-- Les symlinks sont des entrees feuilles et ne sont jamais suivis lors de la decouverte des sources, cibles, ignores, profils ou sorties `[dir]`.
+- Les symlinks sont des entrees feuilles et ne sont jamais suivis lors de la decouverte des sources, cibles, ignores, profils ou sorties dir.
 - Les fichiers geres sont mis a jour depuis la projection source courante quand les octets cible different.
 - Les fichiers qui correspondent a `[mutable]` sont crees une fois, puis appartiennent au runtime.
 - Les fichiers non geres dans les cibles sont preserves sauf si le nettoyage est explicite.

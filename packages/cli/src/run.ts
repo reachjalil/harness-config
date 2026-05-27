@@ -54,6 +54,7 @@ type CliOptions = {
   mutablePolicy?: "skip" | "force";
   allExtensions: boolean;
   extensions: string[];
+  explainPath?: string;
   resources: string[];
   resourcesPath?: string;
   targets: string[];
@@ -75,6 +76,7 @@ const HELP = `harnessc
 
 Usage:
   harnessc validate [--root <path>] [--config <path>] [--json]
+  harnessc explain <path> [--root <path>] [--config <path>] [--json]
   harnessc init [--root <path>] [--config <path>] [--resources-path <path>]
                 [--dry-run] [--yes] [--resource <kind>] [--target <path>]
   harnessc activate [--root <path>] [--dry-run] [--yes]
@@ -89,6 +91,7 @@ Usage:
 
 Commands:
   validate    Validate the repository against the Harness config standard.
+  explain     Explain how a source or output path participates in projection.
   init        Plan or create .harness resource structure.
   activate    Plan or apply idempotent Harness config projections.
   extension   Plan or apply registered Harness config extensions.
@@ -102,11 +105,9 @@ upward for the nearest .harness/harness.toml. Init uses skills, rules, and
 plugins as conventional resource folders under the configured resources path
 unless --resource is supplied. Targets are explicit repo-local paths declared
 with --target.
-Declaring [dir] in the manifest turns on the dir source root (default
-./.harness/dir): a folder that contains a
-.harnessComposable marker file is composed from its numbered parts into a
-single output file, and any other folder copies its files to the matching
-repo-relative paths.
+Declared [[dir]] source roots compose folders that contain a
+.harnessComposable marker file from their numbered parts into a single output
+file, and copy any other files to their matching repo-relative paths.
 
 Activation without --yes is the projection preview. Activation keeps unmanaged
 target entries by default. Use --remove-unmanaged to delete target entries that
@@ -241,6 +242,10 @@ function parseArgs(argv: string[]): CliOptions {
       options.commandExplicit = true;
       continue;
     }
+    if (options.command === "explain" && !options.explainPath) {
+      options.explainPath = arg;
+      continue;
+    }
     throw new Error(`Unknown argument: ${arg}`);
   }
 
@@ -296,7 +301,7 @@ type SourceStats = {
   resourceFiles: number;
   resourceKinds: number;
   composableFiles: number;
-  dirPath?: string;
+  dirPaths: string[];
 };
 
 const CLI_ANSI = {
@@ -331,6 +336,13 @@ function plural(count: number, label: string): string {
 
 function displayRepoPath(repoPath: string): string {
   return repoPath.replaceAll("\\", "/").replace(/^\.\//, "");
+}
+
+function isInsideOrEqual(parent: string, child: string): boolean {
+  const relative = path.relative(path.resolve(parent), path.resolve(child));
+  return (
+    !relative || (!relative.startsWith("..") && !path.isAbsolute(relative))
+  );
 }
 
 async function countFilesAndComposables(directory: string): Promise<{
@@ -400,17 +412,38 @@ async function collectSourceStats(
   }
 
   const paths = resolveHarnessPaths(inspection.root, { config });
-  const resources = await countFilesAndComposables(paths.resourcesDir);
-  const dir = config.dir
-    ? await countFilesAndComposables(path.resolve(paths.root, config.dir.path))
-    : { files: 0, composables: 0 };
+  const resourcesList = await Promise.all(
+    paths.resourcesDirs.map((resourcesDir) =>
+      countFilesAndComposables(resourcesDir)
+    )
+  );
+  const dirList = await Promise.all(
+    paths.dirDirs.map((dirDir) => countFilesAndComposables(dirDir))
+  );
+  const resources = resourcesList.reduce(
+    (sum, entry) => ({
+      files: sum.files + entry.files,
+      composables: sum.composables + entry.composables,
+    }),
+    { files: 0, composables: 0 }
+  );
+  const dir = dirList.reduce(
+    (sum, entry) => ({
+      files: sum.files + entry.files,
+      composables: sum.composables + entry.composables,
+    }),
+    { files: 0, composables: 0 }
+  );
+  const resourceKinds = (
+    await Promise.all(paths.resourcesDirs.map(countResourceKinds))
+  ).reduce((sum, count) => sum + count, 0);
 
   return {
     targetCount: config.targets.length,
     resourceFiles: resources.files,
-    resourceKinds: await countResourceKinds(paths.resourcesDir),
+    resourceKinds,
     composableFiles: resources.composables + dir.composables,
-    dirPath: config.dir?.path,
+    dirPaths: config.dir.map((source) => source.path),
   };
 }
 
@@ -470,6 +503,190 @@ async function formatProjectionStatus(
   )}, ${cliStyle(options, CLI_ANSI.red, `remove ${remove}`)}`;
 }
 
+async function explainHarnessPath(
+  root: string,
+  configPath: string | undefined,
+  inputPath: string,
+  options: HarnessFormatOptions
+): Promise<unknown> {
+  const inspection = await validateHarnessConfig(root, { configPath });
+  const absoluteRoot = path.resolve(inspection.root);
+  const absoluteInput = path.isAbsolute(inputPath)
+    ? path.resolve(inputPath)
+    : path.resolve(absoluteRoot, inputPath);
+  const repoPath = displayRepoPath(toRepoRelative(absoluteRoot, absoluteInput));
+  const raw = await readFile(inspection.paths.configPath, "utf8").catch(
+    () => undefined
+  );
+  if (raw === undefined) {
+    return {
+      path: repoPath,
+      diagnostics: inspection.diagnostics,
+      explanation: "No selected harness.toml was found.",
+    };
+  }
+
+  const config = parseHarnessConfigToml(raw);
+  const paths = resolveHarnessPaths(absoluteRoot, { config, configPath });
+  const plan = await planHarnessActivation(absoluteRoot, { configPath });
+  const matchingTargetActions = plan.targets.flatMap((target) =>
+    target.actions
+      .filter(
+        (action) =>
+          displayRepoPath(toRepoRelative(plan.root, action.targetPath)) ===
+          repoPath
+      )
+      .map((action) => ({ target: target.path, ...action }))
+  );
+  const matchingDirActions = plan.dir.actions.filter(
+    (action) =>
+      displayRepoPath(toRepoRelative(plan.root, action.targetPath)) === repoPath
+  );
+  const matchingSourceActions = [
+    ...plan.targets.flatMap((target) =>
+      target.actions
+        .filter(
+          (action) =>
+            action.sourcePath &&
+            displayRepoPath(toRepoRelative(plan.root, action.sourcePath)) ===
+              repoPath
+        )
+        .map((action) => ({ target: target.path, ...action }))
+    ),
+    ...plan.dir.actions.filter((action) =>
+      action.sourcePaths.some(
+        (sourcePath) =>
+          displayRepoPath(toRepoRelative(plan.root, sourcePath)) === repoPath
+      )
+    ),
+  ];
+  const sourceRoots = [
+    ...paths.resourcesDirs.map((sourceRoot, index) => ({
+      kind: "resources",
+      index,
+      path: sourceRoot,
+    })),
+    ...paths.dirDirs.map((sourceRoot, index) => ({
+      kind: "dir",
+      index,
+      path: sourceRoot,
+    })),
+  ];
+  const matchingSourceRoot = sourceRoots.find((sourceRoot) =>
+    isInsideOrEqual(sourceRoot.path, absoluteInput)
+  );
+
+  return {
+    root: absoluteRoot,
+    path: repoPath,
+    sourceRoot: matchingSourceRoot
+      ? {
+          kind: matchingSourceRoot.kind,
+          index: matchingSourceRoot.index,
+          path: displayRepoPath(
+            toRepoRelative(absoluteRoot, matchingSourceRoot.path)
+          ),
+        }
+      : undefined,
+    outputActions: matchingTargetActions,
+    dirActions: matchingDirActions,
+    sourceActions: matchingSourceActions,
+    diagnostics: plan.diagnostics,
+    explanation:
+      matchingTargetActions.length > 0 || matchingDirActions.length > 0
+        ? "This path is a planned output."
+        : matchingSourceActions.length > 0
+          ? "This source path participates in the current projection."
+          : matchingSourceRoot
+            ? "This path is under a configured source root but does not appear in the current projection plan. It may be ignored, inactive for the selected target/profile, overridden by a later source, or not a projectable file."
+            : "This path is not under a configured source root and is not a planned output.",
+    color: options.color === true,
+  };
+}
+
+function formatExplainResult(
+  result: Awaited<ReturnType<typeof explainHarnessPath>>,
+  options: HarnessFormatOptions
+): string {
+  const value = result as {
+    root: string;
+    path: string;
+    sourceRoot?: { kind: string; index: number; path: string };
+    outputActions?: Array<{
+      kind: string;
+      target?: string;
+      targetPath: string;
+      sourcePath?: string;
+      reason?: string;
+    }>;
+    dirActions?: Array<{
+      kind: string;
+      targetPath: string;
+      sourcePaths: string[];
+      outputKind: string;
+      reason?: string;
+    }>;
+    sourceActions?: Array<{
+      kind: string;
+      target?: string;
+      targetPath?: string;
+      sourcePath?: string;
+      sourcePaths?: string[];
+      reason?: string;
+    }>;
+    diagnostics?: HarnessInspection["diagnostics"];
+    explanation: string;
+  };
+  const lines = [
+    cliStyle(options, CLI_ANSI.bold, "Harness config explanation"),
+    `${cliLabel(options, "Path:")} ${cliValue(options, value.path)}`,
+    `${cliLabel(options, "Summary:")} ${value.explanation}`,
+  ];
+  if (value.sourceRoot) {
+    lines.push(
+      `${cliLabel(options, "Source root:")} ${cliValue(
+        options,
+        `${value.sourceRoot.kind}[${value.sourceRoot.index}] ${value.sourceRoot.path}`
+      )}`
+    );
+  }
+  for (const action of value.outputActions ?? []) {
+    lines.push(
+      `${cliLabel(options, "Output action:")} ${action.kind} in ${
+        action.target ?? "target"
+      }${
+        action.sourcePath
+          ? ` <- ${displayRepoPath(toRepoRelative(value.root, action.sourcePath))}`
+          : ""
+      }${action.reason ? ` (${action.reason})` : ""}`
+    );
+  }
+  for (const action of value.dirActions ?? []) {
+    lines.push(
+      `${cliLabel(options, "Dir action:")} ${action.kind} ${
+        action.outputKind
+      } from ${action.sourcePaths.length} source file${
+        action.sourcePaths.length === 1 ? "" : "s"
+      }${action.reason ? ` (${action.reason})` : ""}`
+    );
+  }
+  for (const action of value.sourceActions ?? []) {
+    lines.push(
+      `${cliLabel(options, "Source use:")} ${action.kind}${
+        action.target ? ` for ${action.target}` : ""
+      }${action.reason ? ` (${action.reason})` : ""}`
+    );
+  }
+  const diagnostics = (value.diagnostics ?? []).filter(
+    (diagnostic) => diagnostic.severity === "error"
+  );
+  if (diagnostics.length > 0) {
+    lines.push("", cliStyle(options, CLI_ANSI.bold, "Blocking diagnostics:"));
+    lines.push(formatDiagnostics(diagnostics, options));
+  }
+  return lines.join("\n");
+}
+
 async function formatBareCommandGuidance(
   inspection: HarnessInspection,
   configPath: string | undefined,
@@ -514,8 +731,8 @@ async function formatBareCommandGuidance(
         )}`,
         `  ${cliLabel(options, "Dir source:")} ${cliValue(
           options,
-          sourceStats.dirPath
-            ? displayRepoPath(sourceStats.dirPath)
+          sourceStats.dirPaths.length > 0
+            ? sourceStats.dirPaths.map(displayRepoPath).join(", ")
             : "not declared"
         )}`,
         projectionStatus,
@@ -576,8 +793,10 @@ function initOptionsFromCli(
     config: harnessConfigSchema.parse({
       ...base,
       resources: options.resourcesPath
-        ? { path: options.resourcesPath }
-        : base.resources,
+        ? [{ path: options.resourcesPath }]
+        : base.resources.length > 0
+          ? base.resources
+          : [{ path: "./.harness/resources" }],
       targets: options.targets.map((target) => ({ path: target })),
     }),
     resourceKinds,
@@ -679,6 +898,24 @@ export async function runHarnessConfigCli(
       )
         ? 1
         : 0;
+    }
+
+    if (options.command === "explain") {
+      if (!options.explainPath) {
+        throw new Error("harnessc explain requires a path.");
+      }
+      const explanation = await explainHarnessPath(
+        options.root,
+        options.configPath,
+        options.explainPath,
+        formatOptions
+      );
+      io.stdout(
+        options.json
+          ? JSON.stringify(explanation, null, 2)
+          : formatExplainResult(explanation, formatOptions)
+      );
+      return 0;
     }
 
     if (options.command === "plan") {

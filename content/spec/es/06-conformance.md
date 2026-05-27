@@ -26,7 +26,7 @@ Un claim de soporte Harness config debe ser testable desde la forma de archivos 
 - Conformidad de repositorio: el manifiesto declara `version = 1`, fuentes repo-locales y destinos repo-locales.
 - Conformidad de recurso: un recurso vive bajo la fuente configurada, puede ser archivo, carpeta u hoja `.harnessComposable`, y las sobrescrituras son carpetas dentro del recurso.
 - Conformidad de destino: cada `[[targets]]` contiene solo una ruta repo-local y no apunta hacia `.harness`.
-- Conformidad `[dir]`: `[dir]` compone sus hojas `.harnessComposable` y copia otros archivos hacia salidas relativas al repositorio, separadas de los recursos proyectados.
+- Conformidad `[[dir]]`: `[[dir]]` compone sus hojas `.harnessComposable` y copia otros archivos hacia salidas relativas al repositorio, separadas de los recursos proyectados.
 - Conformidad de proyeccion: activacion aplica `.harnessIgnore`, incluyendo raiz, fuente, salida y `[mutable]`.
 - Conformidad de herramienta: la herramienta informa el plan antes de escribir y nunca trata una superficie de harness como fuente de verdad.
 

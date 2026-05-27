@@ -33,15 +33,15 @@ npx harnessc extension activate
 
 `npx harnessc activate` est dry-run par défaut. Il affiche les créations, mises à jour, fichiers mutables ignorés, suppressions demandées, fichiers inchangés et entrées non gérées préservées avant écriture.
 
-Le manifeste par défaut est `./.harness/harness.toml`. `--config <path>` peut sélectionner un autre fichier TOML repo-local, et `--resources-path <path>` écrit la source `[resources]` configurée pour un dépôt qui ne veut pas utiliser `.harness/resources`.
+Le manifeste par défaut est `./.harness/harness.toml`. `--config <path>` peut sélectionner un autre fichier TOML repo-local, et `--resources-path <path>` écrit une entrée `[[resources]]` configurée.
 
 ## Dir
 
-Déclarer `[dir]` active une source unique, par défaut `./.harness/dir`. Dans cette source, les feuilles avec `.harnessComposable` composent leurs parties numériques en sorties repo-relatives; les autres fichiers et dossiers se copient vers les chemins relatifs au dépôt.
+Déclarer `[[dir]]` active des sources ordonnées. Dans ces sources, les feuilles avec `.harnessComposable` composent leurs parties numériques en sorties repo-relatives; les autres fichiers et dossiers se copient vers les chemins relatifs au dépôt.
 
-Le même marqueur `.harnessComposable` peut être utilisé sous la source de ressources configurée. Là, il compose un fichier de ressource projeté dans chaque cible déclarée; ce n'est pas une sortie repo-relative `[dir]`.
+Le même marqueur `.harnessComposable` peut être utilisé sous une source de ressources configurée. Là, il compose un fichier de ressource projeté dans chaque cible déclarée; ce n'est pas une sortie repo-relative `[[dir]]`.
 
-Les règles `.harnessIgnore` source-side filtrent la collection `[dir]`, y compris dans une source personnalisée hors `.harness` et dans les feuilles `.harnessComposable`. Les règles target-output-local filtrent les sorties finales après le calcul des chemins candidats. Pendant la collecte `[dir]`, seules les règles globales participent; `[mutable]` reste réservé aux projections de ressources vers les cibles.
+Les règles `.harnessIgnore` source-side filtrent la collection dir, y compris dans une source personnalisée hors `.harness` et dans les feuilles `.harnessComposable`. Les règles target-output-local filtrent les sorties finales après le calcul des chemins candidats. Pendant la collecte dir, seules les règles globales participent; `[mutable]` reste réservé aux projections de ressources vers les cibles.
 
 ## Helpers TypeScript
 

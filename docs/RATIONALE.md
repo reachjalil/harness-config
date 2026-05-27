@@ -54,10 +54,10 @@ object model:
 
 - Selected manifest: a repo-local TOML file, defaulting to
   `./.harness/harness.toml`, that declares the standard version, configured
-  source roots, explicit targets, optional `[dir]`, and extension declarations.
-- Source catalog: durable resources under the configured resources source,
-  defaulting to `./.harness/resources`, plus optional repo-relative `[dir]`
-  outputs under the configured dir source.
+  source roots, explicit targets, ordered `[[dir]]` roots, and extension
+  declarations.
+- Source catalog: durable resources under configured `[[resources]]` source
+  roots, plus repo-relative outputs under configured `[[dir]]` source roots.
 - Declared target: a harness surface, such as `./.agents` or `./.claude`, that
   receives projection only when listed in the manifest.
 - Target-derived override: a dot-prefixed folder inside a resource, such as
@@ -95,14 +95,14 @@ object model:
 
 Behavior that changes the base projection plan is part of the core standard:
 resources, declared targets, target-derived overrides, profile overlays,
-`.harnessIgnore`, `[mutable]`, cleanup, and `[dir]` composition/copy. These
+`.harnessIgnore`, `[mutable]`, cleanup, and dir composition/copy. These
 features interact directly with idempotency, unmanaged cleanup, and target
 preservation, so they need one shared contract.
 
 Extensions are reserved for registered behavior adjacent to that contract. The
 base standard defines extension discovery and activation policy fields, while
 each extension owns its schema, compatibility, diagnostics, planning, and
-writes. An extension must not redefine the resources source, targets,
+writes. An extension must not redefine resources sources, targets,
 overrides, profiles, `.harnessIgnore`, mutable files, cleanup, or the core
 activation plan.
 
@@ -190,7 +190,7 @@ repo-local source-to-runtime projection problem and leaves the rest.
 - **`AGENTS.md`, `CLAUDE.md`, and `copilot-instructions.md`** are the
   immediate prior art for *what* gets projected. Harness config does not
   define their content; it gives them one shared source location and a
-  consistent way to compose them through the optional `[dir]` source
+  consistent way to compose them through configured `[[dir]]` source roots
   rather than hand-syncing duplicate prose.
 
 What Harness config deliberately does *not* try to be: a package manager, a

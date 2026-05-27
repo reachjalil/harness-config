@@ -29,8 +29,8 @@ Harness config v1 starts from a small source contract:
 
 1. Create `./.harness/harness.toml` with `version = 1`, or choose another repo-local
    manifest path and pass it explicitly to tooling.
-2. Add resource folders and files under the configured resources source,
-   defaulting to `.harness/resources`, such as
+2. Add resource folders and files under explicit `[[resources]]` source roots,
+   commonly `.harness/resources`, such as
    `.harness/resources/skills`, `.harness/resources/rules`, or
    `.harness/resources/hooks.json`.
 3. Declare every projection target explicitly in the selected manifest.
@@ -71,8 +71,8 @@ Recommended sequence:
    target-specific versions under `.harness/resources/.claude/`.
 3. **Declare targets in the selected manifest.** Add a `[[targets]]` entry for
    each harness surface you want regenerated. A target only receives projections
-   when it appears here. If the resources source is not
-   `./.harness/resources`, declare the shared source with `[resources] path`.
+   when it appears here. Declare every shared source with an explicit
+   `[[resources]]` entry.
 4. **Write `.harnessIgnore` for source-only and runtime-owned artifacts.**
    Logs, scratch files, per-tool metadata, and skill `metadata.toml`
    typically belong under ignore rules because they should not cross the
@@ -87,8 +87,8 @@ Recommended sequence:
    when the live harness surface is gitignored and a developer needs a local,
    temporary boundary; shared rules should live in source.
 5. **Add profile overrides only where they clarify ownership.** Put
-   `.harnessProfileRoot` under `.harness`, the configured resources source, or
-   the configured dir source for optional kits or personal overlays, and
+   `.harnessProfileRoot` under `.harness`, a configured resources source, or
+   a configured dir source for optional kits or personal overlays, and
    select them with repo-root or target-output `.harnessProfile` files.
    Profile-local `.harnessIgnore` files can hide base files or composable
    parts for that profile.

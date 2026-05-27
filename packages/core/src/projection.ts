@@ -699,7 +699,9 @@ function resourceComposableMutable(
 }
 
 async function projectResourcesTree(options: {
+  composableLeaves: Map<string, ResourceComposableLeaf>;
   diagnostics: HarnessDiagnostic[];
+  emittedComposableLeafPaths: Set<string>;
   logicalSourceDir: string;
   matcher: HarnessIgnoreMatcher;
   overrideDir: string | undefined;
@@ -711,13 +713,12 @@ async function projectResourcesTree(options: {
   requiredProfile?: string;
   root: string;
   sourceDir: string;
+  suppressedComposableOutputPaths: Set<string>;
   targetPath: string;
 }): Promise<void> {
   const composableLeafPaths = await findResourceComposableLeafPaths(
     options.sourceDir
   );
-  const composableLeaves = new Map<string, ResourceComposableLeaf>();
-  const emittedComposableLeafPaths = new Set<string>();
   for (const relativeFromSource of composableLeafPaths) {
     const relativeForOutput = path.join(
       options.outputBaseRelativePath ?? "",
@@ -767,61 +768,38 @@ async function projectResourcesTree(options: {
       targetPath: options.targetPath,
     });
     if (leaf) {
-      composableLeaves.set(relativeFromSource, leaf);
+      const existing = options.composableLeaves.get(relativeFromSource);
+      if (existing) {
+        if (options.profileRootDir) {
+          existing.parts = [...leaf.parts];
+        } else {
+          existing.parts.push(...leaf.parts);
+        }
+        if (leaf.harnessRefSourcePath) {
+          existing.harnessRefSourcePath = leaf.harnessRefSourcePath;
+          existing.harnessRefTargetRelativePath =
+            leaf.harnessRefTargetRelativePath;
+        }
+      } else {
+        options.composableLeaves.set(relativeFromSource, leaf);
+      }
       if (outputRelativePath) {
-        emittedComposableLeafPaths.add(relativeFromSource);
+        options.emittedComposableLeafPaths.add(relativeFromSource);
+        options.suppressedComposableOutputPaths.delete(outputRelativePath);
       }
     }
   }
-  resolveResourceComposableRefs(
-    composableLeaves,
-    options.diagnostics,
-    options.root
-  );
-  for (const leaf of composableLeaves.values()) {
-    if (!emittedComposableLeafPaths.has(leaf.relativeFromSource)) {
-      continue;
-    }
-    const activeProfile = options.profileContext.profileForOutput(
-      leaf.targetOutputPath
-    );
-    const parts = expandResourceComposableParts(
-      leaf,
-      composableLeaves,
-      options.diagnostics
-    ).filter(
-      (part) =>
-        !filtersResourceComposablePart(
-          options.root,
-          options.matcher,
-          leaf,
-          part,
-          options.targetPath,
-          activeProfile
-        )
-    );
-    setProjectedFile(
-      options.projection,
-      leaf.outputRelativePath,
-      {
-        bytes: Buffer.concat(parts.map((part) => part.bytes)),
-        mutable: resourceComposableMutable(
-          options.matcher,
-          leaf,
-          options.targetPath,
-          activeProfile
-        ),
-        profileRootDir: options.profileRootDir,
-        relativePath: leaf.outputRelativePath,
-        sourcePath:
-          parts[0]?.sourcePath ??
-          leaf.harnessRefSourcePath ??
-          path.join(leaf.absolutePath, HARNESS_COMPOSABLE_MARKER),
-      },
-      options.root,
-      options.diagnostics
-    );
-  }
+  emitResourceComposableLeaves({
+    composableLeaves: options.composableLeaves,
+    diagnostics: options.diagnostics,
+    emittedComposableLeafPaths: options.emittedComposableLeafPaths,
+    matcher: options.matcher,
+    profileContext: options.profileContext,
+    projection: options.projection,
+    root: options.root,
+    suppressedComposableOutputPaths: options.suppressedComposableOutputPaths,
+    targetPath: options.targetPath,
+  });
 
   const files = (
     await listFiles(options.sourceDir, {
@@ -862,6 +840,7 @@ async function projectResourcesTree(options: {
       continue;
     }
 
+    options.suppressedComposableOutputPaths.add(outputRelativePath);
     await addFileIfIncluded(
       options.projection,
       options.root,
@@ -883,6 +862,72 @@ async function projectResourcesTree(options: {
   }
 }
 
+function emitResourceComposableLeaves(options: {
+  composableLeaves: Map<string, ResourceComposableLeaf>;
+  diagnostics: HarnessDiagnostic[];
+  emittedComposableLeafPaths: Set<string>;
+  matcher: HarnessIgnoreMatcher;
+  profileContext: HarnessProfileContext;
+  profileRootDir?: string;
+  projection: DesiredProjection;
+  root: string;
+  suppressedComposableOutputPaths: Set<string>;
+  targetPath: string;
+}): void {
+  resolveResourceComposableRefs(
+    options.composableLeaves,
+    options.diagnostics,
+    options.root
+  );
+  for (const leaf of options.composableLeaves.values()) {
+    if (!options.emittedComposableLeafPaths.has(leaf.relativeFromSource)) {
+      continue;
+    }
+    if (options.suppressedComposableOutputPaths.has(leaf.outputRelativePath)) {
+      continue;
+    }
+    const activeProfile = options.profileContext.profileForOutput(
+      leaf.targetOutputPath
+    );
+    const parts = expandResourceComposableParts(
+      leaf,
+      options.composableLeaves,
+      options.diagnostics
+    ).filter(
+      (part) =>
+        !filtersResourceComposablePart(
+          options.root,
+          options.matcher,
+          leaf,
+          part,
+          options.targetPath,
+          activeProfile
+        )
+    );
+    setProjectedFile(
+      options.projection,
+      leaf.outputRelativePath,
+      {
+        bytes: Buffer.concat(parts.map((part) => part.bytes)),
+        mutable: resourceComposableMutable(
+          options.matcher,
+          leaf,
+          options.targetPath,
+          activeProfile
+        ),
+        profileRootDir: options.profileRootDir,
+        relativePath: leaf.outputRelativePath,
+        sourcePath:
+          parts[0]?.sourcePath ??
+          leaf.harnessRefSourcePath ??
+          path.join(leaf.absolutePath, HARNESS_COMPOSABLE_MARKER),
+      },
+      options.root,
+      options.diagnostics
+    );
+  }
+}
+
 async function projectCanonicalResourcesTree(options: {
   config: HarnessConfig;
   diagnostics: HarnessDiagnostic[];
@@ -894,53 +939,67 @@ async function projectCanonicalResourcesTree(options: {
   root: string;
   targetPath: string;
 }): Promise<void> {
-  const resourcesDir = resolveHarnessPaths(options.root, {
+  const resourcesDirs = resolveHarnessPaths(options.root, {
     config: options.config,
-  }).resourcesDir;
-  const resourcesState = await lstat(resourcesDir).catch(() => undefined);
-  if (resourcesState?.isDirectory() && !resourcesState.isSymbolicLink()) {
-    await projectResourcesTree({
-      ...options,
-      logicalSourceDir: resourcesDir,
-      sourceDir: resourcesDir,
-    });
+  }).resourcesDirs;
+  const composableLeaves = new Map<string, ResourceComposableLeaf>();
+  const emittedComposableLeafPaths = new Set<string>();
+  const suppressedComposableOutputPaths = new Set<string>();
+
+  for (const resourcesDir of resourcesDirs) {
+    const resourcesState = await lstat(resourcesDir).catch(() => undefined);
+    if (resourcesState?.isDirectory() && !resourcesState.isSymbolicLink()) {
+      await projectResourcesTree({
+        ...options,
+        composableLeaves,
+        emittedComposableLeafPaths,
+        logicalSourceDir: resourcesDir,
+        sourceDir: resourcesDir,
+        suppressedComposableOutputPaths,
+      });
+    }
   }
 
   for (const profileRoot of options.profileContext.profileRoots) {
-    const profileResourcesDirFromRoot = profileSourceDirForRoot(
-      profileRoot,
-      resourcesDir
-    );
-    const overlaysResourcesSubtree = isInsideOrEqual(
-      resourcesDir,
-      profileRoot.overlayBase
-    );
-    const profileResourcesDir =
-      profileResourcesDirFromRoot ??
-      (overlaysResourcesSubtree ? profileRoot.rootDir : undefined);
-    if (!profileResourcesDir) {
-      continue;
+    for (const resourcesDir of resourcesDirs) {
+      const profileResourcesDirFromRoot = profileSourceDirForRoot(
+        profileRoot,
+        resourcesDir
+      );
+      const overlaysResourcesSubtree = isInsideOrEqual(
+        resourcesDir,
+        profileRoot.overlayBase
+      );
+      const profileResourcesDir =
+        profileResourcesDirFromRoot ??
+        (overlaysResourcesSubtree ? profileRoot.rootDir : undefined);
+      if (!profileResourcesDir) {
+        continue;
+      }
+      const state = await lstat(profileResourcesDir).catch(() => undefined);
+      if (!state?.isDirectory() || state.isSymbolicLink()) {
+        continue;
+      }
+      const logicalSourceDir =
+        profileResourcesDirFromRoot === undefined
+          ? profileRoot.overlayBase
+          : resourcesDir;
+      const outputBaseRelativePath =
+        profileResourcesDirFromRoot === undefined
+          ? path.relative(resourcesDir, profileRoot.overlayBase)
+          : undefined;
+      await projectResourcesTree({
+        ...options,
+        composableLeaves,
+        emittedComposableLeafPaths,
+        logicalSourceDir,
+        outputBaseRelativePath,
+        profileRootDir: profileRoot.rootDir,
+        requiredProfile: profileRoot.profile,
+        sourceDir: profileResourcesDir,
+        suppressedComposableOutputPaths,
+      });
     }
-    const state = await lstat(profileResourcesDir).catch(() => undefined);
-    if (!state?.isDirectory() || state.isSymbolicLink()) {
-      continue;
-    }
-    const logicalSourceDir =
-      profileResourcesDirFromRoot === undefined
-        ? profileRoot.overlayBase
-        : resourcesDir;
-    const outputBaseRelativePath =
-      profileResourcesDirFromRoot === undefined
-        ? path.relative(resourcesDir, profileRoot.overlayBase)
-        : undefined;
-    await projectResourcesTree({
-      ...options,
-      logicalSourceDir,
-      outputBaseRelativePath,
-      profileRootDir: profileRoot.rootDir,
-      requiredProfile: profileRoot.profile,
-      sourceDir: profileResourcesDir,
-    });
   }
 }
 
@@ -1840,6 +1899,7 @@ async function prepareHarnessActivation(
       dir: {
         enabled: dirPlanState.enabled,
         path: dirPlanState.path,
+        paths: dirPlanState.paths,
         actions: dirRepoRootActions,
       },
       diagnostics: dedupeDiagnostics(diagnostics),

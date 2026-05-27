@@ -1,5 +1,28 @@
 # Harness config release notes
 
+## 1.0.0-alpha.3
+
+`1.0.0-alpha.3` updates the v1 proposal to the ordered source-root model and
+adds projection introspection for reviewable customization workflows.
+
+### Ordered Source Roots
+
+- Replaces legacy single `[resources]` and `[dir]` manifest tables with
+  ordered `[[resources]]` and `[[dir]]` source roots.
+- Treats missing configured source roots as empty layers, with later roots
+  overriding earlier exact-path outputs and composable leaves merging parts.
+- Rejects source/target overlaps and incompatible file/folder projections
+  before activation writes.
+
+### Tooling And Docs
+
+- Adds `harnessc explain <path>` for read-only projection introspection.
+- Updates `harnessc init`, docs, package READMEs, skill guidance, and website
+  specification content to use array-root examples.
+- Documents optional single-developer customization layers such as
+  `.harness/local/resources` and `.harness/local/dir` as recommendations, not
+  standard requirements.
+
 ## 1.0.0-alpha.2
 
 `1.0.0-alpha.2` establishes the repository release lane for the alpha package

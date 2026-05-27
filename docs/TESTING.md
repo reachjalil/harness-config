@@ -12,11 +12,12 @@ re-projection is the only path back to source bytes.
 
 | Area | Scenario | Test |
 | --- | --- | --- |
-| TOML | Valid `harness.toml` with path-only targets, default `.harness/harness.toml` manifest path, and optional `[resources] path` | `packages/core/test/standard.test.ts` |
+| TOML | Valid `harness.toml` with path-only targets, default `.harness/harness.toml` manifest path, and ordered `[[resources]]` / `[[dir]]` source roots | `packages/core/test/standard.test.ts` |
 | TOML | Unsupported standard versions fail validation | `packages/core/test/standard.test.ts` |
 | TOML | Target entries reject fields other than `path` | `packages/core/test/standard.test.ts` |
 | TOML | Target paths reject absolute paths, `..`, `.harness`, duplicate normalized paths, and overlapping target roots while allowing arbitrary repo-local target folders | `packages/core/test/standard.test.ts` |
-| TOML | Configured resources and dir source paths reject target overlaps and resolve independently from target roots | `packages/core/test/standard.test.ts` |
+| TOML | Legacy single `[resources]` and `[dir]` tables are rejected; configured source paths reject target overlaps and resolve independently from target roots | `packages/core/test/standard.test.ts` |
+| TOML | Missing configured source roots pass as empty layers | `packages/core/test/standard.test.ts` |
 | TOML | Duplicate targets, including explicit `.agents`, are diagnostics | `packages/core/test/standard.test.ts` |
 | TOML | Extension declarations parse with `version`, default `activation`, and extension-owned fields | `packages/core/test/standard.test.ts` |
 | Ignore | Global patterns, directory patterns, `**`, `*`, and negation | `packages/core/test/standard.test.ts` |
@@ -27,14 +28,14 @@ re-projection is the only path back to source bytes.
 | Profiles | `.harnessProfile` and `.harnessProfileRoot` grammar, empty selector behavior, and multi-line severity | `packages/core/test/standard.test.ts` |
 | Profiles | Nested `.harnessProfileRoot` declarations and profile roots outside configured source roots are diagnostics | `packages/core/test/standard.test.ts` |
 | Projection | Explicit `.agents` copy projection with `.agents` overrides | `packages/core/test/projection.test.ts` |
-| Projection | Default `.harness/resources` tree projects when `[resources]` is omitted, including direct files and target-root overrides | `packages/core/test/projection.test.ts`, `packages/cli/test/run.test.ts` |
-| Projection | Custom `[resources] path` projects resources, target overrides, profile roots, and source-local ignores from the configured source root | `packages/core/test/projection.test.ts` |
+| Projection | Explicit `.harness/resources` tree projects direct files and target-root overrides | `packages/core/test/projection.test.ts`, `packages/cli/test/run.test.ts` |
+| Projection | Ordered `[[resources]]` roots project resources, target overrides, profile roots, source-local ignores, exact replacement, and composable merge behavior | `packages/core/test/projection.test.ts` |
 | Projection | Activation can load a repo-local manifest from an explicit non-default config path | `packages/core/test/projection.test.ts`, `packages/cli/test/run.test.ts` |
 | Projection | Resource files can be composed from `.harnessComposable` leaves, including `.harnessRef` imports, recipient-local `.harnessIgnore` filters, target-output `.harnessIgnore` boundaries, and profile overlays | `packages/core/test/projection.test.ts` |
 | Projection | Additional target copy projection with target-derived overrides | `packages/core/test/projection.test.ts` |
 | Projection | Override-local `.harnessIgnore` files act as target-output boundaries for base and profile resources while real target-output rules keep final precedence | `packages/core/test/projection.test.ts` |
 | Projection | Nested override contents such as plugin manifests and nested skills | `packages/core/test/projection.test.ts` |
-| Projection | Arbitrary resource kinds under the configured resources source project without per-kind manifest declarations | `packages/core/test/projection.test.ts` |
+| Projection | Arbitrary resource kinds under configured resources sources project without per-kind manifest declarations | `packages/core/test/projection.test.ts` |
 | Projection | Scoped `.harnessIgnore` changes target output independently | `packages/core/test/projection.test.ts` |
 | Projection | Target-output `.harnessIgnore` filters one target and is preserved during cleanup | `packages/core/test/projection.test.ts` |
 | Projection | Active `.harnessProfileRoot` overlays merge resources, suppress base resources with logical `.harnessIgnore`, and preserve target-local `.harnessProfile` during cleanup | `packages/core/test/projection.test.ts` |
@@ -58,26 +59,27 @@ re-projection is the only path back to source bytes.
 | Projection | `--force-mutable` re-projects mutable files from source | `packages/core/test/projection.test.ts` |
 | Projection | Ignore rules win when a file is both ignored and marked mutable | `packages/core/test/projection.test.ts` |
 | Projection | Target byte changes plan `update` actions by direct comparison | `packages/core/test/projection.test.ts` |
-| Dir | `[dir]` composes top-level, nested, dot-directory, and extensionless outputs with the `.harnessComposable` marker | `packages/core/test/dir.test.ts` |
-| Dir | `[dir]` `.harnessRef` imports parts and sorts them with local parts | `packages/core/test/dir.test.ts` |
-| Dir | `[dir]` honors only global `.harnessIgnore` rules during composition | `packages/core/test/dir.test.ts` |
-| Dir | `[dir]` honors source-local `.harnessIgnore` inside `.harnessComposable` leaves, including custom dir sources outside `.harness` | `packages/core/test/dir.test.ts` |
-| Dir | `[dir]` honors target-output `.harnessIgnore` for copy and composable outputs | `packages/core/test/dir.test.ts` |
-| Dir | `[dir]` active profile roots add composable parts and use logical `.harnessIgnore` files to suppress base parts | `packages/core/test/dir.test.ts` |
-| Dir | `[dir]` portable profile roots nested inside composable leaves can add profile parts | `packages/core/test/dir.test.ts` |
-| Dir | `[dir]` discovers target-output `.harnessProfile` selectors in the final bootstrap pass, including profile-only dir outputs with no base candidate | `packages/core/test/dir.test.ts` |
-| Dir | `[dir]` reports invalid parts, mixed containers, symlinks, `.harnessRef` errors, and target overlaps | `packages/core/test/dir.test.ts` |
-| Dir | `[dir]` reports create, update, and keep actions across activations | `packages/core/test/dir.test.ts` |
-| Dir | `[dir]` copies files from directories without the `.harnessComposable` marker | `packages/core/test/dir.test.ts` |
-| Dir | `[dir]` never copies the `.harnessComposable` marker file itself | `packages/core/test/dir.test.ts` |
-| Dir | `[dir]` outputs that fall under a declared target are merged into that target's projection | `packages/core/test/dir.test.ts` |
-| Dir | `[dir]` outputs do nothing when `[dir]` is not declared even if the folder exists | `packages/core/test/dir.test.ts` |
+| Dir | `[[dir]]` composes top-level, nested, dot-directory, and extensionless outputs with the `.harnessComposable` marker | `packages/core/test/dir.test.ts` |
+| Dir | `[[dir]]` `.harnessRef` imports parts and sorts them with local parts | `packages/core/test/dir.test.ts` |
+| Dir | `[[dir]]` honors only global `.harnessIgnore` rules during composition | `packages/core/test/dir.test.ts` |
+| Dir | `[[dir]]` honors source-local `.harnessIgnore` inside `.harnessComposable` leaves, including custom dir sources outside `.harness` | `packages/core/test/dir.test.ts` |
+| Dir | `[[dir]]` honors target-output `.harnessIgnore` for copy and composable outputs | `packages/core/test/dir.test.ts` |
+| Dir | `[[dir]]` active profile roots add composable parts and use logical `.harnessIgnore` files to suppress base parts | `packages/core/test/dir.test.ts` |
+| Dir | `[[dir]]` portable profile roots nested inside composable leaves can add profile parts | `packages/core/test/dir.test.ts` |
+| Dir | `[[dir]]` discovers target-output `.harnessProfile` selectors in the final bootstrap pass, including profile-only dir outputs with no base candidate | `packages/core/test/dir.test.ts` |
+| Dir | `[[dir]]` reports invalid parts, mixed containers, symlinks, `.harnessRef` errors, target overlaps, and source-source overlaps | `packages/core/test/dir.test.ts`, `packages/core/test/standard.test.ts` |
+| Dir | `[[dir]]` reports create, update, and keep actions across activations | `packages/core/test/dir.test.ts` |
+| Dir | `[[dir]]` copies files from directories without the `.harnessComposable` marker | `packages/core/test/dir.test.ts` |
+| Dir | `[[dir]]` never copies the `.harnessComposable` marker file itself | `packages/core/test/dir.test.ts` |
+| Dir | `[[dir]]` ordered roots support later exact-path replacement, same-path composable merge, direct-file replacement of a composable output, target-merged outputs, and file/folder conflicts | `packages/core/test/dir.test.ts` |
+| Dir | `[[dir]]` outputs that fall under a declared target are merged into that target's projection | `packages/core/test/dir.test.ts` |
+| Dir | Dir outputs do nothing when no `[[dir]]` entries are declared even if a conventional folder exists | `packages/core/test/dir.test.ts` |
 | CLI | `harnessc activate` runs dir composition + copy alongside resource projection | `packages/cli/test/run.test.ts` |
 | Ignore | `[mutable]` sections | `packages/core/test/standard.test.ts` |
 | Docs | `STANDARD.md` stays independent of package names, repo paths, and CLI flags | `packages/core/test/docs.test.ts` |
 | CLI | `harnessc init` dry-runs by default | `packages/cli/test/run.test.ts` |
 | CLI | `harnessc init --yes` creates the standard files and resource folders under `.harness/resources` by default | `packages/cli/test/run.test.ts` |
-| CLI | `harnessc init --config --resources-path --target --yes` writes a non-default manifest and activates from the configured resources source | `packages/cli/test/run.test.ts` |
+| CLI | `harnessc init --config --resources-path --target --yes` writes a non-default manifest and activates from the configured resources source root | `packages/cli/test/run.test.ts` |
 | CLI | `harnessc activate` dry-runs by default | `packages/cli/test/run.test.ts` |
 | CLI | `harnessc activate --yes` writes live targets | `packages/cli/test/run.test.ts` |
 | CLI | `--remove-unmanaged` changes preserved unmanaged entries into removals | `packages/cli/test/run.test.ts` |
@@ -86,6 +88,7 @@ re-projection is the only path back to source bytes.
 | CLI | Invalid activation TOML returns diagnostics and a non-zero exit | `packages/cli/test/run.test.ts` |
 | CLI | Human output is colorized only for color-capable sinks, while `--json` stays unstyled | `packages/cli/test/run.test.ts` |
 | CLI | `harnessc extension activate` reports unsupported extension selections and conflicting flags | `packages/cli/test/run.test.ts` |
+| CLI | `harnessc explain <path>` reports projected outputs, participating source roots, source-use paths, and diagnostics in JSON and human-readable forms | `packages/cli/test/run.test.ts` |
 | CLI E2E | `harnessc activate` runs composable + copy + `.harnessRef` + cross-target dir composition end-to-end | `packages/cli/test/run.test.ts` |
 | CLI E2E | `harnessc activate` honors target-output `.harnessIgnore`, custom dir source ignores, and cleanup preservation | `packages/cli/test/run.test.ts` |
 | CLI E2E | `harnessc activate` projects resource composables through target-output `.harnessIgnore`, target-local `.harnessProfile`, and unmanaged cleanup | `packages/cli/test/run.test.ts` |
@@ -105,7 +108,7 @@ For a focused activation smoke test:
 ```bash
 tmp="$(mktemp -d)"
 mkdir -p "$tmp/.harness/resources/.claude" "$tmp/.harness/resources/skills/review/.agents" "$tmp/.harness/resources/skills/review/.claude"
-printf 'version = 1\n\n[resources]\npath = "./.harness/resources"\n\n[[targets]]\npath = "./.agents"\n\n[[targets]]\npath = "./.claude"\n' > "$tmp/.harness/harness.toml"
+printf 'version = 1\n\n[[resources]]\npath = "./.harness/resources"\n\n[[targets]]\npath = "./.agents"\n\n[[targets]]\npath = "./.claude"\n' > "$tmp/.harness/harness.toml"
 printf '.harness/**/logs/\n' > "$tmp/.harnessIgnore"
 printf 'base\n' > "$tmp/.harness/resources/skills/review/SKILL.md"
 printf 'agents\n' > "$tmp/.harness/resources/skills/review/.agents/SKILL.md"
@@ -125,7 +128,7 @@ For a focused update smoke test:
 ```bash
 tmp="$(mktemp -d)"
 mkdir -p "$tmp/.harness/resources/skills/review"
-printf 'version = 1\n\n[resources]\npath = "./.harness/resources"\n\n[[targets]]\npath = "./.agents"\n' > "$tmp/.harness/harness.toml"
+printf 'version = 1\n\n[[resources]]\npath = "./.harness/resources"\n\n[[targets]]\npath = "./.agents"\n' > "$tmp/.harness/harness.toml"
 printf '' > "$tmp/.harnessIgnore"
 printf 'source\n' > "$tmp/.harness/resources/skills/review/SKILL.md"
 node packages/cli/dist/bin.js activate --root "$tmp" --yes
@@ -144,7 +147,7 @@ For a focused mutable smoke test:
 ```bash
 tmp="$(mktemp -d)"
 mkdir -p "$tmp/.harness/resources/skills/review"
-printf 'version = 1\n\n[resources]\npath = "./.harness/resources"\n\n[[targets]]\npath = "./.agents"\n' > "$tmp/.harness/harness.toml"
+printf 'version = 1\n\n[[resources]]\npath = "./.harness/resources"\n\n[[targets]]\npath = "./.agents"\n' > "$tmp/.harness/harness.toml"
 printf '[mutable]\n.harness/resources/**/settings.local.json\n' > "$tmp/.harnessIgnore"
 printf 'base\n' > "$tmp/.harness/resources/skills/review/SKILL.md"
 printf 'source local\n' > "$tmp/.harness/resources/skills/review/settings.local.json"
