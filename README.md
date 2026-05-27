@@ -2,6 +2,7 @@
 
 [![Website](https://img.shields.io/badge/website-harnessconfig.dev-111827)](https://www.harnessconfig.dev/)
 [![Specification](https://img.shields.io/badge/spec-proposal-111827)](https://www.harnessconfig.dev/specifications/v1/)
+[![CI](https://github.com/reachjalil/harness-config/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/reachjalil/harness-config/actions/workflows/ci.yml)
 [![npm harnessc](https://img.shields.io/npm/v/harnessc?label=harnessc)](https://www.npmjs.com/package/harnessc)
 [![npm @harnessconfig/core](https://img.shields.io/npm/v/@harnessconfig/core?label=%40harnessconfig%2Fcore)](https://www.npmjs.com/package/@harnessconfig/core)
 [![Security](https://img.shields.io/badge/security-policy-111827)](./SECURITY.md)
@@ -25,6 +26,10 @@ Release notes: [docs/RELEASE_NOTES.md](./docs/RELEASE_NOTES.md)
 
 Release checklist: [RELEASE-CHECKLIST.md](./RELEASE-CHECKLIST.md)
 
+Contributing: [CONTRIBUTING.md](./CONTRIBUTING.md)
+
+Development and release process: [docs/DEVELOPMENT.md](./docs/DEVELOPMENT.md)
+
 ## What Harness config is
 
 Harness config is a small, repo-local specification proposal for multi-agent
@@ -34,10 +39,22 @@ under `.harness`, then projects them into live agent surfaces such as
 `.github/copilot-instructions.md`, `.github/instructions/*.instructions.md`,
 and custom targets.
 
+The central model is explicit ownership. Reviewed source roots are
+repo-owned: they hold the canonical prompts, skills, rules, hooks, and
+instruction parts. Live harness surfaces are generated outputs. Files declared
+under `[mutable]` cross the boundary once as seed data, then become
+runtime-owned state that activation reports but does not overwrite by default.
+
 The alpha reference CLI is intentionally boring: initialize, validate, preview,
 and activate file projections with explicit targets and reviewable diffs. Both
 the manifest path and resources source path can be explicit when a repository
 needs a different layout.
+
+Harness config does not collect telemetry. The `harnessc` CLI does not send
+analytics, usage events, file paths, repository names, command history, machine
+identifiers, or error reports. Activation, validation, and planning run locally
+against files in your repository, and the CLI does not make network requests
+during normal operation.
 
 ## The Problem It Solves
 
@@ -56,7 +73,49 @@ creates another coordination problem. Harness config replaces that pattern with
 one reviewed source layout plus an explicit, reproducible projection into each
 harness surface target.
 
+That matters most when a harness both reads and writes its surface. Settings,
+permission grants, allow-lists, learned commands, and local scratch state need
+a place to live without pretending to be canonical source. The `[mutable]`
+model lets a repository provide an initial template while making the live
+target file runtime-owned after first activation.
+
 See [docs/RATIONALE.md](./docs/RATIONALE.md) for the long form.
+
+## Before And After
+
+Before Harness config, multi-agent repositories tend to accumulate live
+surfaces as if each one were source:
+
+```text
+.claude/
+.cursor/
+.agents/
+.github/copilot-instructions.md
+duplicate prompts
+runtime state leaking into git
+```
+
+After Harness config, durable material lives in a reviewed source catalog and
+activation projects it into explicit targets:
+
+```text
+.harness/resources  ->  explicit projection targets
+```
+
+.harness is an auditable source of truth, not a runtime library. It holds the
+durable prompts, skills, rules, hooks, and instruction parts that should be
+reviewed in Git. Live harness surfaces remain ordinary generated outputs.
+
+The lifecycle stays local and reviewable:
+
+```text
+source  ->  validate  ->  plan  ->  activate  ->  runtime-owned state
+```
+
+Projection is customizable without making live folders canonical: declare
+targets, select profile overlays, filter with `.harnessIgnore`, and mark local
+settings or permission files as `[mutable]` when the runtime should own them
+after the first projection.
 
 ## Why now
 
@@ -80,6 +139,10 @@ teams keep tool-native surfaces while reviewing shared configuration once.
 - **Copy projection.** Targets are materialized as ordinary files, not
   symlinks. The plan (`create` / `update` / `remove` / `keep` / `preserve`
   / `mutable`) is shown before any write.
+- **Runtime-owned mutable files.** `[mutable]` is an ownership boundary, not
+  just an exclusion. Source can seed a target file once; after that, the live
+  runtime owns the target bytes until mutable re-projection is explicitly
+  forced.
 - **Idempotent under fixed inputs.** Given the same source tree, manifest,
   ignore rules, cleanup policy, and mutable policy, repeat activation
   converges to a `keep`-only plan for managed files and a `mutable`-only
@@ -99,8 +162,8 @@ Harness config is conservative by default because activation mutates live files:
   the computed projection, activation reports `update` and writes source bytes
   when applied.
 - **Mutable files become runtime-owned after first projection.** `[mutable]`
-  files are created once, then skipped unless mutable re-projection is
-  explicitly forced.
+  files are created once from source, then treated as runtime-owned target
+  state unless mutable re-projection is explicitly forced.
 - **Unmanaged files are preserved by default.** Cleanup requires an explicit
   choice.
 - **Target-output controls are protected local state.** Existing target-side
@@ -111,6 +174,16 @@ Harness config is conservative by default because activation mutates live files:
   the same plan.
 - **Overlaps are rejected.** Targets cannot point at `.harness`, overlap
   configured source roots, or overlap each other.
+
+## Privacy And Telemetry
+
+Harness config does not collect telemetry.
+
+The `harnessc` CLI does not send analytics, usage events, file paths,
+repository names, command history, machine identifiers, or error reports.
+
+Activation, validation, and planning run locally against files in your
+repository. The CLI does not make network requests during normal operation.
 
 ## What Harness config is not
 
@@ -371,7 +444,9 @@ Managed files are compared directly with the current projection. If target
 bytes differ, activation reports `update` and applying activation overwrites
 the target with the current source bytes. Files marked under `[mutable]` in
 `.harnessIgnore` are created once and then reported as runtime-owned
-`mutable` entries until `--force-mutable` is used.
+`mutable` entries until `--force-mutable` is used. This keeps canonical
+repo-owned content and runtime-owned state visible in the same plan without
+collapsing them into the same ownership category.
 
 Human terminal output uses ANSI color for scanability when supported, while
 `--json` output remains unstyled for automation. Set `NO_COLOR` to disable
@@ -498,6 +573,8 @@ and package dry-runs for every publishable package.
   making live target folders source roots.
 - Target override folders are derived from target paths.
 - `harnessc` is local-first and explains planned changes before writing.
+- `harnessc` does not collect telemetry and does not make network requests
+  during normal activation, validation, or planning.
 
 See [the rationale](./docs/RATIONALE.md),
 [the standard](./docs/STANDARD.md),

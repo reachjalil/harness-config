@@ -20,15 +20,12 @@ source. Do not add `[resources.<kind>]`; resource kinds remain directories.
 
 ## Skill Projection
 
-- Dogfood skill source:
-  `.harness/resources/skills/harness-config-cli/SKILL.md/`.
-- That directory is a resource composable leaf. It projects to
-  `skills/harness-config-cli/SKILL.md` in every declared target.
-- Resource composable leaves use `.harnessComposable` and numbered parts under
-  a directory whose name is the projected file path, such as
-  `SKILL.md/100_frontmatter.md`.
-- The `.claude` resource override imports the shared composable with
-  `.harnessRef` and appends a Claude-only verification section.
+- Dogfood skills use plain files such as
+  `.harness/resources/skills/harness-config-cli/SKILL.md`.
+- Plain skill files project to the same relative path in every declared target.
+- Keep dogfood skills useful and direct. Use dedicated tests, not this repo's
+  day-to-day skill sources, to exercise resource composables, `.harnessRef`,
+  and target-specific skill overrides.
 
 ## Root Instruction Projection
 

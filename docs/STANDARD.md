@@ -13,6 +13,12 @@ Harness config is a repository-local standard for declaring durable agent
 that condition an AI coding agent's behavior) and projecting them into
 harness surfaces in a reviewable, reproducible way.
 
+The standard separates three ownership categories: canonical repo-owned
+source, generated harness surface outputs, and runtime-owned mutable target
+files. A mutable file is still declared from source and may be seeded by
+projection, but after first activation the live target bytes belong to the
+runtime until an explicit force decision re-projects the source template.
+
 A repository keeps neutral source roots and projects them into declared target
 folders. The default manifest is `./.harness/harness.toml`; tools MAY also use another
 repo-local TOML file when that path is explicitly selected. Durable resources
@@ -100,8 +106,9 @@ authoritative.
   configured sources, overrides, ignore rules)` to a per-target file tree.
 - **Activation** — the act of materializing a projection into one or more
   target folders on disk.
-- **Mutable file** — a target file that the runtime owns after first
-  projection, declared with a `[mutable]` rule in `.harnessIgnore`.
+- **Mutable file** — a projected target file declared with a `[mutable]` rule
+  in `.harnessIgnore`; source provides the initial template, and the runtime
+  owns the target bytes after first projection.
 - **Conforming repository / tool** — see [Conformance](./CONFORMANCE.md).
 
 ## Versioning
@@ -160,6 +167,10 @@ in the selected manifest and configured source roots. This lets teams
 experiment in `.agents`, `.claude`, `.cursor`, or another surface without
 promoting runtime edits back into the canonical source layout.
 
+The `[mutable]` model is the file-level version of that boundary. It lets a
+repository publish an initial, reviewable template for target-local settings or
+state while keeping subsequent runtime edits out of the canonical source tree.
+
 ### Out of Scope
 
 Harness config does **not** standardize:
@@ -174,6 +185,10 @@ Harness config does **not** standardize:
 - target edit review workflows (see [Mutable Files](#mutable-files) for the
   base contract),
 - remote sync, telemetry, or audit logging.
+
+Harness config is a local file contract. The standard does not require
+telemetry, analytics, machine identifiers, remote error reporting, hosted
+services, or network access to validate, plan, or activate a repository.
 
 These concerns belong in tools, products, or organizational policies that
 build on top of the standard. Keeping them out of v1 is what lets multiple
@@ -484,6 +499,12 @@ subsequent activation, whether or not target bytes still match the source.
 Tools SHOULD offer an explicit force decision that re-projects source bytes when
 the team needs to reset runtime-owned state.
 
+Mutable is an ownership declaration, not a synonym for ignore. Ignored files do
+not enter the projection. Mutable files do enter the projection when missing,
+so the source tree can provide an initial shape and reviewable intent. Once the
+target file exists, the runtime owns its bytes and activation MUST NOT
+overwrite it unless the mutable policy explicitly forces re-projection.
+
 The standard does not classify why a non-mutable target file differs from the
 current projection. A direct-copy implementation may report that difference as
 `update`. Higher-level products can add version-control-aware review,
@@ -530,8 +551,8 @@ These rules are normative for v1 activation:
   filesystem entry.
 - Managed target files are overwritten from the current source projection when
   their bytes differ.
-- Mutable target files are created once and then become runtime-owned until an
-  explicit force decision re-projects them.
+- Mutable target files are created from source once and then become
+  runtime-owned until an explicit force decision re-projects them.
 - Unmanaged target entries are preserved unless explicit cleanup is selected.
 - Target-output `.harnessIgnore` and `.harnessProfile` files are protected
   local state and MUST NOT be projected over or removed by unmanaged cleanup.
@@ -542,9 +563,9 @@ These rules are normative for v1 activation:
 
 For example, `.harness/resources/hooks.json` may update `.agents/hooks.json`
 when source bytes change, while `.agents/skills/review/settings.local.json`
-matched by `[mutable]` is left untouched after first projection. A
-target-output file such as `.claude/skills/review/.harnessIgnore` can filter
-that `.claude` subtree and remains local target state.
+matched by `[mutable]` is seeded once and then left untouched as runtime-owned
+state. A target-output file such as `.claude/skills/review/.harnessIgnore` can
+filter that `.claude` subtree and remains local target state.
 
 ## Overrides
 
@@ -1005,8 +1026,8 @@ SHOULD consider the following threats explicitly:
   policy MUST be preserve, and any deletion MUST be visible in the plan
   before it happens.
 - **Mutable bypass.** `[mutable]` rules are an explicit "the runtime owns
-  this" declaration. Implementations MUST NOT overwrite a mutable target
-  without an explicit, user-visible force decision.
+  this after first projection" declaration. Implementations MUST NOT overwrite
+  a mutable target without an explicit, user-visible force decision.
 - **Untrusted overrides.** A repository may import resource items from
   third parties. Because override folders can rewrite arbitrary target
   files, implementations and downstream products SHOULD provide tooling to

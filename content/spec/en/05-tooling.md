@@ -2,15 +2,15 @@
 title: Tooling
 seoTitle: .harness Tooling
 socialTitle: Tooling for validating and activating .harness config
-description: The npx harnessc standard implementation, validation, profile discovery, planning, activation, and cleanup commands.
-socialDescription: The command and helper layer for validating .harness repositories, profile overlays, and activation projections.
+description: The npx harnessc standard implementation, local validation, no-telemetry operation, runtime-owned mutable handling, profile discovery, planning, activation, and cleanup commands.
+socialDescription: The command and helper layer for local .harness validation, no-telemetry activation, runtime-owned mutable files, profile overlays, and activation projections.
 canonicalPath: /specifications/v1/tooling/
 slug: tooling
 order: 5
 locale: en
 sectionCode: "05"
-summary: "The npx harnessc standard implementation: validation, profile discovery, planning, activation, and cleanup commands."
-llmSummary: Describes tooling expectations for validation, profile overlays, dry-run planning, activation, diagnostics, cleanup, and implementation helpers around .harness.
+summary: "The npx harnessc standard implementation: local validation, no-telemetry operation, runtime-owned mutable handling, profile discovery, planning, activation, and cleanup commands."
+llmSummary: Describes tooling expectations for local validation, no-telemetry activation, runtime-owned mutable files, profile overlays, dry-run planning, diagnostics, cleanup, and implementation helpers around .harness.
 audience: CLI authors and developers operating .harness repositories.
 contentKind: spec
 status: draft
@@ -26,6 +26,16 @@ copy projections without writing a custom tool first.
 Any other implementation that meets tool conformance is equally valid. The
 standard is defined by the repository shape and activation contract, not by a
 single binary.
+
+## Privacy And Telemetry
+
+Harness config does not collect telemetry.
+
+The `npx harnessc` CLI does not send analytics, usage events, file paths,
+repository names, command history, machine identifiers, or error reports.
+
+Activation, validation, and planning run locally against files in your
+repository. The CLI does not make network requests during normal operation.
 
 ## Commands
 
@@ -79,11 +89,17 @@ configured source root. Manifest paths are selected by the tool invocation;
 paths inside the manifest remain repo-local, not relative to the manifest
 file's directory.
 
+The activation plan is also the operator-facing view of ownership. Managed
+files are repo-owned projection outputs, unmanaged entries are existing target
+state outside the projection, and mutable entries are target files seeded by
+source but now owned by the runtime.
+
 Managed files are compared directly with the current source projection: if the
 target differs, `npx harnessc activate` reports `update` and applying activation
 overwrites the target with the current source bytes. Mutable files declared
-under `[mutable]` in `.harnessIgnore` are created once and skipped on
-subsequent activations. Use `--force-mutable` to re-project them from source.
+under `[mutable]` in `.harnessIgnore` are created once from source and skipped
+on subsequent activations because the live target bytes are runtime-owned. Use
+`--force-mutable` to re-project them from source.
 
 Selection workflows, marketplace behavior, target edit review, capture, and
 other product opinions belong above `npx harnessc`.

@@ -11,7 +11,7 @@ proposal.
 
 Harness config lets tools validate, preview, and activate repository-owned AI
 agent configuration from a neutral `.harness` source tree into explicit runtime
-folders.
+folders, while preserving files that the runtime owns after first projection.
 
 Website: https://www.harnessconfig.dev/
 
@@ -46,6 +46,9 @@ Specification: https://www.harnessconfig.dev/specifications/v1/
 
 This package does not run background services. Mutating helpers preview by
 default and require explicit confirmation before writing projection targets.
+It does not collect telemetry or make network requests; callers provide the
+repository files and receive validation, planning, and activation results
+locally.
 
 The manifest defaults to `./.harness/harness.toml` and may also be selected from
 another repo-local path by callers that pass `configPath`. The manifest may
@@ -93,6 +96,7 @@ parts.
 
 Unmanaged target entries are preserved by default and reported at one level;
 pass `{ cleanupUnmanaged: "remove" }` to plan and apply explicit cleanup.
-Files declared mutable in `.harnessIgnore` are created once and skipped on
-later activations. Managed target files that differ from the current projection
-are reported as updates by direct comparison and overwritten on apply.
+Files declared mutable in `.harnessIgnore` are created once from source and
+skipped on later activations because the live target bytes are runtime-owned.
+Managed target files that differ from the current projection are reported as
+updates by direct comparison and overwritten on apply.

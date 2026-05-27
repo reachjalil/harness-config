@@ -2,15 +2,15 @@
 title: Conformance
 seoTitle: .harness Conformance
 socialTitle: Testable conformance claims for .harness tools
-description: Testable claims for repositories, resources, targets, profiles, projections, and tools.
-socialDescription: Conformance criteria for repositories and tools that implement the .harness standard, including profile overlays and target-output controls.
+description: Testable claims for repositories, resources, targets, runtime-owned mutable files, profiles, projections, and tools.
+socialDescription: Conformance criteria for repositories and tools that implement the .harness standard, including runtime-owned mutable files, profile overlays, and target-output controls.
 canonicalPath: /specifications/v1/conformance/
 slug: conformance
 order: 6
 locale: en
 sectionCode: "06"
-summary: Testable claims for repositories, resources, targets, profiles, projections, and tools.
-llmSummary: Lists testable conformance expectations for repository shape, resource paths, target projection, overrides, ignore behavior, profile overlays, extensions, and activation output.
+summary: Testable claims for repositories, resources, targets, runtime-owned mutable files, profiles, projections, and tools.
+llmSummary: Lists testable conformance expectations for repository shape, resource paths, target projection, runtime-owned mutable files, overrides, ignore behavior, profile overlays, extensions, and activation output.
 audience: Test authors and implementers validating .harness compatibility.
 contentKind: spec
 status: draft
@@ -51,8 +51,9 @@ specific runtime, CLI, or hosted service.
   leaves all other fields to the extension implementation.
 - Projection conformance: activation applies `.harnessIgnore`, including
   source-local files, target-output-local files, and `[mutable]` scopes,
-  treats every declared target as a copy projection, and yields the same
-  target tree for the same inputs, cleanup policy, and mutable policy.
+  distinguishes ignored files from runtime-owned mutable files, treats every
+  declared target as a copy projection, and yields the same target tree for
+  the same inputs, cleanup policy, and mutable policy.
 - Tool conformance: an implementation reports the activation plan before
   writing, lists creates, updates, requested removals, kept files, preserved
   unmanaged entries, and mutable-skipped files, and never reads a live target
@@ -76,7 +77,8 @@ specific runtime, CLI, or hosted service.
   declared.
 - `.harnessIgnore` patterns are repo-relative and parse cleanly.
 - Global ignore sections such as `[*]` and `[global]` are recognized.
-- Mutable sections such as `[mutable]` are recognized.
+- Mutable sections such as `[mutable]` are recognized and identify files that
+  the source projection may seed once before the runtime owns the target bytes.
 - If `[dir]` is declared, the dir source root resolves repo-locally and
   every composable leaf carries a `.harnessComposable` marker. Copy folders
   and individual files under the dir source carry no marker.
@@ -112,7 +114,9 @@ specific runtime, CLI, or hosted service.
   for both resources and `[dir]` outputs.
 - Implementations MUST support `[mutable]` scopes in `.harnessIgnore` and
   treat matching files as create-once, runtime-owned target files even when
-  target bytes still match the source template.
+  target bytes still match the source template. This behavior is separate
+  from ignore behavior: ignored files stay out of projection, while mutable
+  files may be projected when missing and preserved after creation.
 - Declared target folders MUST be treated as projection outputs, not source
   repositories.
 - When `[dir]` is declared, activation MUST compose every directory with a
@@ -143,5 +147,13 @@ Projection evidence is two consecutive activations against unchanged inputs
 that produce byte-identical target trees for managed files and leave mutable
 files untouched after the first apply.
 
+Mutable evidence should show the ownership transition: the first apply creates
+the declared mutable file from source, a runtime edit changes the target bytes,
+and a later activation reports the file as mutable without overwriting it.
+
 Policy evidence is a CI step that runs validation against the same rules a
 contributor uses locally.
+
+Privacy evidence is simple: validation, planning, and activation can be
+demonstrated from repository files without telemetry, analytics, remote error
+reporting, or network access.

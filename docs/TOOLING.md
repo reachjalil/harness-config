@@ -8,6 +8,16 @@ Any other implementation that meets tool conformance is equally valid. The
 standard is defined by the repository shape and activation contract, not by a
 single binary.
 
+## Privacy And Telemetry
+
+Harness config does not collect telemetry.
+
+The `harnessc` CLI does not send analytics, usage events, file paths,
+repository names, command history, machine identifiers, or error reports.
+
+Activation, validation, and planning run locally against files in your
+repository. The CLI does not make network requests during normal operation.
+
 ## Commands
 
 ```bash
@@ -60,11 +70,17 @@ configured source root. Manifest paths are selected by the tool invocation;
 paths inside the manifest remain repo-local, not relative to the manifest
 file's directory.
 
+The activation plan is also the operator-facing view of ownership. Managed
+files are repo-owned projection outputs, unmanaged entries are existing target
+state outside the projection, and mutable entries are target files seeded by
+source but now owned by the runtime.
+
 Managed files are compared directly with the current source projection: if the
 target differs, `harnessc activate` reports `update` and applying activation
 overwrites the target with the current source bytes. Mutable files declared
-under `[mutable]` in `.harnessIgnore` are created once and skipped on
-subsequent activations. Use `--force-mutable` to re-project them from source.
+under `[mutable]` in `.harnessIgnore` are created once from source and skipped
+on subsequent activations because the live target bytes are runtime-owned. Use
+`--force-mutable` to re-project them from source.
 
 Filesystem behavior follows the v1 release freeze:
 

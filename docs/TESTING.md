@@ -4,6 +4,10 @@ Harness config tests should prove that activation is a deterministic projection:
 the same source trees, selected manifest, override folders, and
 `.harnessIgnore` rules produce the same live target trees.
 
+Mutable-file tests should also prove the ownership transition: source creates
+the target file once, runtime edits are preserved, and explicit force
+re-projection is the only path back to source bytes.
+
 ## Covered Scenarios
 
 | Area | Scenario | Test |

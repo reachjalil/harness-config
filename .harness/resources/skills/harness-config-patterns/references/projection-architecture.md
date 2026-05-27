@@ -52,8 +52,7 @@ Composable leaves are shared by `[dir]` and resource files:
 For resource composables:
 
 - The leaf directory path is the output file path. For example,
-  `.harness/resources/skills/review/SKILL.md/` projects
-  `skills/review/SKILL.md`.
+  `.harness/resources/rules/review.md/` projects `rules/review.md`.
 - Target override composables may import base composables with `.harnessRef`.
 - Source-local, recipient-local, target-output-local, and profile-local
   `.harnessIgnore` rules can affect composed parts or whole composed files.

@@ -2,15 +2,15 @@
 title: Patterns
 seoTitle: Harness config Patterns And Examples
 socialTitle: Practical .harness patterns for teams and developers
-description: Concrete examples for target-output ignores, composable instructions, profile overlays, team kits, personal customization, and safe cleanup.
-socialDescription: Practical .harness examples for combining ignores, profiles, dir composition, and target cleanup safely.
+description: Concrete examples for runtime-owned mutable files, target-output ignores, composable instructions, profile overlays, team kits, personal customization, and safe cleanup.
+socialDescription: Practical .harness examples for combining mutable runtime state, ignores, profiles, dir composition, and target cleanup safely.
 canonicalPath: /specifications/v1/patterns/
 slug: patterns
 order: 7
 locale: en
 sectionCode: "07"
-summary: Concrete examples for combining ignores, profiles, dir composition, and cleanup safely.
-llmSummary: Shows practical Harness config patterns for target-output ignores, composable instructions, profile overlays, team kits, personal customization, target-local profiles, migration, and cleanup.
+summary: Concrete examples for combining runtime-owned mutable files, ignores, profiles, dir composition, and cleanup safely.
+llmSummary: Shows practical Harness config patterns for runtime-owned mutable files, target-output ignores, composable instructions, profile overlays, team kits, personal customization, target-local profiles, migration, and cleanup.
 audience: Developers and platform teams adopting Harness config in real repositories.
 contentKind: spec
 status: draft
@@ -76,6 +76,33 @@ This pattern is intentionally target-local. It is most useful for gitignored
 live harness surfaces, local development experiments, or machine-specific
 runtime files that should not become shared source. The file is preserved and
 read from the target output, but it is not copied there by projection.
+
+## Runtime-Owned Mutable Files
+
+Use `[mutable]` when the repository should seed a file once and the runtime
+should own it afterward.
+
+```text
+.harnessIgnore
+[mutable]
+.harness/resources/**/settings.local.json
+```
+
+```text
+.harness/resources/skills/review/settings.local.json
+.agents/skills/review/settings.local.json
+.claude/skills/review/settings.local.json
+```
+
+On first activation, the source template creates the target file. After that,
+activation reports the target as `mutable` and leaves its bytes alone, even if
+the runtime has changed them. This is the right shape for permission grants,
+local settings, learned commands, and other state that must be visible in the
+plan without becoming canonical source.
+
+Use ignore rules for files that should never cross the projection boundary.
+Use `[mutable]` for files that should cross once as a template and then belong
+to the live harness surface.
 
 ## Composable Instructions
 

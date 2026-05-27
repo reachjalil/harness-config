@@ -41,6 +41,18 @@ The CLI is local-first, read-only by default for validation and planning, and
 does not create standard files or mutate projection targets unless the relevant
 command is explicitly applied with `--yes`.
 
+## Privacy And Telemetry
+
+Harness config does not collect telemetry.
+
+The `harnessc` CLI does not send analytics, usage events, file paths,
+repository names, command history, machine identifiers, or error reports.
+
+Activation, validation, and planning run locally against files in your
+repository. The CLI does not make network requests during normal operation.
+
+## Command Behavior
+
 Running `harnessc` with no command validates the nearest repository config and
 prints the detected manifest path with suggested next steps. Use
 `harnessc validate --json` when a script or editor integration needs the full
@@ -81,8 +93,8 @@ inputs and the same unmanaged cleanup choice should converge to the same plan.
 Managed files are compared directly with the current projection and reported as
 `update` when target bytes differ. Applying an update overwrites the target
 with the current source bytes. Mutable files declared under `[mutable]` in
-`.harnessIgnore` are created once and then left untouched unless
-`--force-mutable` is supplied.
+`.harnessIgnore` are created once from source and then left untouched as
+runtime-owned target state unless `--force-mutable` is supplied.
 
 `.harnessIgnore` files can be repo-root, source-local, or target-output-local.
 Target-output files, such as `.agents/skills/review/.harnessIgnore`, match
