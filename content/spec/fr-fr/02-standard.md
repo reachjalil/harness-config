@@ -96,6 +96,16 @@ Les règles sont évaluées des fichiers les moins profonds aux plus profonds, d
 
 L'activation calcule la projection depuis la source de ressources configurée, les surcharges, `.harnessIgnore`, la source `[dir]`, la politique de nettoyage et la politique mutable. Le même ensemble d'entrées doit produire le même arbre cible.
 
-## Symlinks
+## Semantique Du Systeme De Fichiers
 
-Harness config v1 traite les symlinks comme des entrées feuilles et ne les suit pas lors de la découverte des sources, des cibles, des ignores, des profils ou des sorties `[dir]`. Si un symlink occupe un chemin que l'activation doit écrire, l'activation peut remplacer le lien lui-même selon les mêmes règles de conflit que les autres fichiers ou entrées non-répertoires.
+Harness config v1 fige un comportement conservateur pour le systeme de fichiers:
+
+- Les symlinks sont des entrees feuilles et ne sont jamais suivis lors de la decouverte des sources, cibles, ignores, profils ou sorties `[dir]`.
+- Les fichiers geres sont mis a jour depuis la projection source courante quand les octets cible different.
+- Les fichiers qui correspondent a `[mutable]` sont crees une fois, puis appartiennent au runtime.
+- Les fichiers non geres dans les cibles sont preserves sauf si le nettoyage est explicite.
+- Les `.harnessIgnore` et `.harnessProfile` dans les sorties cible sont un etat local protege.
+- Avec les memes arbres source, manifest, profils, regles ignore, politique de nettoyage et politique mutable, l'activation est deterministe.
+- Les cibles ne peuvent pas pointer vers `.harness`, chevaucher les sources configurees ni se chevaucher entre elles.
+
+Par exemple, un fichier source comme `.harness/resources/hooks.json` peut mettre a jour `.agents/hooks.json`, tandis qu'un fichier target-owned comme `.agents/skills/review/settings.local.json` marque par `[mutable]` reste intact apres la premiere projection. Un fichier target-output comme `.claude/skills/review/.harnessIgnore` peut filtrer ce sous-arbre cible et reste preserve pendant le nettoyage.

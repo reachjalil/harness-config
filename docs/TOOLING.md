@@ -66,6 +66,18 @@ overwrites the target with the current source bytes. Mutable files declared
 under `[mutable]` in `.harnessIgnore` are created once and skipped on
 subsequent activations. Use `--force-mutable` to re-project them from source.
 
+Filesystem behavior follows the v1 release freeze:
+
+- symlinks are treated as leaf entries and are not followed;
+- unmanaged target entries are preserved unless `--remove-unmanaged` is
+  selected;
+- target-output `.harnessIgnore` and `.harnessProfile` files are preserved as
+  local controls;
+- repeated activation with the same inputs converges to `keep` for managed
+  files and `mutable` for runtime-owned files;
+- overlapping targets or targets that collide with configured source roots are
+  diagnostics.
+
 Selection workflows, marketplace behavior, target edit review, capture, and
 other product opinions belong above `harnessc`.
 

@@ -83,6 +83,16 @@ path = "./.claude"
 
 激活从资源、覆盖、profile、ignore、`[dir]`、清理策略和 mutable 策略计算投影。同一组输入必须产生同一目标树。
 
-## Symlink
+## 文件系统语义
 
-Harness config v1 将 symlink 视为叶子文件系统项，并且在发现源、目标、ignore、profile 或 `[dir]` 输出时不会跟随它们。如果 symlink 占用了激活需要写入的路径，激活可以按其他文件或非目录项使用的同一冲突规则替换链接本身。
+Harness config v1 固定一组保守的文件系统行为：
+
+- Symlink 是叶子项；发现源、目标、ignore、profile 或 `[dir]` 输出时绝不跟随。
+- 受管理文件在目标字节不同的时候，从当前源投影更新。
+- 匹配 `[mutable]` 的文件只创建一次，之后由 runtime 拥有。
+- 目标中的未管理文件默认保留，除非显式选择清理。
+- 目标输出中的 `.harnessIgnore` 和 `.harnessProfile` 是受保护的本地状态。
+- 相同的源树、manifest、profile、ignore 规则、清理策略和 mutable 策略会产生确定性的激活结果。
+- 目标不能指向 `.harness`，不能与配置源重叠，也不能彼此重叠。
+
+例如，`.harness/resources/hooks.json` 这样的源文件可以更新 `.agents/hooks.json`；而匹配 `[mutable]` 的目标自有文件 `.agents/skills/review/settings.local.json` 在第一次投影后会保持不变。`.claude/skills/review/.harnessIgnore` 这样的目标输出文件可以过滤该目标子树，并在清理期间保留。

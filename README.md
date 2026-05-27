@@ -21,6 +21,10 @@ Website: https://www.harnessconfig.dev/
 
 Specification: https://www.harnessconfig.dev/specifications/v1/
 
+Release notes: [docs/RELEASE_NOTES.md](./docs/RELEASE_NOTES.md)
+
+Release checklist: [RELEASE-CHECKLIST.md](./RELEASE-CHECKLIST.md)
+
 ## What Harness config is
 
 Harness config is a small, repo-local specification proposal for multi-agent
@@ -84,6 +88,29 @@ teams keep tool-native surfaces while reviewing shared configuration once.
   the formal statement.
 - **One projection filter** (`.harnessIgnore`) covers global,
   target-output-local, and runtime-owned (`[mutable]`) exclusions.
+
+## Filesystem Semantics
+
+Harness config is conservative by default because activation mutates live files:
+
+- **Symlinks are never followed.** Symlinks under `.harness`, configured source
+  roots, or declared targets are treated as leaf entries.
+- **Managed files are overwritten from source.** If target bytes differ from
+  the computed projection, activation reports `update` and writes source bytes
+  when applied.
+- **Mutable files become runtime-owned after first projection.** `[mutable]`
+  files are created once, then skipped unless mutable re-projection is
+  explicitly forced.
+- **Unmanaged files are preserved by default.** Cleanup requires an explicit
+  choice.
+- **Target-output controls are protected local state.** Existing target-side
+  `.harnessIgnore` and `.harnessProfile` files are preserved during projection
+  and unmanaged cleanup.
+- **Activation is deterministic for fixed inputs.** The same source tree,
+  manifest, profiles, ignore rules, cleanup policy, and mutable policy produce
+  the same plan.
+- **Overlaps are rejected.** Targets cannot point at `.harness`, overlap
+  configured source roots, or overlap each other.
 
 ## What Harness config is not
 

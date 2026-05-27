@@ -521,6 +521,31 @@ the declaration. Higher-level tools MAY keep activation state and offer an
 orphaned-target reconciliation workflow that previews removal, ignore, or
 capture back to source.
 
+### Filesystem Semantics Summary
+
+These rules are normative for v1 activation:
+
+- Symlinks are never followed while discovering source roots, target trees,
+  ignore files, profile selectors, or `[dir]` outputs. A symlink is a leaf
+  filesystem entry.
+- Managed target files are overwritten from the current source projection when
+  their bytes differ.
+- Mutable target files are created once and then become runtime-owned until an
+  explicit force decision re-projects them.
+- Unmanaged target entries are preserved unless explicit cleanup is selected.
+- Target-output `.harnessIgnore` and `.harnessProfile` files are protected
+  local state and MUST NOT be projected over or removed by unmanaged cleanup.
+- Activation is deterministic for fixed source trees, selected manifest,
+  profile selectors, ignore rules, cleanup policy, and mutable policy.
+- Targets MUST NOT point at `./.harness`, overlap configured source roots, or
+  overlap each other.
+
+For example, `.harness/resources/hooks.json` may update `.agents/hooks.json`
+when source bytes change, while `.agents/skills/review/settings.local.json`
+matched by `[mutable]` is left untouched after first projection. A
+target-output file such as `.claude/skills/review/.harnessIgnore` can filter
+that `.claude` subtree and remains local target state.
+
 ## Overrides
 
 A dot-prefixed folder directly inside the configured resources source is a
