@@ -1,7 +1,7 @@
 {
   "name": "@harnessconfig/cli",
   "version": "1.0.0-alpha.1",
-  "description": "Scoped implementation package for the harnessc CLI.",
+  "description": "Alpha scoped implementation package for the harnessc CLI.",
   "type": "module",
   "license": "Apache-2.0",
   "sideEffects": false,

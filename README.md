@@ -1,13 +1,19 @@
 # Harness config
 
 [![Website](https://img.shields.io/badge/website-harnessconfig.dev-111827)](https://www.harnessconfig.dev/)
-[![Specification](https://img.shields.io/badge/spec-v1-111827)](https://www.harnessconfig.dev/specifications/v1/)
+[![Specification](https://img.shields.io/badge/spec-proposal-111827)](https://www.harnessconfig.dev/specifications/v1/)
 [![npm harnessc](https://img.shields.io/npm/v/harnessc?label=harnessc)](https://www.npmjs.com/package/harnessc)
 [![npm @harnessconfig/core](https://img.shields.io/npm/v/@harnessconfig/core?label=%40harnessconfig%2Fcore)](https://www.npmjs.com/package/@harnessconfig/core)
 [![Security](https://img.shields.io/badge/security-policy-111827)](./SECURITY.md)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](./LICENSE)
 
-**Status:** Standard v1 — stable. Reference implementation is published as
+**Status:** Specification proposal with an alpha reference implementation.
+The npm packages are currently `1.0.0-alpha.1`, and no GitHub release has
+been cut yet. Treat the v1 file shape and activation model as a public
+proposal while public releases, conformance fixtures, adopter repositories,
+and external issue traffic mature.
+
+The alpha TypeScript reference implementation is available as
 [`@harnessconfig/core`](https://www.npmjs.com/package/@harnessconfig/core)
 and the [`harnessc`](https://www.npmjs.com/package/harnessc) CLI.
 
@@ -17,30 +23,43 @@ Specification: https://www.harnessconfig.dev/specifications/v1/
 
 ## What Harness config is
 
-A small, repository-local standard that gives multiple AI coding agents
-(Claude, Cursor, Copilot, custom in-house tools) one shared way to read and
-update the prompts, skills, rules, and plugins a repository owns — without
-turning each agent's harness surface into the source of truth.
+Harness config is a small, repo-local specification proposal for multi-agent
+configuration. It keeps durable prompts, skills, rules, and harness resources
+under `.harness`, then projects them into live agent surfaces such as
+`AGENTS.md`, `CLAUDE.md`, `.claude`, `.cursor`,
+`.github/copilot-instructions.md`, `.github/instructions/*.instructions.md`,
+and custom targets.
 
-A repository keeps durable source material in configured source roots, stores
-target resources under `./.harness/resources` by convention, declares harness
-surface targets in `./.harness/harness.toml` by default, and lets tools materialize
-each target as a reviewable copy projection. Both the manifest path and
-resources source path can be explicit when a repository needs a different
-layout.
+The alpha reference CLI is intentionally boring: initialize, validate, preview,
+and activate file projections with explicit targets and reviewable diffs. Both
+the manifest path and resources source path can be explicit when a repository
+needs a different layout.
 
 ## The Problem It Solves
 
 Repositories that work with more than one AI coding agent tend to grow
-several near-duplicate harness surfaces (`.claude/`, `.cursor/`, `.agents/`,
-`.codeium/`, plus root-level `AGENTS.md`, `CLAUDE.md`,
-`copilot-instructions.md`). The same prompt or skill gets copy-pasted into
-each, runtime-written files (permissions, learned commands) leak into version
-control, and there is no clean way to add a new agent without another
-surface. Harness config replaces that pattern with one canonical source layout
-plus an explicit, reproducible projection into each harness surface target.
+several near-duplicate harness surfaces. Codex uses `AGENTS.md`. GitHub
+Copilot uses `.github/copilot-instructions.md` and
+`.github/instructions/*.instructions.md`. Claude Code uses `CLAUDE.md` and
+`.claude/settings*.json`. Cursor uses rules and `AGENTS.md`-style
+configuration. Custom tools often add their own folders.
+
+When one repository has more than one of these, the risk shifts from "how do I
+configure the agent?" to "which file is canonical, and how do I review changes
+safely?" The same prompt or skill gets copy-pasted into each surface,
+runtime-written files leak into version control, and adding another agent
+creates another coordination problem. Harness config replaces that pattern with
+one reviewed source layout plus an explicit, reproducible projection into each
+harness surface target.
 
 See [docs/RATIONALE.md](./docs/RATIONALE.md) for the long form.
+
+## Why now
+
+Coding-agent configuration is moving into repository files, but every harness
+has picked a slightly different live surface. That is useful for each tool and
+messy for teams using more than one tool. A repo-local projection contract lets
+teams keep tool-native surfaces while reviewing shared configuration once.
 
 ## Core Properties
 
@@ -74,6 +93,14 @@ or selection policy. Those belong in product layers that build on top of
 the standard — for example, [Harnex](https://github.com/reachjalil/harnex),
 which adds kits, managed activation manifests, and drift detection on top
 of `@harnessconfig/core`.
+
+## Why open source
+
+Harness config standardizes a repository contract, not a hosted service. The
+specification is defined by file shape, manifest semantics, and activation
+behavior; no single binary or vendor should be the source of truth. Apache-2.0
+is intended to keep adoption practical for companies, tool vendors, and open
+source maintainers.
 
 ## Packages
 

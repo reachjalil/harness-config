@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "version": "1.0.0-alpha.1",
-  "description": "Harness config v1 standard and TypeScript reference implementation for portable AI agent configuration.",
+  "description": "Harness config specification proposal and alpha TypeScript reference implementation for portable AI agent configuration.",
   "homepage": "https://www.harnessconfig.dev/",
   "repository": {
     "type": "git",

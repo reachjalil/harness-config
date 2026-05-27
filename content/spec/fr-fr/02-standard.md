@@ -14,15 +14,19 @@ llmSummary: Définit la forme du dépôt .harness, le contrat TOML, les extensio
 audience: Auteurs d'outils, réviseurs de standard et implémenteurs techniques.
 contentKind: spec
 status: draft
-updated: 2026-05-26
+updated: 2026-05-27
 ---
 
 # Spécification Harness config
 
-**Statut:** Version 1 — stable. La forme des fichiers, le schema du manifeste,
-le contrat de projection et la grammaire des exclusions sont destines a etre
-implementables sans consulter le code de reference. Les changements qui
-invalideraient un depot v1 ou une implementation v1 sont reserves a v2.
+**Statut:** proposition de specification Version 1. La forme des fichiers, le
+schema du manifeste, le contrat de projection et la grammaire des exclusions
+sont destines a etre implementables sans consulter le code de reference, mais
+le contrat public est encore en revue. Tant qu'il n'existe pas de releases
+publiques, de fixtures de conformite, de depots adopteurs et de retours
+externes suffisants, les packages TypeScript doivent etre traites comme une
+implementation de reference alpha. Une fois v1 acceptee, les changements qui
+invalideraient un depot v1 ou une implementation v1 seront reserves a v2.
 
 Les versions de specification sont des versions completes. Les versions patch,
 mineures, prerelease et package appartiennent a la CLI, au tooling, aux

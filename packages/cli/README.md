@@ -1,13 +1,13 @@
 # @harnessconfig/cli
 
 [![Website](https://img.shields.io/badge/website-harnessconfig.dev-111827)](https://www.harnessconfig.dev/)
-[![Specification](https://img.shields.io/badge/spec-v1-111827)](https://www.harnessconfig.dev/specifications/v1/)
+[![Specification](https://img.shields.io/badge/spec-proposal-111827)](https://www.harnessconfig.dev/specifications/v1/)
 [![npm harnessc](https://img.shields.io/npm/v/harnessc?label=harnessc)](https://www.npmjs.com/package/harnessc)
 [![npm @harnessconfig/cli](https://img.shields.io/npm/v/@harnessconfig/cli?label=%40harnessconfig%2Fcli)](https://www.npmjs.com/package/@harnessconfig/cli)
 [![Security](https://img.shields.io/badge/security-policy-111827)](https://github.com/reachjalil/harness-config/security/policy)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](./LICENSE)
 
-Scoped implementation package for the Harness config CLI. The public CLI
+Alpha scoped implementation package for the Harness config CLI. The public CLI
 package is `harnessc`.
 
 Most users should run:

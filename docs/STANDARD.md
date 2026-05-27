@@ -1,9 +1,12 @@
 # Harness config standard
 
-**Status:** Version 1 — Stable. The file shape, manifest schema, projection
-contract, and ignore grammar described here are intended to be implementable
-without consulting the reference code. Changes that would invalidate a v1
-repository or v1 implementation are reserved for v2.
+**Status:** Version 1 specification proposal. The file shape, manifest schema,
+projection contract, and ignore grammar described here are intended to be
+implementable without consulting the reference code, but the public contract is
+still in proposal review. Until public releases, conformance fixtures, adopter
+repositories, and external feedback mature, treat the TypeScript packages as an
+alpha reference implementation. Once v1 is accepted, changes that would
+invalidate a v1 repository or v1 implementation are reserved for v2.
 
 Harness config is a repository-local standard for declaring durable agent
 *harness resources* (the prompts, skills, rules, plugins, and similar files
