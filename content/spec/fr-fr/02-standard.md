@@ -91,3 +91,7 @@ Les règles sont évaluées des fichiers les moins profonds aux plus profonds, d
 ## Activation
 
 L'activation calcule la projection depuis la source de ressources configurée, les surcharges, `.harnessIgnore`, la source `[dir]`, la politique de nettoyage et la politique mutable. Le même ensemble d'entrées doit produire le même arbre cible.
+
+## Symlinks
+
+Harness config v1 traite les symlinks comme des entrées feuilles et ne les suit pas lors de la découverte des sources, des cibles, des ignores, des profils ou des sorties `[dir]`. Si un symlink occupe un chemin que l'activation doit écrire, l'activation peut remplacer le lien lui-même selon les mêmes règles de conflit que les autres fichiers ou entrées non-répertoires.

@@ -169,6 +169,13 @@ Harness config standardizes:
 - `.harnessIgnore` as the single projection filter, including target-output
   exclusions and mutable-file rules.
 
+Declared targets are live harness surfaces, not source repositories. A
+repository MAY commit generated target outputs, gitignore them, or mix committed
+managed files with local controls, as long as the reviewed source of truth stays
+in the selected manifest and configured source roots. This lets teams
+experiment in `.agents`, `.claude`, `.cursor`, or another surface without
+promoting runtime edits back into the canonical source layout.
+
 ### Out of Scope
 
 Harness config does **not** standardize:
@@ -381,13 +388,18 @@ extension explicitly defines its own.
   underlying filesystem may collapse them. Implementations MAY warn when
   they detect such collisions.
 - **Symlinks.** A symlink encountered inside configured source roots,
-  `./.harness`, or a declared target tree SHOULD be reported as a diagnostic.
-  v1 implementations are not required to follow symlinks during projection.
-  The reference implementation rejects symlinked target paths and nested
-  target symlinks before applying activation.
+  `./.harness`, or a declared target tree is treated as a leaf filesystem
+  entry. v1 implementations MUST NOT follow symlinks while discovering source
+  trees, existing target trees, ignores, profiles, or `[dir]` outputs. When a
+  symlink occupies a path activation needs to write, the link itself MAY be
+  replaced according to the same file/path conflict rules used for other
+  non-directory entries. v1 does not require preserving symlinks as links or
+  projecting source symlinks into targets.
 - **Hidden files.** Names beginning with `.` are not implicitly ignored.
   They participate in projection like any other file unless excluded by
-  `.harnessIgnore`.
+  `.harnessIgnore`. This does not make Harness config declaration files target
+  payloads: `.harnessIgnore`, `.harnessProfile`, and `.harnessProfileRoot`
+  are boundary controls and MUST NOT be projected into targets.
 
 ## Routing Resources To Targets
 
@@ -801,6 +813,13 @@ The following rules apply:
   dir outputs, implementations also discover `.harnessIgnore` files in
   existing ancestor directories of candidate output paths, such as
   `notes/.harnessIgnore` for an output `notes/release.md`.
+- **Target-local controls.** Target-output `.harnessIgnore` files are local
+  controls for the live harness surface, useful for temporary development
+  preferences, machine-specific exclusions, or gitignored target folders where
+  a developer needs to keep local runtime files out of the next activation.
+  They adjust the output boundary without making the target folder a source
+  root. Shared or first-activation rules belong in the repo-root or
+  source-local `.harnessIgnore` files instead.
 - **Scope of effect.** A local file participates only when the candidate
   source path or target output path is inside that file's directory.
 - **Evaluation order.** Rule sets are evaluated in phases: the repo-root file
@@ -822,7 +841,9 @@ The following rules apply:
   `.harnessProfileRoot` file is itself excluded from projection, equivalent
   to global declaration-file ignore rules. Implementations MUST NOT copy
   those declaration files into targets, even when no explicit rule excludes
-  them.
+  them. A target-output declaration file may still affect projection from its
+  existing target location; it is read as a local control, not projected as
+  managed target content.
 - **Target-output protection.** A `.harnessIgnore` file that already exists
   in a target-output location MUST NOT be overwritten by projection and MUST
   NOT be removed by unmanaged cleanup. Ancestor directories required to keep
@@ -938,6 +959,8 @@ The source/projection boundary makes cross-surface differences reviewable:
   mutation.
 - Live harness surfaces MUST be treated as projection targets, not source
   repositories.
+- Teams MAY gitignore live harness surfaces because they are generated outputs;
+  doing so does not change the source of truth or target declaration contract.
 - Activation MUST be idempotent for the same selected manifest, configured
   source roots, `.harnessIgnore`, participating resources, cleanup policy, and
   mutable policy.
@@ -963,8 +986,9 @@ SHOULD consider the following threats explicitly:
   the repository after normalization (see [Encoding, Paths, and Case
   Sensitivity](#encoding-paths-and-case-sensitivity)).
 - **Symlink redirection.** Symlinks in the source tree or in declared target
-  trees can redirect writes outside the repository. v1 implementations SHOULD
-  treat such symlinks as diagnostics rather than silently following them.
+  trees can redirect reads or writes outside the repository if followed. v1
+  implementations MUST treat symlinks as leaf entries and MUST NOT silently
+  follow them.
 - **TOCTOU on apply.** A target may be modified between planning and
   applying. Implementations SHOULD re-check the existence and managed/
   unmanaged classification of files at apply time, not only at plan time.

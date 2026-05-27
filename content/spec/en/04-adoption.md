@@ -78,7 +78,9 @@ Recommended sequence:
    Repository-wide rules usually live in `./.harnessIgnore`; resource- or
    dir-specific rules can live in source-local `.harnessIgnore` files, and
    user/local output preferences can live in target-output files such as
-   `runtime/agent/skills/foo/.harnessIgnore`.
+   `runtime/agent/skills/foo/.harnessIgnore`. Target-output files are useful
+   when the live harness surface is gitignored and a developer needs a local,
+   temporary boundary; shared rules should live in source.
 5. **Add profile overrides only where they clarify ownership.** Put
    `.harnessProfileRoot` under `.harness`, the configured resources source, or
    the configured dir source for optional kits or personal overlays, and
@@ -95,6 +97,10 @@ Recommended sequence:
 
 After migration, the live folders are derived: they can be removed and
 regenerated from the configured source roots plus the manifest at any time.
+Teams may also gitignore those live harness surfaces when they want more room
+for local experiments, runtime state, or tool-specific scratch files. The
+tradeoff is deliberate: review happens in `.harness` and the selected manifest,
+while the surface stays flexible and regenerable.
 
 ## Common Pitfalls
 
@@ -120,9 +126,12 @@ regenerated from the configured source roots plus the manifest at any time.
 - **Expecting a target-output ignore file before it exists.** A
   target-output `.harnessIgnore` only participates after it is already on
   disk. Use the repo-root file for rules that must apply on first activation.
-- **Symlinking targets.** The reference implementation reports target root and
-  nested target symlinks as unsupported diagnostics. Replace them with real
-  files or directories before activating.
+- **Projecting Harness config controls as payload.** Declaration files such as
+  `.harnessIgnore`, `.harnessProfile`, and `.harnessProfileRoot` are read as
+  controls and are not copied into targets as managed files.
+- **Symlinking targets.** Harness config v1 does not follow symlinks. If a
+  symlink occupies a path activation needs to write, activation may replace the
+  link itself; review the plan before applying.
 
 ## Scope Reminder
 

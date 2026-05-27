@@ -78,7 +78,7 @@ Un fichier target-output-local ne participe qu'après avoir été créé dans la
 - **Utiliser les surcharges pour forker largement.** Une surcharge remplace des chemins exacts ou ajoute des fichiers. Si une cible a besoin d'une compétence très différente, préférez une ressource séparée.
 - **Committer des fichiers écrits par le runtime comme source.** Les fichiers comme `.claude/settings.local.json` doivent souvent être déclarés sous `[mutable]`.
 - **Attendre une règle target-output avant sa création.** Une `.harnessIgnore` target-output ne participe qu'après avoir été matérialisée dans la sortie.
-- **Symlinker les cibles.** Remplacez les symlinks de sources ou de cibles par de vrais fichiers ou dossiers avant activation.
+- **Symlinker les cibles.** Harness config v1 ne suit pas les symlinks. Si un symlink occupe un chemin que l'activation doit écrire, l'activation peut remplacer le lien lui-même; relisez le plan avant de l'appliquer.
 
 ## Rappel De Portée
 

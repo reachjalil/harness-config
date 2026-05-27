@@ -83,3 +83,7 @@ Las reglas se evalúan desde archivos menos profundos hacia mas profundos. La ul
 ## Activacion
 
 La activacion calcula la proyeccion desde recursos, sobrescrituras, perfiles, ignores, `[dir]`, politica de limpieza y politica mutable. El mismo conjunto de entradas debe producir el mismo arbol destino.
+
+## Symlinks
+
+Harness config v1 trata los symlinks como entradas hoja y no los sigue al descubrir fuentes, destinos, ignores, perfiles o salidas `[dir]`. Si un symlink ocupa un camino que la activacion debe escribir, la activacion puede reemplazar el enlace mismo segun las mismas reglas de conflicto usadas para otros archivos o entradas que no son directorios.

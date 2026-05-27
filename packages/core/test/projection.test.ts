@@ -1914,7 +1914,7 @@ describe("HarnessConfig activation projection", () => {
     ).toEqual(["keep"]);
   });
 
-  it("reports an existing target symlink as unsupported", async () => {
+  it("replaces an existing target symlink without following it", async () => {
     const root = await rootFixture();
     await writeHarnessConfig(root, { targets: ["./.cursor"] });
     await write(root, ".harnessIgnore", "");
@@ -1930,25 +1930,42 @@ describe("HarnessConfig activation projection", () => {
     );
 
     const plan = await planHarnessActivation(root);
-    expect(plan.diagnostics).toEqual(
+    expect(plan.diagnostics).not.toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          severity: "error",
           code: "harness.target_symlink_unsupported",
-          path: ".cursor",
         }),
       ])
     );
     expect(
       plan.targets.find((target) => target.path === "./.cursor")?.actions
-    ).toEqual([]);
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "remove",
+          reason: "replace existing symlink with copy projection",
+        }),
+        expect.objectContaining({
+          kind: "create",
+          relativePath: "skills/review/SKILL.md",
+        }),
+      ])
+    );
 
+    await applyHarnessActivation(root, { dryRun: false, yes: true });
+
+    const targetState = await lstat(path.join(root, ".cursor"));
+    expect(targetState.isSymbolicLink()).toBe(false);
+    expect(targetState.isDirectory()).toBe(true);
     await expect(
-      applyHarnessActivation(root, { dryRun: false, yes: true })
-    ).rejects.toThrow(/validation has errors/);
+      readFile(path.join(root, ".cursor/skills/review/SKILL.md"), "utf8")
+    ).resolves.toBe("shared skill");
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/SKILL.md"), "utf8")
+    ).rejects.toThrow();
   });
 
-  it("reports nested target symlinks as unsupported", async () => {
+  it("treats nested target symlinks as leaf entries", async () => {
     const root = await rootFixture();
     await writeHarnessConfig(root);
     await write(root, ".harnessIgnore", "");
@@ -1957,27 +1974,62 @@ describe("HarnessConfig activation projection", () => {
       ".harness/resources/skills/review/SKILL.md",
       "shared skill"
     );
+    await write(
+      root,
+      ".harness/resources/skills/review/LINK.md",
+      "projected replacement"
+    );
     await write(root, "outside.md", "outside");
     await mkdir(path.join(root, ".agents/skills/review"), { recursive: true });
     await symlink(
       path.join(root, "outside.md"),
       path.join(root, ".agents/skills/review/LINK.md")
     );
+    await symlink(
+      path.join(root, "outside.md"),
+      path.join(root, ".agents/skills/review/LOCAL.md")
+    );
 
     const plan = await planHarnessActivation(root);
-    expect(plan.diagnostics).toEqual(
+    expect(plan.diagnostics).not.toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          severity: "error",
           code: "harness.target_symlink_unsupported",
-          path: ".agents/skills/review/LINK.md",
+        }),
+      ])
+    );
+    expect(plan.targets[0]?.actions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "update",
+          relativePath: "skills/review/LINK.md",
+          reason: "replace existing symlink",
+        }),
+        expect.objectContaining({
+          kind: "preserve",
+          relativePath: "skills/review/LOCAL.md",
+          reason: "unmanaged symlink kept outside .harness projection",
         }),
       ])
     );
 
+    await applyHarnessActivation(root, { dryRun: false, yes: true });
+
+    const replaced = await lstat(
+      path.join(root, ".agents/skills/review/LINK.md")
+    );
+    expect(replaced.isSymbolicLink()).toBe(false);
+    expect(replaced.isFile()).toBe(true);
     await expect(
-      applyHarnessActivation(root, { dryRun: false, yes: true })
-    ).rejects.toThrow(/validation has errors/);
+      readFile(path.join(root, ".agents/skills/review/LINK.md"), "utf8")
+    ).resolves.toBe("projected replacement");
+    const preserved = await lstat(
+      path.join(root, ".agents/skills/review/LOCAL.md")
+    );
+    expect(preserved.isSymbolicLink()).toBe(true);
+    await expect(readFile(path.join(root, "outside.md"), "utf8")).resolves.toBe(
+      "outside"
+    );
   });
 
   it("replaces an existing non-directory target root with a copy projection", async () => {

@@ -80,3 +80,7 @@ path = "./.claude"
 ## 激活
 
 激活从资源、覆盖、profile、ignore、`[dir]`、清理策略和 mutable 策略计算投影。同一组输入必须产生同一目标树。
+
+## Symlink
+
+Harness config v1 将 symlink 视为叶子文件系统项，并且在发现源、目标、ignore、profile 或 `[dir]` 输出时不会跟随它们。如果 symlink 占用了激活需要写入的路径，激活可以按其他文件或非目录项使用的同一冲突规则替换链接本身。

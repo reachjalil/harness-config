@@ -72,6 +72,11 @@ participate only after the `.harnessIgnore` file exists on disk. Put rules in
 the repo-root `.harnessIgnore` or a source-local `.harnessIgnore` when the rule
 must apply on first activation.
 
+This pattern is intentionally target-local. It is most useful for gitignored
+live harness surfaces, local development experiments, or machine-specific
+runtime files that should not become shared source. The file is preserved and
+read from the target output, but it is not copied there by projection.
+
 ## Composable Instructions
 
 Use `[dir]` for durable repo-root files and target-owned files that are not
@@ -251,10 +256,12 @@ Keep the source and target roles separate:
 
 - Do not point a `[[targets]]` entry at a folder that remains the durable source.
 - Move shared authored content into the configured resources source.
+- Gitignore live harness surfaces when local experimentation or runtime state
+  matters more than committing generated output.
 - Keep runtime or product state out of `.harness/`; put product caches and activation records in product-owned folders and ignore them.
 - Use target-derived overrides for exact file differences. If a target needs a very different skill, prefer a separate resource item over a deep override tree.
 - Declare runtime-owned files under `[mutable]` so projection seeds them once and then leaves them alone.
-- Replace target and source symlinks with real files or directories before activation.
+- Do not rely on source or target symlinks being followed. Treat them as leaf entries and review any replace or remove action before activation.
 
 These recommendations keep activation one-way: configured source roots produce
 target outputs, and live harness surfaces never become the next source of truth.

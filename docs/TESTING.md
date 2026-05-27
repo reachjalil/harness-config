@@ -42,7 +42,7 @@ the same source trees, selected manifest, override folders, and
 | TOML | Target paths determine override folders from the first path segment | `packages/core/test/standard.test.ts` |
 | TOML | Target paths are explicit repo-local paths and are not constrained to named harness surfaces | `packages/core/test/standard.test.ts`, `packages/cli/test/run.test.ts` |
 | Projection | Identical declared targets are still materialized as copy projections | `packages/core/test/projection.test.ts` |
-| Projection | Target root and nested target symlinks are reported as unsupported diagnostics | `packages/core/test/projection.test.ts` |
+| Projection | Target root and nested target symlinks are treated as leaf entries: writable paths replace the link itself, unmanaged links are preserved by default | `packages/core/test/projection.test.ts` |
 | Projection | Changed source files plan `update` actions | `packages/core/test/projection.test.ts` |
 | Projection | Unmanaged target entries are preserved by default and summarized at one level | `packages/core/test/projection.test.ts` |
 | Projection | Explicit unmanaged cleanup plans `remove` actions | `packages/core/test/projection.test.ts` |

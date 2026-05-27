@@ -1226,12 +1226,10 @@ function unmanagedEntryRoot(
 }
 
 async function planCopyActions(
-  root: string,
   targetRoot: string,
   projection: DesiredProjection,
   cleanupUnmanaged: CleanupUnmanagedMode,
   mutablePolicy: MutablePolicy,
-  diagnostics: HarnessDiagnostic[],
   protectedRelativePaths: Set<string> = new Set()
 ): Promise<HarnessActivationAction[]> {
   const targetState = await lstat(targetRoot).catch(() => undefined);
@@ -1239,47 +1237,19 @@ async function planCopyActions(
   const actions: HarnessActivationAction[] = [];
   const managedItemRoots = projectedItemRoots(projection);
 
-  if (targetState?.isSymbolicLink()) {
-    diagnostics.push({
-      severity: "error",
-      code: "harness.target_symlink_unsupported",
-      message: "Declared target paths must be real directories, not symlinks.",
-      path: toRepoRelative(root, targetRoot),
-      recommendation:
-        "Replace the symlink with a real directory before activating Harness config.",
-    });
-    return [];
-  } else if (targetState && !targetState.isDirectory()) {
+  if (targetState && !targetState.isDirectory()) {
     actions.push({
       kind: "remove",
       targetPath: targetRoot,
-      reason: "replace existing non-directory with copy projection",
-    });
-  }
-
-  const symlinkRelativePaths = new Set(
-    [...existing.entries()]
-      .filter(([, entry]) => entry.type === "symlink")
-      .map(([relativePath]) => relativePath)
-  );
-  for (const relativePath of symlinkRelativePaths) {
-    diagnostics.push({
-      severity: "error",
-      code: "harness.target_symlink_unsupported",
-      message:
-        "Declared target trees must not contain symlinks. Harness config v1 does not follow or replace nested target symlinks.",
-      path: toRepoRelative(root, path.join(targetRoot, relativePath)),
-      recommendation:
-        "Replace the symlink with a regular file or directory before activating Harness config.",
+      reason: `replace existing ${
+        targetState.isSymbolicLink() ? "symlink" : "non-directory"
+      } with copy projection`,
     });
   }
 
   for (const [relativePath, desired] of projection) {
     const targetPath = path.join(targetRoot, relativePath);
     const current = existing.get(relativePath);
-    if (symlinkRelativePaths.has(relativePath)) {
-      continue;
-    }
     if (!current) {
       actions.push({
         kind: "create",
@@ -1339,9 +1309,6 @@ async function planCopyActions(
 
   const unmanagedRoots = new Map<string, ExistingEntry>();
   for (const [relativePath, entry] of existing) {
-    if (symlinkRelativePaths.has(relativePath)) {
-      continue;
-    }
     if (isProtectedTargetIgnorePath(relativePath, protectedRelativePaths)) {
       continue;
     }
@@ -1838,12 +1805,10 @@ async function prepareHarnessActivation(
     );
     projections.set(targetPath, targetProjection);
     const actions = await planCopyActions(
-      absoluteRoot,
       targetRoot,
       targetProjection,
       cleanupUnmanaged,
       mutablePolicy,
-      diagnostics,
       protectedTargetPathsForRoot(
         absoluteRoot,
         targetRoot,

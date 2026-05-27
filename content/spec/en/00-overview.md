@@ -21,7 +21,7 @@ updated: 2026-05-26
 
 Harnesses expose live files and folders such as `AGENTS.md`, `.agents`, `.claude`, `.gemini`, and `.cursor`. Those files and folders are useful harness surfaces, but they are a weak source of truth when several tools need the same skills, rules, plugins, and instruction files.
 
-Harness config keeps reusable agent resources in configured repository-owned source roots, conventionally under `.harness`, declares every harness surface output as an explicit target, and materializes each target through a dry-run-first copy projection. Harness surfaces stay live and tool-friendly. The reviewed source remains stable.
+Harness config keeps reusable agent resources in configured repository-owned source roots, conventionally under `.harness`, declares every harness surface output as an explicit target, and materializes each target through a dry-run-first copy projection. Harness surfaces stay live and tool-friendly; teams can commit them, gitignore them, or use them for local experiments because the reviewed source remains stable.
 
 ## Why Activation Matters
 
@@ -60,7 +60,7 @@ Harness config answers four practical questions:
 
 ## Why It Helps
 
-The complete catalog stays reviewable in one place. Harness surfaces stay ordinary live files and folders that can be regenerated, cleaned, or ignored by Git when a team chooses.
+The complete catalog stays reviewable in one place. Harness surfaces stay ordinary live files and folders that can be regenerated, cleaned, or ignored by Git when a team chooses. That flexibility is useful for experiments: a developer can try local harness settings, scratch files, or runtime state without turning those edits into shared source.
 
 Ignore and profile controls matter because real repositories have local variation. A team may want `.claude` to exclude one generated scratch file while `.agents` keeps it. A developer may want a personal `AGENTS.md` preface without changing team instructions. A platform group may ship a deploy kit that contributes skills and instruction parts only when selected. These workflows need precise output control, not another source tree hidden inside a harness surface.
 

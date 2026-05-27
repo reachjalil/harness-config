@@ -27,7 +27,7 @@ harnessc plan
   when applied with `--yes`.
 - `harnessc validate` checks version support, repo-local paths, target
   mappings, projection ignore syntax, mutable scope syntax, resource
-  composable leaves, symlink issues, and `[dir]` composition/copy issues.
+  composable leaves, symlink leaf handling, and `[dir]` composition/copy issues.
 - `harnessc activate` dry-runs the activation projection and shows creates,
   updates, requested removals, kept files, mutable-skipped files, and preserved
   unmanaged entries before writing.
