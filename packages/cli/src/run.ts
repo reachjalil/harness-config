@@ -1,4 +1,4 @@
-import { access } from "node:fs/promises";
+import { access, lstat, readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import {
   env as processEnv,
@@ -18,8 +18,10 @@ import {
   formatInitializationPlan,
   formatInitializationResult,
   harnessConfigSchema,
+  parseHarnessConfigToml,
   planHarnessActivation,
   planHarnessInitialization,
+  resolveHarnessPaths,
   toRepoRelative,
   validateHarnessConfig,
 } from "@harnessconfig/core";
@@ -289,7 +291,142 @@ async function discoverHarnessRoot(start: string): Promise<string> {
   }
 }
 
-function formatBareCommandGuidance(inspection: HarnessInspection): string {
+type SourceStats = {
+  targetCount: number;
+  resourceFiles: number;
+  resourceKinds: number;
+  composableFiles: number;
+  dirPath?: string;
+};
+
+function plural(count: number, label: string): string {
+  return `${count} ${label}${count === 1 ? "" : "s"}`;
+}
+
+function displayRepoPath(repoPath: string): string {
+  return repoPath.replaceAll("\\", "/").replace(/^\.\//, "");
+}
+
+async function countFilesAndComposables(directory: string): Promise<{
+  files: number;
+  composables: number;
+}> {
+  const state = await lstat(directory).catch(() => undefined);
+  if (!state?.isDirectory() || state.isSymbolicLink()) {
+    return { files: 0, composables: 0 };
+  }
+
+  let files = 0;
+  let composables = 0;
+  const entries = await readdir(directory, { withFileTypes: true }).catch(
+    () => []
+  );
+  for (const entry of entries) {
+    const absolutePath = path.join(directory, entry.name);
+    if (entry.isSymbolicLink()) {
+      continue;
+    }
+    if (entry.isDirectory()) {
+      const child = await countFilesAndComposables(absolutePath);
+      files += child.files;
+      composables += child.composables;
+      continue;
+    }
+    if (entry.isFile()) {
+      if (entry.name === ".harnessComposable") {
+        composables += 1;
+      } else {
+        files += 1;
+      }
+    }
+  }
+  return { files, composables };
+}
+
+async function countResourceKinds(resourcesDir: string): Promise<number> {
+  const entries = await readdir(resourcesDir, { withFileTypes: true }).catch(
+    () => []
+  );
+  return entries.filter(
+    (entry) => entry.isDirectory() && !entry.name.startsWith(".")
+  ).length;
+}
+
+async function collectSourceStats(
+  inspection: HarnessInspection
+): Promise<SourceStats | undefined> {
+  if (!inspection.hasHarnessConfig) {
+    return undefined;
+  }
+
+  const raw = await readFile(inspection.paths.configPath, "utf8").catch(
+    () => undefined
+  );
+  if (raw === undefined) {
+    return undefined;
+  }
+
+  let config: HarnessConfig;
+  try {
+    config = parseHarnessConfigToml(raw);
+  } catch {
+    return undefined;
+  }
+
+  const paths = resolveHarnessPaths(inspection.root, { config });
+  const resources = await countFilesAndComposables(paths.resourcesDir);
+  const dir = config.dir
+    ? await countFilesAndComposables(path.resolve(paths.root, config.dir.path))
+    : { files: 0, composables: 0 };
+
+  return {
+    targetCount: config.targets.length,
+    resourceFiles: resources.files,
+    resourceKinds: await countResourceKinds(paths.resourcesDir),
+    composableFiles: resources.composables + dir.composables,
+    dirPath: config.dir?.path,
+  };
+}
+
+async function formatProjectionStatus(
+  inspection: HarnessInspection,
+  configPath?: string
+): Promise<string | undefined> {
+  if (!inspection.hasHarnessConfig) {
+    return undefined;
+  }
+  const plan = await planHarnessActivation(inspection.root, {
+    configPath,
+  }).catch(() => undefined);
+  if (!plan) {
+    return "Projection: blocked - inspect issues before activation";
+  }
+  if (plan.diagnostics.some((diagnostic) => diagnostic.severity === "error")) {
+    return "Projection: blocked - fix issues before activation";
+  }
+
+  const targetActions = plan.targets.flatMap((target) => target.actions);
+  const create =
+    targetActions.filter((action) => action.kind === "create").length +
+    plan.dir.actions.filter((action) => action.kind === "create").length;
+  const update =
+    targetActions.filter((action) => action.kind === "update").length +
+    plan.dir.actions.filter((action) => action.kind === "update").length;
+  const remove = targetActions.filter(
+    (action) => action.kind === "remove"
+  ).length;
+
+  if (create + update + remove === 0) {
+    return "Projection: clean - no pending writes";
+  }
+
+  return `Projection: dirty - create ${create}, update ${update}, remove ${remove}`;
+}
+
+async function formatBareCommandGuidance(
+  inspection: HarnessInspection,
+  configPath?: string
+): Promise<string> {
   const hasErrors = inspection.diagnostics.some(
     (diagnostic) => diagnostic.severity === "error"
   );
@@ -299,16 +436,40 @@ function formatBareCommandGuidance(inspection: HarnessInspection): string {
         inspection.paths.configPath
       )}`
     : "Detected config: none";
+  const sourceStats = await collectSourceStats(inspection);
+  const projectionStatus = await formatProjectionStatus(inspection, configPath);
+  const summary = sourceStats
+    ? [
+        "Summary:",
+        `  Targets: ${plural(sourceStats.targetCount, "target")}`,
+        `  Resource files: ${plural(
+          sourceStats.resourceFiles,
+          "file"
+        )} across ${plural(sourceStats.resourceKinds, "kind")}`,
+        `  Composable files: ${sourceStats.composableFiles}`,
+        `  Dir source: ${
+          sourceStats.dirPath
+            ? displayRepoPath(sourceStats.dirPath)
+            : "not declared"
+        }`,
+        projectionStatus,
+      ]
+        .filter(Boolean)
+        .join("\n")
+    : projectionStatus
+      ? `Summary:\n  ${projectionStatus}`
+      : "";
+  const summaryBlock = summary ? `\n\n${summary}` : "";
 
   if (hasErrors) {
-    return `${configLine}\n\nNext steps:\n  harnessc validate --json  Inspect paths and issue details\n  harnessc --help           Show all commands`;
+    return `${configLine}${summaryBlock}\n\nNext steps:\n  harnessc validate --json  Inspect paths and issue details\n  harnessc --help           Show all commands`;
   }
 
   if (!inspection.hasHarnessConfig) {
-    return `${configLine}\n\nNext steps:\n  harnessc init        Preview the default .harness setup\n  harnessc init --yes  Create .harness/harness.toml and .harnessIgnore\n  harnessc --help      Show all commands`;
+    return `${configLine}${summaryBlock}\n\nNext steps:\n  harnessc init        Preview the default .harness setup\n  harnessc init --yes  Create .harness/harness.toml and .harnessIgnore\n  harnessc --help      Show all commands`;
   }
 
-  return `${configLine}\n\nNext steps:\n  harnessc activate        Preview projected file changes\n  harnessc activate --yes  Apply the projection\n  harnessc validate --json Inspect paths and selected config`;
+  return `${configLine}${summaryBlock}\n\nNext steps:\n  harnessc activate        Preview projected file changes\n  harnessc activate --yes  Apply the projection\n  harnessc validate --json Inspect paths and selected config`;
 }
 
 function initOptionsFromCli(
@@ -422,7 +583,10 @@ export async function runHarnessConfigCli(
         : formatDiagnostics(inspection.diagnostics, formatOptions);
       io.stdout(
         !options.commandExplicit && !options.json
-          ? `${diagnostics}\n\n${formatBareCommandGuidance(inspection)}`
+          ? `${diagnostics}\n\n${await formatBareCommandGuidance(
+              inspection,
+              options.configPath
+            )}`
           : diagnostics
       );
       return inspection.diagnostics.some(

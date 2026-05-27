@@ -97,8 +97,19 @@ describe("harnessc", () => {
 
   it("shows next steps when run without a command", async () => {
     const root = await rootFixture();
-    await writeConfig(root);
+    await writeConfig(root, ["./.agents", "./.claude"]);
     await write(root, ".harnessIgnore", "# projection boundary\n");
+    await write(root, ".harness/resources/hooks.json", "{}");
+    await write(
+      root,
+      ".harness/resources/skills/review/SKILL.md/.harnessComposable",
+      ""
+    );
+    await write(
+      root,
+      ".harness/resources/skills/review/SKILL.md/100_base.md",
+      "review"
+    );
     const originalCwd = process.cwd();
     process.chdir(root);
     try {
@@ -109,6 +120,11 @@ describe("harnessc", () => {
       expect(exitCode).toBe(0);
       expect(output).toContain("No Harness config issues found.");
       expect(output).toContain("Detected config: .harness/harness.toml");
+      expect(output).toContain("Summary:");
+      expect(output).toContain("Targets: 2 targets");
+      expect(output).toContain("Resource files: 2 files across 1 kind");
+      expect(output).toContain("Composable files: 1");
+      expect(output).toContain("Projection: dirty");
       expect(output).toContain("harnessc activate");
       expect(output).toContain("harnessc activate --yes");
     } finally {
