@@ -299,6 +299,32 @@ type SourceStats = {
   dirPath?: string;
 };
 
+const CLI_ANSI = {
+  bold: "\u001b[1m",
+  cyan: "\u001b[36m",
+  dim: "\u001b[2m",
+  green: "\u001b[32m",
+  red: "\u001b[31m",
+  reset: "\u001b[0m",
+  yellow: "\u001b[33m",
+};
+
+function cliStyle(
+  options: HarnessFormatOptions | undefined,
+  code: string,
+  text: string
+): string {
+  return options?.color ? `${code}${text}${CLI_ANSI.reset}` : text;
+}
+
+function cliLabel(options: HarnessFormatOptions | undefined, text: string) {
+  return cliStyle(options, CLI_ANSI.dim, text);
+}
+
+function cliValue(options: HarnessFormatOptions | undefined, text: string) {
+  return cliStyle(options, CLI_ANSI.cyan, text);
+}
+
 function plural(count: number, label: string): string {
   return `${count} ${label}${count === 1 ? "" : "s"}`;
 }
@@ -390,7 +416,8 @@ async function collectSourceStats(
 
 async function formatProjectionStatus(
   inspection: HarnessInspection,
-  configPath?: string
+  configPath: string | undefined,
+  options: HarnessFormatOptions
 ): Promise<string | undefined> {
   if (!inspection.hasHarnessConfig) {
     return undefined;
@@ -399,10 +426,18 @@ async function formatProjectionStatus(
     configPath,
   }).catch(() => undefined);
   if (!plan) {
-    return "Projection: blocked - inspect issues before activation";
+    return `${cliLabel(options, "Projection:")} ${cliStyle(
+      options,
+      CLI_ANSI.red,
+      "blocked"
+    )} - inspect issues before activation`;
   }
   if (plan.diagnostics.some((diagnostic) => diagnostic.severity === "error")) {
-    return "Projection: blocked - fix issues before activation";
+    return `${cliLabel(options, "Projection:")} ${cliStyle(
+      options,
+      CLI_ANSI.red,
+      "blocked"
+    )} - fix issues before activation`;
   }
 
   const targetActions = plan.targets.flatMap((target) => target.actions);
@@ -417,59 +452,108 @@ async function formatProjectionStatus(
   ).length;
 
   if (create + update + remove === 0) {
-    return "Projection: clean - no pending writes";
+    return `${cliLabel(options, "Projection:")} ${cliStyle(
+      options,
+      CLI_ANSI.green,
+      "clean"
+    )} - no pending writes`;
   }
 
-  return `Projection: dirty - create ${create}, update ${update}, remove ${remove}`;
+  return `${cliLabel(options, "Projection:")} ${cliStyle(
+    options,
+    CLI_ANSI.yellow,
+    "dirty"
+  )} - ${cliStyle(options, CLI_ANSI.green, `create ${create}`)}, ${cliStyle(
+    options,
+    CLI_ANSI.yellow,
+    `update ${update}`
+  )}, ${cliStyle(options, CLI_ANSI.red, `remove ${remove}`)}`;
 }
 
 async function formatBareCommandGuidance(
   inspection: HarnessInspection,
-  configPath?: string
+  configPath: string | undefined,
+  options: HarnessFormatOptions
 ): Promise<string> {
   const hasErrors = inspection.diagnostics.some(
     (diagnostic) => diagnostic.severity === "error"
   );
   const configLine = inspection.hasHarnessConfig
-    ? `Detected config: ${toRepoRelative(
-        inspection.root,
-        inspection.paths.configPath
+    ? `${cliLabel(options, "Detected config:")} ${cliValue(
+        options,
+        toRepoRelative(inspection.root, inspection.paths.configPath)
       )}`
-    : "Detected config: none";
+    : `${cliLabel(options, "Detected config:")} ${cliStyle(
+        options,
+        CLI_ANSI.yellow,
+        "none"
+      )}`;
   const sourceStats = await collectSourceStats(inspection);
-  const projectionStatus = await formatProjectionStatus(inspection, configPath);
+  const projectionStatus = await formatProjectionStatus(
+    inspection,
+    configPath,
+    options
+  );
   const summary = sourceStats
     ? [
-        "Summary:",
-        `  Targets: ${plural(sourceStats.targetCount, "target")}`,
-        `  Resource files: ${plural(
-          sourceStats.resourceFiles,
-          "file"
-        )} across ${plural(sourceStats.resourceKinds, "kind")}`,
-        `  Composable files: ${sourceStats.composableFiles}`,
-        `  Dir source: ${
+        cliStyle(options, CLI_ANSI.bold, "Summary:"),
+        `  ${cliLabel(options, "Targets:")} ${cliValue(
+          options,
+          plural(sourceStats.targetCount, "target")
+        )}`,
+        `  ${cliLabel(options, "Resource files:")} ${cliValue(
+          options,
+          plural(sourceStats.resourceFiles, "file")
+        )} across ${cliValue(
+          options,
+          plural(sourceStats.resourceKinds, "kind")
+        )}`,
+        `  ${cliLabel(options, "Composable files:")} ${cliValue(
+          options,
+          String(sourceStats.composableFiles)
+        )}`,
+        `  ${cliLabel(options, "Dir source:")} ${cliValue(
+          options,
           sourceStats.dirPath
             ? displayRepoPath(sourceStats.dirPath)
             : "not declared"
-        }`,
+        )}`,
         projectionStatus,
       ]
         .filter(Boolean)
         .join("\n")
     : projectionStatus
-      ? `Summary:\n  ${projectionStatus}`
+      ? `${cliStyle(options, CLI_ANSI.bold, "Summary:")}\n  ${projectionStatus}`
       : "";
   const summaryBlock = summary ? `\n\n${summary}` : "";
+  const nextSteps = cliStyle(options, CLI_ANSI.bold, "Next steps:");
+  const command = (value: string) => cliValue(options, value);
 
   if (hasErrors) {
-    return `${configLine}${summaryBlock}\n\nNext steps:\n  harnessc validate --json  Inspect paths and issue details\n  harnessc --help           Show all commands`;
+    return `${configLine}${summaryBlock}\n\n${nextSteps}\n  ${command(
+      "harnessc validate --json"
+    )}  Inspect paths and issue details\n  ${command(
+      "harnessc --help"
+    )}           Show all commands`;
   }
 
   if (!inspection.hasHarnessConfig) {
-    return `${configLine}${summaryBlock}\n\nNext steps:\n  harnessc init        Preview the default .harness setup\n  harnessc init --yes  Create .harness/harness.toml and .harnessIgnore\n  harnessc --help      Show all commands`;
+    return `${configLine}${summaryBlock}\n\n${nextSteps}\n  ${command(
+      "harnessc init"
+    )}        Preview the default .harness setup\n  ${command(
+      "harnessc init --yes"
+    )}  Create .harness/harness.toml and .harnessIgnore\n  ${command(
+      "harnessc --help"
+    )}      Show all commands`;
   }
 
-  return `${configLine}${summaryBlock}\n\nNext steps:\n  harnessc activate        Preview projected file changes\n  harnessc activate --yes  Apply the projection\n  harnessc validate --json Inspect paths and selected config`;
+  return `${configLine}${summaryBlock}\n\n${nextSteps}\n  ${command(
+    "harnessc activate"
+  )}        Preview projected file changes\n  ${command(
+    "harnessc activate --yes"
+  )}  Apply the projection\n  ${command(
+    "harnessc validate --json"
+  )} Inspect paths and selected config`;
 }
 
 function initOptionsFromCli(
@@ -585,7 +669,8 @@ export async function runHarnessConfigCli(
         !options.commandExplicit && !options.json
           ? `${diagnostics}\n\n${await formatBareCommandGuidance(
               inspection,
-              options.configPath
+              options.configPath,
+              formatOptions
             )}`
           : diagnostics
       );
