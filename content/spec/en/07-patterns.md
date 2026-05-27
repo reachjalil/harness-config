@@ -77,7 +77,9 @@ must apply on first activation.
 Use `[dir]` for durable repo-root files and target-owned files that are not
 resource items. A composable leaf is a directory with an empty
 `.harnessComposable` marker. Its numbered parts concatenate into one output
-file.
+file. When the same marker is used under the configured resources source, it
+composes a projected resource file inside each target instead of a repo-root or
+target-owned `[dir]` output.
 
 ```text
 .harness/dir/AGENTS.md/

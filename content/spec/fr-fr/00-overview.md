@@ -42,10 +42,10 @@ C'est la valeur centrale du standard: une configurabilité avancée avec un plan
 ## Ce que définit la spécification
 
 - Le manifeste sélectionné, par défaut `./.harness/harness.toml`, déclare la version, la source `[resources]` optionnelle, la source optionnelle `[dir]` et les `[[targets]]` explicites.
-- Les ressources vivent sous la source de ressources configurée, par défaut `.harness/resources`, par exemple `.harness/resources/skills/<name>` ou un type personnalisé.
+- Les ressources vivent sous la source de ressources configurée, par défaut `.harness/resources`, par exemple `.harness/resources/skills/<name>` ou un type personnalisé. Une feuille `.harnessComposable` dans la source de ressources compose un fichier de ressource projeté pour chaque cible déclarée.
 - Les surcharges dérivées de cible comme `.claude` ou `.agents` se trouvent dans une ressource et fusionnent seulement pour la cible correspondante.
 - Les fichiers `.harnessIgnore` définissent la limite de projection. Le fichier racine peut viser les chemins source et les chemins de sortie; les fichiers locaux peuvent vivre dans les sources déclarées ou dans des sorties cible existantes.
-- La source `[dir]` compose les feuilles `.harnessComposable` ou copie des fichiers vers des chemins relatifs au dépôt, même si la source `[dir]` est hors de `.harness`.
+- La source `[dir]` est séparée des ressources; elle compose des feuilles `.harnessComposable` en sorties repo-relatives, ou copie des fichiers vers des chemins relatifs au dépôt, même si la source `[dir]` est hors de `.harness`.
 - Les profils et exclusions locaux aux cibles restent des contrôles runtime préservés, tandis que l'activation rapporte toujours le plan calculé avant écriture.
 
 ## Proposition ouverte

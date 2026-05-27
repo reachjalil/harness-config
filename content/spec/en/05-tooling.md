@@ -119,11 +119,16 @@ path = "./.harness/dir"
     01_dev_intro.md            # copy mode (no marker)
 ```
 
-Directories that contain an empty `.harnessComposable` marker file are
-composable leaves: their numeric-prefix parts (for example `100_intro.md`,
-`200_rules.md`) concatenate in order to produce the output file. Directories
-without the marker are copy folders: their files and nested files copy to
-the matching repo-relative path. Individual files at any depth also copy.
+Inside `[dir]`, directories that contain an empty `.harnessComposable` marker
+file are composable leaves: their numeric-prefix parts (for example
+`100_intro.md`, `200_rules.md`) concatenate in order to produce one
+repo-relative output file. Directories without the marker are copy folders:
+their files and nested files copy to the matching repo-relative path.
+Individual files at any depth also copy.
+
+The same `.harnessComposable` marker can also be used under the configured
+resources source. In that location it composes one projected resource file
+inside each declared target; it is not a `[dir]` repo-relative output.
 
 `.harnessRef` files inside a composable leaf import another leaf's parts. Imported
 and local parts are sorted together, duplicate numbers keep all matching parts,

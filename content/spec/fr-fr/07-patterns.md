@@ -34,7 +34,7 @@ Cela filtre les fichiers finaux sous `.agents/skills/deploy-plan/` sans affecter
 
 ## Instructions Composables
 
-Utilisez `[dir]` pour les fichiers de dépôt comme `AGENTS.md`. Une feuille qui contient `.harnessComposable` concatène ses parties numériques:
+Utilisez `[dir]` pour les fichiers de dépôt comme `AGENTS.md`. Une feuille qui contient `.harnessComposable` concatène ses parties numériques en une sortie repo-relative:
 
 ```text
 .harness/dir/AGENTS.md/
@@ -42,6 +42,8 @@ Utilisez `[dir]` pour les fichiers de dépôt comme `AGENTS.md`. Une feuille qui
   100_intro.md
   200_rules.md
 ```
+
+Le même marqueur sous la source de ressources compose un fichier de ressource projeté dans chaque cible, par exemple `skills/review/SKILL.md`; ce cas reste une ressource, pas une sortie `[dir]`.
 
 ## Profil De Dépôt
 

@@ -26,6 +26,7 @@ specific runtime, CLI, or hosted service.
   marked with an empty `.harnessComposable` file are composable leaves
   whose numeric-prefix parts concatenate into one output file; all other
   directories and files copy as-is to their matching repo-relative paths.
+  These outputs are separate from resource items projected into every target.
 - Extension declaration conformance: an `[extensions.<id>]` table contains a
   positive integer `version`, may set `activation` to `explicit` or `auto`, and
   leaves all other fields to the extension implementation.

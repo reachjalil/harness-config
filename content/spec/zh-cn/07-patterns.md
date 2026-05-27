@@ -34,7 +34,7 @@ updated: 2026-05-26
 
 ## 可组合指令
 
-使用 `[dir]` 管理 `AGENTS.md` 等仓库文件。包含 `.harnessComposable` 的叶子会连接编号片段：
+使用 `[dir]` 管理 `AGENTS.md` 等仓库文件。包含 `.harnessComposable` 的叶子会把编号片段连接成仓库相对输出：
 
 ```text
 .harness/dir/AGENTS.md/
@@ -42,6 +42,8 @@ updated: 2026-05-26
   100_intro.md
   200_rules.md
 ```
+
+同一个标记位于资源源下时，会组合一个投影到每个目标中的资源文件，例如 `skills/review/SKILL.md`；这种情况仍然是资源，不是 `[dir]` 输出。
 
 ## 仓库级 profile
 

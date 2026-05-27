@@ -36,10 +36,10 @@ El estandar soporta configuracion avanzada sin hacer opaca la activacion. Los pe
 ## Que define
 
 - El manifiesto seleccionado, por defecto `./.harness/harness.toml`, declara version, fuente de recursos, fuente `[dir]` opcional y `[[targets]]`.
-- Los recursos viven bajo la fuente configurada, por defecto `.harness/resources`.
+- Los recursos viven bajo la fuente configurada, por defecto `.harness/resources`. Una hoja `.harnessComposable` en la fuente de recursos compone un archivo de recurso proyectado para cada destino declarado.
 - Las sobrescrituras derivadas del destino, como `.claude` o `.agents`, viven dentro de un recurso y solo se fusionan para el destino correspondiente.
 - `.harnessIgnore` define el limite de proyeccion.
-- `[dir]` compone hojas `.harnessComposable` o copia archivos a rutas relativas al repositorio.
+- `[dir]` esta separado de recursos; compone hojas `.harnessComposable` en salidas relativas al repositorio o copia archivos a rutas relativas al repositorio.
 - La activacion informa el plan calculado antes de escribir.
 
 ## Propuesta abierta

@@ -37,7 +37,9 @@ npx harnessc extension activate
 
 ## `[dir]`
 
-声明 `[dir]` 后，`.harnessComposable` 叶子会组合编号片段，其他文件会复制到仓库相对路径。源侧 `.harnessIgnore` 过滤收集过程，目标输出 `.harnessIgnore` 过滤最终结果。
+声明 `[dir]` 后，该源中的 `.harnessComposable` 叶子会把编号片段组合成仓库相对输出，其他文件会复制到仓库相对路径。源侧 `.harnessIgnore` 过滤收集过程，目标输出 `.harnessIgnore` 过滤最终结果。
+
+同一个 `.harnessComposable` 标记也可以用于配置的资源源下。那里它组合的是投影到每个声明目标中的资源文件，而不是 `[dir]` 的仓库相对输出。
 
 ## TypeScript helpers
 

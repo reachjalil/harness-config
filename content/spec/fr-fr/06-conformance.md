@@ -24,9 +24,9 @@ Une revendication de support Harness config doit être testable depuis la forme 
 ## Niveaux
 
 - Conformité dépôt: le manifeste sélectionné, par défaut `./.harness/harness.toml`, déclare `version = 1`, une source de ressources repo-locale et des chemins repo-locaux.
-- Conformité ressource: une ressource est un fichier ou dossier sous la source de ressources configurée, et les surcharges sont des dossiers pointés dans cette ressource.
+- Conformité ressource: une ressource est un fichier, un dossier ou une feuille `.harnessComposable` sous la source de ressources configurée, et les surcharges sont des dossiers pointés dans cette ressource.
 - Conformité cible: chaque `[[targets]]` contient seulement un chemin repo-local et ne pointe pas vers `.harness`.
-- Conformité dir: `[dir]` compose les feuilles `.harnessComposable` et copie les autres fichiers vers des chemins repo-relatifs.
+- Conformité dir: `[dir]` compose ses feuilles `.harnessComposable` et copie les autres fichiers vers des chemins repo-relatifs; ces sorties sont séparées des ressources projetées dans les cibles.
 - Conformité projection: l'activation applique `.harnessIgnore`, y compris les fichiers racine, source-locaux, target-output-locaux et les sections `[mutable]`. Les sections ciblées comme `[.claude]` sont invalides.
 - Conformité outil: l'outil rapporte le plan avant écriture et ne lit jamais une surface runtime comme source de vérité.
 

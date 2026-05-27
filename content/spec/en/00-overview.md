@@ -52,10 +52,10 @@ Harness config answers four practical questions:
 ## What The Standard Defines
 
 - The selected manifest, defaulting to `./.harness/harness.toml`, declares the standard version, optional `[resources] path`, optional `[dir]` source, and explicit `[[targets]]`.
-- Resource folders live under the configured resources source, defaulting to `.harness/resources`, with kinds such as `.harness/resources/skills/<name>` or any custom directory a repository carries there.
+- Resource folders live under the configured resources source, defaulting to `.harness/resources`, with kinds such as `.harness/resources/skills/<name>` or any custom directory a repository carries there. A `.harnessComposable` leaf in the resources source composes one projected resource file for each declared target.
 - Target-derived override folders such as `.claude` or `.agents` live inside a resource and merge only when the matching target is projected.
 - `.harnessIgnore` files define the projection boundary. The repo-root file can match source and output paths. Source-local files follow source paths. Target-output-local files follow final output paths and are preserved during cleanup.
-- The optional `[dir]` source composes `.harnessComposable` leaves into files such as `AGENTS.md`, or copies files to repo-relative output paths.
+- The optional `[dir]` source is separate from resources; it composes `.harnessComposable` leaves into repo-relative outputs such as `AGENTS.md`, or copies files to repo-relative output paths.
 - `.harnessProfile` selects an active profile. `.harnessProfileRoot` declares a profile overlay root under `.harness`. Active overlays can add or override resources and `[dir]` composable parts without making the profile folder a normal projected item.
 
 ## Why It Helps

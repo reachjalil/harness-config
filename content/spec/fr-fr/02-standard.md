@@ -51,6 +51,8 @@ Un dépôt conforme contient un manifeste sélectionné, par défaut `./.harness
 
 Les ressources vivent sous la source `[resources]` configurée. Les types comme `skills`, `rules` ou `plugins` sont des dossiers, pas des tables TOML par type. Les dossiers runtime ne sont des sorties que lorsqu'ils sont déclarés dans `[[targets]]`.
 
+Un dossier de ressource peut aussi contenir le marqueur vide `.harnessComposable`. Dans ce cas, il compose un seul fichier de ressource projeté dans chaque cible déclarée, par exemple `skills/review/SKILL.md`. Cette feuille reste une ressource: elle suit les surcharges de cible, les profils et les règles `.harnessIgnore` de ressources.
+
 ## Cibles
 
 Chaque cible est un chemin relatif au dépôt et ne contient que `path`.
@@ -69,7 +71,7 @@ Le premier segment du chemin choisit la surcharge correspondante dans chaque res
 
 La table `[dir]` déclare une seule source repo-locale, par défaut `./.harness/dir`. Cette source peut aussi être hors de `.harness`, par exemple `./resources`.
 
-Un dossier qui contient le fichier vide `.harnessComposable` est une feuille composable: ses parties à préfixe numérique se concatènent pour produire le fichier de sortie correspondant. Les autres dossiers et fichiers se copient tels quels vers leurs chemins relatifs au dépôt.
+Dans `[dir]`, un dossier qui contient le fichier vide `.harnessComposable` est une feuille composable de dir: ses parties à préfixe numérique se concatènent pour produire le fichier de sortie repo-relatif correspondant. Les autres dossiers et fichiers se copient tels quels vers leurs chemins relatifs au dépôt. Contrairement aux ressources, `[dir]` n'est pas projeté comme arbre de ressources dans chaque cible; il sert aux sorties repo-relatives comme `AGENTS.md`, `CLAUDE.md` ou des fichiers propres à une cible.
 
 Les fichiers `.harnessIgnore` source-locaux dans la source `[dir]`, y compris dans une feuille `.harnessComposable` hors de `.harness`, filtrent les parties, feuilles et dossiers. Les fichiers `.harnessIgnore` target-output-local filtrent aussi les sorties `[dir]` par chemin final une fois les sorties candidates connues. Pendant la collecte `[dir]`, seules les règles globales participent; `[mutable]` ne s'applique qu'aux projections de ressources vers les cibles.
 

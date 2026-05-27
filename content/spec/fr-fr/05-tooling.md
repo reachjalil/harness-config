@@ -37,7 +37,9 @@ Le manifeste par défaut est `./.harness/harness.toml`. `--config <path>` peut s
 
 ## Dir
 
-Déclarer `[dir]` active une source unique, par défaut `./.harness/dir`. Les feuilles avec `.harnessComposable` composent leurs parties numériques; les autres fichiers et dossiers se copient vers les chemins relatifs au dépôt.
+Déclarer `[dir]` active une source unique, par défaut `./.harness/dir`. Dans cette source, les feuilles avec `.harnessComposable` composent leurs parties numériques en sorties repo-relatives; les autres fichiers et dossiers se copient vers les chemins relatifs au dépôt.
+
+Le même marqueur `.harnessComposable` peut être utilisé sous la source de ressources configurée. Là, il compose un fichier de ressource projeté dans chaque cible déclarée; ce n'est pas une sortie repo-relative `[dir]`.
 
 Les règles `.harnessIgnore` source-side filtrent la collection `[dir]`, y compris dans une source personnalisée hors `.harness` et dans les feuilles `.harnessComposable`. Les règles target-output-local filtrent les sorties finales après le calcul des chemins candidats. Pendant la collecte `[dir]`, seules les règles globales participent; `[mutable]` reste réservé aux projections de ressources vers les cibles.
 

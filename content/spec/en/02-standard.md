@@ -78,8 +78,8 @@ authoritative.
   `./.harness/harness.toml`, which declares the standard version, resources source,
   targets, the optional dir source, and extensions.
 - **Resources source** — the repo-local directory declared by `[resources]`
-  `path`, defaulting to `./.harness/resources`, whose contents are projected
-  into every declared target.
+  `path`, defaulting to `./.harness/resources`, whose files, folders, and
+  resource composable leaves are projected into every declared target.
 - **Resource kind** — a category of source material such as
   `skills`, `rules`, `hooks`, or `plugins` under the resources source.
   Kinds are directory names, not reserved schema concepts.
@@ -89,7 +89,7 @@ authoritative.
   of review, but the resources source may also contain direct files such as
   `./.harness/resources/hooks.json`.
 - **Target** — a repository-local directory declared in the selected manifest
-  that receives copy projections of the resources source.
+  that receives projections of the resources source.
 - **Override folder** — an immediate dot-prefixed subfolder inside a resource
   item (for example `.claude/` inside
   `./.harness/resources/skills/review/`) or directly inside
@@ -97,13 +97,17 @@ authoritative.
   projecting to the matching target.
 - **Dir source** — an optional repo-local directory (default
   `./.harness/dir`) declared by the top-level `[dir]` table. Its contents
-  project either by composition (a directory marked with
-  `.harnessComposable` whose numbered parts concatenate into one output
-  file) or by direct copy (any other directory or file under the dir source
-  copies to the matching repo-relative path).
+  project to repo-relative output paths, either by composition (a directory
+  marked with `.harnessComposable` whose numbered parts concatenate into one
+  output file) or by direct copy (any other directory or file under the dir
+  source copies to the matching repo-relative path). The dir source is for
+  repo files and target-owned files that are not resource items.
 - **Composable marker** — the empty file `.harnessComposable` placed inside
-  a dir directory to mark it as a composable leaf. Without the marker, the
-  directory is treated as a copy folder.
+  a directory under the resources source or the dir source to mark it as a
+  composable leaf. Under resources, the leaf composes one projected resource
+  file inside each target. Under `[dir]`, the leaf composes one repo-relative
+  output file. Without the marker, resource directories remain normal
+  resource folders and dir directories are treated as copy folders.
 - **Projection** — the computed mapping from `(source root, manifest,
   configured sources, overrides, ignore rules)` to a per-target file tree.
 - **Activation** — the act of materializing a projection into one or more
@@ -227,7 +231,9 @@ the projected file path, and its numeric-prefix parts compose with the same
 leaves. For example,
 `./.harness/resources/skills/review/SKILL.md/.harnessComposable` projects one
 target file at `skills/review/SKILL.md`; the numbered files inside that
-directory are not projected individually.
+directory are not projected individually. Resource composable leaves are still
+resources: they project inside declared target folders and participate in
+resource overrides, profiles, and resource ignore rules.
 
 An immediate dot-prefixed directory directly under the resources source is a
 target-root override. For target `./.gemini`, files under the default
@@ -578,11 +584,12 @@ apply the projection until the conflict is resolved.
 ## Dir Source
 
 The optional top-level `[dir]` table declares a single repo-local **dir
-source** whose contents project to repo-relative paths. The dir source is
-how a repository carries durable, per-file outputs that are not modeled as
-resource items: top-level agent instructions (`AGENTS.md`, `CLAUDE.md`),
-per-target configuration (`.claude/settings.json`), repo-root files
-(`.gitignore`, `README.md`), and similar one-off artifacts.
+source** whose contents project to repo-relative paths. Unlike the resources
+source, `[dir]` is not copied as a resource tree into every target. It is how a
+repository carries durable, per-file outputs that are not modeled as resource
+items: top-level agent instructions (`AGENTS.md`, `CLAUDE.md`), per-target
+configuration (`.claude/settings.json`), repo-root files (`.gitignore`,
+`README.md`), and similar one-off artifacts.
 
 ```toml
 [dir]
@@ -596,10 +603,12 @@ no dir composition or copy happens, even if `./.harness/dir` exists.
 ### Composable Leaves
 
 A directory inside the dir source that contains the empty marker file
-`.harnessComposable` is a **composable leaf**. Its name (relative to the
-dir source root) is the output file path. Files inside it that match the
-numeric-prefix pattern `<order>_<name>` are **parts**: their bytes
-concatenate in `order` to produce the output file.
+`.harnessComposable` is a **dir composable leaf**. Its name (relative to the
+dir source root) is the repo-relative output file path. Files inside it that
+match the numeric-prefix pattern `<order>_<name>` are **parts**: their bytes
+concatenate in `order` to produce the output file. The same marker can also
+exist under the resources source, but there it composes a projected resource
+file rather than a repo-relative dir output.
 
 ```text
 .harness/dir/AGENTS.md/

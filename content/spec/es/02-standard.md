@@ -52,6 +52,8 @@ Un repositorio conforme contiene un manifiesto seleccionado, por defecto `./.har
 
 Los recursos viven bajo la fuente `[resources]` configurada. Tipos como `skills`, `rules` o `plugins` son carpetas, no tablas TOML por tipo. Las carpetas runtime solo son salidas cuando aparecen en `[[targets]]`.
 
+Una carpeta de recurso tambien puede contener el marcador vacio `.harnessComposable`. En ese caso compone un unico archivo de recurso proyectado en cada destino declarado, por ejemplo `skills/review/SKILL.md`. La hoja sigue siendo un recurso: participa en sobrescrituras de destino, perfiles y reglas `.harnessIgnore` de recursos.
+
 ## Destinos
 
 Cada destino es una ruta relativa al repositorio y solo contiene `path`.
@@ -68,7 +70,7 @@ El primer segmento de la ruta selecciona la sobrescritura correspondiente dentro
 
 ## `[dir]` y `.harnessComposable`
 
-`[dir]` declara una fuente repo-local, por defecto `./.harness/dir`. Una carpeta con el marcador vacio `.harnessComposable` es una hoja componible: sus partes numeradas se concatenan para producir un archivo de salida.
+`[dir]` declara una fuente repo-local, por defecto `./.harness/dir`. Dentro de `[dir]`, una carpeta con el marcador vacio `.harnessComposable` es una hoja componible de dir: sus partes numeradas se concatenan para producir un archivo de salida relativo al repositorio. A diferencia de recursos, `[dir]` no se proyecta como arbol de recursos en cada destino; sirve para salidas repo-relativas como `AGENTS.md`, `CLAUDE.md` o archivos propios de un destino.
 
 ## `.harnessIgnore`
 

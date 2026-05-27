@@ -49,6 +49,8 @@ tooling、extension 和实现发布，不属于规范 URL 空间，也不属于 
 
 资源位于配置的 `[resources]` 源下。`skills`、`rules`、`plugins` 等类型是文件夹，不是每种类型一张 TOML 表。Runtime 文件夹只有在 `[[targets]]` 中声明后才是输出。
 
+资源文件夹也可以包含空的 `.harnessComposable` 标记。此时它组合的是一个会投影到每个声明目标中的资源文件，例如 `skills/review/SKILL.md`。这个叶子仍然是资源：它参与目标覆盖、profile 和资源侧 `.harnessIgnore` 规则。
+
 ## 目标
 
 每个目标都是仓库相对路径，并且只包含 `path`。
@@ -65,7 +67,7 @@ path = "./.claude"
 
 ## `[dir]` 和 `.harnessComposable`
 
-`[dir]` 声明一个仓库本地源，默认 `./.harness/dir`。包含空文件 `.harnessComposable` 的文件夹是可组合叶子：编号片段会连接成一个输出文件。
+`[dir]` 声明一个仓库本地源，默认 `./.harness/dir`。在 `[dir]` 中，包含空文件 `.harnessComposable` 的文件夹是 dir 可组合叶子：编号片段会连接成一个仓库相对输出文件。与资源不同，`[dir]` 不会作为资源树投影到每个目标；它用于 `AGENTS.md`、`CLAUDE.md` 或目标自有配置文件这类仓库相对输出。
 
 ## `.harnessIgnore`
 
