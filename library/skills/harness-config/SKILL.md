@@ -24,6 +24,9 @@ contain the detailed instructions for each area of the skill:
   resources source, and `[dir]` source.
 - `references/migration.md`: migration from existing root instruction files,
   runtime folders, skills, plugins, rules, and local settings.
+- `references/skills-sh-adoption.md`: user installed this skill from
+  skills.sh or GitHub and wants help transitioning the current repository to
+  `.harness`.
 - `references/cli.md`: CLI command usage, dry-run behavior, activation flags,
   and common troubleshooting.
 - `references/verification.md`: validation, dry-run activation, apply,
@@ -33,18 +36,40 @@ contain the detailed instructions for each area of the skill:
 
 1. Identify the user intent: quick start, migration, CLI usage, verification,
    or troubleshooting.
-2. Read the matching reference markdown file before editing or running commands.
-3. Inspect existing agent files and harness surfaces before editing.
-4. Choose explicit targets only; do not infer targets from folders that happen
+2. If the user installed this skill from skills.sh or GitHub and the repository
+   is not already set up for Harness config, treat the task as adoption and read
+   `references/skills-sh-adoption.md`.
+3. Read the matching reference markdown file before editing or running commands.
+4. Inspect existing agent files and harness surfaces before editing.
+5. Choose explicit targets only; do not infer targets from folders that happen
    to exist.
-5. Create or update `.harness/harness.toml`.
-6. Move durable shared content into `.harness/resources` or `.harness/dir`.
-7. Keep runtime state, secrets, caches, and local settings out of `.harness`.
-8. Add `.harnessIgnore` rules, including `[mutable]` entries for runtime-owned
+6. Create or update `.harness/harness.toml`.
+7. Move durable shared content into `.harness/resources` or `.harness/dir`.
+8. Keep runtime state, secrets, caches, and local settings out of `.harness`.
+9. Add `.harnessIgnore` rules, including `[mutable]` entries for runtime-owned
    files.
-9. Run `npx harnessc validate`, `npx harnessc activate`, then
+10. Run `npx harnessc validate`, `npx harnessc activate`, then
    `npx harnessc activate --yes`.
-10. Re-run dry activation and confirm convergence.
+11. Re-run dry activation and confirm convergence.
+
+## Adoption Scenarios
+
+Recognize these common states and choose the matching path:
+
+- **Skill installed, no `.harness` yet.** The user installed this skill from
+  skills.sh or GitHub and wants the agent to help set up Harness config in the
+  current repository. Use `references/skills-sh-adoption.md` first, then
+  `references/quick-start.md` or `references/migration.md`.
+- **New repository.** No meaningful agent configuration exists yet. Use
+  `references/quick-start.md` and create only the targets the user actually
+  wants.
+- **Existing agent surfaces.** Root instructions, `.agents`, `.claude`,
+  `.cursor`, `.gemini`, skills, rules, hooks, commands, or settings already
+  exist. Use `references/migration.md` and preserve current behavior before
+  simplifying.
+- **Already using `.harness`.** Inspect the manifest, sources, ignores, and
+  targets before editing. Use `references/cli.md` and
+  `references/verification.md` for validation and activation.
 
 ## Target Rules
 
