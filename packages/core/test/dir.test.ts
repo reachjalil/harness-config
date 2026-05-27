@@ -26,8 +26,11 @@ async function writeConfig(
     [
       "version = 1",
       "",
+      "[[resources]]",
+      'path = "./.harness/resources"',
+      "",
       ...targets.flatMap((target) => ["[[targets]]", `path = "${target}"`, ""]),
-      "[dir]",
+      "[[dir]]",
       `path = "${options.dirPath ?? "./.harness/dir"}"`,
       "",
     ].join("\n")
@@ -83,6 +86,68 @@ describe("core dir (composable + copy)", () => {
 
     await expect(readFile(path.join(root, "CLAUDE.md"), "utf8")).resolves.toBe(
       "ABC"
+    );
+  });
+
+  it("layers ordered dir roots with later copies winning and composables merging", async () => {
+    const root = await fixtureRoot();
+    await write(
+      root,
+      ".harness/harness.toml",
+      [
+        "version = 1",
+        "",
+        "[[dir]]",
+        'path = "./.harness/dir"',
+        "",
+        "[[dir]]",
+        'path = "./.harness/local/dir"',
+        "",
+      ].join("\n")
+    );
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harness/dir/README.md", "base readme");
+    await write(root, ".harness/local/dir/README.md", "local readme");
+    await write(root, ".harness/dir/AGENTS.md/.harnessComposable", "");
+    await write(root, ".harness/dir/AGENTS.md/100_base.md", "Base\n");
+    await write(root, ".harness/local/dir/AGENTS.md/.harnessComposable", "");
+    await write(root, ".harness/local/dir/AGENTS.md/900_local.md", "Local\n");
+
+    await applyHarnessActivation(root, { yes: true });
+
+    await expect(readFile(path.join(root, "README.md"), "utf8")).resolves.toBe(
+      "local readme"
+    );
+    await expect(readFile(path.join(root, "AGENTS.md"), "utf8")).resolves.toBe(
+      "Base\nLocal\n"
+    );
+  });
+
+  it("lets a later dir copy file replace an earlier composable output", async () => {
+    const root = await fixtureRoot();
+    await write(
+      root,
+      ".harness/harness.toml",
+      [
+        "version = 1",
+        "",
+        "[[dir]]",
+        'path = "./.harness/dir"',
+        "",
+        "[[dir]]",
+        'path = "./.harness/local/dir"',
+        "",
+      ].join("\n")
+    );
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harness/dir/AGENTS.md/.harnessComposable", "");
+    await write(root, ".harness/dir/AGENTS.md/100_base.md", "Base\n");
+    await write(root, ".harness/local/dir/AGENTS.md", "Local file\n");
+
+    await applyHarnessActivation(root, { yes: true });
+
+    await expect(readFile(path.join(root, "AGENTS.md"), "utf8")).resolves.toBe(
+      "Local file\n"
     );
   });
 

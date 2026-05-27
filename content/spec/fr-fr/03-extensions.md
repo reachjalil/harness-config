@@ -37,4 +37,4 @@ Le noyau possède seulement `version` et `activation`. Tous les autres champs ap
 
 Une extension ne doit pas redéfinir la source de ressources, les cibles, les surcharges, `.harnessIgnore`, les fichiers mutables ou le contrat de planification.
 
-La table `[dir]` est une surface du noyau v1, pas une extension: ses sorties interagissent directement avec les cibles déclarées, le nettoyage et les fichiers `.harnessIgnore` target-output-local.
+Les sources `[[dir]]` sont une surface du noyau v1, pas une extension: leurs sorties interagissent directement avec les cibles déclarées, le nettoyage et les fichiers `.harnessIgnore` target-output-local.

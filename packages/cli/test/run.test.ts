@@ -22,6 +22,9 @@ async function writeConfig(root: string, targets = ["./.agents"]) {
     [
       "version = 1",
       "",
+      "[[resources]]",
+      'path = "./.harness/resources"',
+      "",
       ...targets.flatMap((target) => ["[[targets]]", `path = "${target}"`, ""]),
     ].join("\n")
   );
@@ -31,7 +34,7 @@ async function writeDirConfig(root: string, dirPath = "./.harness/dir") {
   await write(
     root,
     ".harness/harness.toml",
-    ["version = 1", "", "[dir]", `path = "${dirPath}"`, ""].join("\n")
+    ["version = 1", "", "[[dir]]", `path = "${dirPath}"`, ""].join("\n")
   );
 }
 
@@ -225,7 +228,7 @@ describe("harnessc", () => {
     ).resolves.toContain("projecting .harness resources");
     await expect(
       readFile(path.join(root, ".harness", "harness.toml"), "utf8")
-    ).resolves.not.toContain("[resources]");
+    ).resolves.toContain("[[resources]]");
   });
 
   it("initializes custom resource folders and explicit targets when requested", async () => {
@@ -285,7 +288,7 @@ describe("harnessc", () => {
       path.join(root, "config", "harness.custom.toml"),
       "utf8"
     );
-    expect(rawConfig).toContain("[resources]");
+    expect(rawConfig).toContain("[[resources]]");
     expect(rawConfig).toContain('path = "./agent-context/resources"');
     await expect(
       lstat(path.join(root, "agent-context/resources/skills"))
@@ -356,13 +359,46 @@ describe("harnessc", () => {
     ).rejects.toThrow();
   });
 
-  it("activates the default .harness/resources tree when [resources] is omitted", async () => {
+  it("explains a projected output path", async () => {
+    const root = await rootFixture();
+    await writeConfig(root);
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harness/resources/skills/review/SKILL.md", "review");
+    const capture = captureIo();
+    const exitCode = await runHarnessConfigCli(
+      ["explain", ".agents/skills/review/SKILL.md", "--root", root, "--json"],
+      capture.io
+    );
+
+    expect(exitCode).toBe(0);
+    const parsed = JSON.parse(capture.stdout.join("\n")) as {
+      explanation: string;
+      outputActions: Array<{ kind: string; sourcePath: string }>;
+    };
+    expect(parsed.explanation).toContain("planned output");
+    expect(parsed.outputActions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "create",
+          sourcePath: path.join(
+            root,
+            ".harness/resources/skills/review/SKILL.md"
+          ),
+        }),
+      ])
+    );
+  });
+
+  it("activates an explicit .harness/resources tree", async () => {
     const root = await rootFixture();
     await write(
       root,
       ".harness/harness.toml",
       [
         "version = 1",
+        "",
+        "[[resources]]",
+        'path = "./.harness/resources"',
         "",
         "[[targets]]",
         'path = "./.agents"',
@@ -682,10 +718,13 @@ mode = "copy"
       [
         "version = 1",
         "",
+        "[[resources]]",
+        'path = "./.harness/resources"',
+        "",
         "[[targets]]",
         'path = "./.claude"',
         "",
-        "[dir]",
+        "[[dir]]",
         'path = "./.harness/dir"',
         "",
       ].join("\n")
@@ -716,10 +755,13 @@ mode = "copy"
       [
         "version = 1",
         "",
+        "[[resources]]",
+        'path = "./.harness/resources"',
+        "",
         "[[targets]]",
         'path = "./.claude"',
         "",
-        "[dir]",
+        "[[dir]]",
         'path = "./.harness/dir"',
         "",
       ].join("\n")
@@ -775,13 +817,16 @@ mode = "copy"
       [
         "version = 1",
         "",
+        "[[resources]]",
+        'path = "./.harness/resources"',
+        "",
         "[[targets]]",
         'path = "./.agents"',
         "",
         "[[targets]]",
         'path = "./.claude"',
         "",
-        "[dir]",
+        "[[dir]]",
         'path = "./resources"',
         "",
       ].join("\n")
@@ -930,10 +975,13 @@ mode = "copy"
       [
         "version = 1",
         "",
+        "[[resources]]",
+        'path = "./.harness/resources"',
+        "",
         "[[targets]]",
         'path = "./.agents"',
         "",
-        "[dir]",
+        "[[dir]]",
         'path = "./.harness/dir"',
         "",
       ].join("\n")

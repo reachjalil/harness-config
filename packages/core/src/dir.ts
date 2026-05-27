@@ -36,6 +36,7 @@ export type DirOutput = {
 export type HarnessDirPlan = {
   enabled: boolean;
   path?: string;
+  paths?: string[];
   outputs: DirOutput[];
   diagnostics: HarnessDiagnostic[];
   profileContext?: HarnessProfileContext;
@@ -618,6 +619,7 @@ async function walkDir(
       relativePath,
       parts: [],
     };
+    copyOutputs.delete(relativePath);
     await readComposableParts(root, files, leaf, diagnostics);
     composableLeaves.set(relativePath, leaf);
     return;
@@ -641,6 +643,7 @@ async function walkDir(
     if (!bytes) {
       continue;
     }
+    composableLeaves.delete(outputRelativePath);
     copyOutputs.set(outputRelativePath, {
       bytes,
       sourcePath: file.absolutePath,
@@ -678,10 +681,14 @@ function validateDirOutputPath(
   const paths = resolveHarnessPaths(root, { config });
   const sourceRoots = [
     { label: ".harness", path: paths.harnessDir },
-    { label: "resources", path: paths.resourcesDir },
-    ...(config.dir
-      ? [{ label: "dir", path: resolveDirRoot(root, config) }]
-      : []),
+    ...paths.resourcesDirs.map((sourcePath, index) => ({
+      label: `resources[${index}]`,
+      path: sourcePath,
+    })),
+    ...paths.dirDirs.map((sourcePath, index) => ({
+      label: `dir[${index}]`,
+      path: sourcePath,
+    })),
   ];
 
   for (const sourceRoot of sourceRoots) {
@@ -727,13 +734,14 @@ function validateDirOutputPath(
   return targetPath;
 }
 
-function resolveDirRoot(root: string, config: HarnessConfig): string {
-  const configured = config.dir?.path ?? "./.harness/dir";
-  return resolveRepoLocalPath(root, configured, "Dir source path");
+function resolveDirRoots(root: string, config: HarnessConfig): string[] {
+  return config.dir.map((source) =>
+    resolveRepoLocalPath(root, source.path, `Dir source path "${source.path}"`)
+  );
 }
 
 function dirEnabled(config: HarnessConfig): boolean {
-  return config.dir !== undefined;
+  return config.dir.length > 0;
 }
 
 async function dirRootState(
@@ -968,7 +976,7 @@ async function collectDirCandidateOutputPaths(
   return [...outputPaths].sort((left, right) => left.localeCompare(right));
 }
 
-async function dirSourceLayers(
+async function dirSourceLayersForRoot(
   dirRoot: string,
   profileContext: HarnessProfileContext
 ): Promise<DirSourceLayer[]> {
@@ -1008,6 +1016,17 @@ async function dirSourceLayers(
   return layers;
 }
 
+async function dirSourceLayers(
+  dirRoots: string[],
+  profileContext: HarnessProfileContext
+): Promise<DirSourceLayer[]> {
+  const layers: DirSourceLayer[] = [];
+  for (const dirRoot of dirRoots) {
+    layers.push(...(await dirSourceLayersForRoot(dirRoot, profileContext)));
+  }
+  return layers;
+}
+
 export async function planHarnessDir(
   root: string,
   config: HarnessConfig,
@@ -1022,40 +1041,27 @@ export async function planHarnessDir(
     };
   }
 
-  const dirRoot = resolveDirRoot(root, config);
-  const dirRootRelative = toRepoRelative(root, dirRoot);
-  const state = await dirRootState(dirRoot);
-
-  if (!state.exists) {
-    diagnostics.push({
-      severity: "warning",
-      code: "harness.dir_root_missing",
-      message: `${dirRootRelative} does not exist.`,
-      path: dirRootRelative,
-      recommendation:
-        "Create the dir source root, configure a different [dir] path, or remove the [dir] declaration.",
-    });
-    return {
-      enabled: true,
-      path: dirRootRelative,
-      outputs: [],
-      diagnostics,
-    };
-  }
-
-  if (!state.isDirectory || state.isSymlink) {
-    diagnostics.push({
-      severity: "error",
-      code: "harness.dir_root_not_directory",
-      message: `${dirRootRelative} must be a real directory.`,
-      path: dirRootRelative,
-    });
-    return {
-      enabled: true,
-      path: dirRootRelative,
-      outputs: [],
-      diagnostics,
-    };
+  const dirRoots = resolveDirRoots(root, config);
+  const dirRootRelatives = dirRoots.map((dirRoot) =>
+    toRepoRelative(root, dirRoot)
+  );
+  const existingDirRoots: string[] = [];
+  for (const dirRoot of dirRoots) {
+    const dirRootRelative = toRepoRelative(root, dirRoot);
+    const state = await dirRootState(dirRoot);
+    if (!state.exists) {
+      continue;
+    }
+    if (!state.isDirectory || state.isSymlink) {
+      diagnostics.push({
+        severity: "error",
+        code: "harness.dir_root_not_directory",
+        message: `${dirRootRelative} must be a real directory.`,
+        path: dirRootRelative,
+      });
+      continue;
+    }
+    existingDirRoots.push(dirRoot);
   }
 
   const bootstrapProfileContext =
@@ -1069,7 +1075,7 @@ export async function planHarnessDir(
     protectedTargetPaths: bootstrapProfileContext.protectedTargetPaths,
   });
   const bootstrapLayers = await dirSourceLayers(
-    dirRoot,
+    existingDirRoots,
     bootstrapProfileContext
   );
   const bootstrapOutputs = await collectDirOutputs(
@@ -1105,7 +1111,7 @@ export async function planHarnessDir(
   const outputs = await collectDirOutputs(
     root,
     config,
-    await dirSourceLayers(dirRoot, profileContext),
+    await dirSourceLayers(existingDirRoots, profileContext),
     matcher,
     profileContext,
     diagnostics
@@ -1113,7 +1119,8 @@ export async function planHarnessDir(
 
   return {
     enabled: true,
-    path: dirRootRelative,
+    path: dirRootRelatives.join(", "),
+    paths: dirRootRelatives,
     outputs,
     diagnostics,
     profileContext,

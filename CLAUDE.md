@@ -53,9 +53,9 @@ Remove `.harnessProfile` and activate again to return to the neutral guide.
 - Use the standard filenames exactly: `.harnessIgnore`, `.harnessProfile`,
   `.harnessProfileRoot`, `.harnessComposable`, and `.harnessRef`.
 - Treat `.harnessProfileRoot` as profile source only. It must live under
-  `.harness`, the configured resources source, or the configured `[dir]`
-  source, must not be projected as a resource item, and must overlay resources
-  or `[dir]` outputs by logical source path.
+  `.harness`, a configured resources source, or a configured dir source, must
+  not be projected as a resource item, and must overlay resources or dir
+  outputs by logical source path.
 - Keep `.harnessIgnore` as the projection boundary for global, source-local,
   target-output-local, and `[mutable]` rules.
 - Prefer focused tests near the behavior being changed. Update
@@ -118,7 +118,7 @@ Run this checklist before claiming the standard or CLI works end to end.
 2. Read `docs/TOOLING.md` and `packages/cli/README.md` and confirm CLI
    behavior, flags, dry-run semantics, and output wording are documented.
 3. Read `docs/CONFORMANCE.md` and confirm the repository, tool, projection,
-   `[dir]`, profile, ignore, and mutable-file claims are testable.
+   dir, profile, ignore, and mutable-file claims are testable.
 4. Run `pnpm run quality`.
 5. Run the manual fixture below and inspect the CLI output and resulting files
    as a human, not only through automated assertions.
@@ -127,7 +127,7 @@ Expected manual evidence:
 
 - `validate` reports no diagnostics for a valid fixture.
 - First `activate` without `--yes` reports creates but writes nothing.
-- `activate --yes` writes declared targets and `[dir]` outputs.
+- `activate --yes` writes declared targets and dir outputs.
 - A second dry run converges to `keep` for managed files and `mutable` for
   runtime-owned files.
 - `.claude` receives its `.claude` override while `.agents` receives the base
@@ -137,11 +137,10 @@ Expected manual evidence:
 - Target-output `.harnessIgnore` can filter one target while being preserved.
 - `[mutable]` files are created once, then left untouched until
   `--force-mutable`.
-- `[dir]` composition writes root files, follows `.harnessRef`, and merges outputs
+- Dir composition writes root files, follows `.harnessRef`, and merges outputs
   that land under a declared target.
 - `.harnessProfile` selects a `.harnessProfileRoot` overlay for both resource
-  projection and `[dir]` composition.
-
+  projection and dir composition.
 ## End-To-End Fixture
 
 Run from the repository root after `pnpm build`:
@@ -163,13 +162,16 @@ mkdir -p \
 cat > "$tmp/.harness/harness.toml" <<'TOML'
 version = 1
 
+[[resources]]
+path = "./.harness/resources"
+
 [[targets]]
 path = "./.agents"
 
 [[targets]]
 path = "./.claude"
 
-[dir]
+[[dir]]
 path = "./.harness/dir"
 TOML
 
@@ -263,7 +265,7 @@ clear non-zero diagnostics for:
 - `.harnessProfileRoot` outside `.harness` and the configured source roots,
 - overlapping configured resources, dir, or target paths,
 - non-default manifest paths selected with `--config`,
-- `[dir]` `.harnessRef` cycles, missing `.harnessRef` targets, mixed
+- `[[dir]]` `.harnessRef` cycles, missing `.harnessRef` targets, mixed
   file/directory conflicts, and target root overlaps.
 
 For changes touching cleanup, verify both defaults:

@@ -9,13 +9,16 @@ Declare only the runtime targets the repo should actually receive:
 ```toml
 version = 1
 
+[[resources]]
+path = "./.harness/resources"
+
 [[targets]]
 path = "./.agents"
 
 [[targets]]
 path = "./.claude"
 
-[dir]
+[[dir]]
 path = "./.harness/dir"
 ```
 

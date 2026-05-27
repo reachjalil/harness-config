@@ -31,7 +31,7 @@ tooling、extension 和实现发布，不属于规范 URL 空间，也不属于 
 
 Harness 是消费仓库指令、上下文、工具和配置的智能体 runtime 或开发者工具。Harness surface 是该 harness 读取的仓库本地文件或文件夹，例如 `AGENTS.md`、`.agents`、`.claude` 或 `.cursor`。
 
-一个一致的仓库包含选中的 manifest，默认 `./.harness/harness.toml`；配置过的资源源；显式目标；可选的根 `.harnessIgnore`；以及可选 `[dir]` 源，用于组合或复制输出。
+一个一致的仓库包含选中的 manifest，默认 `./.harness/harness.toml`；配置过的 `[[resources]]` 源；显式目标；可选的根 `.harnessIgnore`；以及 `[[dir]]` 源，用于组合或复制输出。
 
 ## 仓库形状
 
@@ -51,7 +51,7 @@ Harness 是消费仓库指令、上下文、工具和配置的智能体 runtime 
       .harnessIgnore
 ```
 
-资源位于配置的 `[resources]` 源下。`skills`、`rules`、`plugins` 等类型是文件夹，不是每种类型一张 TOML 表。Harness surface 只有在 `[[targets]]` 中声明后才是输出。
+资源位于配置的 `[[resources]]` 源下。`skills`、`rules`、`plugins` 等类型是文件夹，不是每种类型一张 TOML 表。Harness surface 只有在 `[[targets]]` 中声明后才是输出。
 
 资源文件夹也可以包含空的 `.harnessComposable` 标记。此时它组合的是一个会投影到每个声明目标中的资源文件，例如 `skills/review/SKILL.md`。这个叶子仍然是资源：它参与目标覆盖、profile 和资源侧 `.harnessIgnore` 规则。
 
@@ -69,9 +69,9 @@ path = "./.claude"
 
 路径的第一段选择每个资源中的对应覆盖。目标 `./.claude` 会选择资源里的 `.claude` 文件夹。
 
-## `[dir]` 和 `.harnessComposable`
+## `[[dir]]` 和 `.harnessComposable`
 
-`[dir]` 声明一个仓库本地源，默认 `./.harness/dir`。在 `[dir]` 中，包含空文件 `.harnessComposable` 的文件夹是 dir 可组合叶子：编号片段会连接成一个仓库相对输出文件。与资源不同，`[dir]` 不会作为资源树投影到每个目标；它用于 `AGENTS.md`、`CLAUDE.md` 或目标自有配置文件这类仓库相对输出。
+每个 `[[dir]]` 声明一个仓库本地源。在 `[[dir]]` 中，包含空文件 `.harnessComposable` 的文件夹是 dir 可组合叶子：编号片段会连接成一个仓库相对输出文件。与资源不同，`[[dir]]` 不会作为资源树投影到每个目标；它用于 `AGENTS.md`、`CLAUDE.md` 或目标自有配置文件这类仓库相对输出。
 
 ## `.harnessIgnore`
 
@@ -81,13 +81,13 @@ path = "./.claude"
 
 ## 激活
 
-激活从资源、覆盖、profile、ignore、`[dir]`、清理策略和 mutable 策略计算投影。同一组输入必须产生同一目标树。
+激活从资源、覆盖、profile、ignore、`[[dir]]`、清理策略和 mutable 策略计算投影。同一组输入必须产生同一目标树。
 
 ## 文件系统语义
 
 Harness config v1 固定一组保守的文件系统行为：
 
-- Symlink 是叶子项；发现源、目标、ignore、profile 或 `[dir]` 输出时绝不跟随。
+- Symlink 是叶子项；发现源、目标、ignore、profile 或 dir 输出时绝不跟随。
 - 受管理文件在目标字节不同的时候，从当前源投影更新。
 - 匹配 `[mutable]` 的文件只创建一次，之后由 runtime 拥有。
 - 目标中的未管理文件默认保留，除非显式选择清理。

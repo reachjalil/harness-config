@@ -34,7 +34,7 @@ Esto filtra archivos finales bajo `.agents/skills/deploy-plan/` sin afectar `.cl
 
 ## Instrucciones componibles
 
-Usa `[dir]` para archivos del repositorio como `AGENTS.md`. Una hoja con `.harnessComposable` concatena partes numeradas en una salida relativa al repositorio:
+Usa `[[dir]]` para archivos del repositorio como `AGENTS.md`. Una hoja con `.harnessComposable` concatena partes numeradas en una salida relativa al repositorio:
 
 ```text
 .harness/dir/AGENTS.md/
@@ -43,7 +43,7 @@ Usa `[dir]` para archivos del repositorio como `AGENTS.md`. Una hoja con `.harne
   200_rules.md
 ```
 
-El mismo marcador bajo la fuente de recursos compone un archivo de recurso proyectado en cada destino, por ejemplo `skills/review/SKILL.md`; ese caso sigue siendo un recurso, no una salida `[dir]`.
+El mismo marcador bajo la fuente de recursos compone un archivo de recurso proyectado en cada destino, por ejemplo `skills/review/SKILL.md`; ese caso sigue siendo un recurso, no una salida `[[dir]]`.
 
 ## Perfil de repositorio
 

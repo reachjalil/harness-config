@@ -28,8 +28,11 @@ Start with an explicit manifest at `./.harness/harness.toml`:
 ```toml
 version = 1
 
-[resources]
+[[resources]]
 path = "./.harness/resources"
+
+[[resources]]
+path = "./.harness/local/resources"
 
 [[targets]]
 path = "./.agents"
@@ -40,8 +43,11 @@ path = "./.claude"
 [[targets]]
 path = "./.gemini"
 
-[dir]
+[[dir]]
 path = "./.harness/dir"
+
+[[dir]]
+path = "./.harness/local/dir"
 ```
 
 ## Target-Output Ignore For One Live Surface
@@ -106,12 +112,12 @@ to the live harness surface.
 
 ## Composable Instructions
 
-Use `[dir]` for durable repo-root files and target-owned files that are not
+Use `[[dir]]` sources for durable repo-root files and target-owned files that are not
 resource items. A composable leaf is a directory with an empty
 `.harnessComposable` marker. Its numbered parts concatenate into one output
-file. When the same marker is used under the configured resources source, it
+file. When the same marker is used under a configured resources source, it
 composes a projected resource file inside each target instead of a repo-root or
-target-owned `[dir]` output.
+target-owned dir output.
 
 ```text
 .harness/dir/AGENTS.md/
@@ -282,7 +288,7 @@ output subtree. The durable skill source moves to `.harness`, and the
 Keep the source and target roles separate:
 
 - Do not point a `[[targets]]` entry at a folder that remains the durable source.
-- Move shared authored content into the configured resources source.
+- Move shared authored content into configured resources sources.
 - Gitignore live harness surfaces when local experimentation or runtime state
   matters more than committing generated output.
 - Keep runtime or product state out of `.harness/`; put product caches and activation records in product-owned folders and ignore them.
@@ -322,4 +328,4 @@ Use these checks before trusting a repository or tool implementation:
 - Cleanup should preserve unmanaged entries by default and delete them only when removal is explicit.
 - Target-output `.harnessIgnore` and `.harnessProfile` files should be preserved even during unmanaged cleanup.
 - Mutable files should never be overwritten unless the user explicitly chooses a force re-projection.
-- `[dir]` outputs that would replace or contain a declared target root should be rejected before apply.
+- Dir outputs that would replace or contain a declared target root should be rejected before apply.

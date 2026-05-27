@@ -3,16 +3,16 @@
 [![Website](https://img.shields.io/badge/website-harnessconfig.dev-111827)](https://www.harnessconfig.dev/)
 [![Specification](https://img.shields.io/badge/spec-proposal-111827)](https://www.harnessconfig.dev/specifications/v1/)
 [![CI](https://github.com/reachjalil/harness-config/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/reachjalil/harness-config/actions/workflows/ci.yml)
+[![skills.sh](https://skills.sh/b/reachjalil/harness-config)](https://skills.sh/reachjalil/harness-config)
 [![npm harnessc](https://img.shields.io/npm/v/harnessc?label=harnessc)](https://www.npmjs.com/package/harnessc)
 [![npm @harnessconfig/core](https://img.shields.io/npm/v/@harnessconfig/core?label=%40harnessconfig%2Fcore)](https://www.npmjs.com/package/@harnessconfig/core)
 [![Security](https://img.shields.io/badge/security-policy-111827)](./SECURITY.md)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](./LICENSE)
 
 **Status:** Specification proposal with an alpha reference implementation.
-The npm packages are currently `1.0.0-alpha.1`, and no GitHub release has
-been cut yet. Treat the v1 file shape and activation model as a public
-proposal while public releases, conformance fixtures, adopter repositories,
-and external issue traffic mature.
+The npm package set is currently `1.0.0-alpha.3`. Treat the v1 file shape and
+activation model as a public proposal while public releases, conformance
+fixtures, adopter repositories, and external issue traffic mature.
 
 The alpha TypeScript reference implementation is available as
 [`@harnessconfig/core`](https://www.npmjs.com/package/@harnessconfig/core)
@@ -131,11 +131,10 @@ teams keep tool-native surfaces while reviewing shared configuration once.
 - **Explicit targets only.** A repo-local folder receives projection *only*
   when declared in the selected manifest. No implicit targets or reserved target
   folder names.
-- **Configurable resources source.** `./.harness/resources` is the default,
-  but `[resources] path = "./path"` can move it. `skills`, `rules`, `hooks`,
-  and `plugins` are common conventions; repositories may add `prompts`,
-  `workflows`, `checks`, direct files such as `hooks.json`, or any other
-  durable target resource path there.
+- **Ordered source roots.** `[[resources]]` and `[[dir]]` entries declare the
+  source locations that participate in projection. Later roots override
+  earlier exact-path outputs, which supports shared base configuration plus
+  optional local or generated layers.
 - **Copy projection.** Targets are materialized as ordinary files, not
   symlinks. The plan (`create` / `update` / `remove` / `keep` / `preserve`
   / `mutable`) is shown before any write.
@@ -206,7 +205,7 @@ source maintainers.
 
 - `@harnessconfig/core`: TypeScript schemas, version constants, path helpers,
   validation issues and warnings, ignore parsing, initialization planning, copy
-  projection helpers, and the `[dir]` composable + copy module.
+  projection helpers, and the dir composable + copy module.
 - `harnessc`: Publishable CLI package and one-off `npx` command.
 - `@harnessconfig/cli`: Scoped implementation package used by `harnessc`.
 
@@ -288,7 +287,7 @@ numbered files inside `SKILL.md/` and projects one target file at
 ## Manifest
 
 The selected `harness.toml` manifest declares the supported standard version,
-optional resources source path, projection targets, and optional dir source.
+ordered resources roots, ordered dir roots, projection targets, and extensions.
 The default path is `./.harness/harness.toml`, and tools may select another
 repo-local manifest path explicitly:
 
@@ -298,8 +297,11 @@ version = 1
 [standard]
 name = "harness-config"
 
-[resources]
+[[resources]]
 path = "./.harness/resources"
+
+[[resources]]
+path = "./.harness/local/resources"
 
 [[targets]]
 path = "./.agents"
@@ -307,17 +309,18 @@ path = "./.agents"
 [[targets]]
 path = "./.claude"
 
-[dir]
+[[dir]]
 path = "./.harness/dir"
+
+[[dir]]
+path = "./.harness/local/dir"
 ```
 
 Target declarations contain only `path`. A target path such as `./.claude`
 automatically uses `.claude` override folders when they exist in
-the configured resources source or inside a resource item. The optional
-`[resources]` table may contain only `path`; omit it to use
-`./.harness/resources`. The optional `[dir]` section turns on dir composition
-and copy from `./.harness/dir` (or the configured path); see "Dir Composition
-And Copy" below. Extensions are declared under
+the configured resources source or inside a resource item. Omit
+`[[resources]]` to disable resource projection. Omit `[[dir]]` to disable dir
+composition and copy. Extensions are declared under
 `[extensions.<id>]`; core owns `version` and `activation`, while each extension
 owns its remaining fields.
 
@@ -341,7 +344,7 @@ as `.agents/skills/review/scratch.tmp`.
 *
 ```
 
-Use the selected manifest to declare targets, optional `[dir]` output sources, and
+Use the selected manifest to declare targets, ordered `[[dir]]` output sources, and
 extensions. Use `.harnessIgnore` to control which files or whole subtrees are
 excluded from projection.
 
@@ -350,7 +353,7 @@ existing target-output subtrees:
 
 ```text
 .harness/resources/skills/review/.harnessIgnore     # source-local
-resources/AGENTS.md/.harnessIgnore        # custom [dir] source-local
+resources/AGENTS.md/.harnessIgnore        # custom dir source-local
 .agents/skills/review/.harnessIgnore      # target-output-local
 ```
 
@@ -384,7 +387,7 @@ activate them with a small selector file:
 `.harnessProfile` may live at the repo root or in an existing target/output
 subtree such as `.agents/skills/.harnessProfile`; the nearest selector chooses
 the active profile for that output path. `.harnessProfileRoot` may live under
-`.harness`, the configured resources source, or the configured dir source,
+`.harness`, a configured resources source, or a configured dir source,
 cannot be nested inside another profile root, names the profile it contributes
 to, and is never projected as a resource item. Profile roots nested inside
 resource or dir source trees overlay their parent folder, which lets a skill
@@ -398,6 +401,7 @@ composable parts while adding its own files.
 pnpm install
 pnpm build
 pnpm --filter @harnessconfig/cli exec harnessc validate
+pnpm --filter @harnessconfig/cli exec harnessc explain .agents/skills/review/SKILL.md
 pnpm --filter @harnessconfig/cli exec harnessc init
 pnpm --filter @harnessconfig/cli exec harnessc activate
 pnpm --filter @harnessconfig/cli exec harnessc activate --yes
@@ -409,6 +413,7 @@ After publishing, run the CLI through npm. During alpha, use the alpha tag:
 
 ```bash
 npx harnessc@alpha validate
+npx harnessc@alpha explain .agents/skills/review/SKILL.md
 npx harnessc@alpha init
 npx harnessc@alpha activate
 npx harnessc@alpha activate --yes
@@ -420,11 +425,12 @@ The public CLI package is `harnessc`.
 
 `harnessc init` writes conventional resource folders under
 `.harness/resources` (`skills`, `rules`, and `plugins`) when no `--resource`
-flags are supplied. Use `--resources-path <path>` to write a `[resources]`
-path and create folders under a custom resources source. Use `--config <path>`
-when the manifest should be somewhere other than `./.harness/harness.toml`. Passing one
-or more `--resource <kind>` flags writes only those resource folders. Passing
-`--target <path>` declares explicit projection targets. Init is a dry run
+flags are supplied. Use `--resources-path <path>` to write an explicit
+`[[resources]]` entry and create folders under a custom resources source. Use
+`--config <path>` when the manifest should be somewhere other than
+`./.harness/harness.toml`. Passing one or more `--resource <kind>` flags
+writes only those resource folders. Passing `--target <path>` declares
+explicit projection targets. Init is a dry run
 unless `--yes` is supplied.
 
 `harnessc plan` is a read-only initialization/adoption plan. It is not a
@@ -432,6 +438,10 @@ projection preview, and it does not infer targets from existing folders.
 Folders receive projection only after they are declared in the selected
 manifest.
 Run `harnessc activate` without `--yes` to preview the projection.
+
+`harnessc explain <path>` is read-only introspection for a source or output
+path. It shows the matching target or repo-relative output, configured source
+root, source-use entries, dir actions, and blocking diagnostics.
 
 `harnessc activate` is also a dry run unless `--yes` is supplied. The dry run
 prints the target strategy and the filesystem actions that would be taken.
@@ -454,7 +464,7 @@ color or `FORCE_COLOR=1` to force it.
 
 `harnessc extension activate` runs registered extensions. This release ships
 no built-in extension implementations; dir composition and copy are part of
-core activation when `[dir]` is declared. A dir source composes text outputs
+core activation when `[[dir]]` entries are declared. A dir source composes text outputs
 from mirrored leaf directories:
 
 ```text
@@ -493,9 +503,8 @@ Unmanaged target entries kept
 
 ## Dir Composition And Copy
 
-Declaring `[dir]` turns on a single dir source root (default
-`./.harness/dir`). `harnessc activate` runs dir composition + copy
-alongside target projection.
+Declaring one or more `[[dir]]` entries turns on ordered dir source roots.
+`harnessc activate` runs dir composition + copy alongside target projection.
 
 ```text
 .harness/dir/
@@ -559,7 +568,7 @@ and package dry-runs for every publishable package.
 - `./.harness` is the default durable repository-owned convention root.
 - `./.harness/harness.toml` is the default manifest, and tools may select another
   repo-local TOML path explicitly.
-- The resources source is configurable and defaults to `./.harness/resources`.
+- Resources and dir source roots are explicit ordered manifest entries.
 - Resource kinds are declarative names, not reserved schema concepts.
 - `skills`, `rules`, and `plugins` are conventional init defaults.
 - Every projection target is explicit in the selected manifest.

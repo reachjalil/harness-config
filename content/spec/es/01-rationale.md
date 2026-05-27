@@ -28,13 +28,13 @@ El catalogo fuente vive bajo raices configuradas, con `./.harness` como convenci
 - Las copias casi iguales en varias superficies de harness se desincronizan facilmente.
 - Los archivos escritos por un harness son dificiles de revisar como fuente durable.
 - Desactivar un recurso para un agente se convierte en regla de proyeccion, no en borrado manual.
-- `AGENTS.md`, `CLAUDE.md` y otras instrucciones pueden componerse desde una fuente `[dir]` revisable.
+- `AGENTS.md`, `CLAUDE.md` y otras instrucciones pueden componerse desde fuentes `[[dir]]` revisables.
 - Un nuevo agente puede consumir el mismo catalogo cuando se declara su destino.
 
 ## Conceptos Del Nucleo
 
-- Manifiesto seleccionado: TOML repo-local, por defecto `./.harness/harness.toml`, que declara version, fuentes configuradas, destinos explicitos, `[dir]` opcional y extensiones.
-- Catalogo fuente: recursos durables bajo la fuente de recursos configurada y salidas `[dir]` repo-relativas bajo la fuente dir configurada.
+- Manifiesto seleccionado: TOML repo-local, por defecto `./.harness/harness.toml`, que declara version, fuentes configuradas, destinos explicitos, `[[dir]]` y extensiones.
+- Catalogo fuente: recursos durables bajo fuentes `[[resources]]` configuradas y salidas repo-relativas bajo fuentes `[[dir]]` configuradas.
 - Destino declarado: superficie de harness como `./.agents` o `./.claude` que recibe proyeccion solo cuando esta en el manifiesto.
 - Sobrescritura derivada del destino: carpeta como `.claude` dentro de un recurso para ajustar archivos del destino correspondiente.
 - Perfil: overlay seleccionado por `.harnessProfile` y declarado con `.harnessProfileRoot`, fusionado por ruta fuente logica sin proyectar el directorio de perfil.
@@ -43,6 +43,6 @@ El catalogo fuente vive bajo raices configuradas, con `./.harness` como convenci
 
 ## No objetivos
 
-`[dir]` es parte del nucleo v1, no una extension: sus salidas participan en la proyeccion, la limpieza y las reglas target-output. Las extensiones quedan para comportamiento registrado que no redefine fuentes, destinos, perfiles, ignores, mutables, limpieza ni el plan de activacion.
+`[[dir]]` es parte del nucleo v1, no una extension: sus salidas participan en la proyeccion, la limpieza y las reglas target-output. Las extensiones quedan para comportamiento registrado que no redefine fuentes, destinos, perfiles, ignores, mutables, limpieza ni el plan de activacion.
 
 El estandar no define marketplaces, servicios alojados, captura inversa, revision de cambios hechos por runtimes, politica de seleccion ni comportamiento interno de agentes.

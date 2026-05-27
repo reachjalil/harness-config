@@ -31,15 +31,15 @@ Esa frontera permite que CI valide el mismo manifiesto que usa un desarrollador 
 
 ## Forma predecible
 
-El estandar soporta configuracion avanzada sin hacer opaca la activacion. Los perfiles seleccionan capas de configuracion. `[dir]` compone instrucciones compartidas desde partes revisadas. Los archivos `.harnessIgnore` y `.harnessProfile` en una salida de superficie de harness conservan controles locales sin convertirlos en fuente canonica.
+El estandar soporta configuracion avanzada sin hacer opaca la activacion. Los perfiles seleccionan capas de configuracion. `[[dir]]` compone instrucciones compartidas desde partes revisadas. Los archivos `.harnessIgnore` y `.harnessProfile` en una salida de superficie de harness conservan controles locales sin convertirlos en fuente canonica.
 
 ## Que define
 
-- El manifiesto seleccionado, por defecto `./.harness/harness.toml`, declara version, fuente de recursos, fuente `[dir]` opcional y `[[targets]]`.
+- El manifiesto seleccionado, por defecto `./.harness/harness.toml`, declara version, fuentes `[[resources]]`, fuentes `[[dir]]` y `[[targets]]`.
 - Los recursos viven bajo la fuente configurada, por defecto `.harness/resources`. Una hoja `.harnessComposable` en la fuente de recursos compone un archivo de recurso proyectado para cada destino declarado.
 - Las sobrescrituras derivadas del destino, como `.claude` o `.agents`, viven dentro de un recurso y solo se fusionan para el destino correspondiente.
 - `.harnessIgnore` define el limite de proyeccion.
-- `[dir]` esta separado de recursos; compone hojas `.harnessComposable` en salidas relativas al repositorio o copia archivos a rutas relativas al repositorio.
+- `[[dir]]` esta separado de recursos; compone hojas `.harnessComposable` en salidas relativas al repositorio o copia archivos a rutas relativas al repositorio.
 - La activacion informa el plan calculado antes de escribir.
 
 ## Propuesta abierta

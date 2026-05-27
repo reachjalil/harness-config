@@ -11,7 +11,7 @@ Read this to choose the implementation owner before editing.
 - `packages/core/src/profile.ts`: `.harnessProfile` selectors,
   `.harnessProfileRoot` discovery, protected target selectors, and profile
   source overlays.
-- `packages/core/src/dir.ts`: `[dir]` copy and composable output planning,
+- `packages/core/src/dir.ts`: `[[dir]]` copy and composable output planning,
   `.harnessRef`, profile layers, and target-output profile bootstrap.
 - `packages/core/src/projection.ts`: resource projection, desired target trees,
   action planning, unmanaged cleanup, mutable behavior, and apply.

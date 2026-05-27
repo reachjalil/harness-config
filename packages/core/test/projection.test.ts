@@ -33,26 +33,36 @@ async function write(root: string, relativePath: string, content: string) {
 async function writeHarnessConfig(
   root: string,
   options: {
+    resources?: string[];
     targets?: string[];
   } = {}
 ) {
+  const resources = options.resources ?? ["./.harness/resources"];
   const targets = options.targets ?? ["./.agents"];
   const content = [
     "version = 1",
     "",
+    ...resources.flatMap((source) => [
+      "[[resources]]",
+      `path = "${source}"`,
+      "",
+    ]),
     ...targets.flatMap((target) => ["[[targets]]", `path = "${target}"`, ""]),
   ].join("\n");
   await write(root, ".harness/harness.toml", content);
 }
 
 describe("HarnessConfig activation projection", () => {
-  it("projects the default .harness/resources tree when [resources] is omitted", async () => {
+  it("projects an explicit .harness/resources tree", async () => {
     const root = await rootFixture();
     await write(
       root,
       ".harness/harness.toml",
       [
         "version = 1",
+        "",
+        "[[resources]]",
+        'path = "./.harness/resources"',
         "",
         "[[targets]]",
         'path = "./.agents"',
@@ -103,7 +113,7 @@ describe("HarnessConfig activation projection", () => {
       [
         "version = 1",
         "",
-        "[resources]",
+        "[[resources]]",
         'path = "./agent-context/resources"',
         "",
         "[[targets]]",
@@ -148,6 +158,143 @@ describe("HarnessConfig activation projection", () => {
     ).rejects.toThrow();
   });
 
+  it("layers ordered resource roots with later exact paths winning", async () => {
+    const root = await rootFixture();
+    await write(
+      root,
+      ".harness/harness.toml",
+      [
+        "version = 1",
+        "",
+        "[[resources]]",
+        'path = "./.harness/resources"',
+        "",
+        "[[resources]]",
+        'path = "./.harness/local/resources"',
+        "",
+        "[[targets]]",
+        'path = "./.agents"',
+        "",
+      ].join("\n")
+    );
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harness/resources/skills/review/SKILL.md", "base");
+    await write(root, ".harness/resources/rules/shared/RULE.md", "shared");
+    await write(
+      root,
+      ".harness/local/resources/skills/review/SKILL.md",
+      "local"
+    );
+    await write(
+      root,
+      ".harness/local/resources/skills/local-only/SKILL.md",
+      "local only"
+    );
+
+    await applyHarnessActivation(root, { dryRun: false, yes: true });
+
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/SKILL.md"), "utf8")
+    ).resolves.toBe("local");
+    await expect(
+      readFile(path.join(root, ".agents/rules/shared/RULE.md"), "utf8")
+    ).resolves.toBe("shared");
+    await expect(
+      readFile(path.join(root, ".agents/skills/local-only/SKILL.md"), "utf8")
+    ).resolves.toBe("local only");
+  });
+
+  it("merges resource composable leaves across ordered roots", async () => {
+    const root = await rootFixture();
+    await write(
+      root,
+      ".harness/harness.toml",
+      [
+        "version = 1",
+        "",
+        "[[resources]]",
+        'path = "./.harness/resources"',
+        "",
+        "[[resources]]",
+        'path = "./.harness/local/resources"',
+        "",
+        "[[targets]]",
+        'path = "./.agents"',
+        "",
+      ].join("\n")
+    );
+    await write(root, ".harnessIgnore", "");
+    await write(
+      root,
+      ".harness/resources/skills/review/SKILL.md/.harnessComposable",
+      ""
+    );
+    await write(
+      root,
+      ".harness/resources/skills/review/SKILL.md/100_base.md",
+      "Base\n"
+    );
+    await write(
+      root,
+      ".harness/local/resources/skills/review/SKILL.md/.harnessComposable",
+      ""
+    );
+    await write(
+      root,
+      ".harness/local/resources/skills/review/SKILL.md/900_local.md",
+      "Local\n"
+    );
+
+    await applyHarnessActivation(root, { dryRun: false, yes: true });
+
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/SKILL.md"), "utf8")
+    ).resolves.toBe("Base\nLocal\n");
+  });
+
+  it("lets a later resource file replace an earlier composable output", async () => {
+    const root = await rootFixture();
+    await write(
+      root,
+      ".harness/harness.toml",
+      [
+        "version = 1",
+        "",
+        "[[resources]]",
+        'path = "./.harness/resources"',
+        "",
+        "[[resources]]",
+        'path = "./.harness/local/resources"',
+        "",
+        "[[targets]]",
+        'path = "./.agents"',
+        "",
+      ].join("\n")
+    );
+    await write(root, ".harnessIgnore", "");
+    await write(
+      root,
+      ".harness/resources/skills/review/SKILL.md/.harnessComposable",
+      ""
+    );
+    await write(
+      root,
+      ".harness/resources/skills/review/SKILL.md/100_base.md",
+      "Base\n"
+    );
+    await write(
+      root,
+      ".harness/local/resources/skills/review/SKILL.md",
+      "Local file\n"
+    );
+
+    await applyHarnessActivation(root, { yes: true });
+
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/SKILL.md"), "utf8")
+    ).resolves.toBe("Local file\n");
+  });
+
   it("loads activation manifests from an explicit repo-local config path", async () => {
     const root = await rootFixture();
     await write(
@@ -156,7 +303,7 @@ describe("HarnessConfig activation projection", () => {
       [
         "version = 1",
         "",
-        "[resources]",
+        "[[resources]]",
         'path = "./agent-context/resources"',
         "",
         "[[targets]]",
@@ -193,7 +340,7 @@ describe("HarnessConfig activation projection", () => {
       [
         "version = 1",
         "",
-        "[resources]",
+        "[[resources]]",
         'path = "./agent-context/resources"',
         "",
         "[[targets]]",
@@ -202,7 +349,7 @@ describe("HarnessConfig activation projection", () => {
         "[[targets]]",
         'path = "./.abc"',
         "",
-        "[dir]",
+        "[[dir]]",
         'path = "./agent-context/dir"',
         "",
       ].join("\n")
@@ -582,7 +729,16 @@ describe("HarnessConfig activation projection", () => {
     await write(
       root,
       ".harness/harness.toml",
-      ["version = 1", "", "[[targets]]", 'path = "./.agents"', ""].join("\n")
+      [
+        "version = 1",
+        "",
+        "[[resources]]",
+        'path = "./.harness/resources"',
+        "",
+        "[[targets]]",
+        'path = "./.agents"',
+        "",
+      ].join("\n")
     );
     await write(root, ".harnessIgnore", "");
     await write(root, ".harnessProfile", "team\n");
@@ -621,7 +777,7 @@ describe("HarnessConfig activation projection", () => {
       [
         "version = 1",
         "",
-        "[resources]",
+        "[[resources]]",
         'path = "./agent-context/resources"',
         "",
         "[[targets]]",
@@ -658,7 +814,16 @@ describe("HarnessConfig activation projection", () => {
     await write(
       root,
       ".harness/harness.toml",
-      ["version = 1", "", "[[targets]]", 'path = "./.agents"', ""].join("\n")
+      [
+        "version = 1",
+        "",
+        "[[resources]]",
+        'path = "./.harness/resources"',
+        "",
+        "[[targets]]",
+        'path = "./.agents"',
+        "",
+      ].join("\n")
     );
     await write(root, ".harnessIgnore", "");
     await write(root, ".harnessProfile", "aggressive\n");
