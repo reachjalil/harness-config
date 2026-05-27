@@ -1,4 +1,4 @@
-# Harness config Test Matrix
+# Harness config test matrix
 
 Harness config tests should prove that activation is a deterministic projection:
 the same source trees, selected manifest, override folders, and

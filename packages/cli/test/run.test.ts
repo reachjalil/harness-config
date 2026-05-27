@@ -108,7 +108,7 @@ describe("harnessc", () => {
 
       expect(exitCode).toBe(0);
       expect(output).toContain("No Harness config issues found.");
-      expect(output).toContain("Config: .harness/harness.toml");
+      expect(output).toContain("Detected config: .harness/harness.toml");
       expect(output).toContain("harnessc activate");
       expect(output).toContain("harnessc activate --yes");
     } finally {

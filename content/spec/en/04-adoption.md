@@ -17,7 +17,7 @@ status: draft
 updated: 2026-05-26
 ---
 
-# Harness config Adoption
+# Harness config adoption
 
 This guide describes two paths: greenfield (no existing live agent folders)
 and migration (a repository that already has `.claude/`, `.cursor/`,

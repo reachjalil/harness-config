@@ -28,9 +28,10 @@ Specification: https://www.harnessconfig.dev/specifications/v1/
   target paths.
 - `inferHarnessOverrideDirectory(path)`: derives the source override folder
   from a target path.
-- `validateHarnessConfig(root)`: returns read-only diagnostics.
+- `validateHarnessConfig(root)`: returns read-only issues and warnings.
 - `planHarnessInitialization(root)`: returns an inspectable initialization plan.
-- `applyHarnessInitialization(root, options)`: applies confirmed initialization actions.
+- `applyHarnessInitialization(root, options)`: applies confirmed
+  initialization actions.
 - `planHarnessActivation(root, options)`: returns an idempotent copy projection
   plan for declared targets.
 - `applyHarnessActivation(root, options)`: dry-runs by default and applies only
@@ -42,7 +43,7 @@ Specification: https://www.harnessconfig.dev/specifications/v1/
 - `planHarnessDir(root, config)`: returns the dir composition + copy plan
   for the `[dir]` source root, including `.harnessComposable` leaves.
 
-This package does not run background services. Mutating helpers dry-run by
+This package does not run background services. Mutating helpers preview by
 default and require explicit confirmation before writing projection targets.
 
 The manifest defaults to `./.harness/harness.toml` and may also be selected from
@@ -71,21 +72,24 @@ default source path. Targets are explicit repo-local paths; no target folder
 name is created, reserved, or projected by default.
 
 Use the activation helpers when a consuming tool projects resource views into a
-live harness. Source catalogs can contain metadata, logs, or local state,
-but matched files are excluded by `.harnessIgnore`. Repeated activation with
-the same inputs, cleanup policy, and mutable policy should produce the same
-target tree.
+live harness. Source catalogs can contain metadata, logs, or local state, but
+matched files are excluded by `.harnessIgnore`. Repeated activation with the
+same inputs, cleanup policy, and mutable policy should produce the same target
+tree.
+
 `.harnessIgnore` can be repo-root, source-local under `.harness`, the
 configured resources source, or the declared `[dir]` source, or
 target-output-local under existing target/output folders. Target-output rules
 match final output paths and existing target-output `.harnessIgnore` files are
 preserved during cleanup.
+
 `.harnessProfile` selectors can activate `.harnessProfileRoot` overlays under
 `.harness`, the configured resources source, or the configured `[dir]` source.
 Active profile roots merge by logical source path for resources and `[dir]`;
 generic profile overlays do not beat target-specific resource overrides.
 Profile-local `.harnessIgnore` files can suppress base files or composable
 parts.
+
 Unmanaged target entries are preserved by default and reported at one level;
 pass `{ cleanupUnmanaged: "remove" }` to plan and apply explicit cleanup.
 Files declared mutable in `.harnessIgnore` are created once and skipped on

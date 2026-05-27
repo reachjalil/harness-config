@@ -13,6 +13,7 @@ package is `harnessc`.
 Most users should run:
 
 ```bash
+npx harnessc
 npx harnessc validate
 ```
 
@@ -39,6 +40,11 @@ Specification: https://www.harnessconfig.dev/specifications/v1/
 The CLI is local-first, read-only by default for validation and planning, and
 does not create standard files or mutate projection targets unless the relevant
 command is explicitly applied with `--yes`.
+
+Running `harnessc` with no command validates the nearest repository config and
+prints the detected manifest path with suggested next steps. Use
+`harnessc validate --json` when a script or editor integration needs the full
+inspection object.
 
 `harnessc init` is a dry run by default. With `--yes`, it writes
 `./.harness/harness.toml` by default, resource folders under `./.harness/resources` by

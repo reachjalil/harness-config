@@ -1,4 +1,4 @@
-# Harness config Conformance
+# Harness config conformance
 
 A claim of Harness config support should be testable from the file shape and
 activation contract alone. A repository, tool, or organization policy may claim

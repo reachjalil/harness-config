@@ -1,4 +1,4 @@
-# Harness config Adoption
+# Harness config adoption
 
 This guide describes two paths: greenfield (no existing live agent folders)
 and migration (a repository that already has `.claude/`, `.cursor/`,
@@ -29,7 +29,7 @@ harnessc activate
 harnessc activate --yes
 ```
 
-## Migrating An Existing Repository
+## Migrating an existing repository
 
 A repository that already has runtime-facing folders such as `.claude/` or
 `.cursor/` adopts Harness config incrementally. The shape of the migration

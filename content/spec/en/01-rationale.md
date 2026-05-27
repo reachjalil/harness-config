@@ -17,7 +17,7 @@ status: draft
 updated: 2026-05-26
 ---
 
-# Harness config Rationale
+# Harness config rationale
 
 Agent runtimes need live folders. Teams need a stable, reviewable source layout
 for the resources those runtimes consume. Harness config separates those

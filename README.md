@@ -24,9 +24,10 @@ turning each agent's runtime folder into the source of truth.
 
 A repository keeps durable source material in configured source roots, stores
 target resources under `./.harness/resources` by convention, declares runtime
-targets in `./.harness/harness.toml` by default, and lets tools materialize each target
-as a reviewable copy projection. Both the manifest path and resources source
-path can be explicit when a repository needs a different layout.
+targets in `./.harness/harness.toml` by default, and lets tools materialize
+each target as a reviewable copy projection. Both the manifest path and
+resources source path can be explicit when a repository needs a different
+layout.
 
 ## The Problem It Solves
 
@@ -77,7 +78,7 @@ of `@harnessconfig/core`.
 ## Packages
 
 - `@harnessconfig/core`: TypeScript schemas, version constants, path helpers,
-  validation diagnostics, ignore parsing, initialization planning, copy
+  validation issues and warnings, ignore parsing, initialization planning, copy
   projection helpers, and the `[dir]` composable + copy module.
 - `harnessc`: Publishable CLI package and one-off `npx` command.
 - `@harnessconfig/cli`: Scoped implementation package used by `harnessc`.
@@ -85,11 +86,15 @@ of `@harnessconfig/core`.
 ## Quick Start
 
 ```bash
+npx harnessc
 npx harnessc init
 npx harnessc validate
 npx harnessc activate
 npx harnessc activate --yes
 ```
+
+With no command, `harnessc` validates the nearest repository config and prints
+the detected manifest path plus the next useful commands.
 
 Use the website and specification as the reference when asking an AI agent to
 adopt the standard:

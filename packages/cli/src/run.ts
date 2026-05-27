@@ -294,18 +294,21 @@ function formatBareCommandGuidance(inspection: HarnessInspection): string {
     (diagnostic) => diagnostic.severity === "error"
   );
   const configLine = inspection.hasHarnessConfig
-    ? `Config: ${toRepoRelative(inspection.root, inspection.paths.configPath)}`
-    : "Config: not found";
+    ? `Detected config: ${toRepoRelative(
+        inspection.root,
+        inspection.paths.configPath
+      )}`
+    : "Detected config: none";
 
   if (hasErrors) {
-    return `${configLine}\n\nNext steps:\n  harnessc validate --json  Show detected paths and issue details\n  harnessc --help           Show all commands`;
+    return `${configLine}\n\nNext steps:\n  harnessc validate --json  Inspect paths and issue details\n  harnessc --help           Show all commands`;
   }
 
   if (!inspection.hasHarnessConfig) {
-    return `${configLine}\n\nNext steps:\n  harnessc init        Preview the default .harness setup\n  harnessc init --yes  Create the default Harness config files\n  harnessc --help      Show all commands`;
+    return `${configLine}\n\nNext steps:\n  harnessc init        Preview the default .harness setup\n  harnessc init --yes  Create .harness/harness.toml and .harnessIgnore\n  harnessc --help      Show all commands`;
   }
 
-  return `${configLine}\n\nNext steps:\n  harnessc activate        Preview projected file changes\n  harnessc activate --yes  Apply the projection\n  harnessc validate --json Show detected paths and config details`;
+  return `${configLine}\n\nNext steps:\n  harnessc activate        Preview projected file changes\n  harnessc activate --yes  Apply the projection\n  harnessc validate --json Inspect paths and selected config`;
 }
 
 function initOptionsFromCli(

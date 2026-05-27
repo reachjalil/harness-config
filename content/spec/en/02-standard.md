@@ -17,7 +17,7 @@ status: draft
 updated: 2026-05-26
 ---
 
-# Harness config Standard
+# Harness config standard
 
 **Status:** Version 1 — Stable. The file shape, manifest schema, projection
 contract, and ignore grammar described here are intended to be implementable

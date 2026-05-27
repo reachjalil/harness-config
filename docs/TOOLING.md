@@ -11,6 +11,7 @@ single binary.
 ## Commands
 
 ```bash
+harnessc
 harnessc init
 harnessc validate
 harnessc activate
@@ -18,14 +19,15 @@ harnessc extension activate
 harnessc plan
 ```
 
+- `harnessc` with no command validates the nearest repository config and prints
+  the detected manifest path with suggested next steps.
 - `harnessc init` creates the selected manifest (`./.harness/harness.toml` by
   default), conventional or custom resource folders under the configured
   resources source (`./.harness/resources` by default), and `.harnessIgnore`
   when applied with `--yes`.
 - `harnessc validate` checks version support, repo-local paths, target
   mappings, projection ignore syntax, mutable scope syntax, resource
-  composable leaves, symlink diagnostics, and `[dir]` composition/copy
-  diagnostics.
+  composable leaves, symlink issues, and `[dir]` composition/copy issues.
 - `harnessc activate` dry-runs the activation projection and shows creates,
   updates, requested removals, kept files, mutable-skipped files, and preserved
   unmanaged entries before writing.
@@ -48,9 +50,11 @@ longer inspects or cleans that folder. Clean it first with
 `--remove-unmanaged`, or use a higher-level activation-state workflow that can
 reconcile orphaned targets.
 
-The default manifest path is `./.harness/harness.toml`. Pass `--config <path>` to
-validate, plan, initialize, activate, or run extensions against a different
-repo-local TOML file. `harnessc init --resources-path <path>` writes a
+The default manifest path is `./.harness/harness.toml`. When `--root` and
+`--config` are omitted, `harnessc` searches upward from the current directory
+for that manifest. Pass `--config <path>` to validate, plan, initialize,
+activate, or run extensions against a different repo-local TOML file.
+`harnessc init --resources-path <path>` writes a
 `[resources]` path into the manifest and creates resource folders below that
 configured source root. Manifest paths are selected by the tool invocation;
 paths inside the manifest remain repo-local, not relative to the manifest

@@ -13,7 +13,12 @@ skills, rules, plugins, and root instruction files in one reviewed `.harness`
 source tree, then projecting them into explicit runtime folders such as
 `.agents`, `.claude`, `.cursor`, and `.gemini`.
 
+Run `harnessc` from anywhere inside a repository. It searches upward for
+`./.harness/harness.toml`, validates the selected config, and prints the next
+useful command.
+
 ```bash
+npx harnessc
 npx harnessc init
 npx harnessc validate
 npx harnessc activate
@@ -23,6 +28,7 @@ npx harnessc activate --yes
 ## Common Commands
 
 ```bash
+harnessc
 harnessc init
 harnessc validate
 harnessc activate
