@@ -1,5 +1,27 @@
 # Harness config release notes
 
+## 1.0.0-alpha.2
+
+`1.0.0-alpha.2` establishes the repository release lane for the alpha package
+set.
+
+### Release Automation
+
+- Adds GitHub Actions CI for pull requests and protected branch checks.
+- Adds tag-driven npm publishing through GitHub Actions OIDC trusted
+  publishing.
+- Adds release tag verification so all publishable package versions and
+  internal package dependency pins must match the pushed `vX.Y.Z` tag.
+- Adds release-note extraction so each GitHub release uses the matching
+  version section from this file.
+
+### Project Governance
+
+- Documents the `dev` to `main` release flow, solo-maintainer review model,
+  Codex review evidence pattern, and npm trusted publisher settings.
+- Adds pull request, issue, CODEOWNERS, Dependabot, and conduct files for
+  open-source project hygiene.
+
 ## 1.0.0-alpha.1
 
 `1.0.0-alpha.1` is an alpha reference release for the Harness config v1

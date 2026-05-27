@@ -9,10 +9,9 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](./LICENSE)
 
 **Status:** Specification proposal with an alpha reference implementation.
-The npm packages are currently `1.0.0-alpha.1`, and no GitHub release has
-been cut yet. Treat the v1 file shape and activation model as a public
-proposal while public releases, conformance fixtures, adopter repositories,
-and external issue traffic mature.
+The npm package set is currently `1.0.0-alpha.2`. Treat the v1 file shape and
+activation model as a public proposal while public releases, conformance
+fixtures, adopter repositories, and external issue traffic mature.
 
 The alpha TypeScript reference implementation is available as
 [`@harnessconfig/core`](https://www.npmjs.com/package/@harnessconfig/core)
