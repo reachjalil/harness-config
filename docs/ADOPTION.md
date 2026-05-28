@@ -75,22 +75,23 @@ Recommended sequence:
 1. **Snapshot existing targets.** Commit the current live folders, or copy
    them to a branch. Adoption is reversible, but a known-good baseline
    makes review easier.
-2. **Move durable content into resource groups.** Tiny repos can use one
-   `./.harness/resources` root. Larger migrations should group resources by
+2. **Move durable content into a clear resources layout.** For the first full
+   migration, prefer one `./.harness/resources` root and group inside it by
    usefulness: workflow, strategy, team, mode, agent set, product area, or kit.
-   Most `.claude/skills/foo/` contents become something like
-   `./.harness/resources-review/skills/foo/`. Files that differ only for one
-   agent move into the matching override folder (for example
-   `./.harness/resources-review/skills/foo/.claude/`). Target-root files such
-   as `.claude/hooks.json` become a shared resource with target-specific
-   versions under an override folder.
+   Most `.claude/skills/foo/` contents become
+   `./.harness/resources/skills/foo/`. Files that differ only for one agent
+   move into the matching item override folder (for example
+   `./.harness/resources/skills/foo/.claude/`). Target-root files such as
+   `.claude/settings.json` or `.claude/hooks.json` belong at the matching
+   target-derived path under the resources root, such as
+   `./.harness/resources/.claude/settings.json` or
+   `./.harness/resources/.claude/hooks.json`. Add more configured resource
+   roots only for optional catalogs, separate ownership boundaries,
+   profile-selected kits, or local/private overlays.
 
    ```toml
    [[resources]]
-   path = "./.harness/resources-review"
-
-   [[resources]]
-   path = "./.harness/resources-frontend"
+   path = "./.harness/resources"
 
    [[resources]]
    path = "./.harness/local/resources"
@@ -104,20 +105,23 @@ Recommended sequence:
 
    ```text
    .harness/
-     resources-review/
+     resources/
        README.md
+       .claude/
+         settings.json
+         .harnessMutable
        skills/
+       prompts/
+       skills-kit/
        rules/
-     resources-frontend/
-       README.md
-       skills/
        plugins/
      local/
        resources/
    ```
 
    This pairing keeps migration review concrete: reviewers can see which
-   roots are projected and what each folder is for.
+   shared source root is projected, which target-level files are seeded, and
+   which local source root is private or experimental.
 3. **Declare targets in the selected manifest.** Add a `[[targets]]` entry for
    each harness surface you want regenerated. A target only receives projections
    when it appears here. Declare every shared source with an explicit
@@ -163,6 +167,43 @@ tradeoff is deliberate: review happens in `.harness` and the selected manifest,
 managed target files stay reproducible, and `.harnessMutable` target files
 keep runtime-owned state out of the canonical source tree.
 
+## Gitignore recommendations
+
+Use `.gitignore` only after the source of truth is clear:
+
+- **Track shared Harness source.** Commit `.harness/harness.toml`, shared
+  `.harness/resources/**`, `.harness/dir/**` when used, `.harnessIgnore`, and
+  `.harnessMutable` declarations that are needed to reproduce generated
+  outputs.
+- **Gitignore generated harness surfaces after convergence.** Once activation
+  converges and every durable resource is represented in `.harness`, folders
+  such as `.agents/`, `.claude/`, `.cursor/`, and `.gemini/` can be ignored.
+  Keep tracked activation instructions, such as a root instruction note,
+  README setup step, or package script that runs validation and activation.
+- **Gitignore local developer overlays when desired.** Use `.harness/local/`
+  for private skills, prompts, experiments, and local dir overlays, then add it
+  to `.gitignore` when those files should not be shared.
+- **Do not rely on gitignored target-output controls for first activation.**
+  A target-output `.harnessIgnore` or `.harnessProfile` participates only after
+  it exists in the generated output. Put shared first-activation boundaries in
+  source-local `.harnessIgnore` files or the repo-root `.harnessIgnore`.
+
+Example after a complete migration:
+
+```gitignore
+# Harness-generated live surfaces
+.agents/
+.claude/
+.cursor/
+.gemini/
+
+# Private Harness overlays
+.harness/local/
+```
+
+Do not ignore all of `.harness/`; that would hide the manifest and reviewed
+source required to regenerate the live harness surfaces.
+
 ## Common Pitfalls
 
 - **Treating a live folder as both source and target.** Do not point a
@@ -177,6 +218,11 @@ keep runtime-owned state out of the canonical source tree.
   is for durable, reviewable source. Activation records, drift hashes, and
   product caches belong in product-owned folders such as `.harnex/` and
   in `.harnessIgnore`.
+- **Putting target-root files in a kit by accident.** A target-root file such
+  as `.claude/settings.json` should be represented at
+  `.harness/resources/.claude/settings.json`, not under `skills-kit/` or an
+  unrelated resource group. Mark it mutable when it should seed once and then
+  become runtime-owned.
 - **Using overrides to fork content broadly.** Override folders replace
   exact relative paths or add new files. They are intentionally a small
   hammer; if a target needs a very different version of a skill, prefer a

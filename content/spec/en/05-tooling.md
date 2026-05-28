@@ -14,7 +14,7 @@ llmSummary: Describes tooling expectations for local validation, explain introsp
 audience: CLI authors and developers operating .harness repositories.
 contentKind: spec
 status: draft
-updated: 2026-05-27
+updated: 2026-05-28
 ---
 
 # Harness config tooling
@@ -98,6 +98,24 @@ Generated harness surfaces such as `.agents`, `.claude`, `.cursor`, and
 Projects that do this should keep tracked activation instructions such as a
 root instruction note, README setup step, or package script that tells users
 and agents to run validation and activation on fresh checkout.
+
+Recommended `.gitignore` entries after a complete migration are:
+
+```gitignore
+# Harness-generated live surfaces
+.agents/
+.claude/
+.cursor/
+.gemini/
+
+# Private Harness overlays
+.harness/local/
+```
+
+Keep shared Harness source tracked: `.harness/harness.toml`, shared
+`.harness/resources/**`, `.harness/dir/**` when used, `.harnessIgnore`, and
+`.harnessMutable` declarations. Do not add `.harness/` as a broad ignore unless
+the repository intentionally opts out of sharing the source catalog.
 
 Cleanup applies only to targets that are still declared in the selected
 manifest. After a target declaration is removed, base `harnessc activate` no
@@ -260,6 +278,11 @@ The CLI does not require these paths to exist. Projects may choose to ignore
 paths. Later roots override earlier exact-path resource or dir outputs; use
 `harnessc explain <path>` to inspect why a specific source or output path is
 present, ignored, overridden, or composed.
+
+When `.harness/local/` is gitignored, shared manifests can still declare it as
+an optional later root. Missing local roots simply contribute no local files;
+present local roots can override exact resource or dir outputs for that
+developer.
 
 Dir output paths that fall under a declared `[[targets]]` path merge into
 that target's projection — running activation a second time converges to

@@ -138,11 +138,13 @@ specific runtime, CLI, or hosted service.
 
 ## Evidence
 
-Repository evidence is a versioned manifest, configured source trees,
+Repository evidence is a versioned manifest, shared configured source trees,
 `.harnessIgnore`, and `.harnessMutable` visible in version control when
-mutable files are declared. Profile evidence, when used, is the selected
-`.harnessProfile` file and matching `.harnessProfileRoot` folders under
-configured source roots.
+mutable files are declared. When generated live harness surfaces are
+gitignored, repository evidence should also include tracked activation
+instructions that explain how to validate and regenerate those surfaces.
+Profile evidence, when used, is the selected `.harnessProfile` file and
+matching `.harnessProfileRoot` folders under configured source roots.
 
 Tool evidence is a dry-run report that lists creates, updates, requested
 removals, kept files, mutable-skipped files, and preserved unmanaged entries
