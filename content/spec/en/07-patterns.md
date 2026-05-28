@@ -97,7 +97,6 @@ path = "./.harness/local/resources"
       review/
       frontend/
     prompts/
-    skills-kit/
     rules/
     plugins/
   local/
@@ -111,9 +110,13 @@ the first seed, add `.harness/resources/.claude/.harnessMutable` with
 `settings.json` in it.
 
 Additional resources roots are useful when they represent a real boundary:
-independently optional catalogs, ownership boundaries, profile-selected kits,
-or private local overlays. The local layer is useful for personal skills,
-plugins, agents, prompts, and experiments before promotion into tracked source.
+independently optional concern catalogs, ownership boundaries,
+profile-selected specializations, or private local overlays. For example,
+testing, deployment, and UI concerns can live in separate roots when a team
+intentionally combines them through manifest order, profile overlays, or
+profile-specific dir instructions. The local layer is useful for personal
+skills, plugins, agents, prompts, and experiments before promotion into
+tracked source.
 
 ## Target-Output Ignore For One Live Surface
 

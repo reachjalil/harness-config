@@ -130,7 +130,6 @@ full migrations, start with one configured root:
     agent-review/
     ui-review/
   prompts/
-  skills-kit/
   rules/
   plugins/
 ```
@@ -143,8 +142,8 @@ Target-level files must stay at the target-derived path under the root. For
 example, `.claude/settings.json` belongs at
 `.harness/resources/.claude/settings.json`, with
 `.harness/resources/.claude/.harnessMutable` when it is a create-once mutable
-seed. Do not place target-level settings under `skills-kit`,
-`resources-agent-kit`, or another unrelated resource group.
+seed. Do not place target-level settings under `skills/`,
+an optional kit root, or another unrelated resource group.
 
 Before implementing, spend time understanding the repository and present a
 small option set. The user should be able to compare tradeoffs before files are
@@ -152,9 +151,9 @@ moved:
 
 | Option | Layout | When to choose |
 | --- | --- | --- |
-| Default organized | one `.harness/resources` root with `.claude/`, `skills/`, `prompts/`, `skills-kit/` siblings | recommended for most first clean migrations, including large skill catalogs |
+| Default organized | one `.harness/resources` root with `.claude/`, `skills/`, `prompts/`, `rules/`, and `plugins/` siblings | recommended for most first clean migrations, including large skill catalogs |
 | Organized subfolders | one `.harness/resources` root with skill families under `skills/` | many skills or prompts with clear workflow/domain names |
-| Multiple roots | `.harness/resources`, `.harness/resources-platform-kit`, `.harness/local/resources` | only when a catalog is independently optional, profile-selected, separately owned, or private/local |
+| Multiple roots | `.harness/resources`, `.harness/resources-testing`, `.harness/resources-deployment`, `.harness/resources-ui`, `.harness/local/resources` | only when concern catalogs are independently optional, profile-selected, separately owned, or private/local |
 
 Recommend one option and explain why. Do not implement the first workable
 manifest before the user has seen the plan.

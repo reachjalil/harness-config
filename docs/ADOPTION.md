@@ -86,8 +86,9 @@ Recommended sequence:
    target-derived path under the resources root, such as
    `./.harness/resources/.claude/settings.json` or
    `./.harness/resources/.claude/hooks.json`. Add more configured resource
-   roots only for optional catalogs, separate ownership boundaries,
-   profile-selected kits, or local/private overlays.
+   roots only for optional concern catalogs such as testing, deployment, or
+   UI work, separate ownership boundaries, profile-selected specializations,
+   or local/private overlays.
 
    ```toml
    [[resources]]
@@ -112,7 +113,6 @@ Recommended sequence:
          .harnessMutable
        skills/
        prompts/
-       skills-kit/
        rules/
        plugins/
      local/
@@ -122,6 +122,10 @@ Recommended sequence:
    This pairing keeps migration review concrete: reviewers can see which
    shared source root is projected, which target-level files are seeded, and
    which local source root is private or experimental.
+   As the Harness config matures, teams can split concerns into additional
+   roots such as `./.harness/resources-testing`,
+   `./.harness/resources-deployment`, or `./.harness/resources-ui` and combine
+   them with profile overlays or profile-specific dir instructions.
 3. **Declare targets in the selected manifest.** Add a `[[targets]]` entry for
    each harness surface you want regenerated. A target only receives projections
    when it appears here. Declare every shared source with an explicit
@@ -220,7 +224,7 @@ source required to regenerate the live harness surfaces.
   in `.harnessIgnore`.
 - **Putting target-root files in a kit by accident.** A target-root file such
   as `.claude/settings.json` should be represented at
-  `.harness/resources/.claude/settings.json`, not under `skills-kit/` or an
+  `.harness/resources/.claude/settings.json`, not inside a skill folder or an
   unrelated resource group. Mark it mutable when it should seed once and then
   become runtime-owned.
 - **Using overrides to fork content broadly.** Override folders replace
