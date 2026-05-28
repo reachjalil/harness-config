@@ -89,33 +89,30 @@ folder is durable source, generated output, runtime state, or obsolete.
 ## Scenario: Resource Groups
 
 Use this when a repo has enough skills, plugins, hooks, rules, prompts, or
-agents that one flat `.harness/resources` folder would hide intent.
+agents that one flat folder would hide intent. The default first migration is
+still one configured `.harness/resources` root with meaningful subfolders:
 
 ```text
 .harness/
-  resources-review/
+  resources/
     README.md
+    .claude/
+      settings.json
+      .harnessMutable
     skills/
+      review/
+      frontend/
+      platform/
+    prompts/
     rules/
-  resources-frontend/
-    README.md
-    skills/
     plugins/
-  resources-platform/
-    README.md
     hooks.json
     agents/
 ```
 
 ```toml
 [[resources]]
-path = "./.harness/resources-review"
-
-[[resources]]
-path = "./.harness/resources-frontend"
-
-[[resources]]
-path = "./.harness/resources-platform"
+path = "./.harness/resources"
 ```
 
 Rules:
@@ -123,6 +120,10 @@ Rules:
 - Name groups for how the user will use them, not just file type.
 - Add short README files for non-obvious groups.
 - Keep resource groups copy/pasteable between projects.
+- Keep target-level files at target-derived paths, such as
+  `.harness/resources/.claude/settings.json`.
+- Add more configured roots only for optional catalogs, ownership boundaries,
+  profile-selected kits, or local/private work.
 - Use profiles and nested `.harnessIgnore` to switch groups or selected
   resources on and off.
 - Use `.harness/local/resources` for personal experiments and private
@@ -141,20 +142,21 @@ Before:
 .cursor/skills/review/SKILL.md
 ```
 
-After, in the resource group that matches how the user thinks about the skill:
+After, under the resource folder that matches how the user thinks about the
+skill:
 
 ```text
-.harness/resources-review/skills/review/SKILL.md
-.harness/resources-review/skills/review/references/
-.harness/resources-review/skills/review/scripts/
+.harness/resources/skills/review/SKILL.md
+.harness/resources/skills/review/references/
+.harness/resources/skills/review/scripts/
 ```
 
 If one harness needs different wording or support files, add an override:
 
 ```text
-.harness/resources-review/skills/review/SKILL.md
-.harness/resources-review/skills/review/.claude/SKILL.md
-.harness/resources-review/skills/review/.cursor/SKILL.md
+.harness/resources/skills/review/SKILL.md
+.harness/resources/skills/review/.claude/SKILL.md
+.harness/resources/skills/review/.cursor/SKILL.md
 ```
 
 Rules:
@@ -216,10 +218,10 @@ plugins/my-plugin/
 Conversion pattern:
 
 ```text
-.harness/resources-platform/plugins/my-plugin/.codex-plugin/plugin.json
-.harness/resources-platform/plugins/my-plugin/skills/
-.harness/resources-platform/plugins/my-plugin/hooks/hooks.json
-.harness/resources-platform/plugins/my-plugin/.mcp.json
+.harness/resources/plugins/my-plugin/.codex-plugin/plugin.json
+.harness/resources/plugins/my-plugin/skills/
+.harness/resources/plugins/my-plugin/hooks/hooks.json
+.harness/resources/plugins/my-plugin/.mcp.json
 ```
 
 Project to `.agents` when the repository wants Codex to receive the plugin
@@ -233,7 +235,7 @@ path = "./.agents"
 For local marketplaces:
 
 ```text
-.harness/resources-platform/plugins/marketplace.json
+.harness/resources/plugins/marketplace.json
 ```
 
 or, when the marketplace should live at a repo-relative path outside `.agents`,
@@ -263,20 +265,20 @@ plugins/my-plugin/
 Conversion pattern:
 
 ```text
-.harness/resources-platform/plugins/my-plugin/.claude-plugin/plugin.json
-.harness/resources-platform/plugins/my-plugin/skills/
-.harness/resources-platform/plugins/my-plugin/commands/
-.harness/resources-platform/plugins/my-plugin/agents/
-.harness/resources-platform/plugins/my-plugin/hooks/hooks.json
-.harness/resources-platform/plugins/my-plugin/.mcp.json
+.harness/resources/plugins/my-plugin/.claude-plugin/plugin.json
+.harness/resources/plugins/my-plugin/skills/
+.harness/resources/plugins/my-plugin/commands/
+.harness/resources/plugins/my-plugin/agents/
+.harness/resources/plugins/my-plugin/hooks/hooks.json
+.harness/resources/plugins/my-plugin/.mcp.json
 ```
 
 Use `.claude` target overrides when Claude needs a different package wrapper
 than Codex:
 
 ```text
-.harness/resources-platform/plugins/my-plugin/.codex-plugin/plugin.json
-.harness/resources-platform/plugins/my-plugin/.claude/.claude-plugin/plugin.json
+.harness/resources/plugins/my-plugin/.codex-plugin/plugin.json
+.harness/resources/plugins/my-plugin/.claude/.claude-plugin/plugin.json
 ```
 
 Rules:

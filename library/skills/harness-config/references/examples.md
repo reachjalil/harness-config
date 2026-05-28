@@ -32,21 +32,16 @@ AGENTS.md
 Keep `AGENTS.md` tracked as the root instruction file unless
 generating it through `[[dir]]` is clearly useful.
 
-## Skill Migration With Resource Groups
+## Clean Full Migration With One Resources Root
 
-Best when existing skills/plugins/hooks serve different purposes.
+Best when existing skills, prompts, support manifests, and target settings
+should move into one reviewed source root.
 
 ```toml
 version = 1
 
 [[resources]]
-path = "./.harness/resources-review"
-
-[[resources]]
-path = "./.harness/resources-frontend"
-
-[[resources]]
-path = "./.harness/resources-platform"
+path = "./.harness/resources"
 
 [[targets]]
 path = "./.agents"
@@ -57,27 +52,60 @@ path = "./.claude"
 
 ```text
 .harness/
-  resources-review/
+  resources/
     README.md
+    .claude/
+      settings.json
+      .harnessMutable
     skills/
-      code-review/
+      harness-config/
+      agent-review/
+      ui-review/
+      platform-review/
         SKILL.md
-    rules/
-  resources-frontend/
-    README.md
-    skills/
-      vite-worker-imports/
-        SKILL.md
-    plugins/
-  resources-platform/
-    README.md
+    prompts/
+    skills-kit/
     hooks.json
     agents/
 ```
 
-The names should match how the user thinks: workflow, team, strategy, mode,
-agent set, product area, or kit. Each README should explain purpose and owner
-in a few lines.
+Target-level settings stay at their target-derived path:
+`.harness/resources/.claude/settings.json`. Do not put them inside
+`skills-kit` or an unrelated resource group. Skill folder names should match
+how the user thinks: workflow, team, strategy, mode, agent set, product area,
+or kit.
+
+## Multiple Resource Roots
+
+Best only when a catalog is optional, profile-selected, separately owned, or
+local/private.
+
+```toml
+[[resources]]
+path = "./.harness/resources"
+
+[[resources]]
+path = "./.harness/resources-platform-kit"
+
+[[resources]]
+path = "./.harness/local/resources"
+```
+
+```text
+.harness/
+  resources/
+    .claude/
+      settings.json
+      .harnessMutable
+    skills/
+    prompts/
+  resources-platform-kit/
+    README.md
+    skills/
+    hooks.json
+  local/
+    resources/
+```
 
 ## Local Developer Overrides
 
@@ -86,7 +114,7 @@ generated targets as source.
 
 ```toml
 [[resources]]
-path = "./.harness/resources-review"
+path = "./.harness/resources"
 
 [[resources]]
 path = "./.harness/local/resources"
@@ -108,7 +136,7 @@ Suggest this `.gitignore` entry when local work should stay private:
 .harness/local/
 ```
 
-Promote useful local work by moving it into a tracked resource group and
+Promote useful local work by moving it into a tracked resource subfolder and
 reviewing the diff.
 
 ## Profile-Based Activation Across Resource Groups
@@ -118,10 +146,7 @@ Best when the repo has switchable modes such as `frontend`, `security-review`,
 
 ```toml
 [[resources]]
-path = "./.harness/resources-review"
-
-[[resources]]
-path = "./.harness/resources-cloudflare-react"
+path = "./.harness/resources"
 
 [[resources]]
 path = "./.harness/local/resources"
@@ -130,12 +155,10 @@ path = "./.harness/local/resources"
 ```text
 .harnessProfile                         # contains: cloudflare-react
 .harness/
-  resources-review/
+  resources/
     skills/
       generic-review/
         SKILL.md
-  resources-cloudflare-react/
-    skills/
       vite-worker-imports/
         SKILL.md
       worker-deploy/
@@ -143,14 +166,14 @@ path = "./.harness/local/resources"
   profiles/
     cloudflare-react/
       .harnessProfileRoot               # contains: cloudflare-react
-      resources-review/
+      resources/
         .harnessIgnore
 ```
 
 Profile-local ignore:
 
 ```gitignore
-# .harness/profiles/cloudflare-react/resources-review/.harnessIgnore
+# .harness/profiles/cloudflare-react/resources/.harnessIgnore
 skills/generic-review/**
 ```
 
@@ -164,7 +187,7 @@ Best when a rule belongs next to the resource it controls.
 
 ```text
 .harness/
-  resources-frontend/
+  resources/
     .harnessIgnore
     skills/
       vite-worker-imports/
@@ -174,7 +197,7 @@ Best when a rule belongs next to the resource it controls.
 ```
 
 ```gitignore
-# .harness/resources-frontend/.harnessIgnore
+# .harness/resources/.harnessIgnore
 skills/scratch/**
 ```
 

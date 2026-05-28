@@ -46,7 +46,7 @@ git diff -- .harness .harnessIgnore AGENTS.md CLAUDE.md .agents .claude .cursor 
 Confirm:
 
 - durable shared source is under configured resource groups such as
-  `.harness/resources` or `.harness/resources-review`,
+  `.harness/resources`,
 - repo-relative generated outputs use `.harness/dir` only when useful,
 - resource groups have README files when their purpose is not obvious,
 - live harness surfaces are outputs, not source folders,
@@ -64,7 +64,7 @@ Confirm:
 Use `explain` for representative paths:
 
 ```bash
-npx harnessc explain .harness/resources-review/skills/foo/SKILL.md --json
+npx harnessc explain .harness/resources/skills/foo/SKILL.md --json
 npx harnessc explain .agents/skills/foo/SKILL.md --json
 ```
 

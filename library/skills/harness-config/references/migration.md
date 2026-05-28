@@ -71,6 +71,9 @@ blocker before implementation begins. The plan must include:
   including one ambitious organization option based on the repo's workflows,
   domains, teams, target agent sets, or kits;
 - recommended resource roots and grouping vocabulary;
+- confirmation that target-level seeds such as `.claude/settings.json` stay at
+  target-derived paths under the resources root, for example
+  `.harness/resources/.claude/settings.json`;
 - root-file strategy, including direct copy vs `.harnessComposable`;
 - root instruction updates that tell future agents to use Harness config
   guidance for any agent-configuration operation;
@@ -114,20 +117,34 @@ resources remain only in live target surfaces.
 
 ## Choose Resource Groups
 
-Move durable projected resources into configured resource roots. For tiny
-repos, one root is fine:
+Move durable projected resources into configured resource roots. For most first
+full migrations, start with one configured root:
 
 ```text
 .harness/resources/
   README.md
+  .claude/
+    settings.json
+    .harnessMutable
   skills/
+    agent-review/
+    ui-review/
+  prompts/
+  skills-kit/
   rules/
   plugins/
 ```
 
-For real migrations, prefer meaningful resource groups over a flat dumping
-ground. Let the user choose the vocabulary: workflows, strategies, teams,
-modes, kits, agents, products, or domains.
+Inside that root, prefer meaningful folders over a flat dumping ground. Let the
+user choose the vocabulary: workflows, strategies, teams, modes, kits, agents,
+products, or domains.
+
+Target-level files must stay at the target-derived path under the root. For
+example, `.claude/settings.json` belongs at
+`.harness/resources/.claude/settings.json`, with
+`.harness/resources/.claude/.harnessMutable` when it is a create-once mutable
+seed. Do not place target-level settings under `skills-kit`,
+`resources-agent-kit`, or another unrelated resource group.
 
 Before implementing, spend time understanding the repository and present a
 small option set. The user should be able to compare tradeoffs before files are
@@ -135,24 +152,27 @@ moved:
 
 | Option | Layout | When to choose |
 | --- | --- | --- |
-| Conservative | one `.harness/resources` root | small repo, few durable resources |
-| Organized | roots by workflow/domain/team | several skills or prompts with clear ownership |
-| Ambitious | reusable kits plus target overrides | repo has reusable agent sets, platform guidance, or multiple teams |
+| Default organized | one `.harness/resources` root with `.claude/`, `skills/`, `prompts/`, `skills-kit/` siblings | recommended for most first clean migrations, including large skill catalogs |
+| Organized subfolders | one `.harness/resources` root with skill families under `skills/` | many skills or prompts with clear workflow/domain names |
+| Multiple roots | `.harness/resources`, `.harness/resources-platform-kit`, `.harness/local/resources` | only when a catalog is independently optional, profile-selected, separately owned, or private/local |
 
 Recommend one option and explain why. Do not implement the first workable
 manifest before the user has seen the plan.
 
 ```text
 .harness/
-  resources-review/
+  resources/
     README.md
+    .claude/
+      settings.json
+      .harnessMutable
     skills/
+      review/
+      ui/
+      platform/
+    prompts/
     rules/
-  resources-cloudflare-react/
-    README.md
-    skills/
     plugins/
-    hooks.json
   local/
     resources/
 ```
@@ -161,10 +181,7 @@ Manifest:
 
 ```toml
 [[resources]]
-path = "./.harness/resources-review"
-
-[[resources]]
-path = "./.harness/resources-cloudflare-react"
+path = "./.harness/resources"
 
 [[resources]]
 path = "./.harness/local/resources"
@@ -173,10 +190,10 @@ path = "./.harness/local/resources"
 Short README files make resource groups portable and copy/pasteable:
 
 ```markdown
-# Cloudflare React Resources
+# Harness Resources
 
-Skills, wrappers, and prompts for repositories using React on Cloudflare.
-Shared source is tracked here; personal experiments belong in
+Shared skills, prompts, wrappers, and target-level seeds for this repository's
+generated harness surfaces. Personal experiments belong in
 `.harness/local/resources`.
 ```
 
@@ -245,10 +262,10 @@ Example composable root instructions, only when the split is useful:
 Use target-derived overrides for exact target-specific files:
 
 ```text
-.harness/resources-review/skills/review/SKILL.md
-.harness/resources-review/skills/review/.claude/SKILL.md
-.harness/resources-review/.agents/hooks.json
-.harness/resources-review/.claude/hooks.json
+.harness/resources/skills/review/SKILL.md
+.harness/resources/skills/review/.claude/SKILL.md
+.harness/resources/.agents/hooks.json
+.harness/resources/.claude/hooks.json
 ```
 
 Do not duplicate entire resource groups unless the target behavior is genuinely
@@ -392,7 +409,7 @@ Recommend `.harness/local/` as a first-class local workspace:
 
 ```toml
 [[resources]]
-path = "./.harness/resources-review"
+path = "./.harness/resources"
 
 [[resources]]
 path = "./.harness/local/resources"
@@ -415,9 +432,9 @@ Prefer scoped ignore files close to the thing they control:
 
 ```text
 .harnessIgnore                                  # broad repo boundaries
-.harness/resources-review/.harnessIgnore        # group boundaries
-.harness/resources-review/skills/foo/.harnessIgnore
-.harness/profiles/security/resources-review/.harnessIgnore
+.harness/resources/.harnessIgnore               # source root boundaries
+.harness/resources/skills/foo/.harnessIgnore
+.harness/profiles/security/resources/.harnessIgnore
 .agents/skills/foo/.harnessIgnore               # local output boundary
 ```
 
