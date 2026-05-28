@@ -130,8 +130,10 @@ sequence:
     and every removed durable item is migrated, archived, or explicitly
     approved for deletion.
 
-The plan must include the skill guide version. If the agent does not report a
-version, the user cannot tell which adoption rules it followed.
+The plan must include the skill guide version from the local installed
+`SKILL.md`. If the agent does not report a version, the user cannot tell which
+adoption rules it followed. If the user asked to install or update the skill,
+do not rely on a cached, inherited, or previously loaded copy before planning.
 
 ## Adoption Checklist
 

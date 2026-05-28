@@ -1,16 +1,21 @@
 ---
 name: harness-config
 description: Use when working with Harness config in a customer repository. Triggers include setting up, adopting, migrating, validating, activating, or troubleshooting .harness/harness.toml, .harness resources, AGENTS.md, CLAUDE.md, .agents, .claude, .cursor, .gemini, skills, rules, plugins, prompts, hooks, .harnessIgnore, .harnessMutable, mutable files, or CLI commands such as npx harnessc validate and npx harnessc activate.
-version: 2026-05-28.structure-examples
+version: 2026-05-28.fresh-install
 ---
 
 # Harness Config
 
-Skill guide version: `2026-05-28.structure-examples`.
+Skill guide version: `2026-05-28.fresh-install`.
 
 When using this skill for setup or migration, include the skill guide version
 in the proposed plan and final summary. This lets the user tell whether an
 agent used the current adoption rules.
+
+When recommending this skill to another agent or writing a setup prompt, require
+the agent to install or update the skill from the canonical GitHub path, then
+read the local installed `SKILL.md` before planning. The agent should not rely
+on cached, inherited, or previously loaded copies of the skill.
 
 ## Purpose
 
@@ -191,7 +196,7 @@ plan like this and wait for the user to approve it:
 
 ```markdown
 **Recommended Full Transition Plan**
-Skill guide: `2026-05-28.structure-examples`
+Skill guide: `2026-05-28.fresh-install`
 
 | Decision | Recommendation | Reason |
 | --- | --- | --- |
