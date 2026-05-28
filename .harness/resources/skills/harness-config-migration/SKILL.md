@@ -1,6 +1,7 @@
 ---
 name: harness-config-migration
 description: Use when migrating an existing repository to Harness config from ad hoc agent instructions, runtime folders, skills, plugins, prompts, commands, hooks, or local agent settings.
+version: 2026-05-28.full-transition-plan
 ---
 
 # Harness config Migration
@@ -24,14 +25,17 @@ user-owned.
 ## Workflow
 
 1. Inventory current agent config and note any secrets or local-only state.
-2. Choose explicit targets in `.harness/harness.toml`.
-3. Move all durable reviewed skills, plugins, rules, prompts, commands, hooks,
+2. Present a recommended full-transition plan with this skill guide version and
+   wait for user approval before writing migration files.
+3. Choose explicit targets in `.harness/harness.toml`, including `.claude` when
+   `.claude` durable content or settings are present.
+4. Move all durable reviewed skills, plugins, rules, prompts, commands, hooks,
    agents, and selected root instruction files into `.harness/resources` or
    `.harness/dir`. Do not stop after migrating only the Harness helper skill.
-4. Keep real target-specific differences as target overrides.
-5. Add `.harnessIgnore` rules for caches, secrets, generated files, and
+5. Keep real target-specific differences as target overrides.
+6. Add `.harnessIgnore` rules for caches, secrets, generated files, and
    mutable runtime-owned files.
-6. Validate, preview, apply, and confirm convergence.
+7. Validate, preview, apply, and confirm convergence.
 
 Full transition means durable agent configuration is represented in `.harness`,
 live harness surfaces are generated outputs, mutable files have source seeds

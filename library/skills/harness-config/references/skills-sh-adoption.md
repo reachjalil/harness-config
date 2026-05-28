@@ -95,22 +95,31 @@ Classify the repository into one of three paths:
 For a repo that is not yet using `.harness`, propose or implement this
 sequence:
 
-1. Create `.harness/harness.toml` with only explicit targets the user wants.
-2. Create one or more resource groups for portable projected resources.
-3. Add concise README files for non-obvious resource groups.
-4. Promote reviewed installed skills into the right shared or local resource
+1. Show the recommended full-transition plan and wait for user approval.
+2. Create `.harness/harness.toml` with explicit targets for every intended
+   live harness surface, including `.claude` when `.claude` content or settings
+   are present.
+3. Create one or more resource groups for portable projected resources.
+4. Add concise README files for non-obvious resource groups.
+5. Promote reviewed installed skills into the right shared or local resource
    group.
-5. Add `.harness/local/resources` for personal or experimental skills when
+6. Add `.harness/local/resources` for personal or experimental skills when
    useful.
-6. Decide whether root instruction files should stay tracked as-is or move into
-   `[[dir]]`.
-7. Use target-derived overrides for target-specific differences.
-8. Add scoped `.harnessIgnore` files and `[mutable]` rules.
-9. Run `npx harnessc validate`.
-10. Run `npx harnessc activate` and review the dry-run plan.
-11. Use `npx harnessc explain <path>` for surprising paths.
-12. Apply with `npx harnessc activate --yes` only when the plan matches intent.
-13. Run `npx harnessc activate` again and confirm convergence.
+7. Decide whether root instruction files should stay tracked as-is or move into
+   `[[dir]]`; use direct copied files unless composition is justified.
+8. Use target-derived overrides for target-specific differences.
+9. Seed mutable files in `.harness` before adding `[mutable]` rules.
+10. Add scoped `.harnessIgnore` files and narrow `[mutable]` rules.
+11. Run `npx harnessc validate`.
+12. Run `npx harnessc activate` and review the dry-run plan.
+13. Use `npx harnessc explain <path>` for surprising paths.
+14. Apply with `npx harnessc activate --yes` only when the plan matches intent.
+15. Run `npx harnessc activate` again and confirm convergence.
+16. Recommend gitignoring generated surfaces after convergence with a tracked
+    bootstrap.
+
+The plan must include the skill guide version. If the agent does not report a
+version, the user cannot tell which adoption rules it followed.
 
 ## Adoption Checklist
 
