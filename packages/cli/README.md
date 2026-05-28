@@ -110,9 +110,9 @@ inputs and the same unmanaged cleanup choice should converge to the same plan.
 
 Managed files are compared directly with the current projection and reported as
 `update` when target bytes differ. Applying an update overwrites the target
-with the current source bytes. Mutable files declared under `[mutable]` in
-`.harnessIgnore` are created once from source and then left untouched as
-runtime-owned target state unless `--force-mutable` is supplied.
+with the current source bytes. Mutable files declared in `.harnessMutable` are
+created once from source and then left untouched as runtime-owned target state
+unless `--force-mutable` is supplied.
 
 `.harnessIgnore` files can be repo-root, source-local, profile-local,
 target-derived override-local, or target-output-local. Precedence follows

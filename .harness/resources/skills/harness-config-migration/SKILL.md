@@ -1,7 +1,7 @@
 ---
 name: harness-config-migration
 description: Use when migrating an existing repository to Harness config from ad hoc agent instructions, runtime folders, skills, plugins, prompts, commands, hooks, or local agent settings.
-version: 2026-05-28.best-practice-options
+version: 2026-05-28.harness-mutable-contract
 ---
 
 # Harness config Migration
@@ -39,10 +39,11 @@ user-owned.
    config guidance for any agent-config operation.
 6. Keep real target-specific differences as target overrides.
 7. Copy mutable files that fresh users should receive into `.harness` as seed
-   files before marking them `[mutable]`.
-8. Add `.harnessIgnore` rules for caches, secrets, generated files, mutable
-   runtime-owned files, and target-output ignores in generated surfaces such as
-   `.agents` or `.claude` when those targets need local-only boundaries.
+   files before declaring them in `.harnessMutable`.
+8. Add `.harnessIgnore` rules for caches, secrets, generated files, and
+   target-output ignores in generated surfaces such as `.agents` or `.claude`
+   when those targets need local-only boundaries. Add `.harnessMutable` only
+   for create-once runtime-owned seed files.
 9. Validate, preview, apply, and confirm convergence.
 10. Do not run `--remove-unmanaged` until the exact removal list is reviewed and
    every removed durable item is migrated into `.harness`, archived, or

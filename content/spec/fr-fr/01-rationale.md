@@ -38,7 +38,7 @@ Le catalogue source vit sous `./.harness`. Les surfaces de harness comme `./.age
 - Cible déclarée: surface de harness comme `./.agents` ou `./.claude` qui reçoit une projection seulement quand elle est listée dans le manifeste.
 - Surcharge dérivée de cible: dossier comme `.claude` dans une ressource pour ajuster les fichiers de la cible correspondante.
 - Profil: overlay sélectionné par `.harnessProfile` et déclaré avec `.harnessProfileRoot`, fusionné par chemin source logique sans projeter le dossier de profil.
-- Limite de projection: `.harnessIgnore`, y compris les règles racine, source-locales, profile-locales, target-output-locales et `[mutable]`.
+- Limite de projection: `.harnessIgnore`, y compris les règles racine, source-locales, profile-locales, target-output-locales et `.harnessMutable`.
 - Projection d'activation: plan dry-run-first avec actions `create`, `update`, `remove`, `keep`, `preserve` et `mutable`, plus politiques explicites de nettoyage et fichiers mutables.
 
 ## Non-Objectifs

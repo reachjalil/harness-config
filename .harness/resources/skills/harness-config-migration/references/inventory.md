@@ -53,7 +53,7 @@ Use this adoption checklist before claiming completion:
 | Durable resources | Every reusable resource was migrated into `.harness` or blocked with a reason. |
 | Plan options | The user saw a recommended plan and meaningful layout options when the repo had enough durable resources to justify them. |
 | Agent guidance | Root agent instructions tell future agents to use Harness config guidance and edit `.harness` sources for agent-config operations. |
-| Mutable seeds | Every create-once runtime file that fresh users should receive is copied into `.harness` as a seed before `[mutable]`. |
+| Mutable seeds | Every create-once runtime file that fresh users should receive is copied into `.harness` as a seed before `.harnessMutable`. |
 | Target ignores | Generated surfaces such as `.agents` or `.claude` have target-output `.harnessIgnore` files when they need local-only output boundaries. |
 | Generated outputs | Live surfaces are treated as generated and can be gitignored after convergence. |
 | Cleanup | `--remove-unmanaged` is used only after reviewed removals are migrated, archived, or explicitly approved for deletion. |

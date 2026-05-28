@@ -39,6 +39,7 @@ export type HarnessConfigPaths = {
   harnessDir: string;
   configPath: string;
   ignorePath: string;
+  mutablePath: string;
   resourcesDirs: string[];
   dirDirs: string[];
   resourcesDir: string;
@@ -64,6 +65,7 @@ export type HarnessInspection = {
   hasHarnessDir: boolean;
   hasHarnessConfig: boolean;
   hasHarnessIgnore: boolean;
+  hasHarnessMutable: boolean;
   diagnostics: HarnessDiagnostic[];
 };
 

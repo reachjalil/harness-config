@@ -38,7 +38,7 @@ El catalogo fuente vive bajo raices configuradas, con `./.harness` como convenci
 - Destino declarado: superficie de harness como `./.agents` o `./.claude` que recibe proyeccion solo cuando esta en el manifiesto.
 - Sobrescritura derivada del destino: carpeta como `.claude` dentro de un recurso para ajustar archivos del destino correspondiente.
 - Perfil: overlay seleccionado por `.harnessProfile` y declarado con `.harnessProfileRoot`, fusionado por ruta fuente logica sin proyectar el directorio de perfil.
-- Limite de proyeccion: `.harnessIgnore`, incluyendo reglas de raiz, fuente-locales, profile-locales, target-output-locales y `[mutable]`.
+- Limite de proyeccion: `.harnessIgnore`, incluyendo reglas de raiz, fuente-locales, profile-locales, target-output-locales y `.harnessMutable`.
 - Proyeccion de activacion: plan dry-run-first con acciones `create`, `update`, `remove`, `keep`, `preserve` y `mutable`, mas politicas explicitas de limpieza y archivos mutables.
 
 ## No objetivos

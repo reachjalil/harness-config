@@ -14,8 +14,8 @@ For a projection behavior, cover at least the observable result:
 - Target-output `.harnessIgnore` files are preserved during cleanup.
 - `.harnessProfile` files in target output are preserved and affect only their
   subtree.
-- `[mutable]` files are created once, then skipped unless force-mutable is
-  requested.
+- `.harnessMutable` files are created once, then skipped unless force-mutable
+  is requested.
 - Target symlinks that occupy projected paths remain links unless explicit
   replacement policy is selected.
 

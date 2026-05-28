@@ -6,8 +6,8 @@ Read this to choose the implementation owner before editing.
   target listing, and target override inference.
 - `packages/core/src/validation.ts`: manifest and repository-shape validation
   diagnostics.
-- `packages/core/src/ignore.ts`: `.harnessIgnore` parsing, discovery,
-  precedence, target-output matching, and `[mutable]`.
+- `packages/core/src/ignore.ts`: `.harnessIgnore` and `.harnessMutable`
+  parsing, discovery, precedence, and target-output matching.
 - `packages/core/src/profile.ts`: `.harnessProfile` selectors,
   `.harnessProfileRoot` discovery, protected target selectors, and profile
   source overlays.

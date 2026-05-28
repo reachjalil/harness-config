@@ -89,11 +89,11 @@ Harness config v1 固定一组保守的文件系统行为：
 
 - Symlink 是叶子项；发现源、目标、ignore、profile 或 dir 输出时绝不跟随。
 - 受管理文件在目标字节不同的时候，从当前源投影更新。
-- 匹配 `[mutable]` 的文件只创建一次，之后由 runtime 拥有。
+- 匹配 `.harnessMutable` 的文件只创建一次，之后由 runtime 拥有。
 - 目标中的未管理文件默认保留，除非显式选择清理。
 - 目标输出中的 `.harnessIgnore` 和 `.harnessProfile` 是受保护的本地状态。
 - 相同的源树、manifest、profile、ignore 规则、清理策略和 mutable 策略会产生确定性的激活结果。
 - 目标不能指向 `.harness`，不能与配置源重叠，也不能彼此重叠。
 - 如果工具提供路径解释，它必须是只读的，并且必须来自与激活相同的选中 manifest、配置源、profile、ignore 规则、mutable 策略和投影模型。
 
-例如，`.harness/resources/hooks.json` 这样的源文件可以更新 `.agents/hooks.json`；而匹配 `[mutable]` 的目标自有文件 `.agents/skills/review/settings.local.json` 在第一次投影后会保持不变。`.claude/skills/review/.harnessIgnore` 这样的目标输出文件可以过滤该目标子树，并在清理期间保留。
+例如，`.harness/resources/hooks.json` 这样的源文件可以更新 `.agents/hooks.json`；而匹配 `.harnessMutable` 的目标自有文件 `.agents/skills/review/settings.local.json` 在第一次投影后会保持不变。`.claude/skills/review/.harnessIgnore` 这样的目标输出文件可以过滤该目标子树，并在清理期间保留。

@@ -13,6 +13,8 @@ import {
   loadHarnessIgnoreRuleSets,
   parseHarnessIgnore,
   parseHarnessIgnoreFile,
+  parseHarnessMutable,
+  parseHarnessMutableFile,
   parseHarnessConfigToml,
   resolveHarnessPaths,
   safeParseHarnessConfigToml,
@@ -692,16 +694,15 @@ path = "./.cursor"
     ).toBe(true);
   });
 
-  it("resets mutable .harnessIgnore rules with an ignore section", () => {
-    const matcher = createHarnessIgnoreMatcher(
-      parseHarnessIgnore(`
-[mutable]
+  it("keeps mutable declarations separate from .harnessIgnore rules", () => {
+    const matcher = createHarnessIgnoreMatcher([
+      ...parseHarnessMutable(`
 .harness/resources/skills/*/settings.local.json
-
-[ignore]
+`),
+      ...parseHarnessIgnore(`
 .harness/resources/skills/*/all-targets.md
-`)
-    );
+`),
+    ]);
 
     expect(
       matcher.isMutable(".harness/resources/skills/review/settings.local.json")
@@ -732,26 +733,81 @@ path = "./.cursor"
     );
   });
 
-  it("parses [mutable] scopes and switches back to ignore scopes", () => {
-    const matcher = createHarnessIgnoreMatcher(
-      parseHarnessIgnore(`
+  it("parses .harnessMutable patterns as mutable rules", () => {
+    const matcher = createHarnessIgnoreMatcher([
+      ...parseHarnessMutable(`
 [mutable]
 .harness/**/settings.local.json
-
-[ignore]
+`),
+      ...parseHarnessIgnore(`
 .harness/resources/skills/*/ignored-elsewhere.md
-`)
-    );
+`),
+    ]);
 
     expect(
       matcher.isMutable(".harness/resources/skills/x/settings.local.json")
     ).toBe(true);
-    // Ignore section after mutable scope returns kind to ignore.
     expect(
       matcher.ignores(".harness/resources/skills/x/ignored-elsewhere.md")
     ).toBe(true);
     expect(
       matcher.isMutable(".harness/resources/skills/x/ignored-elsewhere.md")
+    ).toBe(false);
+  });
+
+  it("rejects [mutable] in .harnessIgnore and ignores rules below it", () => {
+    const parsed = parseHarnessIgnoreFile(
+      `
+[mutable]
+.harness/**/settings.local.json
+`,
+      {
+        isRoot: true,
+        sourcePath: ".harnessIgnore",
+      }
+    );
+    const matcher = createHarnessIgnoreMatcher(parsed.rules);
+
+    expect(parsed.diagnostics).toEqual([
+      expect.objectContaining({
+        severity: "error",
+        code: "harness.ignore_mutable_section_unsupported",
+        path: ".harnessIgnore",
+      }),
+    ]);
+    expect(
+      matcher.isMutable(".harness/resources/skills/x/settings.local.json")
+    ).toBe(false);
+    expect(
+      matcher.ignores(".harness/resources/skills/x/settings.local.json")
+    ).toBe(false);
+  });
+
+  it("rejects [ignore] in .harnessMutable and ignores rules below it", () => {
+    const parsed = parseHarnessMutableFile(
+      `
+[ignore]
+.harness/**/settings.local.json
+`,
+      {
+        isRoot: true,
+        sourcePath: ".harnessMutable",
+      }
+    );
+    const matcher = createHarnessIgnoreMatcher(parsed.rules);
+
+    expect(parsed.diagnostics).toEqual([
+      expect.objectContaining({
+        severity: "error",
+        code: "harness.mutable_ignore_section_unsupported",
+        path: ".harnessMutable",
+      }),
+    ]);
+    expect(
+      matcher.isMutable(".harness/resources/skills/x/settings.local.json")
+    ).toBe(false);
+    expect(
+      matcher.ignores(".harness/resources/skills/x/settings.local.json")
     ).toBe(false);
   });
 
@@ -1050,21 +1106,20 @@ path = "./.cursor"
     ).toBe(false);
   });
 
-  it("supports [mutable] sections in nested files", () => {
+  it("supports nested .harnessMutable patterns", () => {
     const matcher = createHarnessIgnoreMatcher([
       {
-        rules: parseHarnessIgnoreFile(
+        rules: parseHarnessMutableFile(
           `
-[mutable]
 settings.local.json
 `,
           {
             isRoot: false,
-            sourcePath: ".harness/resources/skills/review/.harnessIgnore",
+            sourcePath: ".harness/resources/skills/review/.harnessMutable",
           }
         ).rules,
         directory: ".harness/resources/skills/review",
-        sourcePath: ".harness/resources/skills/review/.harnessIgnore",
+        sourcePath: ".harness/resources/skills/review/.harnessMutable",
         isRoot: false,
       },
     ]);
@@ -1111,7 +1166,7 @@ state.json
       }),
       expect.objectContaining({
         severity: "error",
-        code: "harness.ignore_unsupported_scope",
+        code: "harness.ignore_mutable_section_unsupported",
         message: expect.stringContaining("[mutable .cursor]"),
       }),
     ]);
@@ -1265,14 +1320,19 @@ path = "./.agents"
     );
   });
 
-  it("emits no diagnostic for [mutable] or [*] inside an override", async () => {
+  it("emits no diagnostic for [*] ignore and .harnessMutable inside an override", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
     await mkdir(path.join(root, ".harness"), { recursive: true });
     await write(root, ".harnessIgnore", "");
     await write(
       root,
       ".harness/resources/skills/review/.claude/.harnessIgnore",
-      "[*]\nshared.md\n\n[mutable]\nsettings.local.json\n"
+      "[*]\nshared.md\n"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/review/.claude/.harnessMutable",
+      "settings.local.json\n"
     );
 
     const { diagnostics } = await loadHarnessIgnoreRuleSets(root);
@@ -1510,15 +1570,14 @@ path = "./.agents"
   });
 
   it("treats ignore and mutable evaluations as independent", () => {
-    const matcher = createHarnessIgnoreMatcher(
-      parseHarnessIgnore(`
-[mutable]
+    const matcher = createHarnessIgnoreMatcher([
+      ...parseHarnessMutable(`
 .harness/**/settings.local.json
-
-[*]
+`),
+      ...parseHarnessIgnore(`
 .harness/**/*.log
-`)
-    );
+`),
+    ]);
 
     expect(matcher.ignores(".harness/resources/skills/x/run.log")).toBe(true);
     expect(matcher.isMutable(".harness/resources/skills/x/run.log")).toBe(

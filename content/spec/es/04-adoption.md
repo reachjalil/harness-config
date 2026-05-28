@@ -26,7 +26,7 @@ Este guia cubre dos caminos: greenfield, sin superficies de harness existentes, 
 1. Crea `./.harness/harness.toml` con `version = 1`.
 2. Agrega recursos bajo `.harness/resources` o la fuente configurada.
 3. Declara cada destino en `[[targets]]`.
-4. Usa `.harnessIgnore` para excluir artefactos source-only y `[mutable]` para archivos propiedad del runtime.
+4. Usa `.harnessIgnore` para excluir artefactos source-only y `.harnessMutable` para archivos propiedad del runtime.
 5. Ejecuta un dry run antes de escribir.
 
 ```bash

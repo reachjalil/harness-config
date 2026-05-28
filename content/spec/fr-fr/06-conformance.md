@@ -27,7 +27,7 @@ Une revendication de support Harness config doit être testable depuis la forme 
 - Conformité ressource: une ressource est un fichier, un dossier ou une feuille `.harnessComposable` sous la source de ressources configurée, et les surcharges sont des dossiers pointés dans cette ressource.
 - Conformité cible: chaque `[[targets]]` contient seulement un chemin repo-local et ne pointe pas vers `.harness`.
 - Conformité dir: `[[dir]]` compose ses feuilles `.harnessComposable` et copie les autres fichiers vers des chemins repo-relatifs; ces sorties sont séparées des ressources projetées dans les cibles.
-- Conformité projection: l'activation applique `.harnessIgnore`, y compris les fichiers racine, source-locaux, target-output-locaux et les sections `[mutable]`. Les sections ciblées comme `[.claude]` sont invalides.
+- Conformité projection: l'activation applique `.harnessIgnore`, y compris les fichiers racine, source-locaux, target-output-locaux et les sections `.harnessMutable`. Les sections ciblées comme `[.claude]` sont invalides.
 - Conformité outil: l'outil rapporte le plan avant écriture et ne lit jamais une surface de harness comme source de vérité. S'il fournit une introspection de chemin, cette explication est en lecture seule et utilise le même manifeste sélectionné, les sources configurées, les profils, les règles ignore, la politique mutable et le modèle de projection que l'activation.
 
 ## Exigences Clés

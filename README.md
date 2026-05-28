@@ -42,7 +42,7 @@ and custom targets.
 The central model is explicit ownership. Reviewed source roots are
 repo-owned: they hold the canonical prompts, skills, rules, hooks, and
 instruction parts. Live harness surfaces are generated outputs. Files declared
-under `[mutable]` cross the boundary once as seed data, then become
+in `.harnessMutable` cross the boundary once as seed data, then become
 runtime-owned state that activation reports but does not overwrite by default.
 
 The alpha reference CLI is intentionally boring: initialize, validate, explain,
@@ -75,7 +75,7 @@ harness surface target.
 
 That matters most when a harness both reads and writes its surface. Settings,
 permission grants, allow-lists, learned commands, and local scratch state need
-a place to live without pretending to be canonical source. The `[mutable]`
+a place to live without pretending to be canonical source. The `.harnessMutable`
 model lets a repository provide an initial template while making the live
 target file runtime-owned after first activation.
 
@@ -113,9 +113,9 @@ source  ->  validate  ->  plan  ->  activate  ->  runtime-owned state
 ```
 
 Projection is customizable without making live folders canonical: declare
-targets, select profile overlays, filter with `.harnessIgnore`, and mark local
-settings or permission files as `[mutable]` when the runtime should own them
-after the first projection.
+targets, select profile overlays, filter exclusions with `.harnessIgnore`, and
+declare local settings or permission files in `.harnessMutable` when the
+runtime should own them after the first projection.
 
 ## Why now
 
@@ -138,18 +138,19 @@ teams keep tool-native surfaces while reviewing shared configuration once.
 - **Copy projection.** Targets are materialized as ordinary files, not
   symlinks. The plan (`create` / `update` / `remove` / `keep` / `preserve`
   / `mutable`) is shown before any write.
-- **Runtime-owned mutable files.** `[mutable]` is an ownership boundary, not
-  just an exclusion. Source can seed a target file once; after that, the live
+- **Runtime-owned mutable files.** `.harnessMutable` is an ownership boundary,
+  not an exclusion. Source can seed a target file once; after that, the live
   runtime owns the target bytes until mutable re-projection is explicitly
   forced.
 - **Idempotent under fixed inputs.** Given the same source tree, manifest,
-  ignore rules, cleanup policy, and mutable policy, repeat activation
+  ignore rules, mutable rules, cleanup policy, and mutable policy, repeat activation
   converges to a `keep`-only plan for managed files and a `mutable`-only
   plan for runtime-owned files. See
   [STANDARD.md § Copy Projection](./docs/STANDARD.md#copy-projection) for
   the formal statement.
-- **One projection filter** (`.harnessIgnore`) covers global,
-  target-output-local, and runtime-owned (`[mutable]`) exclusions.
+- **Separate projection filters** keep ownership clear: `.harnessIgnore`
+  excludes files from projection, while `.harnessMutable` marks projected
+  source files as create-once runtime-owned targets.
 
 ## Filesystem Semantics
 
@@ -160,9 +161,9 @@ Harness config is conservative by default because activation mutates live files:
 - **Managed files are overwritten from source.** If target bytes differ from
   the computed projection, activation reports `update` and writes source bytes
   when applied.
-- **Mutable files become runtime-owned after first projection.** `[mutable]`
-  files are created once from source, then treated as runtime-owned target
-  state unless mutable re-projection is explicitly forced.
+- **Mutable files become runtime-owned after first projection.** Files matched
+  by `.harnessMutable` are created once from source, then treated as
+  runtime-owned target state unless mutable re-projection is explicitly forced.
 - **Unmanaged files are preserved by default.** Cleanup requires an explicit
   choice.
 - **Target-output controls are protected local state.** Existing target-side
@@ -238,6 +239,7 @@ Default resources source:
 
 ```text
 .harnessIgnore
+.harnessMutable
 .harness/
   harness.toml
   resources/
@@ -348,6 +350,18 @@ as `.agents/skills/review/scratch.tmp`.
 Use the selected manifest to declare targets, ordered `[[dir]]` output sources, and
 extensions. Use `.harnessIgnore` to control which files or whole subtrees are
 excluded from projection.
+
+Use `.harnessMutable` for files that should be seeded from source only when
+missing, then left to the runtime:
+
+```text
+# .harnessMutable
+.harness/**/settings.local.json
+```
+
+Mutable is different from ignore. A file matched by `.harnessIgnore` is not
+projected. A file matched by `.harnessMutable` is projected when absent, then
+reported as `mutable` and left untouched unless `--force-mutable` is used.
 
 Local `.harnessIgnore` files may also live next to source subtrees or
 existing target-output subtrees:
@@ -461,8 +475,8 @@ preservation choice explicit.
 
 Managed files are compared directly with the current projection. If target
 bytes differ, activation reports `update` and applying activation overwrites
-the target with the current source bytes. Files marked under `[mutable]` in
-`.harnessIgnore` are created once and then reported as runtime-owned
+the target with the current source bytes. Files marked in `.harnessMutable`
+are created once and then reported as runtime-owned
 `mutable` entries until `--force-mutable` is used. This keeps canonical
 repo-owned content and runtime-owned state visible in the same plan without
 collapsing them into the same ownership category.
@@ -584,9 +598,10 @@ and package dry-runs for every publishable package.
 - Targets are path-only and copy-only in v1.
 - Live target folders are derived projection outputs, not source repositories.
 - Activation is idempotent for the same configured sources, manifest, ignore
-  rules, cleanup policy, and mutable policy.
-- `.harnessIgnore` is the single projection filter, with target-specific
-  exclusions expressed by target-output-local files.
+  rules, mutable rules, cleanup policy, and mutable policy.
+- `.harnessIgnore` excludes files from projection; `.harnessMutable` declares
+  create-once runtime-owned seed files. Target-specific exclusions are
+  expressed by target-output-local `.harnessIgnore` files.
 - `.harnessProfile` selects optional `.harnessProfileRoot` overlays without
   making live target folders source roots.
 - Target override folders are derived from target paths.

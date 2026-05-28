@@ -79,7 +79,7 @@ Chaque table `[[dir]]` déclare une source repo-locale. Cette source peut aussi 
 
 Dans une source `[[dir]]`, un dossier qui contient le fichier vide `.harnessComposable` est une feuille composable de dir: ses parties à préfixe numérique se concatènent pour produire le fichier de sortie repo-relatif correspondant. Les autres dossiers et fichiers se copient tels quels vers leurs chemins relatifs au dépôt. Contrairement aux ressources, `[[dir]]` n'est pas projeté comme arbre de ressources dans chaque cible; il sert aux sorties repo-relatives comme `AGENTS.md`, `CLAUDE.md` ou des fichiers propres à une cible.
 
-Les fichiers `.harnessIgnore` source-locaux dans une source `[[dir]]`, y compris dans une feuille `.harnessComposable` hors de `.harness`, filtrent les parties, feuilles et dossiers. Les fichiers `.harnessIgnore` target-output-local filtrent aussi les sorties dir par chemin final une fois les sorties candidates connues. Pendant la collecte dir, seules les règles globales participent; `[mutable]` ne s'applique qu'aux projections de ressources vers les cibles.
+Les fichiers `.harnessIgnore` source-locaux dans une source `[[dir]]`, y compris dans une feuille `.harnessComposable` hors de `.harness`, filtrent les parties, feuilles et dossiers. Les fichiers `.harnessIgnore` target-output-local filtrent aussi les sorties dir par chemin final une fois les sorties candidates connues. Pendant la collecte dir, seules les règles globales participent; `.harnessMutable` ne s'applique qu'aux projections de ressources vers les cibles.
 
 ## `.harnessIgnore`
 
@@ -90,7 +90,7 @@ Les fichiers `.harnessIgnore` source-locaux dans une source `[[dir]]`, y compris
 - Un fichier target-output-local sous une cible existante comme `.agents/skills/review/.harnessIgnore` s'applique aux chemins de sortie sous ce dossier.
 - Les fichiers `.harnessIgnore` dans des sorties cible existantes sont protégés: la projection ne les copie pas, ne les écrase pas et ne les supprime pas pendant le nettoyage.
 
-Les règles sont évaluées des fichiers les moins profonds aux plus profonds, de haut en bas dans chaque fichier. La dernière règle participante gagne. Les sections globales comme `[*]` ou `[global]` et la section `[mutable]` restent valides. Les sections ciblées comme `[.claude]`, `[!.cursor]` ou `[mutable .claude]` ne sont pas valides; les règles propres à une cible doivent vivre dans un fichier `.harnessIgnore` target-output-local.
+Les règles sont évaluées des fichiers les moins profonds aux plus profonds, de haut en bas dans chaque fichier. La dernière règle participante gagne. Les sections globales comme `[*]` ou `[global]` et la section `.harnessMutable` restent valides. Les sections ciblées comme `[.claude]`, `[!.cursor]` ou `[mutable .claude]` ne sont pas valides; les règles propres à une cible doivent vivre dans un fichier `.harnessIgnore` target-output-local.
 
 ## Activation
 
@@ -102,11 +102,11 @@ Harness config v1 fige un comportement conservateur pour le systeme de fichiers:
 
 - Les symlinks sont des entrees feuilles et ne sont jamais suivis lors de la decouverte des sources, cibles, ignores, profils ou sorties dir.
 - Les fichiers geres sont mis a jour depuis la projection source courante quand les octets cible different.
-- Les fichiers qui correspondent a `[mutable]` sont crees une fois, puis appartiennent au runtime.
+- Les fichiers qui correspondent a `.harnessMutable` sont crees une fois, puis appartiennent au runtime.
 - Les fichiers non geres dans les cibles sont preserves sauf si le nettoyage est explicite.
 - Les `.harnessIgnore` et `.harnessProfile` dans les sorties cible sont un etat local protege.
 - Avec les memes arbres source, manifest, profils, regles ignore, politique de nettoyage et politique mutable, l'activation est deterministe.
 - Les cibles ne peuvent pas pointer vers `.harness`, chevaucher les sources configurees ni se chevaucher entre elles.
 - L'introspection de chemin, quand un outil la fournit, doit etre en lecture seule et derivee du meme manifeste selectionne, des sources configurees, des profils, des regles ignore, de la politique mutable et du modele de projection que l'activation.
 
-Par exemple, un fichier source comme `.harness/resources/hooks.json` peut mettre a jour `.agents/hooks.json`, tandis qu'un fichier target-owned comme `.agents/skills/review/settings.local.json` marque par `[mutable]` reste intact apres la premiere projection. Un fichier target-output comme `.claude/skills/review/.harnessIgnore` peut filtrer ce sous-arbre cible et reste preserve pendant le nettoyage.
+Par exemple, un fichier source comme `.harness/resources/hooks.json` peut mettre a jour `.agents/hooks.json`, tandis qu'un fichier target-owned comme `.agents/skills/review/settings.local.json` marque par `.harnessMutable` reste intact apres la premiere projection. Un fichier target-output comme `.claude/skills/review/.harnessIgnore` peut filtrer ce sous-arbre cible et reste preserve pendant le nettoyage.

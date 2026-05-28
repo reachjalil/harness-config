@@ -259,9 +259,11 @@ export async function inspectHarnessConfig(
   const hasHarnessDir = await isDirectory(paths.harnessDir);
   const hasHarnessConfig = await pathExists(paths.configPath);
   const hasHarnessIgnore = await isFile(paths.ignorePath);
+  const hasHarnessMutable = await isFile(paths.mutablePath);
   const relativeHarnessDir = toRepoRelative(paths.root, paths.harnessDir);
   const relativeConfigPath = toRepoRelative(paths.root, paths.configPath);
   const relativeIgnorePath = toRepoRelative(paths.root, paths.ignorePath);
+  const relativeMutablePath = toRepoRelative(paths.root, paths.mutablePath);
   if ((await pathExists(paths.harnessDir)) && !hasHarnessDir) {
     diagnostics.push({
       severity: "error",
@@ -291,6 +293,17 @@ export async function inspectHarnessConfig(
       path: relativeIgnorePath,
       recommendation:
         "Replace it with a regular .harnessIgnore file before projecting resources.",
+    });
+  }
+
+  if ((await pathExists(paths.mutablePath)) && !hasHarnessMutable) {
+    diagnostics.push({
+      severity: "error",
+      code: "harness.mutable_not_file",
+      message: `${relativeMutablePath} exists but is not a file.`,
+      path: relativeMutablePath,
+      recommendation:
+        "Replace it with a regular .harnessMutable file before projecting mutable resources.",
     });
   }
 
@@ -374,6 +387,7 @@ export async function inspectHarnessConfig(
     hasHarnessDir,
     hasHarnessConfig,
     hasHarnessIgnore,
+    hasHarnessMutable,
     diagnostics: dedupeDiagnostics(diagnostics),
   };
 }

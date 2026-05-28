@@ -109,9 +109,10 @@ freezes these filesystem rules for v1:
   target bytes differ, activation reports `update` and writes the source bytes
   when applied.
 - **Mutable files become runtime-owned after first projection.** A file matched
-  by `[mutable]`, such as `.harness/resources/**/settings.local.json`, is
-  created once from source and then skipped as runtime-owned target state
-  unless the user explicitly forces mutable re-projection.
+  by `.harnessMutable`, such as
+  `.harness/resources/**/settings.local.json`, is created once from source and
+  then skipped as runtime-owned target state unless the user explicitly forces
+  mutable re-projection.
 - **Unmanaged files are preserved by default.** A target file such as
   `.agents/local-note.md` that is not in the computed projection is reported as
   `preserve`, not deleted, unless explicit unmanaged cleanup is selected.

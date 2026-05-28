@@ -1,7 +1,10 @@
 import { lstat, mkdir, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import { createDefaultHarnessIgnore } from "./ignore";
+import {
+  createDefaultHarnessIgnore,
+  createDefaultHarnessMutable,
+} from "./ignore";
 import {
   createDefaultHarnessConfig,
   harnessConfigSchema,
@@ -81,6 +84,7 @@ export async function planHarnessInitialization(
   const diagnostics: HarnessDiagnostic[] = [...inspection.diagnostics];
   const configToml = stringifyHarnessConfig(config);
   const ignoreFile = createDefaultHarnessIgnore();
+  const mutableFile = createDefaultHarnessMutable();
 
   const resourceKinds =
     options.resourceKinds ??
@@ -148,6 +152,17 @@ export async function planHarnessInitialization(
         "Write the repository-root .harnessIgnore projection ignore file.",
       target: paths.ignorePath,
       content: ignoreFile,
+    });
+  }
+
+  if (!(await exists(paths.mutablePath))) {
+    actions.push({
+      id: "harness.mutable.write",
+      kind: "write-file",
+      summary:
+        "Write the repository-root .harnessMutable seed-only declaration file.",
+      target: paths.mutablePath,
+      content: mutableFile,
     });
   }
 

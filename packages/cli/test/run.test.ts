@@ -200,6 +200,9 @@ describe("harnessc", () => {
     await expect(
       readFile(path.join(root, ".harnessIgnore"), "utf8")
     ).rejects.toThrow();
+    await expect(
+      readFile(path.join(root, ".harnessMutable"), "utf8")
+    ).rejects.toThrow();
   });
 
   it("does not suggest undeclared target names during plan", async () => {
@@ -233,6 +236,9 @@ describe("harnessc", () => {
     await expect(
       readFile(path.join(root, ".harnessIgnore"), "utf8")
     ).resolves.toContain("projecting .harness resources");
+    await expect(
+      readFile(path.join(root, ".harnessMutable"), "utf8")
+    ).resolves.toContain("Mutable is different from ignore");
     await expect(
       readFile(path.join(root, ".harness", "harness.toml"), "utf8")
     ).resolves.toContain("[[resources]]");
@@ -831,11 +837,7 @@ mode = "copy"
   it("skips mutable files unless --force-mutable", async () => {
     const root = await rootFixture();
     await writeConfig(root);
-    await write(
-      root,
-      ".harnessIgnore",
-      "[mutable]\n.harness/**/settings.local.json\n"
-    );
+    await write(root, ".harnessMutable", ".harness/**/settings.local.json\n");
     await write(
       root,
       ".harness/resources/skills/review/settings.local.json",

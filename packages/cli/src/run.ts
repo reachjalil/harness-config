@@ -117,8 +117,8 @@ file, and copy any other files to their matching repo-relative paths.
 Activation without --yes is the projection preview. Activation keeps unmanaged
 target entries by default. Use --remove-unmanaged to delete target entries that
 are not present in the computed Harness config projection. Managed target edits are
-overwritten from configured sources on update. Mutable target files declared under
-[mutable] in .harnessIgnore are created once and then left alone; use
+overwritten from configured sources on update. Mutable target files declared in
+.harnessMutable are created once and then left alone; use
 --force-mutable to re-project them from source. Target symlinks that occupy
 projected paths are conflicts by default; use --replace-target-symlinks or
 [activation].targetSymlinks = "replace" to replace the link itself. Extensions are activated
@@ -932,7 +932,7 @@ async function formatBareCommandGuidance(
       "harnessc init"
     )}        Preview the default .harness setup\n  ${command(
       "harnessc init --yes"
-    )}  Create .harness/harness.toml and .harnessIgnore\n  ${command(
+    )}  Create .harness/harness.toml, .harnessIgnore, and .harnessMutable\n  ${command(
       "harnessc --help"
     )}      Show all commands`;
   }

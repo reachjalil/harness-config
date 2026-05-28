@@ -27,8 +27,9 @@ Read this when changing normative behavior, conformance claims, or tests.
   filename.
 - `[[dir]]` outputs repo-relative files from explicit dir sources. Outputs that
   land under declared targets merge into that target projection.
-- `.harnessIgnore` is the projection boundary for source-local,
-  target-output-local, root, and `[mutable]` rules.
+- `.harnessIgnore` is the projection exclusion boundary for source-local,
+  target-output-local, and root rules. `.harnessMutable` is the separate
+  create-once runtime ownership boundary.
 - `.harnessProfile` selects profiles. `.harnessProfileRoot` must live under
   `.harness`, a configured resources source, or a configured dir source, is
   profile source only, and must not project as a resource item.

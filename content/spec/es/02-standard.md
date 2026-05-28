@@ -93,11 +93,11 @@ Harness config v1 fija un comportamiento conservador para el sistema de archivos
 
 - Los symlinks son entradas hoja y nunca se siguen al descubrir fuentes, destinos, ignores, perfiles o salidas dir.
 - Los archivos gestionados se actualizan desde la proyeccion fuente actual cuando los bytes del destino difieren.
-- Los archivos que coinciden con `[mutable]` se crean una vez y luego pertenecen al runtime.
+- Los archivos que coinciden con `.harnessMutable` se crean una vez y luego pertenecen al runtime.
 - Los archivos no gestionados en destinos se preservan salvo que la limpieza sea explicita.
 - Los `.harnessIgnore` y `.harnessProfile` dentro de salidas de destino son estado local protegido.
 - Con el mismo arbol fuente, manifest, perfiles, reglas ignore, politica de limpieza y politica mutable, la activacion es determinista.
 - Los destinos no pueden apuntar a `.harness`, solaparse con fuentes configuradas ni solaparse entre si.
 - La introspeccion de rutas, cuando una herramienta la ofrece, debe ser de solo lectura y derivarse del mismo manifest seleccionado, fuentes configuradas, perfiles, reglas ignore, politica mutable y modelo de proyeccion que la activacion.
 
-Por ejemplo, un archivo fuente como `.harness/resources/hooks.json` puede actualizar `.agents/hooks.json`, mientras que un archivo target-owned como `.agents/skills/review/settings.local.json` marcado por `[mutable]` queda intacto despues de la primera proyeccion. Un archivo target-output como `.claude/skills/review/.harnessIgnore` puede filtrar ese subarbol de destino y se preserva durante la limpieza.
+Por ejemplo, un archivo fuente como `.harness/resources/hooks.json` puede actualizar `.agents/hooks.json`, mientras que un archivo target-owned como `.agents/skills/review/settings.local.json` marcado por `.harnessMutable` queda intacto despues de la primera proyeccion. Un archivo target-output como `.claude/skills/review/.harnessIgnore` puede filtrar ese subarbol de destino y se preserva durante la limpieza.

@@ -34,19 +34,19 @@ harnessc plan
   the detected manifest path with suggested next steps.
 - `harnessc init` creates the selected manifest (`./.harness/harness.toml` by
   default), conventional or custom resource folders under the configured
-  resources source root, and `.harnessIgnore` when applied with `--yes`. The
-  generated starter manifest declares `[[resources]] path =
+  resources source root, `.harnessIgnore`, and `.harnessMutable` when applied
+  with `--yes`. The generated starter manifest declares `[[resources]] path =
   "./.harness/resources"` explicitly.
 - `harnessc validate` checks version support, repo-local paths, target
-  mappings, projection ignore syntax, mutable scope syntax, resource
+  mappings, projection ignore syntax, mutable declaration syntax, resource
   composable leaves, symlink leaf handling, and dir composition/copy issues.
 - `harnessc explain <path>` explains how a source or output path participates
   in the current projection plan, including winning source paths, configured
-  source roots, dir outputs, blocking diagnostics, and `.harnessIgnore`
-  decisions. JSON output includes source and target-output ignore traces so a
-  caller can distinguish a repo-root exclusion, a deeper source-local
-  re-include, a profile-local logical re-include, and a target-output final
-  boundary.
+  source roots, dir outputs, blocking diagnostics, `.harnessIgnore`
+  decisions, and `.harnessMutable` ownership decisions. JSON output includes
+  source and target-output ignore traces so a caller can distinguish a
+  repo-root exclusion, a deeper source-local re-include, a profile-local
+  logical re-include, and a target-output final boundary.
 - `harnessc activate` dry-runs the activation projection and shows creates,
   updates, requested removals, kept files, mutable-skipped files, and preserved
   unmanaged entries before writing. By default it reports target symlinks that
@@ -102,9 +102,9 @@ source but now owned by the runtime.
 
 Managed files are compared directly with the current source projection: if the
 target differs, `harnessc activate` reports `update` and applying activation
-overwrites the target with the current source bytes. Mutable files declared
-under `[mutable]` in `.harnessIgnore` are created once from source and skipped
-on subsequent activations because the live target bytes are runtime-owned. Use
+overwrites the target with the current source bytes. Mutable files declared in
+`.harnessMutable` are created once from source and skipped on subsequent
+activations because the live target bytes are runtime-owned. Use
 `--force-mutable` to re-project them from source.
 
 Target symlinks are not followed. If a target symlink occupies a path that
@@ -304,9 +304,9 @@ A conforming validator should:
   resource declarations.
 - Verify each `[[targets]]` entry contains only a repo-local path, points
   below the repository root, and does not overlap configured source roots.
-- Parse `.harnessIgnore` with repo-root, source-local, profile-local,
-  target-output-local, and `[mutable]` rules using the standard precedence
-  phases.
+- Parse `.harnessIgnore` with repo-root, source-local, profile-local, and
+  target-output-local rules using the standard precedence phases. Parse
+  `.harnessMutable` separately for create-once runtime-owned files.
 - Resolve `.harnessProfile` selectors and `.harnessProfileRoot` overlays
   before projection, including the dir bootstrap/final pass for output
   selectors.
