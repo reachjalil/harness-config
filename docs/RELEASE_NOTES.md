@@ -77,7 +77,7 @@ as final.
 - Updates the public Harness config skill and references with the v1 adoption
   model: resources-first, meaningful resource groups, first-class
   `.harness/local/`, scoped nested ignores, profiles as modes, and tracked
-  bootstrap for gitignored generated surfaces.
+  activation instructions for gitignored generated surfaces.
 - Clarifies that `AGENTS.md`, `CLAUDE.md`, and similar root files can stay as
   normal tracked files unless `[[dir]]`, composition, profiles, or local
   overlays make generation useful.

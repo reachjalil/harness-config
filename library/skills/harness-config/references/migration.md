@@ -36,7 +36,7 @@ inspect and summarize them before moving or replacing anything.
 When the user asks to set up or migrate Harness config, the default expectation
 is a complete migration of durable reviewed agent resources that can be safely
 classified. Do not migrate only the `harness-config` helper skill while leaving
-other durable skills or prompts unmanaged without saying so.
+other durable skills or prompts unmanaged.
 
 For each discovered live surface, decide:
 
@@ -47,12 +47,12 @@ For each discovered live surface, decide:
 - leave runtime-owned settings, caches, logs, trust state, credentials, and
   unclear files unmanaged with an explicit reason.
 
-If a repo has many resources, still aim for a full migration in one deliberate
-pass. Do not recommend batching as the normal path. Pause only when a resource
-contains secrets, runtime trust state, executable install behavior, unclear
-ownership, or another concrete risk that needs user review. If you must pause,
-do not call the setup complete; name the blocker and the exact resources that
-remain.
+If a repo has many resources, still aim for a clean full migration in one
+deliberate pass. Do not recommend batching as the normal path. Pause only when
+a resource contains secrets, runtime trust state, executable install behavior,
+unclear ownership, or another concrete risk that needs user review. If you
+must pause, do not write migration files or call the setup complete; name the
+blocker and the exact resources that require a decision.
 
 Do not say `.harness` is now the repository's source of truth when only a
 subset was migrated. Say the migration is blocked or incomplete, and name which
@@ -61,7 +61,9 @@ agent may otherwise delete, ignore, or overwrite durable resources that were
 never moved.
 
 Before editing, present the recommended full-transition plan and wait for user
-approval. The plan must include:
+approval. Use the Full Transition Definition below as the planning checklist:
+the plan must show how each applicable row will be satisfied, or identify a
+blocker before implementation begins. The plan must include:
 
 - skill guide version;
 - explicit targets and why each existing surface is included or excluded;
@@ -106,6 +108,10 @@ A full transition has all of these properties:
 
 Anything less is blocked/incomplete, not the recommended final state.
 
+Use this same table again as the implementation checklist before the final
+summary. Do not apply activation or claim migration success while durable
+resources remain only in live target surfaces.
+
 ## Choose Resource Groups
 
 Move durable projected resources into configured resource roots. For tiny
@@ -134,7 +140,7 @@ moved:
 | Ambitious | reusable kits plus target overrides | repo has reusable agent sets, platform guidance, or multiple teams |
 
 Recommend one option and explain why. Do not implement the first workable
-skeleton before the user has seen the plan.
+manifest before the user has seen the plan.
 
 ```text
 .harness/
@@ -429,10 +435,10 @@ paths such as `**/settings.local.json`.
 Live harness surfaces are generated outputs after full migration. Prefer
 gitignoring them once all durable target resources are represented in
 `.harness` and activation converges. This keeps skills and reusable resources in
-one reviewed source location. Require a tracked bootstrap so users and agents
-know how to activate them on a fresh checkout.
+one reviewed source location. Require tracked activation instructions so users
+and agents know how to activate them on a fresh checkout.
 
-Good bootstrap examples:
+Good activation instruction examples:
 
 ```text
 # AGENTS.md

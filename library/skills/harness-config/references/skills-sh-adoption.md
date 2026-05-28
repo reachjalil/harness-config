@@ -14,7 +14,7 @@ Explain the situation briefly:
 
 - the skill is installed and can guide setup or migration;
 - the repository still needs `.harness/harness.toml`, source folders, ignore
-  boundaries, activation checks, and possibly a bootstrap note;
+  boundaries, activation checks, and possibly tracked activation instructions;
 - live agent surfaces such as `.agents`, `.claude`, `.cursor`, and `.gemini`
   should be treated as generated outputs after adoption begins;
 - `npx harnessc` should be used whenever it can validate, preview, explain, or
@@ -98,7 +98,7 @@ sequence:
 1. Spend time understanding the repo, then show the recommended
    full-transition plan and wait for user approval. Include two or three layout
    options when the repo has enough durable resources to justify meaningful
-   grouping.
+   grouping. Use the adoption checklist below as the planning checklist.
 2. Create `.harness/harness.toml` with explicit targets for every intended
    live harness surface, including `.claude` when `.claude` content or settings
    are present.
@@ -125,7 +125,7 @@ sequence:
 15. Apply with `npx harnessc activate --yes` only when the plan matches intent.
 16. Run `npx harnessc activate` again and confirm convergence.
 17. Recommend gitignoring generated surfaces after convergence with a tracked
-    bootstrap.
+    activation note.
 18. Use `--remove-unmanaged` only after a reviewed dry run shows exact removals
     and every removed durable item is migrated, archived, or explicitly
     approved for deletion.
@@ -134,6 +134,8 @@ The plan must include the skill guide version from the local installed
 `SKILL.md`. If the agent does not report a version, the user cannot tell which
 adoption rules it followed. If the user asked to install or update the skill,
 do not rely on a cached, inherited, or previously loaded copy before planning.
+Use the same checklist again during implementation before applying activation
+or claiming adoption is complete.
 
 ## Adoption Checklist
 
@@ -147,7 +149,7 @@ Use this checklist in the response before claiming adoption is complete:
 | Mutability | `.harnessMutable` is used only for seeded create-once files, not as a substitute for migration or ignore. |
 | Target ignores | Target-output `.harnessIgnore` files are added inside generated surfaces when local output boundaries are needed. |
 | Root files | Simple root files are direct copies or normal tracked files; `.harnessComposable` is used only when needed. |
-| Generated surfaces | After convergence, generated surfaces are recommended for `.gitignore` with a tracked bootstrap. |
+| Generated surfaces | After convergence, generated surfaces are recommended for `.gitignore` with tracked activation instructions. |
 | Verification | Validate, dry activation, apply, and convergence dry run all succeeded. |
 
 If any check is incomplete, say the migration is blocked/incomplete and name the
@@ -169,20 +171,14 @@ Use precise language:
 - **Blocked migration:** one or more durable resources could not be migrated
   safely because of a concrete blocker such as unclear ownership, secrets,
   runtime trust state, executable install behavior, or user direction.
-- **Bootstrap only:** only `harness.toml`, `.harnessIgnore`, and a helper skill
-  or note were added. This is not the preferred setup for an existing repo; it
-  is only a starting point when full migration is blocked or explicitly
-  deferred by the user.
+- **Scoped non-migration change:** the user explicitly asked for a narrow
+  change that is not a Harness config adoption. State the limited scope clearly
+  and do not claim the repo migrated to Harness config.
 
-If only the `harness-config` skill was promoted, say:
-
-```text
-This is only a bootstrap, not the recommended end state. Harness config
-currently manages only the harness-config helper skill and the listed root
-files. Existing skills or resources in live surfaces remain unmanaged, so the
-next step is to complete the migration into `.harness/resources` before treating
-the live surfaces as generated.
-```
+If only the `harness-config` skill was promoted, do not call the repository
+adopted or migrated. Say the requested narrow change is done, then name the
+durable live resources that still need a clean full migration before `.harness`
+can be treated as the source of truth.
 
 Avoid wording such as "now Harness config can regenerate the managed parts"
 unless it is immediately followed by the exact managed scope, the remaining
@@ -210,8 +206,8 @@ review:
 - avoid declaring targets for folders that merely happen to exist;
 - keep existing live surfaces in place until activation output is understood;
 - after full migration and convergence, prefer gitignored generated harness
-  surfaces with a tracked bootstrap that tells users and agents how to
-  activate them;
+  surfaces with tracked activation instructions that tell users and agents how
+  to activate them;
 - treat target symlinks as conflicts unless the user explicitly wants
   `[activation].targetSymlinks = "replace"` or a one-run
   `--replace-target-symlinks` activation;
@@ -225,7 +221,7 @@ Use language like:
 ```text
 The skill is installed, so I can guide the setup. Your repository is not using
 Harness config yet, so I will first inventory existing agent files and installed
-skills, then create a small `.harness` source layout and validate it with
+skills, then propose a clean full migration plan and validate it with
 `npx harnessc` before writing any projected outputs.
 ```
 

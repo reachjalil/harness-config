@@ -350,10 +350,10 @@ This is the right model for company-provided deploy, security, frontend,
 backend, or onboarding kits. The kit is reviewed source. The selector decides
 where it is active.
 
-## Generated Surfaces With Bootstrap
+## Generated Surfaces With Activation Instructions
 
 Generated harness surfaces can be gitignored when the repository keeps a
-tracked bootstrap path. The manifest and source catalog stay in version
+tracked activation path. The manifest and source catalog stay in version
 control; the live folders can be regenerated after checkout.
 
 ```toml
@@ -371,7 +371,7 @@ path = "./.claude"
 ```
 
 ```text
-AGENTS.md                         # bootstrap note for humans and agents
+AGENTS.md                         # activation note for humans and agents
 package.json                      # optional setup:harness script
 .gitignore
 .harness/
@@ -393,10 +393,10 @@ package.json                      # optional setup:harness script
 .claude/
 ```
 
-The bootstrap should tell users and agents to run `npx harnessc validate` and
-dry-run activation before applying. Do not gitignore generated surfaces when a
-fresh checkout would leave users with empty harness folders and no clear
-activation path.
+The activation instructions should tell users and agents to run
+`npx harnessc validate` and dry-run activation before applying. Do not
+gitignore generated surfaces when a fresh checkout would leave users with empty
+harness folders and no clear activation path.
 
 ## Personal AGENTS.md Override
 

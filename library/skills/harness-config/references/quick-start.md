@@ -5,8 +5,8 @@ wants a clean first Harness config setup.
 
 ## Minimal Portable Catalog
 
-Start with one resource root, one explicit target, and a small tracked
-bootstrap/root instruction file:
+Start with one resource root, one explicit target, and a small tracked root
+instruction file:
 
 ```toml
 version = 1
@@ -128,8 +128,8 @@ Generated harness surfaces such as `.agents`, `.claude`, `.cursor`, and
 `.gemini` should be treated as disposable outputs after full migration. For an
 existing repo, prefer gitignoring them once all durable skills and reusable
 resources are represented in `.harness` and activation converges. Require a
-tracked bootstrap so a fresh checkout knows how to regenerate them. Good
-bootstrap options:
+tracked activation note so a fresh checkout knows how to regenerate them. Good
+activation instruction options:
 
 - a short tracked `AGENTS.md`;
 - a `README.md` setup section;

@@ -29,7 +29,7 @@ AGENTS.md
         SKILL.md
 ```
 
-Keep `AGENTS.md` tracked as the bootstrap/root instruction file unless
+Keep `AGENTS.md` tracked as the root instruction file unless
 generating it through `[[dir]]` is clearly useful.
 
 ## Skill Migration With Resource Groups
@@ -229,12 +229,12 @@ skills/**
 Use `npx harnessc explain <path> --json` when a resource is unexpectedly
 ignored or included.
 
-## Generated Surfaces With Bootstrap
+## Generated Surfaces With Activation Instructions
 
 Best when `.agents`, `.claude`, `.cursor`, or `.gemini` should not clutter
 version control.
 
-Tracked bootstrap:
+Tracked activation instructions:
 
 ```text
 AGENTS.md
@@ -262,7 +262,7 @@ Package script:
 }
 ```
 
-Bootstrap note:
+Activation note:
 
 ```text
 Harness surfaces are generated. On fresh checkout, run:

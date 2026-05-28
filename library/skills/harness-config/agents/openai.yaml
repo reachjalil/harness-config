@@ -1,4 +1,4 @@
 interface:
   display_name: "Harness config"
   short_description: "Adopt portable Harness config resource groups and activation."
-  default_prompt: "Use $harness-config to assess this repo, recommend a practical Harness config adoption strategy, and validate activation with harnessconfig.dev as the reference."
+  default_prompt: "Use $harness-config to assess this repo, recommend a clean full Harness config migration when existing agent surfaces are present, and validate activation with harnessconfig.dev as the reference."
