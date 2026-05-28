@@ -1,7 +1,7 @@
 ---
 name: harness-config-migration
 description: Use when migrating an existing repository to Harness config from ad hoc agent instructions, runtime folders, skills, plugins, prompts, commands, hooks, or local agent settings.
-version: 2026-05-28.harness-mutable-contract
+version: 2026-05-28.structure-examples
 ---
 
 # Harness config Migration
@@ -39,7 +39,9 @@ user-owned.
    config guidance for any agent-config operation.
 6. Keep real target-specific differences as target overrides.
 7. Copy mutable files that fresh users should receive into `.harness` as seed
-   files before declaring them in `.harnessMutable`.
+   files before declaring them in `.harnessMutable`. Show exact file trees in
+   the plan, for example `.harness/resources/.claude/settings.json` plus
+   `.harness/resources/.claude/.harnessMutable` containing `settings.json`.
 8. Add `.harnessIgnore` rules for caches, secrets, generated files, and
    target-output ignores in generated surfaces such as `.agents` or `.claude`
    when those targets need local-only boundaries. Add `.harnessMutable` only

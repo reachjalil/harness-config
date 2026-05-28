@@ -79,6 +79,9 @@ approval. The plan must include:
 - cleanup policy, especially whether unmanaged live files are preserved,
   migrated, archived, or explicitly approved for removal;
 - concrete blockers, if any.
+- concrete file trees for each common pattern that applies, especially mutable
+  settings, direct root instructions, composable root instructions,
+  target-derived overrides, and target-output ignores.
 
 If `.claude` exists, contains skills/settings, or has target-specific behavior,
 the recommended plan should include `[[targets]] path = "./.claude"` unless
@@ -244,6 +247,120 @@ Use target-derived overrides for exact target-specific files:
 
 Do not duplicate entire resource groups unless the target behavior is genuinely
 different.
+
+## Common Transition Trees
+
+Use concrete trees in the migration plan. The goal is for the user to approve
+the exact source and output shape, not infer it from Harness terminology.
+
+### Claude Settings As A Mutable Seed
+
+Use this when an existing `.claude/settings.json` should be present for fresh
+users, but Claude may edit it locally after first activation.
+
+Before:
+
+```text
+.claude/
+  settings.json
+```
+
+After:
+
+```text
+.harness/
+  resources/
+    .claude/
+      settings.json
+      .harnessMutable
+
+.claude/
+  settings.json
+```
+
+`.harness/resources/.claude/settings.json` is the reviewed seed.
+`.harness/resources/.claude/.harnessMutable` should contain:
+
+```gitignore
+settings.json
+```
+
+Do not use `.claude/.harnessIgnore` for this file if the repo wants fresh users
+to receive the seed. Target-output `.harnessIgnore` blocks projection for that
+target; `.harnessMutable` allows one initial projection and then preserves
+runtime edits.
+
+### Direct Root Instruction Copy
+
+Use this for a simple root `AGENTS.md` or `CLAUDE.md` that does not need
+composition:
+
+```text
+.harness/
+  dir/
+    AGENTS.md
+```
+
+Do not create `.harness/dir/AGENTS.md/.harnessComposable` with one part unless
+there is a real reason to support composition, references, profiles, or local
+overlays.
+
+### Composable Root Instructions
+
+Use this only when the split has a reason:
+
+```text
+.harness/
+  dir/
+    AGENTS.md/
+      .harnessComposable
+      100_project.md
+      200_workflows.md
+    CLAUDE.md/
+      .harnessComposable
+      .harnessRef
+      300_claude_tail.md
+```
+
+### Shared Resource With Target Override
+
+Use this when most skill content is shared and only Claude needs different
+bytes:
+
+```text
+.harness/
+  resources/
+    skills/
+      review/
+        SKILL.md
+        references/
+        .claude/
+          SKILL.md
+```
+
+The generated `.claude/skills/review/SKILL.md` receives the override. Other
+declared targets receive the base `SKILL.md`.
+
+### Target-Output Ignore
+
+Use this only when one generated target needs local output boundaries:
+
+```text
+.claude/
+  skills/
+    review/
+      .harnessIgnore
+```
+
+Example target-output ignore:
+
+```gitignore
+logs/
+generated/
+```
+
+This does not migrate source and does not create mutable files. It filters only
+that target's final output.
 
 ## Cleanup And Narrowing
 
@@ -413,18 +530,20 @@ For advanced users, use terse bullets after the tables and include exact paths
 and flags rather than introductory explanation.
 
 Use `.harnessMutable` for source templates that should be created once and then
-left runtime-owned:
+left runtime-owned. Prefer source-local mutable files because they make the
+contract visible beside the seed:
+
+```text
+.harness/resources/.claude/settings.json
+.harness/resources/.claude/.harnessMutable
+```
 
 ```gitignore
-**/settings.local.json
+# .harness/resources/.claude/.harnessMutable
+settings.json
 ```
 
 Ignored files stay out of projection. Mutable files are projected when missing
-and then preserved.
-
-Every mutable file that should exist for a fresh user needs a seed in
-`.harness`. For example, if `.claude/settings.json` should be present on first
-activation but then runtime-owned, place the initial file at the corresponding
-`.harness` resource or dir source path and add the matching source or target
-pattern to `.harnessMutable`. Do not mark a target file mutable without
-migrating its intended initial version.
+and then preserved. Every mutable file that should exist for a fresh user needs
+a seed in `.harness`; do not mark a target file mutable without migrating its
+intended initial version.

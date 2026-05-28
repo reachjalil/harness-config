@@ -1,12 +1,12 @@
 ---
 name: harness-config
 description: Use when working with Harness config in a customer repository. Triggers include setting up, adopting, migrating, validating, activating, or troubleshooting .harness/harness.toml, .harness resources, AGENTS.md, CLAUDE.md, .agents, .claude, .cursor, .gemini, skills, rules, plugins, prompts, hooks, .harnessIgnore, .harnessMutable, mutable files, or CLI commands such as npx harnessc validate and npx harnessc activate.
-version: 2026-05-28.harness-mutable-contract
+version: 2026-05-28.structure-examples
 ---
 
 # Harness Config
 
-Skill guide version: `2026-05-28.harness-mutable-contract`.
+Skill guide version: `2026-05-28.structure-examples`.
 
 When using this skill for setup or migration, include the skill guide version
 in the proposed plan and final summary. This lets the user tell whether an
@@ -46,7 +46,8 @@ contain the detailed instructions for each area of the skill:
   a small portable resource catalog, optional local layer, and first activation.
 - `references/migration.md`: migration from existing root instruction files,
   runtime folders, skills, plugins, rules, prompts, agents, hooks, and local
-  settings.
+  settings. Show concrete file trees for common transitions so the user can
+  approve exact paths instead of guessing from abstract rules.
 - `references/skills-sh-adoption.md`: user installed this skill from
   skills.sh or GitHub, or wants to promote skills installed with `npx skills`
   into reviewed `.harness` source.
@@ -190,7 +191,7 @@ plan like this and wait for the user to approve it:
 
 ```markdown
 **Recommended Full Transition Plan**
-Skill guide: `2026-05-28.harness-mutable-contract`
+Skill guide: `2026-05-28.structure-examples`
 
 | Decision | Recommendation | Reason |
 | --- | --- | --- |
@@ -215,6 +216,53 @@ If the plan omits an existing harness surface such as `.claude`, explain why.
 If there is no good reason, include it. Do not proceed with a partial target set
 just because the CLI skeleton can be created quickly.
 
+## Required Example Structures
+
+Include relevant file trees in migration plans and checklists. Prefer concrete
+paths over vague phrases like "mark mutable" or "make composable." For detailed
+examples, read `references/migration.md` and `references/examples.md`.
+
+Claude settings seeded once:
+
+```text
+.harness/
+  harness.toml
+  resources/
+    .claude/
+      settings.json          # reviewed seed copied on first activation
+      .harnessMutable        # contains: settings.json
+
+.claude/
+  settings.json              # generated once, then runtime-owned
+```
+
+Do not put `settings.json` in `.claude/.harnessIgnore` when the goal is to seed
+it. Target-output `.harnessIgnore` means "do not project this output";
+`.harnessMutable` means "project the seed once, then preserve target edits."
+
+Root instruction choice:
+
+```text
+.harness/dir/AGENTS.md                         # direct copy for simple file
+.harness/dir/AGENTS.md/.harnessComposable      # only when split is useful
+.harness/resources/skills/review/SKILL.md      # shared skill
+.harness/resources/skills/review/.claude/SKILL.md
+.claude/skills/review/.harnessIgnore           # target-output boundary only
+```
+
+## Structure Checklist
+
+Before implementing, show examples for every row that applies:
+
+| Pattern | Expected source shape | Generated/target behavior |
+| --- | --- | --- |
+| Claude settings seed | `.harness/resources/.claude/settings.json` plus `.harness/resources/.claude/.harnessMutable` containing `settings.json` | `.claude/settings.json` is created once, then reported `mutable` |
+| Simple `AGENTS.md` | `.harness/dir/AGENTS.md` | root `AGENTS.md` is copied from one source file |
+| Composable `AGENTS.md` | `.harness/dir/AGENTS.md/.harnessComposable` plus numbered parts | root `AGENTS.md` is assembled; use only for real composition |
+| Shared skill | `.harness/resources/skills/<name>/SKILL.md` | projects to every declared target |
+| Target-specific skill | `.harness/resources/skills/<name>/.claude/SKILL.md` | `.claude` receives override; other targets receive base |
+| Target-output ignore | `.claude/**/.harnessIgnore` in the generated surface | filters that target only; not a seed and not source migration |
+
 ## Full Transition Checklist
 
 Use this checklist for any existing repository. Do not present the setup as
@@ -229,6 +277,7 @@ stop and report the exact blocker instead of doing a partial adoption.
 | Root files decided | Each root instruction file is either kept tracked as-is, copied directly through `.harness/dir`, or made composable only when composition is actually useful. |
 | Agent instructions updated | `AGENTS.md`, `CLAUDE.md`, or equivalent root instructions tell future agents to use Harness config guidance for any agent-config operation and to edit `.harness` sources instead of generated target folders. |
 | Mutable seeds present | Every mutable file that should exist for a fresh user is copied into `.harness` as the seed before it is listed in `.harnessMutable`; activation creates it once and then preserves runtime edits. |
+| File structures shown | The plan includes expected source and target trees for mutable settings, root instructions, target overrides, and target-output ignores that apply to this repo. |
 | Ignores are narrow | `.harnessIgnore` contains only evidence-based patterns; no broad `*.local.*` families unless explicitly justified. |
 | Target ignores present | Generated surfaces such as `.agents` or `.claude` have target-output `.harnessIgnore` files when they need local output boundaries. |
 | Generated surfaces handled | After full migration and convergence, `.agents`, `.claude`, `.cursor`, `.gemini`, or similar generated surfaces are recommended for `.gitignore` with a tracked bootstrap. |

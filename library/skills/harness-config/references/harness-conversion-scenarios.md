@@ -285,6 +285,23 @@ Rules:
 - Keep plugin root components at the plugin root.
 - Treat plugin settings and hook trust as runtime-sensitive; do not project
   secrets or local machine settings.
+- If a non-secret Claude `settings.json` should be available on first
+  activation and then runtime-owned, seed it beside a source-local
+  `.harnessMutable` file:
+
+```text
+.harness/resources/.claude/settings.json
+.harness/resources/.claude/.harnessMutable
+```
+
+```gitignore
+# .harness/resources/.claude/.harnessMutable
+settings.json
+```
+
+Do not put `settings.json` in `.claude/.harnessIgnore` when the desired
+behavior is seed-once projection. Target-output ignores block projection;
+mutable rules project once and then preserve runtime edits.
 
 ## Scenario: Gemini Extension
 
@@ -487,7 +504,9 @@ Before running or projecting active harness behavior, review trust boundaries:
 - Keep shared scripts small, readable, and time-bounded.
 - Prefer dry-run activation before writing outputs.
 - Use `.harnessMutable` for files that should be seeded once and then left
-  runtime-owned.
+  runtime-owned. Show the seed and declaration path, for example
+  `.harness/resources/.claude/settings.json` plus
+  `.harness/resources/.claude/.harnessMutable`.
 - Preserve existing live outputs until `npx harnessc activate` explains the
   planned creates, updates, mutable entries, and preserves.
 - Replace target symlinks only after checking where they point and confirming
@@ -509,7 +528,8 @@ Before applying activation:
 - [ ] Harness-specific differences are encoded as target-derived overrides.
 - [ ] Runtime state, secrets, caches, logs, and machine-local settings are not
       in `.harness`.
-- [ ] `.harnessMutable` covers files that should be seeded once and then runtime-owned.
+- [ ] `.harnessMutable` covers files that should be seeded once and then
+      runtime-owned, with source seeds shown in the plan.
 - [ ] Plugin and extension manifests stay in their harness-specific wrapper
       paths.
 - [ ] Hook scripts are shared only when their stdin/stdout contracts are valid

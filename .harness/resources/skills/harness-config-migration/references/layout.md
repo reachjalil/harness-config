@@ -103,5 +103,28 @@ resource or dir source and add the matching source or target pattern to
 `.harnessMutable`. Do not mark a file mutable without preserving an intended
 seed in `.harness`.
 
+Prefer source-local mutable declarations when they make the contract clearer.
+For Claude settings, show this structure in the migration plan:
+
+```text
+.harness/
+  resources/
+    .claude/
+      settings.json
+      .harnessMutable
+
+.claude/
+  settings.json
+```
+
+```gitignore
+# .harness/resources/.claude/.harnessMutable
+settings.json
+```
+
+Do not put `settings.json` in `.claude/.harnessIgnore` when it should be
+seeded once. Target-output `.harnessIgnore` filters projection; `.harnessMutable`
+creates the seed once and then preserves runtime edits.
+
 Use target-output `.harnessIgnore` only when one runtime must filter a file
 that other targets should still receive.
