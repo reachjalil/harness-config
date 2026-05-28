@@ -51,18 +51,21 @@ Use this adoption checklist before claiming completion:
 | --- | --- |
 | Inventory | All live harness surfaces, root instructions, settings, and resource folders were scanned. |
 | Durable resources | Every reusable resource was migrated into `.harness` or blocked with a reason. |
+| Plan options | The user saw a recommended plan and meaningful layout options when the repo had enough durable resources to justify them. |
 | Agent guidance | Root agent instructions tell future agents to use Harness config guidance and edit `.harness` sources for agent-config operations. |
-| Mutable seeds | Every create-once runtime file has a seed in `.harness` before `[mutable]`. |
+| Mutable seeds | Every create-once runtime file that fresh users should receive is copied into `.harness` as a seed before `[mutable]`. |
+| Target ignores | Generated surfaces such as `.agents` or `.claude` have target-output `.harnessIgnore` files when they need local-only output boundaries. |
 | Generated outputs | Live surfaces are treated as generated and can be gitignored after convergence. |
 | Cleanup | `--remove-unmanaged` is used only after reviewed removals are migrated, archived, or explicitly approved for deletion. |
 | Verification | Validate, dry run, apply, and convergence dry run succeeded. |
 
 The migration plan shown before edits must include the skill guide version,
 explicit target list, resource roots, direct-copy/composable root-file decision,
-root instruction maintenance note, mutable seed paths, gitignore recommendation
-for generated surfaces, cleanup policy for unmanaged removals, and any
-blockers. If `.claude` exists and has durable content or settings, include it
-as a target unless the user chooses otherwise.
+root instruction maintenance note, mutable seed paths copied into `.harness`,
+target-output `.harnessIgnore` recommendations, gitignore recommendation for
+generated surfaces, cleanup policy for unmanaged removals, and any blockers. If
+`.claude` exists and has durable content or settings, include it as a target
+unless the user chooses otherwise.
 
 Use tables for the user-facing summary:
 

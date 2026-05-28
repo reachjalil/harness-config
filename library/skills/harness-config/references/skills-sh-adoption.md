@@ -95,7 +95,10 @@ Classify the repository into one of three paths:
 For a repo that is not yet using `.harness`, propose or implement this
 sequence:
 
-1. Show the recommended full-transition plan and wait for user approval.
+1. Spend time understanding the repo, then show the recommended
+   full-transition plan and wait for user approval. Include two or three layout
+   options when the repo has enough durable resources to justify meaningful
+   grouping.
 2. Create `.harness/harness.toml` with explicit targets for every intended
    live harness surface, including `.claude` when `.claude` content or settings
    are present.
@@ -111,8 +114,11 @@ sequence:
    equivalent root instructions so future agents know to use Harness config
    guidance for agent-config operations.
 9. Use target-derived overrides for target-specific differences.
-10. Seed mutable files in `.harness` before adding `[mutable]` rules.
-11. Add scoped `.harnessIgnore` files and narrow `[mutable]` rules.
+10. Copy mutable files that fresh users should receive into `.harness` as seed
+    files before adding `[mutable]` rules.
+11. Add scoped `.harnessIgnore` files, target-output `.harnessIgnore` files in
+    generated surfaces such as `.agents` when needed, and narrow `[mutable]`
+    rules.
 12. Run `npx harnessc validate`.
 13. Run `npx harnessc activate` and review the dry-run plan.
 14. Use `npx harnessc explain <path>` for surprising paths.
@@ -137,6 +143,7 @@ Use this checklist in the response before claiming adoption is complete:
 | Skills/resources | All durable skills, plugins, prompts, rules, commands, hooks, and agents were migrated into `.harness/resources*` or explicitly blocked. |
 | Settings | Settings that should exist for fresh users were seeded in `.harness`; runtime-only settings were left local. |
 | Mutability | `[mutable]` is used only for seeded create-once files, not as a substitute for migration. |
+| Target ignores | Target-output `.harnessIgnore` files are added inside generated surfaces when local output boundaries are needed. |
 | Root files | Simple root files are direct copies or normal tracked files; `.harnessComposable` is used only when needed. |
 | Generated surfaces | After convergence, generated surfaces are recommended for `.gitignore` with a tracked bootstrap. |
 | Verification | Validate, dry activation, apply, and convergence dry run all succeeded. |
