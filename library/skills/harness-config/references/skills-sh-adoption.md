@@ -106,7 +106,7 @@ sequence:
    are present.
 3. Create `.harness/resources` as the default source root for portable
    projected resources. Use subfolders such as `skills/`, `prompts/`,
-   `skills-kit/`, and target-derived folders such as `.claude/`.
+   `rules/`, `plugins/`, and target-derived folders such as `.claude/`.
 4. Add concise README files for non-obvious resource groups.
 5. Promote reviewed installed skills into the right shared or local resource
    subfolder, usually `.harness/resources/skills/<name>`.
@@ -123,7 +123,7 @@ sequence:
     Target-level settings such as `.claude/settings.json` should become
     `.harness/resources/.claude/settings.json` plus
     `.harness/resources/.claude/.harnessMutable`, not a file inside
-    `skills-kit` or an unrelated resource group.
+    `skills/` or an unrelated resource group.
 11. Add scoped `.harnessIgnore` files, target-output `.harnessIgnore` files in
     generated surfaces such as `.agents` when needed, and narrow
     `.harnessMutable` rules.

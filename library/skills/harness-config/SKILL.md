@@ -1,12 +1,12 @@
 ---
 name: harness-config
 description: Use when working with Harness config in a customer repository. Triggers include setting up, adopting, migrating, validating, activating, or troubleshooting .harness/harness.toml, .harness resources, AGENTS.md, CLAUDE.md, .agents, .claude, .cursor, .gemini, skills, rules, plugins, prompts, hooks, .harnessIgnore, .harnessMutable, mutable files, or CLI commands such as npx harnessc validate and npx harnessc activate.
-version: 2026-05-28.simple-resource-layout
+version: 2026-05-28.no-skills-kit
 ---
 
 # Harness Config
 
-Skill guide version: `2026-05-28.simple-resource-layout`.
+Skill guide version: `2026-05-28.no-skills-kit`.
 
 When using this skill for setup or migration, include the skill guide version
 in the proposed plan and final summary. This lets the user tell whether an
@@ -86,17 +86,17 @@ Use these defaults unless the user's repository clearly points elsewhere:
   files and resource folders as siblings under that root, such as
   `.harness/resources/.claude/settings.json`,
   `.harness/resources/skills/...`, `.harness/resources/prompts/...`, and
-  `.harness/resources/skills-kit/...`.
+  `.harness/resources/rules/...`.
 - **Resource groups inside the root.** For real migrations, group skills and
   resources by usefulness inside `.harness/resources`: workflow, strategy,
   product area, team, mode, target agent set, or kit. Add short `README.md`
   files to non-obvious subfolders so someone can copy a folder and understand
   why it exists.
 - **Multiple roots only for real boundaries.** Add additional configured
-  `.harness/resources-*` roots only when the repo needs an independently
-  optional catalog, ownership boundary, profile-selected kit, or private local
-  layer. Do not split the first migration into `resources-skills` and
-  `resources-agent-kit` only because there are many files.
+  `.harness/resources-*` roots only when the repo needs independently optional
+  concern catalogs such as testing, deployment, or UI, an ownership boundary,
+  profile-selected specialization, or private local layer. Do not split the
+  first migration into multiple roots only because there are many files.
 - **Understand before recommending.** Spend enough time reading the repository
   to propose useful grouping options inside the default resources root. Do not
   default to a meaningless flat dump when the repo has clear teams, domains,
@@ -105,9 +105,9 @@ Use these defaults unless the user's repository clearly points elsewhere:
   such as `.claude/settings.json`, `.agents/settings.local.json`, or target
   hooks/config files, should be seeded at the matching target-derived path under
   the resources root, such as `.harness/resources/.claude/settings.json`. Do
-  not bury target-level settings inside `skills-kit`, `resources-agent-kit`, or
-  an unrelated skill/resource group unless that entire configured root is
-  intentionally selected as an optional kit.
+  not bury target-level settings inside a skill folder, optional kit root, or
+  unrelated resource group unless that entire configured root is intentionally
+  selected as an optional catalog.
 - **`[[dir]]` when useful.** Use `.harness/dir*` for repo-relative outputs such
   as `AGENTS.md`, `CLAUDE.md`, or setup files when generated repo files improve
   the repo. Prefer a direct copied file such as `.harness/dir/AGENTS.md` for a
@@ -115,8 +115,12 @@ Use these defaults unless the user's repository clearly points elsewhere:
   removes real duplication, shares a base across multiple root files, or
   enables profiles/local overlays.
 - **Profiles as modes.** Teach profiles as switchable modes across resource
-  groups first, and file overlays second. Use profile-local `.harnessIgnore` to
-  enable or suppress selected resources without copying a whole catalog.
+  groups and concern-specific dir instructions first, and file overlays second.
+  For example, a deployment profile might combine testing and deployment
+  resources with a deployment-specific `AGENTS.md` part, while a UI profile
+  combines shared UI resources with UI-specific instructions. Use profile-local
+  `.harnessIgnore` to enable or suppress selected resources without copying a
+  whole catalog.
 - **Local as first-class.** Recommend `.harness/local/resources` for personal
   skills, plugins, agents, prompts, experiments, and private wrappers. Recommend
   `.harness/local/dir` only when repo-relative generated outputs need local
@@ -225,13 +229,13 @@ plan like this and wait for the user to approve it:
 
 ```markdown
 **Recommended Full Transition Plan**
-Skill guide: `2026-05-28.simple-resource-layout`
+Skill guide: `2026-05-28.no-skills-kit`
 
 | Decision | Recommendation | Reason |
 | --- | --- | --- |
 | Targets | `.agents`, `.claude` | Both surfaces exist and contain durable config |
 | Source roots | `.harness/resources`, optional `.harness/dir` | One reviewed source root keeps target-level seeds and skills easy to inspect |
-| Resource layout | `.harness/resources/.claude/settings.json`, `.harness/resources/skills/*`, `.harness/resources/prompts/*`, `.harness/resources/skills-kit/*` | Target-level files and resource folders are siblings under one root |
+| Resource layout | `.harness/resources/.claude/settings.json`, `.harness/resources/skills/*`, `.harness/resources/prompts/*`, `.harness/resources/rules/*` | Target-level files and resource folders are siblings under one root |
 | Root files | direct copy `.harness/dir/AGENTS.md` | No composition needed for a single file |
 | Agent instructions | add Harness maintenance note to `AGENTS.md`/`CLAUDE.md` | Future agents must use Harness guidance for agent-config changes |
 | Mutable files | copy seed to `.harness/resources/.claude/settings.json`, declare it in `.harnessMutable` | Fresh users get the file once; runtime edits are preserved |
@@ -270,13 +274,13 @@ Default full migration shape:
       agent-review/
       ui-review/
     prompts/
-    skills-kit/
 ```
 
-Do not split this into `.harness/resources-skills` and
-`.harness/resources-agent-kit` unless those roots are independently selected
-catalogs. Target-level settings such as `.claude/settings.json` should not live
-inside a skills kit.
+Do not split this into multiple configured roots unless those roots represent
+real concern catalogs, ownership boundaries, profile-selected specializations,
+or private/local overlays. Target-level settings such as
+`.claude/settings.json` should not live inside a skill folder or unrelated
+resource group.
 
 Claude settings seeded once:
 
@@ -312,7 +316,7 @@ Before implementing, show examples for every row that applies:
 
 | Pattern | Expected source shape | Generated/target behavior |
 | --- | --- | --- |
-| Default resource root | `.harness/resources/.claude`, `.harness/resources/skills`, `.harness/resources/prompts`, `.harness/resources/skills-kit` | One manifest source root projects target-level files and resources together |
+| Default resource root | `.harness/resources/.claude`, `.harness/resources/skills`, `.harness/resources/prompts`, `.harness/resources/rules` | One manifest source root projects target-level files and resources together |
 | Claude settings seed | `.harness/resources/.claude/settings.json` plus `.harness/resources/.claude/.harnessMutable` containing `settings.json` | `.claude/settings.json` is created once, then reported `mutable` |
 | Simple `AGENTS.md` | `.harness/dir/AGENTS.md` | root `AGENTS.md` is copied from one source file |
 | Composable `AGENTS.md` | `.harness/dir/AGENTS.md/.harnessComposable` plus numbered parts | root `AGENTS.md` is assembled; use only for real composition |
@@ -359,7 +363,7 @@ is correct, even when they are not asking for a migration:
 | Skill version | The installed `harness-config` skill reports the current skill guide version in `SKILL.md`. |
 | Source of truth | Durable skills, prompts, rules, hooks, commands, agents, and shared settings are represented in configured `.harness` source roots. |
 | Resource organization | Resource groups reflect the repo's real workflows, domains, teams, target agent sets, or kits; a flat dump is used only when the repo is genuinely small. |
-| Target-level seeds | Files such as `.claude/settings.json` are seeded at `.harness/resources/.claude/settings.json`, not hidden inside a skills kit or unrelated resource group. |
+| Target-level seeds | Files such as `.claude/settings.json` are seeded at `.harness/resources/.claude/settings.json`, not hidden inside a skill folder or unrelated resource group. |
 | Explicit targets | Every intended live surface is declared as `[[targets]]`; no target is inferred only because a folder exists. |
 | Root instructions | `AGENTS.md`, `CLAUDE.md`, or equivalents either remain normal tracked files or are generated through `[[dir]]`; `.harnessComposable` is used only when composition adds value. |
 | Mutable files | Mutable files that fresh users need are copied into `.harness` as seeds before `.harnessMutable`; `.harnessMutable` is not used as a substitute for source migration. |

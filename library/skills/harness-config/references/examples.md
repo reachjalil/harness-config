@@ -64,28 +64,35 @@ path = "./.claude"
       platform-review/
         SKILL.md
     prompts/
-    skills-kit/
     hooks.json
     agents/
 ```
 
 Target-level settings stay at their target-derived path:
 `.harness/resources/.claude/settings.json`. Do not put them inside
-`skills-kit` or an unrelated resource group. Skill folder names should match
+`skills/` or an unrelated resource group. Skill folder names should match
 how the user thinks: workflow, team, strategy, mode, agent set, product area,
 or kit.
 
 ## Multiple Resource Roots
 
-Best only when a catalog is optional, profile-selected, separately owned, or
-local/private.
+Best only when a concern catalog is optional, profile-selected, separately
+owned, or local/private. Good examples are testing, deployment, UI, security,
+or docs resources that a team intentionally combines with profiles or
+profile-specific dir instructions.
 
 ```toml
 [[resources]]
 path = "./.harness/resources"
 
 [[resources]]
-path = "./.harness/resources-platform-kit"
+path = "./.harness/resources-testing"
+
+[[resources]]
+path = "./.harness/resources-deployment"
+
+[[resources]]
+path = "./.harness/resources-ui"
 
 [[resources]]
 path = "./.harness/local/resources"
@@ -99,10 +106,16 @@ path = "./.harness/local/resources"
       .harnessMutable
     skills/
     prompts/
-  resources-platform-kit/
+  resources-testing/
+    README.md
+    skills/
+  resources-deployment/
     README.md
     skills/
     hooks.json
+  resources-ui/
+    README.md
+    skills/
   local/
     resources/
 ```
