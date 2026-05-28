@@ -60,6 +60,21 @@ live files remain source or unmanaged. This distinction matters because an
 agent may otherwise delete, ignore, or overwrite durable resources that were
 never moved.
 
+Before editing, present the recommended full-transition plan and wait for user
+approval. The plan must include:
+
+- skill guide version;
+- explicit targets and why each existing surface is included or excluded;
+- resource roots and grouping vocabulary;
+- root-file strategy, including direct copy vs `.harnessComposable`;
+- mutable files and their seed locations in `.harness`;
+- generated-surface `.gitignore` recommendation after convergence;
+- concrete blockers, if any.
+
+If `.claude` exists, contains skills/settings, or has target-specific behavior,
+the recommended plan should include `[[targets]] path = "./.claude"` unless
+there is a specific reason not to.
+
 ## Full Transition Definition
 
 A full transition has all of these properties:

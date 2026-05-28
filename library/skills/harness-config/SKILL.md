@@ -1,9 +1,16 @@
 ---
 name: harness-config
 description: Use when working with Harness config in a customer repository. Triggers include setting up, adopting, migrating, validating, activating, or troubleshooting .harness/harness.toml, .harness resources, AGENTS.md, CLAUDE.md, .agents, .claude, .cursor, .gemini, skills, rules, plugins, prompts, hooks, .harnessIgnore, mutable files, or CLI commands such as npx harnessc validate and npx harnessc activate.
+version: 2026-05-28.full-transition-plan
 ---
 
 # Harness Config
+
+Skill guide version: `2026-05-28.full-transition-plan`.
+
+When using this skill for setup or migration, include the skill guide version
+in the proposed plan and final summary. This lets the user tell whether an
+agent used the current adoption rules.
 
 ## Purpose
 
@@ -102,30 +109,65 @@ Use these defaults unless the user's repository clearly points elsewhere:
    `references/skills-sh-adoption.md`.
 3. Read the matching reference markdown file before editing or running commands.
 4. Inspect existing agent files and harness surfaces before editing.
-5. Choose explicit targets only; do not infer targets from folders that happen
-   to exist.
-6. For setup in a repository with existing agent surfaces, migrate every
+5. Present a recommended full-transition plan and wait for user approval before
+   writing migration files. Do not silently choose a conservative partial
+   setup. The plan must state the skill guide version, targets, source roots,
+   root-file strategy, mutable seed handling, generated-surface gitignore
+   recommendation, and blockers if any.
+6. Choose explicit targets from actual intended harness surfaces. If `.claude`,
+   `.agents`, `.cursor`, `.gemini`, matching root files, or runtime settings
+   are present and durable content exists for them, recommend declaring those
+   targets rather than leaving them unmanaged.
+7. For setup in a repository with existing agent surfaces, migrate every
    durable reviewed skill, rule, plugin, prompt, command, hook, agent, and root
    instruction file you can confidently classify. Do not stop after promoting
    only the `harness-config` helper skill. Leave a file in the live surface only
    when it is runtime-owned, secret/local, generated/cache state, unsupported,
    or unclear enough to need user review.
-7. Create or update `.harness/harness.toml` with explicit `[[resources]]`
+8. Create or update `.harness/harness.toml` with explicit `[[resources]]`
    source roots before projecting skills, rules, plugins, prompts, agents,
    hooks, commands, MCP config, or other target resources.
-8. Move durable shared content into configured resource groups and use `[[dir]]`
+9. Move durable shared content into configured resource groups and use `[[dir]]`
    only when repo-relative output generation improves the repository.
-9. Keep runtime state, secrets, caches, and local settings out of committed
+10. Keep runtime state, secrets, caches, and local settings out of committed
    `.harness` source; offer optional local layers when they fit the user's
    workflow.
-10. Add scoped `.harnessIgnore` files and narrow `[mutable]` entries for
+11. Add scoped `.harnessIgnore` files and narrow `[mutable]` entries for
    runtime-owned files. When a mutable file should exist for fresh users, first
    migrate its initial seed into `.harness`; mutable means "create once from
    source, then preserve runtime edits."
-11. Use `npx harnessc explain <path>` for confusing source or output paths.
-12. Run `npx harnessc validate`, `npx harnessc activate`, then
+12. Use `npx harnessc explain <path>` for confusing source or output paths.
+13. Run `npx harnessc validate`, `npx harnessc activate`, then
    `npx harnessc activate --yes`.
-13. Re-run dry activation and confirm convergence.
+14. Re-run dry activation and confirm convergence.
+
+## Plan Approval Gate
+
+Before creating or editing `.harness` files for an existing repository, show a
+plan like this and wait for the user to approve it:
+
+```markdown
+**Recommended Full Transition Plan**
+Skill guide: `2026-05-28.full-transition-plan`
+
+| Decision | Recommendation | Reason |
+| --- | --- | --- |
+| Targets | `.agents`, `.claude` | Both surfaces exist and contain durable config |
+| Source roots | `.harness/resources`, `.harness/dir` | One reviewed source for skills and root files |
+| Root files | direct copy `.harness/dir/AGENTS.md` | No composition needed for a single file |
+| Mutable files | seed `.harness/resources/.claude/settings.json`, mark target mutable | Fresh users get the file; runtime edits are preserved |
+| Generated surfaces | add `.agents/`, `.claude/` to `.gitignore` after convergence | Live surfaces are reproducible outputs |
+
+| Existing item | Action |
+| --- | --- |
+| `.agents/skills/*` | migrate durable skills |
+| `.claude/skills/*` | migrate as shared files or `.claude` overrides |
+| `.claude/settings.json` | seed in `.harness`, mark mutable if runtime-owned |
+```
+
+If the plan omits an existing harness surface such as `.claude`, explain why.
+If there is no good reason, include it. Do not proceed with a partial target set
+just because the CLI skeleton can be created quickly.
 
 ## Full Transition Checklist
 

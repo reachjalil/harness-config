@@ -55,6 +55,12 @@ Use this adoption checklist before claiming completion:
 | Generated outputs | Live surfaces are treated as generated and can be gitignored after convergence. |
 | Verification | Validate, dry run, apply, and convergence dry run succeeded. |
 
+The migration plan shown before edits must include the skill guide version,
+explicit target list, resource roots, direct-copy/composable root-file decision,
+mutable seed paths, gitignore recommendation for generated surfaces, and any
+blockers. If `.claude` exists and has durable content or settings, include it as
+a target unless the user chooses otherwise.
+
 Use tables for the user-facing summary:
 
 ```markdown
