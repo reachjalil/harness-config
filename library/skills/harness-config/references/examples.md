@@ -178,6 +178,42 @@ Best when a rule belongs next to the resource it controls.
 skills/scratch/**
 ```
 
+## Mutable Claude Settings
+
+Best when Claude should receive a reviewed `settings.json` on first activation,
+but the file may be changed by the runtime or user after that.
+
+```toml
+version = 1
+
+[[resources]]
+path = "./.harness/resources"
+
+[[targets]]
+path = "./.claude"
+```
+
+```text
+.harness/
+  resources/
+    .claude/
+      settings.json
+      .harnessMutable
+
+.claude/
+  settings.json
+```
+
+```gitignore
+# .harness/resources/.claude/.harnessMutable
+settings.json
+```
+
+Activation creates `.claude/settings.json` when missing. After that, dry runs
+should report it as `mutable` unless `--force-mutable` is used. Do not place
+`settings.json` in `.claude/.harnessIgnore` if the repo expects fresh users to
+receive the seed; target-output ignores block projection.
+
 For selective activation inside a group:
 
 ```gitignore
