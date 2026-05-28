@@ -19,6 +19,9 @@ Explain the situation briefly:
   should be treated as generated outputs after adoption begins;
 - `npx harnessc` should be used whenever it can validate, preview, explain, or
   apply the supported transition;
+- if `npx` is unavailable, Node.js/npm is required before `npx skills` or
+  `npx harnessc` can run; use the repo's documented setup path, or suggest
+  `brew install node` on macOS and verify `node`, `npm`, and `npx` versions;
 - manual file edits are for source content and migration choices.
 
 Then inspect before editing.

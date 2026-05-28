@@ -3,6 +3,19 @@
 Use this when the repository has no existing agent folders, or when the user
 wants a clean first Harness config setup.
 
+## Prerequisite
+
+Harness CLI commands use `npx`, so Node.js/npm must be installed. If `npx` is
+missing, tell the user this is a Node toolchain prerequisite and suggest the
+repo's normal setup path. On macOS, a concrete example is:
+
+```bash
+brew install node
+node --version
+npm --version
+npx --version
+```
+
 ## Minimal Portable Catalog
 
 Start with one resource root, one explicit target, and a small tracked root

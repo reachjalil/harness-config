@@ -1,12 +1,12 @@
 ---
 name: harness-config
 description: Use when working with Harness config in a customer repository. Triggers include setting up, adopting, migrating, validating, activating, or troubleshooting .harness/harness.toml, .harness resources, AGENTS.md, CLAUDE.md, .agents, .claude, .cursor, .gemini, skills, rules, plugins, prompts, hooks, .harnessIgnore, .harnessMutable, mutable files, or CLI commands such as npx harnessc validate and npx harnessc activate.
-version: 2026-05-29.flexible-migration
+version: 2026-05-29.node-prereq
 ---
 
 # Harness Config
 
-Skill guide version: `2026-05-29.flexible-migration`.
+Skill guide version: `2026-05-29.node-prereq`.
 
 When using this skill for setup or migration, include the skill guide version
 in the initial status update and final summary. This lets the user tell whether
@@ -110,6 +110,13 @@ Use these defaults unless the user's repository clearly points elsewhere:
   inventory unless you find a concrete blocker such as secrets, runtime trust
   state, unclear ownership, untracked important files, or destructive cleanup.
   Do not stop at a plan-only response only because the catalog is large.
+- **Node/npx prerequisites are user-facing.** Harness CLI examples use `npx`,
+  so the repo needs Node.js/npm available before CLI commands can run. If
+  `node`, `npm`, or `npx` is missing, explain that this is a toolchain
+  prerequisite rather than a Harness config failure. Suggest the repo's normal
+  Node setup path, or a concrete install example such as `brew install node` on
+  macOS, then verify with `node --version`, `npm --version`, and
+  `npx --version` before continuing.
 - **Target-level seeds stay target-level.** Files that live at a target root,
   such as `.claude/settings.json`, `.agents/settings.local.json`, or target
   hooks/config files, should be seeded at the matching target-derived path under
@@ -262,7 +269,7 @@ summarize the decisions with a table like this:
 
 ```markdown
 **Full Transition Installed**
-Skill guide: `2026-05-29.flexible-migration`
+Skill guide: `2026-05-29.node-prereq`
 
 | Decision | Recommendation | Reason |
 | --- | --- | --- |
@@ -607,6 +614,17 @@ Recognize these common states and choose the matching path:
 ## CLI Rules
 
 Use `npx harnessc` by default in customer repositories:
+
+These commands require Node.js/npm/npx. If `npx` is unavailable, tell the user
+to install Node.js with the repo's preferred toolchain first. On macOS, a simple
+example is:
+
+```bash
+brew install node
+node --version
+npm --version
+npx --version
+```
 
 1. `npx harnessc validate`
 2. `npx harnessc activate`
