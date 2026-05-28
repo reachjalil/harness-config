@@ -97,9 +97,9 @@ Classify the repository into one of three paths:
 For a repo that is not yet using `.harness`, implement this sequence end to end
 by default:
 
-1. Spend time understanding the repo, then choose the full-transition layout and
-   proceed without a planning approval gate. Use the adoption checklist below as
-   the implementation checklist.
+1. Spend time understanding the repo, choose the full-transition layout, and
+   implement it end to end. Use the adoption checklist below as the
+   implementation checklist.
 2. Create `.harness/harness.toml` with explicit targets for every intended
    live harness surface, including `.claude` when `.claude` content or settings
    are present.

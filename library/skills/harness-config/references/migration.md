@@ -61,10 +61,9 @@ agent may otherwise delete, ignore, or overwrite durable resources that were
 never moved.
 
 Before editing, inventory the repo and proceed with the full transition by
-default. Do not stop at a plan approval gate. Use the Full Transition
-Definition below as the implementation checklist: the migration must satisfy
-each applicable row, or identify a blocker before activation. The final summary
-must include:
+default. Use the Full Transition Definition below as the implementation
+checklist: the migration must satisfy each applicable row, or identify a
+blocker before activation. The final summary must include:
 
 - skill guide version;
 - explicit targets and why each existing surface is included or excluded;
