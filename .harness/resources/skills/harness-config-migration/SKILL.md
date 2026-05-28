@@ -39,6 +39,9 @@ user-owned.
 7. Add `.harnessIgnore` rules for caches, secrets, generated files, and
    mutable runtime-owned files.
 8. Validate, preview, apply, and confirm convergence.
+9. Do not run `--remove-unmanaged` until the exact removal list is reviewed and
+   every removed durable item is migrated into `.harness`, archived, or
+   explicitly approved for deletion.
 
 Full transition means durable agent configuration is represented in `.harness`,
 live harness surfaces are generated outputs, mutable files have source seeds
@@ -64,5 +67,8 @@ npx harnessc activate
   target folders, settings, ignores, cleanup, or generated surfaces as a
   Harness config operation: edit `.harness` sources, preview activation, and
   verify convergence.
+- Preserve unmanaged live files by default. Use `--remove-unmanaged` only after
+  a dry-run removal review proves no durable resource would be deleted as the
+  only copy.
 - After full migration and convergence, prefer gitignored generated harness
   surfaces with a tracked bootstrap.

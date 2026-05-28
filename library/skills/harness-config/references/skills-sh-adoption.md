@@ -120,6 +120,9 @@ sequence:
 16. Run `npx harnessc activate` again and confirm convergence.
 17. Recommend gitignoring generated surfaces after convergence with a tracked
     bootstrap.
+18. Use `--remove-unmanaged` only after a reviewed dry run shows exact removals
+    and every removed durable item is migrated, archived, or explicitly
+    approved for deletion.
 
 The plan must include the skill guide version. If the agent does not report a
 version, the user cannot tell which adoption rules it followed.

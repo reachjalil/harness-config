@@ -101,6 +101,11 @@ Use these defaults unless the user's repository clearly points elsewhere:
   generated surfaces, with a tracked bootstrap: a small root instruction note,
   README, setup script, or package script telling users and agents to run
   validation and activation.
+- **Preserve unmanaged until adoption is proven.** Do not use
+  `--remove-unmanaged` to make a narrowed projection look clean unless the
+  removed live files are already represented in `.harness`, intentionally
+  archived, or explicitly approved for deletion. Preserve first, inventory,
+  migrate or archive, then remove only after previewing exact removals.
 - **Preserve behavior, then make `.harness` authoritative.** Preserve behavior
   during migration and verification. After convergence, simplify duplicated
   wrappers, symlinks, and stale live outputs so skills have one reviewed source
@@ -150,6 +155,9 @@ Use these defaults unless the user's repository clearly points elsewhere:
 13. Run `npx harnessc validate`, `npx harnessc activate`, then
    `npx harnessc activate --yes`.
 14. Re-run dry activation and confirm convergence.
+15. Use `--remove-unmanaged` only after the dry-run removal list has been
+    shown to the user and every removed durable item is migrated to `.harness`,
+    intentionally archived, or explicitly approved for deletion.
 
 ## Plan Approval Gate
 
@@ -168,6 +176,7 @@ Skill guide: `2026-05-28.full-transition-plan`
 | Agent instructions | add Harness maintenance note to `AGENTS.md`/`CLAUDE.md` | Future agents must use Harness guidance for agent-config changes |
 | Mutable files | seed `.harness/resources/.claude/settings.json`, mark target mutable | Fresh users get the file; runtime edits are preserved |
 | Generated surfaces | add `.agents/`, `.claude/` to `.gitignore` after convergence | Live surfaces are reproducible outputs |
+| Cleanup | preserve unmanaged until migrated or explicitly approved for removal | Narrowing active skills must not delete the only copy |
 
 | Existing item | Action |
 | --- | --- |
@@ -196,6 +205,7 @@ stop and report the exact blocker instead of doing a partial adoption.
 | Mutable seeds present | Every mutable file that should exist for a fresh user has an initial seed in `.harness` before it is listed under `[mutable]`. |
 | Ignores are narrow | `.harnessIgnore` contains only evidence-based patterns; no broad `*.local.*` families unless explicitly justified. |
 | Generated surfaces handled | After full migration and convergence, `.agents`, `.claude`, `.cursor`, `.gemini`, or similar generated surfaces are recommended for `.gitignore` with a tracked bootstrap. |
+| Cleanup reviewed | Any `--remove-unmanaged` run has a reviewed dry-run removal list; no durable skill/resource is deleted from live surfaces unless it exists in `.harness`, is archived, or the user explicitly approved deletion. |
 | Activation verified | `npx harnessc validate`, dry `activate`, `activate --yes`, and a second dry `activate` all pass and converge. |
 
 Full transition means `.harness` is the reviewed source for durable agent
