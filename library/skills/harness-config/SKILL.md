@@ -1,20 +1,20 @@
 ---
 name: harness-config
 description: Use when working with Harness config in a customer repository. Triggers include setting up, adopting, migrating, validating, activating, or troubleshooting .harness/harness.toml, .harness resources, AGENTS.md, CLAUDE.md, .agents, .claude, .cursor, .gemini, skills, rules, plugins, prompts, hooks, .harnessIgnore, .harnessMutable, mutable files, or CLI commands such as npx harnessc validate and npx harnessc activate.
-version: 2026-05-28.no-skills-kit
+version: 2026-05-28.full-install
 ---
 
 # Harness Config
 
-Skill guide version: `2026-05-28.no-skills-kit`.
+Skill guide version: `2026-05-28.full-install`.
 
 When using this skill for setup or migration, include the skill guide version
-in the proposed plan and final summary. This lets the user tell whether an
-agent used the current adoption rules.
+in the initial status update and final summary. This lets the user tell whether
+an agent used the current adoption rules.
 
 When recommending this skill to another agent or writing a setup prompt, require
 the agent to install or update the skill from the canonical GitHub path, then
-read the local installed `SKILL.md` before planning. The agent should not rely
+read the local installed `SKILL.md` before changing files. The agent should not rely
 on cached, inherited, or previously loaded copies of the skill.
 
 For an existing repository, "set up Harness config" means a full migration of
@@ -97,10 +97,11 @@ Use these defaults unless the user's repository clearly points elsewhere:
   concern catalogs such as testing, deployment, or UI, an ownership boundary,
   profile-selected specialization, or private local layer. Do not split the
   first migration into multiple roots only because there are many files.
-- **Understand before recommending.** Spend enough time reading the repository
-  to propose useful grouping options inside the default resources root. Do not
-  default to a meaningless flat dump when the repo has clear teams, domains,
-  workflows, agent sets, or kits. Present options and recommend one.
+- **Understand before installing.** Spend enough time reading the repository to
+  choose useful grouping inside the default resources root. Do not default to a
+  meaningless flat dump when the repo has clear teams, domains, workflows,
+  agent sets, or kits. Report the chosen structure while you implement instead
+  of stopping at a plan gate.
 - **Target-level seeds stay target-level.** Files that live at a target root,
   such as `.claude/settings.json`, `.agents/settings.local.json`, or target
   hooks/config files, should be seeded at the matching target-derived path under
@@ -141,8 +142,8 @@ Use these defaults unless the user's repository clearly points elsewhere:
   surfaces, migrate all durable skills, plugins, rules, prompts, commands,
   hooks, agents, and reusable wrappers into `.harness` in the same pass. Do not
   implement a helper-skill-only, minimal-manifest, or incomplete migration as the
-  recommended setup. Stop before writing or applying migration files if the
-  full transition cannot be planned from the current evidence; report the
+  recommended setup. Stop before writing or applying migration files only if the
+  full transition cannot be completed from the current evidence; report the
   blocker and exact durable resources that need user review.
 - **Generated surfaces are disposable after full migration.** Once all durable
   target resources are represented in `.harness` and activation converges,
@@ -173,17 +174,14 @@ Use these defaults unless the user's repository clearly points elsewhere:
    `references/skills-sh-adoption.md`.
 3. Read the matching reference markdown file before editing or running commands.
 4. Inspect existing agent files and harness surfaces before editing.
-5. Present a recommended full-transition plan and wait for user approval before
-   writing migration files. Use the Full Transition Checklist as the planning
-   checklist and show how each relevant row will be satisfied. The plan must
-   state the skill guide version, targets, source roots, root-file strategy,
-   mutable seed handling, generated-surface gitignore recommendation, and
-   blockers if any.
-6. When the repo has enough structure to justify it, present two or three
-   layout options in a table before making a recommendation. The default option
-   should be a single `.harness/resources` root with meaningful subfolders.
-   Include a multi-root option only when there is a real optional catalog,
-   ownership boundary, or profile-selected kit.
+5. Execute a full clean install/migration end to end by default. Do not stop at
+   a plan approval gate. Use the Full Transition Checklist as the implementation
+   checklist and report the checklist result in the final summary.
+6. When the repo has enough structure to justify it, choose the layout that best
+   fits the repo and keep moving. The default option should be a single
+   `.harness/resources` root with meaningful subfolders. Use multiple roots only
+   when there is a real concern catalog, ownership boundary, profile-selected
+   specialization, or private/local layer.
 7. Choose explicit targets from actual intended harness surfaces. If `.claude`,
    `.agents`, `.cursor`, `.gemini`, matching root files, or runtime settings
    are present and durable content exists for them, recommend declaring those
@@ -215,21 +213,22 @@ Use these defaults unless the user's repository clearly points elsewhere:
 15. Run `npx harnessc validate`, `npx harnessc activate`, then
    `npx harnessc activate --yes`.
 16. Re-run dry activation and confirm convergence.
-17. Use `--remove-unmanaged` only after the dry-run removal list has been
-    shown to the user and every removed durable item is migrated to `.harness`,
-    intentionally archived, or explicitly approved for deletion.
+17. Use `--remove-unmanaged` only after every removed durable item is migrated
+    to `.harness`, intentionally archived, or explicitly approved for deletion.
+    If approval is unavailable, preserve unmanaged entries and finish the full
+    install without destructive cleanup.
 18. Before the final response, re-run the Full Transition Checklist as the
     implementation checklist. Do not claim adoption is complete unless every
     required row passes.
 
-## Plan Approval Gate
+## Full Install Summary Template
 
-Before creating or editing `.harness` files for an existing repository, show a
-plan like this and wait for the user to approve it:
+For an existing repository, do the full clean install/migration first, then
+summarize the decisions with a table like this:
 
 ```markdown
-**Recommended Full Transition Plan**
-Skill guide: `2026-05-28.no-skills-kit`
+**Full Transition Installed**
+Skill guide: `2026-05-28.full-install`
 
 | Decision | Recommendation | Reason |
 | --- | --- | --- |
@@ -250,13 +249,13 @@ Skill guide: `2026-05-28.no-skills-kit`
 | `.claude/settings.json` | seed in `.harness`, mark mutable if runtime-owned |
 ```
 
-If the plan omits an existing harness surface such as `.claude`, explain why.
-If there is no good reason, include it. Do not proceed with an incomplete target
-set just because the CLI can create a minimal manifest quickly.
+If the install omits an existing harness surface such as `.claude`, explain
+why. If there is no good reason, include it. Do not finish with an incomplete
+target set just because the CLI can create a minimal manifest quickly.
 
 ## Required Example Structures
 
-Include relevant file trees in migration plans and checklists. Prefer concrete
+Include relevant file trees in migration summaries and checklists. Prefer concrete
 paths over vague phrases like "mark mutable" or "make composable." For detailed
 examples, read `references/migration.md` and `references/examples.md`.
 
@@ -312,7 +311,7 @@ Root instruction choice:
 
 ## Structure Checklist
 
-Before implementing, show examples for every row that applies:
+During implementation, use these examples for every row that applies:
 
 | Pattern | Expected source shape | Generated/target behavior |
 | --- | --- | --- |
@@ -326,8 +325,8 @@ Before implementing, show examples for every row that applies:
 
 ## Full Transition Checklist
 
-Use this checklist twice for any existing repository: once while planning and
-again before the final summary. Do not present the setup as complete until every
+Use this checklist for any existing repository while implementing and again
+before the final summary. Do not present the setup as complete until every
 required row is satisfied. If a row cannot be satisfied, stop and report the
 exact blocker instead of doing an incomplete adoption.
 
@@ -340,7 +339,7 @@ exact blocker instead of doing an incomplete adoption.
 | Root files decided | Each root instruction file is either kept tracked as-is, copied directly through `.harness/dir`, or made composable only when composition is actually useful. |
 | Agent instructions updated | `AGENTS.md`, `CLAUDE.md`, or equivalent root instructions tell future agents to use Harness config guidance for any agent-config operation and to edit `.harness` sources instead of generated target folders. |
 | Mutable seeds present | Every mutable file that should exist for a fresh user is copied into `.harness` as the seed before it is listed in `.harnessMutable`; activation creates it once and then preserves runtime edits. |
-| File structures shown | The plan includes expected source and target trees for mutable settings, root instructions, target overrides, and target-output ignores that apply to this repo. |
+| File structures represented | Source and target trees for mutable settings, root instructions, target overrides, and target-output ignores are implemented or reported with blockers. |
 | Ignores are narrow | `.harnessIgnore` contains only evidence-based patterns; no broad `*.local.*` families unless explicitly justified. |
 | Target ignores present | Generated surfaces such as `.agents` or `.claude` have target-output `.harnessIgnore` files when they need local output boundaries. |
 | Generated surfaces handled | After full migration and convergence, `.agents`, `.claude`, `.cursor`, `.gemini`, or similar generated surfaces are recommended for `.gitignore` with tracked activation instructions. |
@@ -377,15 +376,16 @@ the option that best matches the repo's size and ownership model.
 
 ## Migration Autonomy
 
-Use risk tiers when deciding whether to ask before making broad changes:
+Use risk tiers when deciding whether to stop before making broad changes:
 
 - **Low risk:** the repo is under git, relevant files are tracked or easily
   recreated, the working tree state is understood, no secrets or runtime trust
-  state are involved, and the target plan is easy to review. Propose a concise
-  plan, then make reversible source edits and verify with dry-run activation.
+  state are involved, and the target migration is easy to review. Make
+  reversible source edits and verify with dry-run activation.
 - **Medium risk:** generated and manual surfaces are mixed, symlinks are
-  present, ownership is unclear, or important files are untracked. Explain the
-  tradeoff and ask before broad moves, symlink replacement, or cleanup.
+  present, ownership is unclear, or important files are untracked. Proceed with
+  non-destructive migration where possible; stop before symlink replacement,
+  destructive cleanup, or moving unclear files.
 - **High risk:** secrets, credentials, local permissions, hook trust, MCP auth,
   approval policy, private machine settings, or executable install behavior are
   involved. Do not migrate automatically.
@@ -402,11 +402,11 @@ state. If unclear, assume they are new to Harness config but technically
 comfortable. Adjust explanation depth without changing the migration standard:
 full migration remains the preferred target for existing agent surfaces.
 
-Use concise tables for setup and migration explanations. Tables make it harder
+Use concise tables for setup and migration summaries. Tables make it harder
 to overclaim scope and easier for the user to review risk. Avoid dense prose
 when a small table can show the same facts.
 
-Before changing a repository with existing agent files, summarize:
+While changing a repository with existing agent files, track and later summarize:
 
 - what Harness config can manage in the current repo;
 - the inventory counts by surface and type, especially how many existing
@@ -424,7 +424,7 @@ Before changing a repository with existing agent files, summarize:
 Keep the explanation short but concrete. Do not imply that installing the skill
 or running `harnessc` automatically decides the migration policy for the user.
 
-Recommended pre-change structure:
+Useful progress-update structure:
 
 ```markdown
 **Assessment**
@@ -434,7 +434,7 @@ Recommended pre-change structure:
 | Runtime state | `settings.local.json`, logs | Seed intended mutable files in `.harness`; ignore caches/logs |
 | Targets | `.agents`, `.claude` | Declare explicit targets |
 
-**Plan**
+**Install Path**
 | Step | Action | Why |
 | --- | --- | --- |
 | 1 | Inventory all live surfaces | Avoid missing skills/resources |
@@ -463,7 +463,7 @@ For experienced users, skip the basics and lead with decisions and commands:
 After setup or migration, report:
 
 - whether this was a complete migration or blocked before completion;
-- the Full Transition Checklist result from implementation, not only the plan;
+- the Full Transition Checklist result from implementation;
 - what was migrated into `.harness` and how many resources by kind;
 - what was intentionally left unmanaged and why;
 - which targets are now generated from `.harness`;
