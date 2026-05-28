@@ -34,8 +34,9 @@ TOML
 
 cat > "$tmp/.harnessIgnore" <<'EOF'
 .harness/**/logs/
+EOF
 
-[mutable]
+cat > "$tmp/.harnessMutable" <<'EOF'
 .harness/**/settings.local.json
 EOF
 

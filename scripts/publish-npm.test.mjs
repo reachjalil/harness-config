@@ -4,7 +4,7 @@ import test from "node:test";
 import { distTag } from "./publish-npm.mjs";
 
 test("publishes every release version on the default npm dist-tag during alpha", () => {
-  assert.equal(distTag("1.0.0-alpha.4"), "latest");
+  assert.equal(distTag("1.0.0-alpha.5"), "latest");
   assert.equal(distTag("1.0.0-beta.1"), "latest");
   assert.equal(distTag("1.0.0-rc.1"), "latest");
   assert.equal(distTag("1.0.0"), "latest");

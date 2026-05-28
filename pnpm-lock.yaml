@@ -48,7 +48,7 @@ importers:
   packages/cli:
     dependencies:
       '@harnessconfig/core':
-        specifier: 1.0.0-alpha.4
+        specifier: 1.0.0-alpha.5
         version: link:../core
     devDependencies:
       '@types/node':
@@ -92,7 +92,7 @@ importers:
   packages/harnessc:
     dependencies:
       '@harnessconfig/cli':
-        specifier: 1.0.0-alpha.4
+        specifier: 1.0.0-alpha.5
         version: link:../cli
 
 packages:

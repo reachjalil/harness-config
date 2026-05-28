@@ -1,5 +1,47 @@
 # Harness config release notes
 
+## 1.0.0-alpha.5
+
+`1.0.0-alpha.5` separates mutable-file ownership from ignore rules, updates
+the CLI and conformance tests for that contract, and refreshes the public skill
+and website guidance for safer full-repository adoption.
+
+### Mutable Files
+
+- Adds `.harnessMutable` as the v1 declaration file for seed-once,
+  runtime-owned files.
+- Keeps `.harnessIgnore` focused on projection exclusion and target-output
+  filtering; legacy `[mutable]` sections in `.harnessIgnore` now produce a
+  validation diagnostic.
+- Supports root, source-local, profile-local, and target-derived override
+  `.harnessMutable` rules with gitignore-style last-match-wins behavior.
+- Keeps target-output `.harnessMutable` files out of v1 so target-local
+  filtering remains a `.harnessIgnore` responsibility.
+
+### Tooling And Tests
+
+- Updates `harnessc init`, validation, planning, activation, and explanation
+  flows to read `.harnessMutable` separately from `.harnessIgnore`.
+- Preserves mutable files as create-once target state unless
+  `--force-mutable` is explicit.
+- Adds regression coverage for `.harnessMutable` parsing, legacy
+  `.harnessIgnore` diagnostics, profile overlays, declaration-file
+  non-projection, and dir/resource activation behavior.
+
+### Adoption Guidance
+
+- Updates the Harness config skill to version
+  `2026-05-28.harness-mutable-contract` with a plan-first migration workflow,
+  skill-version reporting, a full-transition checklist, and a best-practice
+  review checklist.
+- Clarifies that mutable files must be copied into `.harness` as seed files
+  before they are declared in `.harnessMutable`.
+- Clarifies that composable root files such as `AGENTS.md` should be used only
+  when composition, references, profiles, or overlays are needed; otherwise
+  copy the root file directly.
+- Updates website and LLM prompt guidance to recommend installing the public
+  Harness config skill and following the migration checklist before editing.
+
 ## 1.0.0-alpha.4
 
 `1.0.0-alpha.4` completes the v1 ignore precedence model, tightens activation

@@ -1,6 +1,6 @@
 {
   "name": "@harnessconfig/core",
-  "version": "1.0.0-alpha.4",
+  "version": "1.0.0-alpha.5",
   "description": "Alpha TypeScript core for the Harness config specification proposal: validation, projection, profiles, ignores, dir composition, and activation planning.",
   "type": "module",
   "license": "Apache-2.0",
