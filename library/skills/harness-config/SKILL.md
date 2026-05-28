@@ -1,12 +1,12 @@
 ---
 name: harness-config
 description: Use when working with Harness config in a customer repository. Triggers include setting up, adopting, migrating, validating, activating, or troubleshooting .harness/harness.toml, .harness resources, AGENTS.md, CLAUDE.md, .agents, .claude, .cursor, .gemini, skills, rules, plugins, prompts, hooks, .harnessIgnore, .harnessMutable, mutable files, or CLI commands such as npx harnessc validate and npx harnessc activate.
-version: 2026-05-28.full-install-direct
+version: 2026-05-28.gitignore-best-practice
 ---
 
 # Harness Config
 
-Skill guide version: `2026-05-28.full-install-direct`.
+Skill guide version: `2026-05-28.gitignore-best-practice`.
 
 When using this skill for setup or migration, include the skill guide version
 in the initial status update and final summary. This lets the user tell whether
@@ -146,11 +146,18 @@ Use these defaults unless the user's repository clearly points elsewhere:
   full transition cannot be completed from the current evidence; report the
   blocker and exact durable resources that need user review.
 - **Generated surfaces are disposable after full migration.** Once all durable
-  target resources are represented in `.harness` and activation converges,
-  recommend gitignoring `.agents`, `.claude`, `.cursor`, `.gemini`, or similar
-  generated surfaces, with tracked activation instructions: a small root
-  instruction note, README, setup script, or package script telling users and
-  agents to run validation and activation.
+  target resources are represented in `.harness` and activation converges, the
+  best-practice default is to add root `.gitignore` entries for `.agents/`,
+  `.claude/`, `.cursor/`, `.gemini/`, or the exact generated subtrees in those
+  surfaces. Do this unless the user wants generated outputs tracked. Pair it
+  with tracked activation instructions: a small root instruction note, README,
+  setup script, or package script telling users and agents to run validation
+  and activation.
+- **Git ignore is not projection ignore.** Use `.gitignore` to stop tracking
+  generated harness surfaces in Git. Use target-output `.harnessIgnore` inside
+  generated surfaces only to control Harness projection boundaries. Do not use
+  `.gitignore` as a substitute for `.harnessIgnore`, and do not use
+  `.harnessIgnore` as a substitute for generated-surface `.gitignore` entries.
 - **Preserve unmanaged until adoption is proven.** Do not use
   `--remove-unmanaged` to make a narrowed projection look clean unless the
   removed live files are already represented in `.harness`, intentionally
@@ -213,13 +220,19 @@ Use these defaults unless the user's repository clearly points elsewhere:
 15. Run `npx harnessc validate`, `npx harnessc activate`, then
    `npx harnessc activate --yes`.
 16. Re-run dry activation and confirm convergence.
-17. Use `--remove-unmanaged` only after every removed durable item is migrated
+17. After activation convergence, check generated-surface `.gitignore` best
+    practice. Add root `.gitignore` entries for every generated surface or exact
+    generated subtree, such as `.agents/`, `.claude/`, `.cursor/`, and
+    `.gemini/`, unless the user wants generated outputs tracked. If files are
+    already tracked, report the reviewed follow-up `git rm --cached` step
+    instead of silently deleting working-tree files.
+18. Use `--remove-unmanaged` only after every removed durable item is migrated
     to `.harness`, intentionally archived, or explicitly approved for deletion.
     If approval is unavailable, preserve unmanaged entries and finish the full
     install without destructive cleanup.
-18. Before the final response, re-run the Full Transition Checklist as the
-    implementation checklist. Do not claim adoption is complete unless every
-    required row passes.
+19. Before the final response, re-run the Full Transition Checklist as the
+    implementation checklist. Do not claim best-practice adoption unless every
+    applicable row passes or an explicit user preference/constraint is recorded.
 
 ## Full Install Summary Template
 
@@ -228,7 +241,7 @@ summarize the decisions with a table like this:
 
 ```markdown
 **Full Transition Installed**
-Skill guide: `2026-05-28.full-install-direct`
+Skill guide: `2026-05-28.gitignore-best-practice`
 
 | Decision | Recommendation | Reason |
 | --- | --- | --- |
@@ -239,7 +252,7 @@ Skill guide: `2026-05-28.full-install-direct`
 | Agent instructions | add Harness maintenance note to `AGENTS.md`/`CLAUDE.md` | Future agents must use Harness guidance for agent-config changes |
 | Mutable files | copy seed to `.harness/resources/.claude/settings.json`, declare it in `.harnessMutable` | Fresh users get the file once; runtime edits are preserved |
 | Target ignores | add `.agents/.harnessIgnore` or subtree ignores when needed | Target-local output boundaries belong with the generated surface |
-| Generated surfaces | add `.agents/`, `.claude/` to `.gitignore` after convergence | Live surfaces are reproducible outputs |
+| Generated surfaces | add `.agents/`, `.claude/` to root `.gitignore` after convergence unless the user wants generated outputs tracked | Live surfaces are reproducible outputs |
 | Cleanup | preserve unmanaged until migrated or explicitly approved for removal | Narrowing active skills must not delete the only copy |
 
 | Existing item | Action |
@@ -322,15 +335,17 @@ During implementation, use these examples for every row that applies:
 | Shared skill | `.harness/resources/skills/<name>/SKILL.md` | projects to every declared target |
 | Target-specific skill | `.harness/resources/skills/<name>/.claude/SKILL.md` | `.claude` receives override; other targets receive base |
 | Target-output ignore | `.claude/**/.harnessIgnore` in the generated surface | filters that target only; not a seed and not source migration |
+| Generated-surface gitignore | root `.gitignore` contains `.agents/`, `.claude/`, or exact generated subtrees unless the user wants generated outputs tracked | Git stops treating generated outputs as source after convergence |
 
 ## Full Transition Checklist
 
 Use this checklist for any existing repository while implementing and again
-before the final summary. Do not present the setup as complete until every
-required row is satisfied. If a row cannot be satisfied, stop and report the
-exact blocker instead of doing an incomplete adoption.
+before the final summary. Do not present the setup as best-practice complete
+until every applicable row is satisfied or an explicit user preference/constraint
+is recorded. If a row cannot be satisfied, stop and report the exact blocker
+instead of doing an incomplete adoption.
 
-| Gate | Required evidence |
+| Gate | Best-practice check |
 | --- | --- |
 | Inventory complete | All `AGENTS.md`, `CLAUDE.md`, `.agents`, `.claude`, `.cursor`, `.gemini`, skills, plugins, rules, prompts, commands, hooks, agents, settings, and MCP files were scanned. |
 | Clean full migration | The migration is not limited to `.harness/harness.toml`, `.harnessIgnore`, helper skills, or maintenance notes while other durable resources remain live-only. |
@@ -342,7 +357,7 @@ exact blocker instead of doing an incomplete adoption.
 | File structures represented | Source and target trees for mutable settings, root instructions, target overrides, and target-output ignores are implemented or reported with blockers. |
 | Ignores are narrow | `.harnessIgnore` contains only evidence-based patterns; no broad `*.local.*` families unless explicitly justified. |
 | Target ignores present | Generated surfaces such as `.agents` or `.claude` have target-output `.harnessIgnore` files when they need local output boundaries. |
-| Generated surfaces handled | After full migration and convergence, `.agents`, `.claude`, `.cursor`, `.gemini`, or similar generated surfaces are recommended for `.gitignore` with tracked activation instructions. |
+| Generated-surface gitignore checked | After full migration and convergence, root `.gitignore` ignores `.agents`, `.claude`, `.cursor`, `.gemini`, or exact generated subtrees, with tracked activation instructions, unless the user wants generated outputs tracked. |
 | Cleanup reviewed | Any `--remove-unmanaged` run has a reviewed dry-run removal list; no durable skill/resource is deleted from live surfaces unless it exists in `.harness`, is archived, or the user explicitly approved deletion. |
 | Activation verified | `npx harnessc validate`, dry `activate`, `activate --yes`, and a second dry `activate` all pass and converge. |
 
@@ -367,6 +382,7 @@ is correct, even when they are not asking for a migration:
 | Root instructions | `AGENTS.md`, `CLAUDE.md`, or equivalents either remain normal tracked files or are generated through `[[dir]]`; `.harnessComposable` is used only when composition adds value. |
 | Mutable files | Mutable files that fresh users need are copied into `.harness` as seeds before `.harnessMutable`; `.harnessMutable` is not used as a substitute for source migration. |
 | Ignore locality | Source-local ignores live near source; target-output `.harnessIgnore` files live inside `.agents`, `.claude`, or relevant target subtrees when a generated surface needs local output rules. |
+| Generated-surface gitignore | Root `.gitignore` ignores each generated surface or exact generated subtree after convergence unless the user wants generated outputs tracked; tracked generated files have a reviewed untrack follow-up. |
 | Cleanup safety | `--remove-unmanaged` is not used until removals are previewed and each durable item is migrated, archived, or explicitly approved for deletion. |
 | Verification | `npx harnessc validate`, dry activation, apply, and a second dry activation converge. |
 
@@ -538,8 +554,9 @@ Recognize these common states and choose the matching path:
   to exist.
 - Do not treat `.agents`, `.claude`, `.cursor`, `.gemini`, or another live
   harness surface as source after migration begins.
-- After full migration, prefer gitignored live harness surfaces with reviewed
-  source in `.harness` and tracked activation instructions that regenerate them.
+- After full migration, add root `.gitignore` entries for generated live
+  harness surfaces or exact generated subtrees, with reviewed source in
+  `.harness` and tracked activation instructions that regenerate them.
 
 ## Source Rules
 
