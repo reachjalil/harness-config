@@ -112,6 +112,24 @@ sequence:
 12. Apply with `npx harnessc activate --yes` only when the plan matches intent.
 13. Run `npx harnessc activate` again and confirm convergence.
 
+## Adoption Checklist
+
+Use this checklist in the response before claiming adoption is complete:
+
+| Check | Complete when |
+| --- | --- |
+| Inventory | All live harness surfaces and root instruction files were scanned. |
+| Skills/resources | All durable skills, plugins, prompts, rules, commands, hooks, and agents were migrated into `.harness/resources*` or explicitly blocked. |
+| Settings | Settings that should exist for fresh users were seeded in `.harness`; runtime-only settings were left local. |
+| Mutability | `[mutable]` is used only for seeded create-once files, not as a substitute for migration. |
+| Root files | Simple root files are direct copies or normal tracked files; `.harnessComposable` is used only when needed. |
+| Generated surfaces | After convergence, generated surfaces are recommended for `.gitignore` with a tracked bootstrap. |
+| Verification | Validate, dry activation, apply, and convergence dry run all succeeded. |
+
+If any check is incomplete, say the migration is blocked/incomplete and name the
+remaining item. Do not say the repo has adopted Harness config as the source of
+truth for skills/resources.
+
 ## Completion Standard
 
 Do not tell the user that the repository now has "the" source of truth for
