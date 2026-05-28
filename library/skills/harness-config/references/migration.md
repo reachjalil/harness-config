@@ -71,6 +71,8 @@ approval. The plan must include:
   guidance for any agent-configuration operation;
 - mutable files and their seed locations in `.harness`;
 - generated-surface `.gitignore` recommendation after convergence;
+- cleanup policy, especially whether unmanaged live files are preserved,
+  migrated, archived, or explicitly approved for removal;
 - concrete blockers, if any.
 
 If `.claude` exists, contains skills/settings, or has target-specific behavior,
@@ -89,6 +91,7 @@ A full transition has all of these properties:
 | Root files | Root instructions are normal tracked files, direct `[[dir]]` copies, or composable only when composition is useful. |
 | Agent guidance | Root agent instructions tell future agents to modify `.harness` sources and use Harness validation/activation for any agent-config change. |
 | Mutable files | Files marked `[mutable]` have source seeds in `.harness` when they should exist for fresh users. |
+| Cleanup | Unmanaged live files are preserved until migrated, archived, or explicitly approved for deletion after a dry-run removal list. |
 | Local state | Secrets, caches, logs, credentials, trust state, and machine-local settings stay out of `.harness`. |
 | Verification | Activation converges after apply. |
 
@@ -222,6 +225,24 @@ Use target-derived overrides for exact target-specific files:
 
 Do not duplicate entire resource groups unless the target behavior is genuinely
 different.
+
+## Cleanup And Narrowing
+
+Narrowing the active projection is not the same thing as deleting the old
+skills. If the user asks for "only these skills active", first decide where the
+inactive durable skills will live:
+
+- keep them in a configured archive/catalog source such as
+  `.harness/resources/archive` or `.harness/resources/all-skills`;
+- move them to a local/private source when they are personal;
+- document them as intentionally unmanaged with a reason;
+- delete them only after the user explicitly approves deletion.
+
+Run `npx harnessc activate` before any cleanup and show the exact unmanaged
+removal list. Use `npx harnessc activate --yes --remove-unmanaged` only when
+each removed durable item is already represented in `.harness`, intentionally
+archived, or explicitly approved for deletion. If the old live target folder is
+the only copy of a skill, removing it is data loss even when git can recover it.
 
 ## Local Layer
 

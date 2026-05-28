@@ -54,13 +54,15 @@ Use this adoption checklist before claiming completion:
 | Agent guidance | Root agent instructions tell future agents to use Harness config guidance and edit `.harness` sources for agent-config operations. |
 | Mutable seeds | Every create-once runtime file has a seed in `.harness` before `[mutable]`. |
 | Generated outputs | Live surfaces are treated as generated and can be gitignored after convergence. |
+| Cleanup | `--remove-unmanaged` is used only after reviewed removals are migrated, archived, or explicitly approved for deletion. |
 | Verification | Validate, dry run, apply, and convergence dry run succeeded. |
 
 The migration plan shown before edits must include the skill guide version,
 explicit target list, resource roots, direct-copy/composable root-file decision,
 root instruction maintenance note, mutable seed paths, gitignore recommendation
-for generated surfaces, and any blockers. If `.claude` exists and has durable
-content or settings, include it as a target unless the user chooses otherwise.
+for generated surfaces, cleanup policy for unmanaged removals, and any
+blockers. If `.claude` exists and has durable content or settings, include it
+as a target unless the user chooses otherwise.
 
 Use tables for the user-facing summary:
 
