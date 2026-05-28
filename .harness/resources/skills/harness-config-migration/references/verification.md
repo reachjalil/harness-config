@@ -24,6 +24,10 @@ npx harnessc activate
 The second dry run should converge to `keep` for managed files and `mutable`
 for runtime-owned mutable files.
 
+For every mutable file that should exist on a fresh checkout, verify the seed
+file exists under `.harness` and first activation creates it. Mutable files are
+create-once runtime-owned files, not files to omit from source entirely.
+
 ## Review
 
 Check the resulting diff:

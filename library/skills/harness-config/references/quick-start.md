@@ -54,8 +54,8 @@ reviewable, not to duplicate the full standard.
 
 Use a `[[dir]]` root when repo-relative generated outputs are useful:
 
-- `AGENTS.md`, `CLAUDE.md`, or similar files should be generated from shared
-  parts;
+- `AGENTS.md`, `CLAUDE.md`, or similar files should be generated from
+  `.harness`;
 - multiple root instruction files should share a base through `.harnessRef`;
 - a profile or local layer should add or replace instruction parts;
 - the repo wants activation to regenerate root instruction outputs.
@@ -66,6 +66,15 @@ Example:
 [[dir]]
 path = "./.harness/dir"
 ```
+
+```text
+.harness/
+  dir/
+    AGENTS.md
+```
+
+Use a direct copied file for simple one-file outputs. Use composable leaves only
+when the split is useful:
 
 ```text
 .harness/
@@ -82,7 +91,8 @@ path = "./.harness/dir"
 
 Do not split root instructions into composable parts unless the split makes
 review, reuse, or profile/local customization better. A simple tracked
-`AGENTS.md` is often the right first step.
+`AGENTS.md` or a direct copied `.harness/dir/AGENTS.md` is often the right
+first step.
 
 ## Optional Local Layer
 
@@ -115,8 +125,11 @@ do not require it.
 ## Generated Surfaces
 
 Generated harness surfaces such as `.agents`, `.claude`, `.cursor`, and
-`.gemini` may be gitignored when they are reproducible from `.harness`.
-Recommend that only when a tracked bootstrap exists. Good bootstrap options:
+`.gemini` should be treated as disposable outputs after full migration. For an
+existing repo, prefer gitignoring them once all durable skills and reusable
+resources are represented in `.harness` and activation converges. Require a
+tracked bootstrap so a fresh checkout knows how to regenerate them. Good
+bootstrap options:
 
 - a short tracked `AGENTS.md`;
 - a `README.md` setup section;

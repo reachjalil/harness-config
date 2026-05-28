@@ -25,7 +25,9 @@ user-owned.
 
 1. Inventory current agent config and note any secrets or local-only state.
 2. Choose explicit targets in `.harness/harness.toml`.
-3. Move shared source into `.harness/resources` or `.harness/dir`.
+3. Move all durable reviewed skills, plugins, rules, prompts, commands, hooks,
+   agents, and selected root instruction files into `.harness/resources` or
+   `.harness/dir`. Do not stop after migrating only the Harness helper skill.
 4. Keep real target-specific differences as target overrides.
 5. Add `.harnessIgnore` rules for caches, secrets, generated files, and
    mutable runtime-owned files.
@@ -44,3 +46,7 @@ npx harnessc activate
 - Do not move secrets or local machine settings into `.harness`.
 - Do not infer targets from folders that happen to exist.
 - Preserve behavior first, then simplify once activation is stable.
+- Prefer full migration of durable resources over partial adoption. If blocked,
+  say exactly which resources remain and why.
+- After full migration and convergence, prefer gitignored generated harness
+  surfaces with a tracked bootstrap.
