@@ -31,6 +31,14 @@ If the repo is under git and the relevant files are tracked, explain that the
 transition is easy to review and revert. If important files are untracked,
 inspect and summarize them before moving or replacing anything.
 
+Do not treat a large tracked `.agents`, `.claude`, `.cursor`, or `.gemini`
+catalog as a reason to stop with a plan-only answer. In a version-controlled
+repo, tracked durable files are usually the safest migration source: inventory
+and classify them, then make reversible `.harness` source changes and verify
+with Harness commands. Pause before editing only for concrete blockers such as
+secrets, runtime trust state, unclear ownership, important untracked files, or
+destructive cleanup.
+
 ## Migration Completeness
 
 When the user asks to set up or migrate Harness config, the default expectation
@@ -48,11 +56,12 @@ For each discovered live surface, decide:
   unclear files unmanaged with an explicit reason.
 
 If a repo has many resources, still aim for a clean full migration in one
-deliberate pass. Do not recommend batching as the normal path. Pause only when
-a resource contains secrets, runtime trust state, executable install behavior,
-unclear ownership, or another concrete risk that needs user review. If you
-must pause, do not write migration files or call the setup complete; name the
-blocker and the exact resources that require a decision.
+deliberate pass. Do not recommend batching or a plan-only checkpoint as the
+normal path. Pause only when a resource contains secrets, runtime trust state,
+executable install behavior, unclear ownership, important untracked content, or
+another concrete risk that needs user review. If you must pause, do not write
+migration files or call the setup complete; name the blocker and the exact
+resources that require a decision.
 
 Do not say `.harness` is now the repository's source of truth when only a
 subset was migrated. Say the migration is blocked or incomplete, and name which

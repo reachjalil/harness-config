@@ -1,12 +1,12 @@
 ---
 name: harness-config
 description: Use when working with Harness config in a customer repository. Triggers include setting up, adopting, migrating, validating, activating, or troubleshooting .harness/harness.toml, .harness resources, AGENTS.md, CLAUDE.md, .agents, .claude, .cursor, .gemini, skills, rules, plugins, prompts, hooks, .harnessIgnore, .harnessMutable, mutable files, or CLI commands such as npx harnessc validate and npx harnessc activate.
-version: 2026-05-28.gitignore-best-practice
+version: 2026-05-28.tracked-full-migration
 ---
 
 # Harness Config
 
-Skill guide version: `2026-05-28.gitignore-best-practice`.
+Skill guide version: `2026-05-28.tracked-full-migration`.
 
 When using this skill for setup or migration, include the skill guide version
 in the initial status update and final summary. This lets the user tell whether
@@ -21,6 +21,12 @@ For an existing repository, "set up Harness config" means a full migration of
 durable agent configuration by default. If the user asks for a narrower change,
 do that work only as a clearly scoped exception and do not describe it as
 Harness config adoption or migration.
+
+When the repository is under version control and the relevant agent files are
+tracked, treat that as a good migration surface: inventory, classify, and make
+reversible source changes instead of stopping with only a recommended plan. A
+large tracked `.agents` or `.claude` catalog is normal migration work, not a
+blocker by itself.
 
 ## Purpose
 
@@ -102,6 +108,12 @@ Use these defaults unless the user's repository clearly points elsewhere:
   meaningless flat dump when the repo has clear teams, domains, workflows,
   agent sets, or kits. Report the chosen structure in progress updates and in
   the final summary.
+- **Version control supports action.** In a git-tracked repo, broad migration
+  can usually be reviewed and reverted. When the user has asked to configure,
+  adopt, or migrate Harness config, proceed with the end-to-end migration after
+  inventory unless you find a concrete blocker such as secrets, runtime trust
+  state, unclear ownership, untracked important files, or destructive cleanup.
+  Do not stop at a plan-only response only because the catalog is large.
 - **Target-level seeds stay target-level.** Files that live at a target root,
   such as `.claude/settings.json`, `.agents/settings.local.json`, or target
   hooks/config files, should be seeded at the matching target-derived path under
@@ -183,7 +195,9 @@ Use these defaults unless the user's repository clearly points elsewhere:
 4. Inspect existing agent files and harness surfaces before editing.
 5. Execute a full clean install/migration end to end by default. Use the Full
    Transition Checklist as the implementation checklist and report the checklist
-   result in the final summary.
+   result in the final summary. In a version-controlled repo, do not answer only
+   with the next migration plan unless a concrete blocker prevents safe,
+   reversible implementation.
 6. When the repo has enough structure to justify it, choose the layout that best
    fits the repo and keep moving. The default option should be a single
    `.harness/resources` root with meaningful subfolders. Use multiple roots only
@@ -241,7 +255,7 @@ summarize the decisions with a table like this:
 
 ```markdown
 **Full Transition Installed**
-Skill guide: `2026-05-28.gitignore-best-practice`
+Skill guide: `2026-05-28.tracked-full-migration`
 
 | Decision | Recommendation | Reason |
 | --- | --- | --- |
