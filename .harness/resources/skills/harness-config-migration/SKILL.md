@@ -33,6 +33,11 @@ user-owned.
    mutable runtime-owned files.
 6. Validate, preview, apply, and confirm convergence.
 
+Full transition means durable agent configuration is represented in `.harness`,
+live harness surfaces are generated outputs, mutable files have source seeds
+when needed, and local runtime state stays local. If any durable resource cannot
+be migrated, call the migration blocked/incomplete and name the exact item.
+
 ```bash
 npx harnessc validate
 npx harnessc activate

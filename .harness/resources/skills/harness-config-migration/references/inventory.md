@@ -45,6 +45,16 @@ is complete only when every durable discovered resource is migrated or
 explicitly documented as intentionally unmanaged. Otherwise, say the migration
 is blocked/incomplete and name the remaining live resources.
 
+Use this adoption checklist before claiming completion:
+
+| Check | Required evidence |
+| --- | --- |
+| Inventory | All live harness surfaces, root instructions, settings, and resource folders were scanned. |
+| Durable resources | Every reusable resource was migrated into `.harness` or blocked with a reason. |
+| Mutable seeds | Every create-once runtime file has a seed in `.harness` before `[mutable]`. |
+| Generated outputs | Live surfaces are treated as generated and can be gitignored after convergence. |
+| Verification | Validate, dry run, apply, and convergence dry run succeeded. |
+
 Use tables for the user-facing summary:
 
 ```markdown

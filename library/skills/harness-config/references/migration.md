@@ -60,6 +60,22 @@ live files remain source or unmanaged. This distinction matters because an
 agent may otherwise delete, ignore, or overwrite durable resources that were
 never moved.
 
+## Full Transition Definition
+
+A full transition has all of these properties:
+
+| Area | Full-transition requirement |
+| --- | --- |
+| Source of truth | Durable agent configuration lives under configured `.harness` source roots. |
+| Live surfaces | `.agents`, `.claude`, `.cursor`, `.gemini`, and similar folders are generated outputs, preferably gitignored after convergence. |
+| Skills/resources | Every reusable skill, plugin, prompt, rule, command, hook, and agent is migrated or explicitly blocked with a reason. |
+| Root files | Root instructions are normal tracked files, direct `[[dir]]` copies, or composable only when composition is useful. |
+| Mutable files | Files marked `[mutable]` have source seeds in `.harness` when they should exist for fresh users. |
+| Local state | Secrets, caches, logs, credentials, trust state, and machine-local settings stay out of `.harness`. |
+| Verification | Activation converges after apply. |
+
+Anything less is blocked/incomplete, not the recommended final state.
+
 ## Choose Resource Groups
 
 Move durable projected resources into configured resource roots. For tiny

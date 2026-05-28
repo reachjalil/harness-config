@@ -127,6 +127,29 @@ Use these defaults unless the user's repository clearly points elsewhere:
    `npx harnessc activate --yes`.
 13. Re-run dry activation and confirm convergence.
 
+## Full Transition Checklist
+
+Use this checklist for any existing repository. Do not present the setup as
+complete until every required row is satisfied. If a row cannot be satisfied,
+stop and report the exact blocker instead of doing a partial adoption.
+
+| Gate | Required evidence |
+| --- | --- |
+| Inventory complete | All `AGENTS.md`, `CLAUDE.md`, `.agents`, `.claude`, `.cursor`, `.gemini`, skills, plugins, rules, prompts, commands, hooks, agents, settings, and MCP files were scanned. |
+| Durable resources migrated | Every reusable skill/resource is under a configured `.harness/resources*` root or intentionally classified as unmanaged with a reason. |
+| Target differences preserved | Runtime-specific differences are represented as target-derived overrides, not copied live surfaces. |
+| Root files decided | Each root instruction file is either kept tracked as-is, copied directly through `.harness/dir`, or made composable only when composition is actually useful. |
+| Mutable seeds present | Every mutable file that should exist for a fresh user has an initial seed in `.harness` before it is listed under `[mutable]`. |
+| Ignores are narrow | `.harnessIgnore` contains only evidence-based patterns; no broad `*.local.*` families unless explicitly justified. |
+| Generated surfaces handled | After full migration and convergence, `.agents`, `.claude`, `.cursor`, `.gemini`, or similar generated surfaces are recommended for `.gitignore` with a tracked bootstrap. |
+| Activation verified | `npx harnessc validate`, dry `activate`, `activate --yes`, and a second dry `activate` all pass and converge. |
+
+Full transition means `.harness` is the reviewed source for durable agent
+configuration, while live harness surfaces are generated outputs and local
+runtime state remains outside source. It does not mean copying every runtime
+file into `.harness`: secrets, caches, logs, trust state, credentials, and
+machine-local settings stay local.
+
 ## Migration Autonomy
 
 Use risk tiers when deciding whether to ask before making broad changes:
