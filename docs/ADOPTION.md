@@ -21,6 +21,36 @@ Harness config v1 starts from a small source contract:
    configuration.
 5. Dry-run activation before writing target folders.
 
+For a small first setup, show both the selected manifest and the source tree:
+
+```toml
+version = 1
+
+[[resources]]
+path = "./.harness/resources"
+
+[[targets]]
+path = "./.agents"
+```
+
+```text
+AGENTS.md                         # tracked bootstrap/root instructions
+.harnessIgnore
+.harness/
+  harness.toml
+  resources/
+    README.md
+    skills/
+      review/
+        SKILL.md
+.agents/                          # generated after activation
+```
+
+Keep `AGENTS.md`, `CLAUDE.md`, or similar root instruction files as normal
+tracked files when they are simple and already coherent. Move them into
+`[[dir]]` only when generation, composition, profiles, or local overlays make
+the repository easier to understand.
+
 `harnessc` is the standard implementation for this workflow:
 
 ```bash
@@ -53,6 +83,40 @@ Recommended sequence:
    `./.harness/resources-review/skills/foo/.claude/`). Target-root files such
    as `.claude/hooks.json` become a shared resource with target-specific
    versions under an override folder.
+
+   ```toml
+   [[resources]]
+   path = "./.harness/resources-review"
+
+   [[resources]]
+   path = "./.harness/resources-frontend"
+
+   [[resources]]
+   path = "./.harness/local/resources"
+
+   [[targets]]
+   path = "./.agents"
+
+   [[targets]]
+   path = "./.claude"
+   ```
+
+   ```text
+   .harness/
+     resources-review/
+       README.md
+       skills/
+       rules/
+     resources-frontend/
+       README.md
+       skills/
+       plugins/
+     local/
+       resources/
+   ```
+
+   This pairing keeps migration review concrete: reviewers can see which
+   roots are projected and what each folder is for.
 3. **Declare targets in the selected manifest.** Add a `[[targets]]` entry for
    each harness surface you want regenerated. A target only receives projections
    when it appears here. Declare every shared source with an explicit

@@ -50,6 +50,27 @@ path = "./.harness/dir"
 path = "./.harness/local/dir"
 ```
 
+```text
+.harness/
+  harness.toml
+  resources/
+    README.md
+    skills/
+    rules/
+  dir/
+    AGENTS.md/
+      .harnessComposable
+  local/
+    resources/
+    dir/
+.agents/
+.claude/
+.gemini/
+```
+
+The manifest names the source roots and targets. The filesystem shows where
+reviewed source lives and which live harness surfaces activation can generate.
+
 ## Resource Groups
 
 For non-trivial repositories, use multiple resources sources when it makes the
@@ -124,6 +145,14 @@ Use shallow rules for broad boundaries and deeper logical rules for selected
 exceptions. Profile-local ignore files are evaluated at the profile root's
 logical overlay location, not at the physical profile folder.
 
+```toml
+[[resources]]
+path = "./.harness/resources-tooling"
+
+[[targets]]
+path = "./.agents"
+```
+
 ```text
 .harnessIgnore
 .harnessProfile                  # contains: cloudflare-react
@@ -190,28 +219,43 @@ file. When the same marker is used under a configured resources source, it
 composes a projected resource file inside each target instead of a repo-root or
 target-owned dir output.
 
+```toml
+[[dir]]
+path = "./.harness/dir"
+
+[[dir]]
+path = "./.harness/local/dir"
+```
+
 ```text
-.harness/dir/AGENTS.md/
-  .harnessComposable
-  100_intro.md
-  200_rules.md
+.harness/
+  dir/
+    AGENTS.md/
+      .harnessComposable
+      100_intro.md
+      200_rules.md
+    CLAUDE.md/
+      .harnessComposable
+      .harnessRef          # ../AGENTS.md
+      300_claude.md
+  local/
+    dir/
+      AGENTS.md/
+        900_local.md
 ```
 
 Projects:
 
 ```text
 AGENTS.md
+CLAUDE.md
 ```
 
-The output bytes are `100_intro.md` followed by `200_rules.md`. A `.harnessRef` file
-imports another composable leaf before sorting parts:
-
-```text
-.harness/dir/CLAUDE.md/
-  .harnessComposable
-  .harnessRef          # ../AGENTS.md
-  300_claude.md
-```
+`AGENTS.md` is composed from shared parts plus any later local parts.
+`CLAUDE.md` imports the `AGENTS.md` leaf first, then adds the Claude-specific
+tail. Use this pattern when generation removes real duplication or enables
+profiles/local overlays; keep simple root files as normal tracked files when
+composition does not help.
 
 Source-local `.harnessIgnore` files can remove individual parts:
 
@@ -233,6 +277,17 @@ release.md
 A repo-root `.harnessProfile` selects one profile for the whole projection.
 When a `.harnessProfileRoot` sits directly under the configured resources
 source, its children overlay that resources source.
+
+```toml
+[[resources]]
+path = "./.harness/resources"
+
+[[dir]]
+path = "./.harness/dir"
+
+[[targets]]
+path = "./.agents"
+```
 
 ```text
 .harnessProfile          # contains: deploy
@@ -260,6 +315,17 @@ Use this shape when the overlay belongs to one resource kind.
 A kit profile can overlay `.harness` itself and contribute several logical
 source roots at once.
 
+```toml
+[[resources]]
+path = "./.harness/resources"
+
+[[dir]]
+path = "./.harness/dir"
+
+[[targets]]
+path = "./.agents"
+```
+
 ```text
 .harnessProfile          # contains: deploy-kit
 
@@ -284,6 +350,54 @@ skill and add a deploy-specific instruction part without becoming a projected
 This is the right model for company-provided deploy, security, frontend,
 backend, or onboarding kits. The kit is reviewed source. The selector decides
 where it is active.
+
+## Generated Surfaces With Bootstrap
+
+Generated harness surfaces can be gitignored when the repository keeps a
+tracked bootstrap path. The manifest and source catalog stay in version
+control; the live folders can be regenerated after checkout.
+
+```toml
+[[resources]]
+path = "./.harness/resources-agent-tools"
+
+[[resources]]
+path = "./.harness/resources-review"
+
+[[targets]]
+path = "./.agents"
+
+[[targets]]
+path = "./.claude"
+```
+
+```text
+AGENTS.md                         # bootstrap note for humans and agents
+package.json                      # optional setup:harness script
+.gitignore
+.harness/
+  harness.toml
+  resources-agent-tools/
+    README.md
+    skills/
+      harness-config/
+        SKILL.md
+  resources-review/
+    README.md
+    skills/
+.agents/                          # generated, gitignored
+.claude/                          # generated, gitignored
+```
+
+```gitignore
+.agents/
+.claude/
+```
+
+The bootstrap should tell users and agents to run `npx harnessc validate` and
+dry-run activation before applying. Do not gitignore generated surfaces when a
+fresh checkout would leave users with empty harness folders and no clear
+activation path.
 
 ## Personal AGENTS.md Override
 
