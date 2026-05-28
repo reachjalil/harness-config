@@ -60,15 +60,15 @@ live files remain source or unmanaged. This distinction matters because an
 agent may otherwise delete, ignore, or overwrite durable resources that were
 never moved.
 
-Before editing, present the recommended full-transition plan and wait for user
-approval. Use the Full Transition Definition below as the planning checklist:
-the plan must show how each applicable row will be satisfied, or identify a
-blocker before implementation begins. The plan must include:
+Before editing, inventory the repo and proceed with the full transition by
+default. Do not stop at a plan approval gate. Use the Full Transition
+Definition below as the implementation checklist: the migration must satisfy
+each applicable row, or identify a blocker before activation. The final summary
+must include:
 
 - skill guide version;
 - explicit targets and why each existing surface is included or excluded;
-- two or three layout options when the repo is large enough to justify them,
-  including one ambitious organization option based on the repo's workflows,
+- the chosen layout, including any concern roots based on the repo's workflows,
   domains, teams, target agent sets, or kits;
 - recommended resource roots and grouping vocabulary;
 - confirmation that target-level seeds such as `.claude/settings.json` stay at
@@ -111,9 +111,9 @@ A full transition has all of these properties:
 
 Anything less is blocked/incomplete, not the recommended final state.
 
-Use this same table again as the implementation checklist before the final
-summary. Do not apply activation or claim migration success while durable
-resources remain only in live target surfaces.
+Use this same table as the implementation checklist before the final summary.
+Do not apply activation or claim migration success while durable resources
+remain only in live target surfaces.
 
 ## Choose Resource Groups
 
@@ -145,9 +145,8 @@ example, `.claude/settings.json` belongs at
 seed. Do not place target-level settings under `skills/`,
 an optional kit root, or another unrelated resource group.
 
-Before implementing, spend time understanding the repository and present a
-small option set. The user should be able to compare tradeoffs before files are
-moved:
+Before implementing, spend time understanding the repository and choose the
+layout that matches the repo's structure:
 
 | Option | Layout | When to choose |
 | --- | --- | --- |
@@ -155,8 +154,9 @@ moved:
 | Organized subfolders | one `.harness/resources` root with skill families under `skills/` | many skills or prompts with clear workflow/domain names |
 | Multiple roots | `.harness/resources`, `.harness/resources-testing`, `.harness/resources-deployment`, `.harness/resources-ui`, `.harness/local/resources` | only when concern catalogs are independently optional, profile-selected, separately owned, or private/local |
 
-Recommend one option and explain why. Do not implement the first workable
-manifest before the user has seen the plan.
+Choose one option deliberately and explain why in the final summary. Do not
+implement the first workable manifest if the repo has a clearer concern-based
+structure.
 
 ```text
 .harness/

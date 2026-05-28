@@ -92,15 +92,14 @@ Classify the repository into one of three paths:
 - **Existing agent surfaces or installed skills:** use `migration.md`.
 - **Existing `.harness`:** use `cli.md` and `verification.md`.
 
-## Transition Plan
+## Full Install Sequence
 
-For a repo that is not yet using `.harness`, propose or implement this
-sequence:
+For a repo that is not yet using `.harness`, implement this sequence end to end
+by default:
 
-1. Spend time understanding the repo, then show the recommended
-   full-transition plan and wait for user approval. Include two or three layout
-   options when the repo has enough durable resources to justify meaningful
-   grouping. Use the adoption checklist below as the planning checklist.
+1. Spend time understanding the repo, then choose the full-transition layout and
+   proceed without a planning approval gate. Use the adoption checklist below as
+   the implementation checklist.
 2. Create `.harness/harness.toml` with explicit targets for every intended
    live harness surface, including `.claude` when `.claude` content or settings
    are present.
@@ -130,7 +129,7 @@ sequence:
 12. Run `npx harnessc validate`.
 13. Run `npx harnessc activate` and review the dry-run plan.
 14. Use `npx harnessc explain <path>` for surprising paths.
-15. Apply with `npx harnessc activate --yes` only when the plan matches intent.
+15. Apply with `npx harnessc activate --yes` after the dry run matches intent.
 16. Run `npx harnessc activate` again and confirm convergence.
 17. Recommend gitignoring generated surfaces after convergence with a tracked
     activation note.
@@ -138,12 +137,12 @@ sequence:
     and every removed durable item is migrated, archived, or explicitly
     approved for deletion.
 
-The plan must include the skill guide version from the local installed
-`SKILL.md`. If the agent does not report a version, the user cannot tell which
-adoption rules it followed. If the user asked to install or update the skill,
-do not rely on a cached, inherited, or previously loaded copy before planning.
-Use the same checklist again during implementation before applying activation
-or claiming adoption is complete.
+The initial status and final summary must include the skill guide version from
+the local installed `SKILL.md`. If the agent does not report a version, the
+user cannot tell which adoption rules it followed. If the user asked to install
+or update the skill, do not rely on a cached, inherited, or previously loaded
+copy before editing. Use the checklist during implementation before applying
+activation or claiming adoption is complete.
 
 ## Adoption Checklist
 
