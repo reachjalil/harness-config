@@ -8,7 +8,8 @@ clear non-zero diagnostics for:
 - absolute paths or paths containing `..`,
 - targets under `./.harness`,
 - target entries with fields other than `path`,
-- malformed `.harnessIgnore` or `[mutable]` sections,
+- malformed `.harnessIgnore` files, legacy `[mutable]` sections, or
+  malformed `.harnessMutable` files,
 - `.harnessProfileRoot` outside `.harness` and the configured source roots,
 - overlapping configured resources, dir, or target paths,
 - non-default manifest paths selected with `--config`,

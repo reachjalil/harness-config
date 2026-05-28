@@ -73,7 +73,7 @@ Release steps:
    packages, and creates the GitHub release.
 
 During the v1 alpha, every release tag publishes packages with the npm
-`latest` dist-tag, including prerelease versions such as `1.0.0-alpha.4`.
+`latest` dist-tag, including prerelease versions such as `1.0.0-alpha.5`.
 The GitHub release is also explicitly marked as the latest release. This keeps
 the default npm package page and `npx harnessc` install path pointed at the
 current alpha until the project chooses a separate prerelease channel policy.
