@@ -517,6 +517,17 @@ Harness surfaces are generated. Run:
   npx harnessc activate
 ```
 
+If `npx` is unavailable, explain that Node.js/npm must be installed before
+Harness CLI commands can run. Use the repo's normal setup path, or on macOS
+suggest:
+
+```bash
+brew install node
+node --version
+npm --version
+npx --version
+```
+
 ```json
 {
   "scripts": {

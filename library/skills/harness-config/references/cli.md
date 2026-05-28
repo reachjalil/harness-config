@@ -4,6 +4,23 @@ Use this reference when the user asks how to run Harness config locally, preview
 activation, apply changes, validate a repository, or troubleshoot command
 output.
 
+## Prerequisite
+
+`npx harnessc` requires Node.js/npm/npx. If `node`, `npm`, or `npx` is not
+available, explain that the user needs the Node toolchain before Harness CLI
+commands can run. Prefer the repository's documented setup path. On macOS, a
+common Homebrew example is:
+
+```bash
+brew install node
+node --version
+npm --version
+npx --version
+```
+
+Do not present missing `npx` as a Harness config validation failure; install or
+ask the user to install the prerequisite, then rerun the Harness command.
+
 ## Command order
 
 Run from the repository root:
