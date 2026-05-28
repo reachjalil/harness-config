@@ -107,15 +107,18 @@ sequence:
    useful.
 7. Decide whether root instruction files should stay tracked as-is or move into
    `[[dir]]`; use direct copied files unless composition is justified.
-8. Use target-derived overrides for target-specific differences.
-9. Seed mutable files in `.harness` before adding `[mutable]` rules.
-10. Add scoped `.harnessIgnore` files and narrow `[mutable]` rules.
-11. Run `npx harnessc validate`.
-12. Run `npx harnessc activate` and review the dry-run plan.
-13. Use `npx harnessc explain <path>` for surprising paths.
-14. Apply with `npx harnessc activate --yes` only when the plan matches intent.
-15. Run `npx harnessc activate` again and confirm convergence.
-16. Recommend gitignoring generated surfaces after convergence with a tracked
+8. Add a concise Harness maintenance note to `AGENTS.md`, `CLAUDE.md`, or
+   equivalent root instructions so future agents know to use Harness config
+   guidance for agent-config operations.
+9. Use target-derived overrides for target-specific differences.
+10. Seed mutable files in `.harness` before adding `[mutable]` rules.
+11. Add scoped `.harnessIgnore` files and narrow `[mutable]` rules.
+12. Run `npx harnessc validate`.
+13. Run `npx harnessc activate` and review the dry-run plan.
+14. Use `npx harnessc explain <path>` for surprising paths.
+15. Apply with `npx harnessc activate --yes` only when the plan matches intent.
+16. Run `npx harnessc activate` again and confirm convergence.
+17. Recommend gitignoring generated surfaces after convergence with a tracked
     bootstrap.
 
 The plan must include the skill guide version. If the agent does not report a

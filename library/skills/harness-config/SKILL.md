@@ -20,6 +20,12 @@ durable configuration into `.harness` source roots and treating live harness
 surfaces such as `.agents`, `.claude`, `.cursor`, and `.gemini` as generated
 outputs once adoption begins.
 
+Once a repository adopts Harness config, any future operation that adds,
+removes, narrows, splits, cleans, or reassigns agent configuration must follow
+this skill's guidance: edit `.harness` sources, preview activation, explain any
+cleanup, and confirm convergence. Do not treat target folders as ordinary
+source folders after adoption.
+
 Use https://www.harnessconfig.dev/ as the public reference when the user needs
 the standard or CLI behavior.
 
@@ -99,6 +105,10 @@ Use these defaults unless the user's repository clearly points elsewhere:
   during migration and verification. After convergence, simplify duplicated
   wrappers, symlinks, and stale live outputs so skills have one reviewed source
   location.
+- **Write the maintenance contract into agent instructions.** During migration,
+  recommend adding a concise Harness config note to `AGENTS.md`, `CLAUDE.md`,
+  or equivalent root instructions so future agents know that agent config must
+  be changed through `.harness` sources and validated with Harness commands.
 
 ## Workflow
 
@@ -155,6 +165,7 @@ Skill guide: `2026-05-28.full-transition-plan`
 | Targets | `.agents`, `.claude` | Both surfaces exist and contain durable config |
 | Source roots | `.harness/resources`, `.harness/dir` | One reviewed source for skills and root files |
 | Root files | direct copy `.harness/dir/AGENTS.md` | No composition needed for a single file |
+| Agent instructions | add Harness maintenance note to `AGENTS.md`/`CLAUDE.md` | Future agents must use Harness guidance for agent-config changes |
 | Mutable files | seed `.harness/resources/.claude/settings.json`, mark target mutable | Fresh users get the file; runtime edits are preserved |
 | Generated surfaces | add `.agents/`, `.claude/` to `.gitignore` after convergence | Live surfaces are reproducible outputs |
 
@@ -181,6 +192,7 @@ stop and report the exact blocker instead of doing a partial adoption.
 | Durable resources migrated | Every reusable skill/resource is under a configured `.harness/resources*` root or intentionally classified as unmanaged with a reason. |
 | Target differences preserved | Runtime-specific differences are represented as target-derived overrides, not copied live surfaces. |
 | Root files decided | Each root instruction file is either kept tracked as-is, copied directly through `.harness/dir`, or made composable only when composition is actually useful. |
+| Agent instructions updated | `AGENTS.md`, `CLAUDE.md`, or equivalent root instructions tell future agents to use Harness config guidance for any agent-config operation and to edit `.harness` sources instead of generated target folders. |
 | Mutable seeds present | Every mutable file that should exist for a fresh user has an initial seed in `.harness` before it is listed under `[mutable]`. |
 | Ignores are narrow | `.harnessIgnore` contains only evidence-based patterns; no broad `*.local.*` families unless explicitly justified. |
 | Generated surfaces handled | After full migration and convergence, `.agents`, `.claude`, `.cursor`, `.gemini`, or similar generated surfaces are recommended for `.gitignore` with a tracked bootstrap. |
