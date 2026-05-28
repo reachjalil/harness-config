@@ -1,12 +1,12 @@
 ---
 name: harness-config
 description: Use when working with Harness config in a customer repository. Triggers include setting up, adopting, migrating, validating, activating, or troubleshooting .harness/harness.toml, .harness resources, AGENTS.md, CLAUDE.md, .agents, .claude, .cursor, .gemini, skills, rules, plugins, prompts, hooks, .harnessIgnore, .harnessMutable, mutable files, or CLI commands such as npx harnessc validate and npx harnessc activate.
-version: 2026-05-28.full-install
+version: 2026-05-28.full-install-direct
 ---
 
 # Harness Config
 
-Skill guide version: `2026-05-28.full-install`.
+Skill guide version: `2026-05-28.full-install-direct`.
 
 When using this skill for setup or migration, include the skill guide version
 in the initial status update and final summary. This lets the user tell whether
@@ -100,8 +100,8 @@ Use these defaults unless the user's repository clearly points elsewhere:
 - **Understand before installing.** Spend enough time reading the repository to
   choose useful grouping inside the default resources root. Do not default to a
   meaningless flat dump when the repo has clear teams, domains, workflows,
-  agent sets, or kits. Report the chosen structure while you implement instead
-  of stopping at a plan gate.
+  agent sets, or kits. Report the chosen structure in progress updates and in
+  the final summary.
 - **Target-level seeds stay target-level.** Files that live at a target root,
   such as `.claude/settings.json`, `.agents/settings.local.json`, or target
   hooks/config files, should be seeded at the matching target-derived path under
@@ -174,9 +174,9 @@ Use these defaults unless the user's repository clearly points elsewhere:
    `references/skills-sh-adoption.md`.
 3. Read the matching reference markdown file before editing or running commands.
 4. Inspect existing agent files and harness surfaces before editing.
-5. Execute a full clean install/migration end to end by default. Do not stop at
-   a plan approval gate. Use the Full Transition Checklist as the implementation
-   checklist and report the checklist result in the final summary.
+5. Execute a full clean install/migration end to end by default. Use the Full
+   Transition Checklist as the implementation checklist and report the checklist
+   result in the final summary.
 6. When the repo has enough structure to justify it, choose the layout that best
    fits the repo and keep moving. The default option should be a single
    `.harness/resources` root with meaningful subfolders. Use multiple roots only
@@ -228,7 +228,7 @@ summarize the decisions with a table like this:
 
 ```markdown
 **Full Transition Installed**
-Skill guide: `2026-05-28.full-install`
+Skill guide: `2026-05-28.full-install-direct`
 
 | Decision | Recommendation | Reason |
 | --- | --- | --- |
