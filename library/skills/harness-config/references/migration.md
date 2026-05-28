@@ -95,7 +95,7 @@ A full transition has all of these properties:
 | Skills/resources | Every reusable skill, plugin, prompt, rule, command, hook, and agent is migrated or explicitly blocked with a reason. |
 | Root files | Root instructions are normal tracked files, direct `[[dir]]` copies, or composable only when composition is useful. |
 | Agent guidance | Root agent instructions tell future agents to modify `.harness` sources and use Harness validation/activation for any agent-config change. |
-| Mutable files | Files marked `[mutable]` are copied into `.harness` as source seeds when they should exist for fresh users. |
+| Mutable files | Files matched by `.harnessMutable` are copied into `.harness` as source seeds when they should exist for fresh users. |
 | Cleanup | Unmanaged live files are preserved until migrated, archived, or explicitly approved for deletion after a dry-run removal list. |
 | Target ignores | Generated surfaces have target-output `.harnessIgnore` files when a target needs local-only output rules. |
 | Local state | Secrets, caches, logs, credentials, trust state, and machine-local settings stay out of `.harness`. |
@@ -412,20 +412,19 @@ generated outputs, so future skill edits should happen under `.harness`.
 For advanced users, use terse bullets after the tables and include exact paths
 and flags rather than introductory explanation.
 
-Use `[mutable]` for source templates that should be created once and then left
-runtime-owned:
+Use `.harnessMutable` for source templates that should be created once and then
+left runtime-owned:
 
 ```gitignore
-[mutable]
 **/settings.local.json
 ```
 
-Ignored files stay out of projection. Mutable files can be created once and
-then preserved.
+Ignored files stay out of projection. Mutable files are projected when missing
+and then preserved.
 
 Every mutable file that should exist for a fresh user needs a seed in
 `.harness`. For example, if `.claude/settings.json` should be present on first
 activation but then runtime-owned, place the initial file at the corresponding
-`.harness` resource or dir source path and add that target path under
-`[mutable]`. Do not mark a target file mutable without migrating its intended
-initial version.
+`.harness` resource or dir source path and add the matching source or target
+pattern to `.harnessMutable`. Do not mark a target file mutable without
+migrating its intended initial version.

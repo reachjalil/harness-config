@@ -3,6 +3,7 @@ import path from "node:path";
 
 import {
   HARNESS_IGNORE_FILE,
+  HARNESS_MUTABLE_FILE,
   HARNESS_PROFILE_FILE,
   HARNESS_PROFILE_ROOT_FILE,
   resolveHarnessPaths,
@@ -25,7 +26,10 @@ type SectionState = Pick<HarnessIgnoreRule, "kind" | "scope" | "target"> & {
   active: boolean;
 };
 
-type HarnessIgnoreFileEntry = {
+type HarnessRuleFileKind = "ignore" | "mutable";
+
+type HarnessRuleFileEntry = {
+  kind: HarnessRuleFileKind;
   path: string;
   matchBase: HarnessIgnoreMatchBase;
 };
@@ -41,8 +45,16 @@ type HarnessIgnoreDiscoveryOptions = {
 
 export function parseHarnessIgnore(raw: string): HarnessIgnoreRule[] {
   return parseHarnessIgnoreLines(raw, {
+    defaultKind: "ignore",
     isRoot: true,
     sourcePath: HARNESS_IGNORE_FILE,
+  }).rules;
+}
+
+export function parseHarnessMutable(raw: string): HarnessIgnoreRule[] {
+  return parseHarnessMutableFile(raw, {
+    isRoot: true,
+    sourcePath: HARNESS_MUTABLE_FILE,
   }).rules;
 }
 
@@ -53,12 +65,23 @@ export function parseHarnessIgnoreFile(
     sourcePath: string;
   }
 ): { rules: HarnessIgnoreRule[]; diagnostics: HarnessDiagnostic[] } {
-  return parseHarnessIgnoreLines(raw, options);
+  return parseHarnessIgnoreLines(raw, { ...options, defaultKind: "ignore" });
+}
+
+export function parseHarnessMutableFile(
+  raw: string,
+  options: {
+    isRoot: boolean;
+    sourcePath: string;
+  }
+): { rules: HarnessIgnoreRule[]; diagnostics: HarnessDiagnostic[] } {
+  return parseHarnessIgnoreLines(raw, { ...options, defaultKind: "mutable" });
 }
 
 function parseHarnessIgnoreLines(
   raw: string,
   options: {
+    defaultKind: HarnessIgnoreRuleKind;
     isRoot: boolean;
     sourcePath: string;
   }
@@ -67,7 +90,7 @@ function parseHarnessIgnoreLines(
   const diagnostics: HarnessDiagnostic[] = [];
   const lines = raw.split(/\r?\n/);
   let state: SectionState = {
-    kind: "ignore",
+    kind: options.defaultKind,
     scope: "all",
     target: undefined,
     active: true,
@@ -79,24 +102,45 @@ function parseHarnessIgnoreLines(
       continue;
     }
 
-    const section = parseScopeSection(line);
+    const section = parseScopeSection(line, options.defaultKind);
     if (section) {
       state = section;
       continue;
     }
     if (isSectionHeader(line)) {
+      const isMutableInIgnore =
+        options.defaultKind === "ignore" &&
+        /^\[mutable(?:\s+[^\]]+)?\]$/i.test(line);
+      const isIgnoreInMutable =
+        options.defaultKind === "mutable" &&
+        /^\[ignore(?:\s+[^\]]+)?\]$/i.test(line);
       diagnostics.push({
         severity: "error",
-        code: "harness.ignore_unsupported_scope",
-        message: `Unsupported .harnessIgnore section "${line}" at line ${
-          index + 1
-        }. Target-specific sections are no longer supported; place a nested .harnessIgnore in the source or target-output folder instead.`,
+        code: isMutableInIgnore
+          ? "harness.ignore_mutable_section_unsupported"
+          : isIgnoreInMutable
+            ? "harness.mutable_ignore_section_unsupported"
+            : "harness.ignore_unsupported_scope",
+        message: isMutableInIgnore
+          ? `Unsupported .harnessIgnore section "${line}" at line ${
+              index + 1
+            }. Mutable files are declared in .harnessMutable, not .harnessIgnore.`
+          : isIgnoreInMutable
+            ? `Unsupported .harnessMutable section "${line}" at line ${
+                index + 1
+              }. Ignore rules are declared in .harnessIgnore, not .harnessMutable.`
+            : `Unsupported ${options.sourcePath.endsWith(HARNESS_MUTABLE_FILE) ? ".harnessMutable" : ".harnessIgnore"} section "${line}" at line ${
+                index + 1
+              }. Target-specific sections are no longer supported; place a nested .harnessIgnore or .harnessMutable in the source folder instead.`,
         path: options.sourcePath,
-        recommendation:
-          "Move the following rules into a nested .harnessIgnore file in the folder they apply to.",
+        recommendation: isMutableInIgnore
+          ? "Move the following patterns into .harnessMutable and keep .harnessIgnore for projection exclusions only."
+          : isIgnoreInMutable
+            ? "Move the following patterns into .harnessIgnore and keep .harnessMutable for create-once runtime-owned seeds only."
+            : "Move the following rules into a nested declaration file in the folder they apply to.",
       });
       state = {
-        kind: "ignore",
+        kind: options.defaultKind,
         scope: "all",
         target: undefined,
         active: false,
@@ -137,6 +181,7 @@ function parseHarnessIgnoreLines(
 
 const SYNTHETIC_NESTED_DECLARATION_RULES: HarnessIgnoreRule[] = [
   HARNESS_IGNORE_FILE,
+  HARNESS_MUTABLE_FILE,
   HARNESS_PROFILE_FILE,
   HARNESS_PROFILE_ROOT_FILE,
 ].map((fileName) => ({
@@ -461,6 +506,7 @@ function applySyntheticDeclarationDecision(
 function isSyntheticDeclarationPath(normalizedPath: string): boolean {
   return [
     HARNESS_IGNORE_FILE,
+    HARNESS_MUTABLE_FILE,
     HARNESS_PROFILE_FILE,
     HARNESS_PROFILE_ROOT_FILE,
   ].some(
@@ -473,7 +519,12 @@ function syntheticDeclarationRuleForPath(
   normalizedPath: string
 ): HarnessIgnoreRule {
   const fileName =
-    [HARNESS_IGNORE_FILE, HARNESS_PROFILE_FILE, HARNESS_PROFILE_ROOT_FILE].find(
+    [
+      HARNESS_IGNORE_FILE,
+      HARNESS_MUTABLE_FILE,
+      HARNESS_PROFILE_FILE,
+      HARNESS_PROFILE_ROOT_FILE,
+    ].find(
       (candidate) =>
         normalizedPath === candidate || normalizedPath.endsWith(`/${candidate}`)
     ) ?? HARNESS_IGNORE_FILE;
@@ -558,7 +609,10 @@ function isSectionHeader(line: string): boolean {
   return /^\[[^\]]+\]$/.test(line);
 }
 
-function parseScopeSection(line: string): SectionState | undefined {
+function parseScopeSection(
+  line: string,
+  defaultKind: HarnessIgnoreRuleKind
+): SectionState | undefined {
   const match = line.match(
     /^\[(?<body>[a-z][a-z0-9_-]*|\*|global)(?:\s+(?<scope>\*|global))?\]$/i
   );
@@ -575,15 +629,19 @@ function parseScopeSection(line: string): SectionState | undefined {
   if (scope && scope !== "*" && scope !== "global") {
     return undefined;
   }
-  if (normalizedBody === "mutable") {
+  if (normalizedBody === "mutable" && defaultKind === "mutable") {
     return { kind: "mutable", scope: "all", target: undefined, active: true };
   }
-  if (
-    normalizedBody === "ignore" ||
-    normalizedBody === "*" ||
-    normalizedBody === "global"
-  ) {
+  if (normalizedBody === "ignore" && defaultKind === "ignore") {
     return { kind: "ignore", scope: "all", target: undefined, active: true };
+  }
+  if (normalizedBody === "*" || normalizedBody === "global") {
+    return {
+      kind: defaultKind,
+      scope: "all",
+      target: undefined,
+      active: true,
+    };
   }
   return undefined;
 }
@@ -631,17 +689,18 @@ export async function loadHarnessIgnoreRuleSets(
   protectedTargetPaths: string[];
 }> {
   const paths = resolveHarnessPaths(root, { config: options.config });
-  const ignoreFiles = await findHarnessIgnoreFileEntries(paths.root, options);
+  const ruleFiles = await findHarnessRuleFileEntries(paths.root, options);
   const rootIgnorePath = path.resolve(paths.ignorePath);
+  const rootMutablePath = path.resolve(paths.mutablePath);
   const diagnostics: HarnessDiagnostic[] = [];
   const ruleSets: Array<{ ruleSet: HarnessIgnoreRuleSet; index: number }> = [];
   const protectedTargetPaths: string[] = [
     ...(options.protectedTargetPaths ?? []),
   ];
 
-  for (const [index, ignoreEntry] of ignoreFiles.entries()) {
-    const ignorePath = ignoreEntry.path;
-    const raw = await readFile(ignorePath, "utf8").catch((error: unknown) => {
+  for (const [index, ruleEntry] of ruleFiles.entries()) {
+    const rulePath = ruleEntry.path;
+    const raw = await readFile(rulePath, "utf8").catch((error: unknown) => {
       if (
         error &&
         typeof error === "object" &&
@@ -657,13 +716,19 @@ export async function loadHarnessIgnoreRuleSets(
     }
 
     const sourcePath = normalizeIgnorePath(
-      toRepoRelative(paths.root, ignorePath)
+      toRepoRelative(paths.root, rulePath)
     );
-    const isRoot = path.resolve(ignorePath) === rootIgnorePath;
+    const resolvedRulePath = path.resolve(rulePath);
+    const isRoot =
+      resolvedRulePath === rootIgnorePath ||
+      resolvedRulePath === rootMutablePath;
     const directory = isRoot
       ? ""
       : normalizeIgnorePath(path.posix.dirname(sourcePath));
-    const parsed = parseHarnessIgnoreFile(raw, { isRoot, sourcePath });
+    const parsed =
+      ruleEntry.kind === "mutable"
+        ? parseHarnessMutableFile(raw, { isRoot, sourcePath })
+        : parseHarnessIgnoreFile(raw, { isRoot, sourcePath });
     diagnostics.push(...parsed.diagnostics);
 
     ruleSets.push({
@@ -673,12 +738,12 @@ export async function loadHarnessIgnoreRuleSets(
         directory,
         sourcePath,
         isRoot,
-        matchBase: isRoot ? "both" : ignoreEntry.matchBase,
+        matchBase: isRoot ? "both" : ruleEntry.matchBase,
       },
     });
 
     const targetOverrideDirectory =
-      !isRoot && ignoreEntry.matchBase === "source"
+      !isRoot && ruleEntry.matchBase === "source"
         ? paths.resourcesDirs
             .map((resourcesDir) =>
               targetDirectoryForResourceOverrideDirectory(
@@ -701,7 +766,7 @@ export async function loadHarnessIgnoreRuleSets(
       });
     }
 
-    if (ignoreEntry.matchBase === "target") {
+    if (ruleEntry.kind === "ignore" && ruleEntry.matchBase === "target") {
       protectedTargetPaths.push(sourcePath);
     }
   }
@@ -710,7 +775,7 @@ export async function loadHarnessIgnoreRuleSets(
     options.extraRuleSets ?? []
   ).entries()) {
     ruleSets.push({
-      index: ignoreFiles.length + extraIndex,
+      index: ruleFiles.length + extraIndex,
       ruleSet: extraRuleSet,
     });
     const targetOverrideDirectory = paths.resourcesDirs
@@ -723,7 +788,7 @@ export async function loadHarnessIgnoreRuleSets(
       .find(Boolean);
     if (extraRuleSet.matchBase !== "target" && targetOverrideDirectory) {
       ruleSets.push({
-        index: ignoreFiles.length + extraIndex,
+        index: ruleFiles.length + extraIndex,
         ruleSet: {
           ...extraRuleSet,
           directory: targetOverrideDirectory,
@@ -746,13 +811,14 @@ export async function loadHarnessIgnoreRuleSets(
   };
 }
 
-async function findHarnessIgnoreFileEntries(
+async function findHarnessRuleFileEntries(
   root: string,
   options: HarnessIgnoreDiscoveryOptions
-): Promise<HarnessIgnoreFileEntry[]> {
+): Promise<HarnessRuleFileEntry[]> {
   const paths = resolveHarnessPaths(root, { config: options.config });
-  const entries = new Map<string, HarnessIgnoreMatchBase>();
-  await addIgnoreFileIfPresent(entries, paths.ignorePath, "both");
+  const entries = new Map<string, HarnessRuleFileEntry>();
+  await addRuleFileIfPresent(entries, paths.ignorePath, "both", "ignore");
+  await addRuleFileIfPresent(entries, paths.mutablePath, "both", "mutable");
 
   const sourceRoots =
     options.sourceRoots ??
@@ -760,7 +826,10 @@ async function findHarnessIgnoreFileEntries(
       ? sourceRootsForConfig(root, options.config)
       : [paths.harnessDir]);
   for (const sourceRoot of sourceRoots) {
-    await addNestedIgnoreFiles(entries, sourceRoot, "source");
+    await addNestedRuleFiles(entries, sourceRoot, "source", [
+      "ignore",
+      "mutable",
+    ]);
   }
 
   const targetRoots = [
@@ -772,16 +841,16 @@ async function findHarnessIgnoreFileEntries(
       : []),
   ];
   for (const targetRoot of targetRoots) {
-    await addNestedIgnoreFiles(entries, targetRoot, "target");
+    await addNestedRuleFiles(entries, targetRoot, "target", ["ignore"]);
   }
 
   for (const outputPath of options.targetOutputPaths ?? []) {
     await addOutputAncestorIgnoreFiles(entries, root, outputPath);
   }
 
-  return [...entries.entries()]
-    .map(([ignorePath, matchBase]) => ({ path: ignorePath, matchBase }))
-    .sort((left, right) => left.path.localeCompare(right.path));
+  return [...entries.values()].sort((left, right) =>
+    left.path.localeCompare(right.path)
+  );
 }
 
 function sourceRootsForConfig(root: string, config: HarnessConfig): string[] {
@@ -824,10 +893,11 @@ function targetDirectoryForResourceOverrideDirectory(
   ].join("/");
 }
 
-async function addNestedIgnoreFiles(
-  entries: Map<string, HarnessIgnoreMatchBase>,
+async function addNestedRuleFiles(
+  entries: Map<string, HarnessRuleFileEntry>,
   rootPath: string,
-  matchBase: HarnessIgnoreMatchBase
+  matchBase: HarnessIgnoreMatchBase,
+  kinds: HarnessRuleFileKind[]
 ): Promise<void> {
   const rootState = await lstat(rootPath).catch(() => undefined);
   if (!rootState?.isDirectory() || rootState.isSymbolicLink()) {
@@ -850,8 +920,16 @@ async function addNestedIgnoreFiles(
         await visit(absolutePath);
         continue;
       }
-      if (child.name === HARNESS_IGNORE_FILE && child.isFile()) {
-        entries.set(path.resolve(absolutePath), matchBase);
+      if (
+        child.isFile() &&
+        ((child.name === HARNESS_IGNORE_FILE && kinds.includes("ignore")) ||
+          (child.name === HARNESS_MUTABLE_FILE && kinds.includes("mutable")))
+      ) {
+        entries.set(path.resolve(absolutePath), {
+          kind: child.name === HARNESS_MUTABLE_FILE ? "mutable" : "ignore",
+          path: path.resolve(absolutePath),
+          matchBase,
+        });
       }
     }
   }
@@ -869,7 +947,7 @@ async function hasHarnessProfileRootMarker(
 }
 
 async function addOutputAncestorIgnoreFiles(
-  entries: Map<string, HarnessIgnoreMatchBase>,
+  entries: Map<string, HarnessRuleFileEntry>,
   root: string,
   outputPath: string
 ): Promise<void> {
@@ -891,13 +969,26 @@ async function addOutputAncestorIgnoreFiles(
 }
 
 async function addIgnoreFileIfPresent(
-  entries: Map<string, HarnessIgnoreMatchBase>,
+  entries: Map<string, HarnessRuleFileEntry>,
   ignorePath: string,
   matchBase: HarnessIgnoreMatchBase
 ): Promise<void> {
-  const state = await lstat(ignorePath).catch(() => undefined);
+  await addRuleFileIfPresent(entries, ignorePath, matchBase, "ignore");
+}
+
+async function addRuleFileIfPresent(
+  entries: Map<string, HarnessRuleFileEntry>,
+  rulePath: string,
+  matchBase: HarnessIgnoreMatchBase,
+  kind: HarnessRuleFileKind
+): Promise<void> {
+  const state = await lstat(rulePath).catch(() => undefined);
   if (state?.isFile()) {
-    entries.set(path.resolve(ignorePath), matchBase);
+    entries.set(path.resolve(rulePath), {
+      kind,
+      path: path.resolve(rulePath),
+      matchBase,
+    });
   }
 }
 
@@ -1049,7 +1140,6 @@ export function createDefaultHarnessIgnore(): string {
   return [
     "# Files matched here are ignored when projecting .harness resources into live harness surfaces.",
     "# Patterns are repo-relative and use gitignore-style * and ** wildcards.",
-    "# Use [mutable] to mark files the runtime owns after first projection (e.g. .harness/**/settings.local.json).",
     "# Nested .harnessIgnore files inside .harness/ apply to their directory and descendants.",
     "# Place target-specific rules in a nested target-output .harnessIgnore file,",
     "# such as .claude/skills/<name>/.harnessIgnore.",
@@ -1058,4 +1148,15 @@ export function createDefaultHarnessIgnore(): string {
   ].join("\n");
 }
 
-export { HARNESS_IGNORE_FILE };
+export function createDefaultHarnessMutable(): string {
+  return [
+    "# Files matched here are mutable: Harness seeds them when missing, then the runtime owns them.",
+    "# Mutable is different from ignore. Source files still project when the target file is absent.",
+    "# Patterns are repo-relative and use gitignore-style * and ** wildcards.",
+    "# Nested .harnessMutable files inside .harness/ apply to their directory and descendants.",
+    "# Example: .harness/**/settings.local.json",
+    "",
+  ].join("\n");
+}
+
+export { HARNESS_IGNORE_FILE, HARNESS_MUTABLE_FILE };

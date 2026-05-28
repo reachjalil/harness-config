@@ -5,6 +5,7 @@ import { loadHarnessIgnoreMatcherDetailed } from "./ignore";
 import {
   assertRepoLocalPath,
   HARNESS_IGNORE_FILE,
+  HARNESS_MUTABLE_FILE,
   HARNESS_PROFILE_FILE,
   HARNESS_PROFILE_ROOT_FILE,
   resolveHarnessPaths,
@@ -892,6 +893,7 @@ function isCandidateDeclarationFile(name: string): boolean {
   return (
     name === HARNESS_COMPOSABLE_MARKER ||
     name === HARNESS_IGNORE_FILE ||
+    name === HARNESS_MUTABLE_FILE ||
     name === HARNESS_PROFILE_FILE ||
     name === HARNESS_PROFILE_ROOT_FILE
   );

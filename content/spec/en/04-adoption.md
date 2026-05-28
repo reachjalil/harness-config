@@ -34,10 +34,10 @@ Harness config v1 starts from a small source contract:
    `.harness/resources/skills`, `.harness/resources/rules`, or
    `.harness/resources/hooks.json`.
 3. Declare every projection target explicitly in the selected manifest.
-4. Use `.harnessIgnore` to keep source-only files out of live targets and
-   mark runtime-owned files with `[mutable]`. A mutable file should usually
-   be a source template for local target state, not durable shared
-   configuration.
+4. Use `.harnessIgnore` to keep source-only files out of live targets, and
+   use `.harnessMutable` for runtime-owned files that should be seeded once.
+   A mutable file should usually be a source template for local target state,
+   not durable shared configuration.
 5. Dry-run activation before writing target folders.
 
 For a small first setup, show both the selected manifest and the source tree:
@@ -55,6 +55,7 @@ path = "./.agents"
 ```text
 AGENTS.md                         # tracked bootstrap/root instructions
 .harnessIgnore
+.harnessMutable
 .harness/
   harness.toml
   resources/
@@ -70,18 +71,18 @@ tracked files when they are simple and already coherent. Move them into
 `[[dir]]` only when generation, composition, profiles, or local overlays make
 the repository easier to understand.
 
-`npx harnessc` is the standard implementation for this workflow:
+`harnessc` is the standard implementation for this workflow:
 
 ```bash
-npx harnessc init
-npx harnessc init --yes --resource skills --target ./runtime/agent
-npx harnessc validate
-npx harnessc explain .agents/skills/review/SKILL.md
-npx harnessc activate
-npx harnessc activate --yes
+harnessc init
+harnessc init --yes --resource skills --target ./runtime/agent
+harnessc validate
+harnessc explain .agents/skills/review/SKILL.md
+harnessc activate
+harnessc activate --yes
 ```
 
-## Migrating An Existing Repository
+## Migrating an existing repository
 
 A repository that already has harness surfaces such as `.claude/` or
 `.cursor/` adopts Harness config incrementally. The shape of the migration
@@ -140,13 +141,14 @@ Recommended sequence:
    each harness surface you want regenerated. A target only receives projections
    when it appears here. Declare every shared source with an explicit
    `[[resources]]` entry.
-4. **Write `.harnessIgnore` for source-only and runtime-owned artifacts.**
+4. **Write `.harnessIgnore` and `.harnessMutable` deliberately.**
    Logs, scratch files, per-tool metadata, and skill `metadata.toml`
    typically belong under ignore rules because they should not cross the
    projection boundary. Files the runtime writes back (permissions, local
-   settings, learned commands) belong under `[mutable]` because the source
+   settings, learned commands) belong in `.harnessMutable` when the source
    catalog should seed them once and the target runtime should own them after
-   that.
+   that. Copy those seed files into `.harness` before declaring them mutable,
+   so fresh checkouts receive an initial version.
    Repository-wide rules usually live in `./.harnessIgnore`; resource- or
    dir-specific rules can live in source-local `.harnessIgnore` files, and
    user/local output preferences can live in target-output files such as
@@ -163,9 +165,9 @@ Recommended sequence:
    parts for that profile and are evaluated at the profile overlay location.
    Use profiles as switchable modes across resource groups first, and as file
    overlays only when they genuinely add or replace content.
-6. **Dry run, explain, review, then apply.** `npx harnessc activate` prints
-   the plan without writing. Use `npx harnessc explain <path>` for a specific
-   source or output that needs inspection, then review `create` / `update` /
+6. **Dry run, explain, review, then apply.** `harnessc activate` prints the
+   plan without writing. Use `harnessc explain <path>` for a specific source
+   or output that needs inspection, then review `create` / `update` /
    `remove` actions against the snapshot and re-run with `--yes`.
 7. **Re-run activation.** A second dry run on unchanged inputs should
    converge to `keep` for managed files and `mutable` for runtime-owned
@@ -177,8 +179,8 @@ regenerated from the configured source roots plus the manifest at any time.
 Teams may also gitignore those live harness surfaces when they want more room
 for local experiments, runtime state, or tool-specific scratch files. The
 tradeoff is deliberate: review happens in `.harness` and the selected manifest,
-managed target files stay reproducible, and `[mutable]` target files keep
-runtime-owned state out of the canonical source tree.
+managed target files stay reproducible, and `.harnessMutable` target files
+keep runtime-owned state out of the canonical source tree.
 
 ## Common Pitfalls
 
@@ -199,16 +201,18 @@ runtime-owned state out of the canonical source tree.
   hammer; if a target needs a very different version of a skill, prefer a
   separate resource item over a deep override tree.
 - **Committing runtime-written files as if they were source.** Files like
-  `.claude/settings.local.json` should typically be declared under
-  `[mutable]` so projection seeds them once and then leaves them alone. If the
-  file later becomes shared policy, promote the desired bytes back into the
-  configured source root and force mutable re-projection deliberately.
+  `.claude/settings.local.json` should typically be copied into `.harness` as
+  a seed and declared in `.harnessMutable` so projection seeds them once and
+  then leaves them alone. If the file later becomes shared policy, promote the
+  desired bytes back into the configured source root and force mutable
+  re-projection deliberately.
 - **Expecting a target-output ignore file before it exists.** A
   target-output `.harnessIgnore` only participates after it is already on
   disk. Use the repo-root file for rules that must apply on first activation.
 - **Projecting Harness config controls as payload.** Declaration files such as
-  `.harnessIgnore`, `.harnessProfile`, and `.harnessProfileRoot` are read as
-  controls and are not copied into targets as managed files.
+  `.harnessIgnore`, `.harnessMutable`, `.harnessProfile`, and
+  `.harnessProfileRoot` are read as controls and are not copied into targets
+  as managed files.
 - **Symlinking targets.** Harness config v1 does not follow symlinks. If a
   symlink occupies a path activation needs to write, activation reports a
   conflict by default. Replace the link manually, set

@@ -185,12 +185,11 @@ and its descendant re-include names only the Vite worker skill.
 
 ## Runtime-Owned Mutable Files
 
-Use `[mutable]` when the repository should seed a file once and the runtime
-should own it afterward.
+Use `.harnessMutable` when the repository should seed a file once and the
+runtime should own it afterward.
 
 ```text
-.harnessIgnore
-[mutable]
+.harnessMutable
 .harness/resources/**/settings.local.json
 ```
 
@@ -207,8 +206,8 @@ local settings, learned commands, and other state that must be visible in the
 plan without becoming canonical source.
 
 Use ignore rules for files that should never cross the projection boundary.
-Use `[mutable]` for files that should cross once as a template and then belong
-to the live harness surface.
+Use `.harnessMutable` for files that should cross once as a template and then
+belong to the live harness surface.
 
 ## Composable Instructions
 
@@ -478,7 +477,7 @@ Keep the source and target roles separate:
   matters more than committing generated output.
 - Keep runtime or product state out of `.harness/`; put product caches and activation records in product-owned folders and ignore them.
 - Use target-derived overrides for exact file differences. If a target needs a very different skill, prefer a separate resource item over a deep override tree.
-- Declare runtime-owned files under `[mutable]` so projection seeds them once and then leaves them alone.
+- Declare runtime-owned files in `.harnessMutable` so projection seeds them once and then leaves them alone.
 - Do not rely on source or target symlinks being followed. Treat them as leaf entries and review any replace or remove action before activation.
 
 These recommendations keep activation one-way: configured source roots produce
@@ -489,7 +488,7 @@ target outputs, and live harness surfaces never become the next source of truth.
 Before running cleanup with `--remove-unmanaged`, check the plan:
 
 - Managed files should be `keep`, `create`, or `update`.
-- Runtime-owned files declared under `[mutable]` should be `mutable` after the
+- Runtime-owned files declared in `.harnessMutable` should be `mutable` after the
   first activation.
 - Unmanaged files should be removed only when the plan explicitly shows
   `remove`.

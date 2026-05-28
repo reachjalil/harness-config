@@ -51,6 +51,10 @@ describe("HarnessConfig initialization", () => {
       "utf8"
     );
     const rawIgnore = await readFile(path.join(root, ".harnessIgnore"), "utf8");
+    const rawMutable = await readFile(
+      path.join(root, ".harnessMutable"),
+      "utf8"
+    );
     const validation = await validateHarnessConfig(root);
 
     expect(rawConfig).toContain("version = 1");
@@ -58,8 +62,10 @@ describe("HarnessConfig initialization", () => {
     expect(rawConfig).toContain('path = "./.harness/resources"');
     expect(rawConfig).toContain('path = "./.agents"');
     expect(rawIgnore).toContain("projecting .harness resources");
+    expect(rawMutable).toContain("Mutable is different from ignore");
     expect(validation.hasHarnessDir).toBe(true);
     expect(validation.hasHarnessIgnore).toBe(true);
+    expect(validation.hasHarnessMutable).toBe(true);
   });
 
   it("creates only the conventional resource folders for fresh init", async () => {

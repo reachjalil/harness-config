@@ -11,7 +11,7 @@ projects the reviewed catalog view into those surfaces as ordinary files.
 
 The important split is ownership, not only storage. Durable source files are
 repo-owned and reviewable. Live target files are generated outputs. A file
-declared under `[mutable]` is seeded from source once, then treated as
+declared in `.harnessMutable` is seeded from source once, then treated as
 runtime-owned state so a harness can safely write local settings without
 turning those writes into canonical source.
 
@@ -65,8 +65,10 @@ object model:
 - Profile overlay: optional source content selected by `.harnessProfile` and
   declared with `.harnessProfileRoot`, merged by logical source path without
   making the profile folder a normal projected item.
-- Projection boundary: `.harnessIgnore`, including repo-root, source-local,
-  profile-local, target-output-local, and `[mutable]` rules.
+- Projection boundaries: `.harnessIgnore` for exclusions and
+  `.harnessMutable` for seed-only runtime ownership, including repo-root,
+  source-local, profile-local, and target-output-local ignore rules where
+  applicable.
 - Runtime-owned mutable file: a projected target file that starts from a
   repo-owned source template, then becomes local runtime state after first
   activation.
@@ -95,7 +97,7 @@ object model:
 
 Behavior that changes the base projection plan is part of the core standard:
 resources, declared targets, target-derived overrides, profile overlays,
-`.harnessIgnore`, `[mutable]`, cleanup, and dir composition/copy. These
+`.harnessIgnore`, `.harnessMutable`, cleanup, and dir composition/copy. These
 features interact directly with idempotency, unmanaged cleanup, and target
 preservation, so they need one shared contract.
 
@@ -131,10 +133,9 @@ bytes changed:
 
 - Managed files are compared directly with the current projection. If target
   bytes differ, activation can report `update`.
-- Mutable files are explicitly declared in `.harnessIgnore` under a `[mutable]`
-  scope. The runtime owns them after the first projection. Projection creates
-  them once and then leaves them alone, even when their bytes still match the
-  source template.
+- Mutable files are explicitly declared in `.harnessMutable`. The runtime owns
+  them after the first projection. Projection creates them once and then
+  leaves them alone, even when their bytes still match the source template.
 
 This is different from ignoring a file. Ignored files do not cross the
 projection boundary. Mutable files do cross it: the source catalog provides the
@@ -160,11 +161,12 @@ Harness config draws on patterns that work in widely deployed systems. It is
 not a generalization of any one of them; it borrows the parts that fit a
 repo-local source-to-runtime projection problem and leaves the rest.
 
-- **`.gitignore`-style pattern files** inspire `.harnessIgnore`'s syntax and
-  ordered, last-match-wins precedence. Differences: `.harnessIgnore` adds
-  source-local and target-output-local files plus a `[mutable]` kind, because
-  projection has more dimensions than "tracked vs. untracked": a file can be
-  seeded from source while remaining runtime-owned after activation.
+- **`.gitignore`-style pattern files** inspire `.harnessIgnore` and
+  `.harnessMutable` syntax and ordered, last-match-wins precedence.
+  Differences: `.harnessIgnore` excludes files, while `.harnessMutable`
+  declares create-once seed files because projection has more dimensions than
+  "tracked vs. untracked": a file can be seeded from source while remaining
+  runtime-owned after activation.
 - **Helm / Kustomize overlays** (Kubernetes) inspire the idea of a base
   source tree composed with per-target overrides. Harness config keeps the
   overlay scope narrower: a dot-prefixed folder *inside the resource item*

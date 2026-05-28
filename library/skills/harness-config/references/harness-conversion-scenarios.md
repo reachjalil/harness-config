@@ -57,7 +57,7 @@ Map these layers into Harness config:
   `.harness/resources/.claude/...` or
   `.harness/resources/skills/review/.claude/SKILL.md`.
 - Keep local runtime state outside `.harness`, or seed it once through
-  `[mutable]` rules.
+  `.harnessMutable` rules.
 - Declare each live harness surface explicitly in `.harness/harness.toml`.
 
 ## Target Mapping
@@ -381,8 +381,8 @@ Rules:
 - Do not project hook trust decisions, secrets, or local allowlists unless the
   user explicitly wants managed policy.
 
-Use `[mutable]` for target-local hook state or logs if a seed file must be
-created once.
+Use `.harnessMutable` for target-local hook state or logs if a seed file must
+be created once.
 
 ## Scenario: MCP Servers
 
@@ -486,7 +486,7 @@ Before running or projecting active harness behavior, review trust boundaries:
   as runtime state unless the user explicitly wants managed policy.
 - Keep shared scripts small, readable, and time-bounded.
 - Prefer dry-run activation before writing outputs.
-- Use `[mutable]` for files that should be seeded once and then left
+- Use `.harnessMutable` for files that should be seeded once and then left
   runtime-owned.
 - Preserve existing live outputs until `npx harnessc activate` explains the
   planned creates, updates, mutable entries, and preserves.
@@ -509,7 +509,7 @@ Before applying activation:
 - [ ] Harness-specific differences are encoded as target-derived overrides.
 - [ ] Runtime state, secrets, caches, logs, and machine-local settings are not
       in `.harness`.
-- [ ] `[mutable]` covers files that should be seeded once and then runtime-owned.
+- [ ] `.harnessMutable` covers files that should be seeded once and then runtime-owned.
 - [ ] Plugin and extension manifests stay in their harness-specific wrapper
       paths.
 - [ ] Hook scripts are shared only when their stdin/stdout contracts are valid

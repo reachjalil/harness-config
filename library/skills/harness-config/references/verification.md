@@ -27,10 +27,10 @@ Expected result:
 
 - Declared targets receive only the intended files.
 - A second dry run converges to `keep` for managed files.
-- Runtime-owned files declared under `[mutable]` are reported as `mutable` and
+- Runtime-owned files declared in `.harnessMutable` are reported as `mutable` and
   are not overwritten.
 - Mutable files that should exist for fresh users have an initial seed under
-  `.harness`; `[mutable]` is not just an ignore rule.
+  `.harness`; `.harnessMutable` is not an ignore rule.
 - Target symlink conflicts are resolved manually or by explicit
   `[activation].targetSymlinks = "replace"` / `--replace-target-symlinks`
   policy before apply.

@@ -61,7 +61,8 @@ winning rule.
 - Target symlinks that occupy projected paths are conflicts unless replacement
   is explicitly selected.
 - Managed target files update from the current source projection.
-- `[mutable]` files are created once, then left to the runtime.
+- Files declared in `.harnessMutable` are created once, then left to the
+  runtime.
 - Unmanaged target files are preserved unless cleanup is explicit.
 - Target-output `.harnessIgnore` and `.harnessProfile` files are protected
   local controls.

@@ -2695,11 +2695,7 @@ describe("HarnessConfig activation projection", () => {
   it("creates mutable files on first activation and skips them afterwards", async () => {
     const root = await rootFixture();
     await writeHarnessConfig(root);
-    await write(
-      root,
-      ".harnessIgnore",
-      "[mutable]\n.harness/**/settings.local.json\n"
-    );
+    await write(root, ".harnessMutable", ".harness/**/settings.local.json\n");
     await write(
       root,
       ".harness/resources/skills/review/settings.local.json",
@@ -2741,14 +2737,54 @@ describe("HarnessConfig activation projection", () => {
     ).resolves.toBe('{"allow":["bash"]}');
   });
 
-  it("reports existing mutable files as mutable even when bytes still match", async () => {
+  it("uses nested .harnessMutable without projecting declaration files", async () => {
     const root = await rootFixture();
     await writeHarnessConfig(root);
     await write(
       root,
-      ".harnessIgnore",
-      "[mutable]\n.harness/**/settings.local.json\n"
+      ".harness/resources/skills/review/.harnessMutable",
+      "settings.local.json\n"
     );
+    await write(
+      root,
+      ".harness/resources/skills/review/settings.local.json",
+      '{"allow":[]}'
+    );
+
+    await applyHarnessActivation(root, { dryRun: false, yes: true });
+
+    await expect(
+      readFile(
+        path.join(root, ".agents/skills/review/settings.local.json"),
+        "utf8"
+      )
+    ).resolves.toBe('{"allow":[]}');
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/.harnessMutable"), "utf8")
+    ).rejects.toThrow();
+
+    await writeFile(
+      path.join(root, ".agents/skills/review/settings.local.json"),
+      '{"allow":["runtime"]}',
+      "utf8"
+    );
+    const plan = await planHarnessActivation(root);
+    expect(
+      plan.targets[0]?.actions.find(
+        (action) => action.relativePath === "skills/review/settings.local.json"
+      )
+    ).toEqual(
+      expect.objectContaining({
+        kind: "mutable",
+        relativePath: "skills/review/settings.local.json",
+      })
+    );
+  });
+
+  it("reports existing mutable files as mutable even when bytes still match", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root);
+    await write(root, ".harnessMutable", ".harness/**/settings.local.json\n");
     await write(
       root,
       ".harness/resources/skills/review/settings.local.json",
@@ -2773,11 +2809,7 @@ describe("HarnessConfig activation projection", () => {
   it("--force-mutable re-projects mutable files from source", async () => {
     const root = await rootFixture();
     await writeHarnessConfig(root);
-    await write(
-      root,
-      ".harnessIgnore",
-      "[mutable]\n.harness/**/settings.local.json\n"
-    );
+    await write(root, ".harnessMutable", ".harness/**/settings.local.json\n");
     await write(
       root,
       ".harness/resources/skills/review/settings.local.json",
@@ -2823,15 +2855,9 @@ describe("HarnessConfig activation projection", () => {
     await write(
       root,
       ".harnessIgnore",
-      [
-        "[mutable]",
-        ".harness/**/settings.local.json",
-        "",
-        "[*]",
-        ".harness/**/settings.local.json",
-        "",
-      ].join("\n")
+      [".harness/**/settings.local.json", ""].join("\n")
     );
+    await write(root, ".harnessMutable", ".harness/**/settings.local.json\n");
     await write(
       root,
       ".harness/resources/skills/review/SKILL.md",

@@ -26,7 +26,7 @@ updated: 2026-05-27
 1. 创建 `./.harness/harness.toml`，写入 `version = 1`。
 2. 在 `.harness/resources` 或配置的资源源下添加资源。
 3. 在 manifest 中显式声明每个目标。
-4. 用 `.harnessIgnore` 排除只属于源的产物，用 `[mutable]` 标记 runtime 拥有的文件。
+4. 用 `.harnessIgnore` 排除只属于源的产物，用 `.harnessMutable` 标记 runtime 拥有的文件。
 5. 写入前先 dry-run。
 
 ```bash

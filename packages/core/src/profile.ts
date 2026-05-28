@@ -1,10 +1,15 @@
 import { lstat, readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
-import { normalizeIgnorePath, parseHarnessIgnoreFile } from "./ignore";
+import {
+  normalizeIgnorePath,
+  parseHarnessIgnoreFile,
+  parseHarnessMutableFile,
+} from "./ignore";
 import {
   detectImplicitOverrideTarget,
   HARNESS_IGNORE_FILE,
+  HARNESS_MUTABLE_FILE,
   HARNESS_PROFILE_FILE,
   HARNESS_PROFILE_ROOT_FILE,
   resolveHarnessPaths,
@@ -409,26 +414,39 @@ async function loadProfileIgnoreRuleSets(
   }).resourcesDirs.map((resourcesDir) => toRepoRelative(root, resourcesDir));
 
   for (const profileRoot of profileRoots) {
-    const ignoreFiles = await findNestedIgnoreFiles(profileRoot.rootDir);
-    for (const ignorePath of ignoreFiles) {
-      const raw = await readFile(ignorePath, "utf8").catch(() => undefined);
+    const ruleFiles = [
+      ...(
+        await findNestedRuleFiles(profileRoot.rootDir, HARNESS_IGNORE_FILE)
+      ).map((rulePath) => ({ kind: "ignore" as const, path: rulePath })),
+      ...(
+        await findNestedRuleFiles(profileRoot.rootDir, HARNESS_MUTABLE_FILE)
+      ).map((rulePath) => ({ kind: "mutable" as const, path: rulePath })),
+    ].toSorted((left, right) => left.path.localeCompare(right.path));
+    for (const ruleFile of ruleFiles) {
+      const raw = await readFile(ruleFile.path, "utf8").catch(() => undefined);
       if (raw === undefined) {
         continue;
       }
       const physicalSourcePath = normalizeIgnorePath(
-        toRepoRelative(root, ignorePath)
+        toRepoRelative(root, ruleFile.path)
       );
       const logicalIgnorePath = logicalPathForProfilePath(
         profileRoot,
-        ignorePath
+        ruleFile.path
       );
       const logicalSourcePath = normalizeIgnorePath(
         toRepoRelative(root, logicalIgnorePath)
       );
-      const parsed = parseHarnessIgnoreFile(raw, {
-        isRoot: false,
-        sourcePath: physicalSourcePath,
-      });
+      const parsed =
+        ruleFile.kind === "mutable"
+          ? parseHarnessMutableFile(raw, {
+              isRoot: false,
+              sourcePath: physicalSourcePath,
+            })
+          : parseHarnessIgnoreFile(raw, {
+              isRoot: false,
+              sourcePath: physicalSourcePath,
+            });
       diagnostics.push(...parsed.diagnostics);
       ruleSets.push({
         rules: parsed.rules,
@@ -451,7 +469,10 @@ async function loadProfileIgnoreRuleSets(
   return { diagnostics, ruleSets };
 }
 
-async function findNestedIgnoreFiles(rootPath: string): Promise<string[]> {
+async function findNestedRuleFiles(
+  rootPath: string,
+  fileName: string
+): Promise<string[]> {
   const rootState = await lstat(rootPath).catch(() => undefined);
   if (!rootState?.isDirectory() || rootState.isSymbolicLink()) {
     return [];
@@ -468,7 +489,7 @@ async function findNestedIgnoreFiles(rootPath: string): Promise<string[]> {
         await visit(absolutePath);
         continue;
       }
-      if (child.isFile() && child.name === HARNESS_IGNORE_FILE) {
+      if (child.isFile() && child.name === fileName) {
         files.push(path.resolve(absolutePath));
       }
     }

@@ -19,6 +19,7 @@ import { loadHarnessIgnoreMatcherDetailed } from "./ignore";
 import {
   assertRepoLocalPath,
   HARNESS_IGNORE_FILE,
+  HARNESS_MUTABLE_FILE,
   HARNESS_PROFILE_FILE,
   HARNESS_PROFILE_ROOT_FILE,
   resolveHarnessPaths,
@@ -365,6 +366,7 @@ function isComposableDeclarationFile(fileName: string): boolean {
     fileName === HARNESS_COMPOSABLE_MARKER ||
     fileName === HARNESS_COMPOSABLE_REF_FILE ||
     fileName === HARNESS_IGNORE_FILE ||
+    fileName === HARNESS_MUTABLE_FILE ||
     fileName === HARNESS_PROFILE_FILE ||
     fileName === HARNESS_PROFILE_ROOT_FILE
   );

@@ -77,15 +77,18 @@ Keep shared content canonical. Add an override only for target-specific bytes.
 
 ## Ignores And Mutable Files
 
-Use root `.harnessIgnore` for migration boundaries:
+Use root `.harnessIgnore` for projection exclusions:
 
 ```gitignore
 **/.DS_Store
 **/node_modules/
 **/logs/
 **/settings.local.json
+```
 
-[mutable]
+Use `.harnessMutable` for create-once runtime-owned seeds:
+
+```gitignore
 **/settings.local.json
 ```
 
@@ -96,8 +99,9 @@ the user wants all of them treated as runtime-owned.
 Mutable files are seeded once from `.harness`, then owned by the runtime. If a
 file such as `.claude/settings.json` or `.agents/settings.local.json` should
 exist for a fresh user, copy its initial version into the matching `.harness`
-resource or dir source and add the target path under `[mutable]`. Do not mark a
-file mutable without preserving an intended seed in `.harness`.
+resource or dir source and add the matching source or target pattern to
+`.harnessMutable`. Do not mark a file mutable without preserving an intended
+seed in `.harness`.
 
 Use target-output `.harnessIgnore` only when one runtime must filter a file
 that other targets should still receive.

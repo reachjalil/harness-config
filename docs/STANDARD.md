@@ -25,12 +25,14 @@ repo-local TOML file when that path is explicitly selected. Durable resources
 live under ordered `[[resources]]` source roots. Repo-relative one-off outputs
 live under ordered `[[dir]]` source roots. The `./.harness` directory is
 therefore a convention for source storage, not the required location of the
-manifest. Projection is filtered through
-`.harnessIgnore` rule files. The repo-root `./.harnessIgnore` sets
-repository-wide boundaries, while local `.harnessIgnore` files may sit beside
-source or target-output subtrees. Every target-output folder that receives a
-projection is explicit; there are no implicit targets and no reserved target
-folder names.
+manifest. Projection is filtered through `.harnessIgnore` rule files, while
+seed-only runtime-owned files are declared separately in `.harnessMutable`
+rule files. The repo-root `./.harnessIgnore` sets repository-wide exclusion
+boundaries, and the repo-root `./.harnessMutable` sets repository-wide mutable
+seed boundaries. Local files may sit beside source subtrees. Target-output
+`.harnessIgnore` files may sit in live output subtrees as local output
+filters. Every target-output folder that receives a projection is explicit;
+there are no implicit targets and no reserved target folder names.
 
 Core resource projection intentionally does not define an enable/disable
 registry or a selection format. Activation is an emergent property of
@@ -102,12 +104,13 @@ authoritative.
   repo-relative output file. Without the marker, resource directories remain normal
   resource folders and dir directories are treated as copy folders.
 - **Projection** — the computed mapping from `(source root, manifest,
-  configured sources, overrides, ignore rules)` to a per-target file tree.
+  configured sources, overrides, ignore rules, mutable rules)` to a per-target
+  file tree.
 - **Activation** — the act of materializing a projection into one or more
   target folders on disk.
-- **Mutable file** — a projected target file declared with a `[mutable]` rule
-  in `.harnessIgnore`; source provides the initial template, and the runtime
-  owns the target bytes after first projection.
+- **Mutable file** — a projected target file declared by `.harnessMutable`;
+  source provides the initial template, and the runtime owns the target bytes
+  after first projection.
 - **Conforming repository / tool** — see [Conformance](./CONFORMANCE.md).
 
 ## Versioning
@@ -137,7 +140,9 @@ Version `1` standardizes:
 - dir composition (`.harnessComposable` leaves) and copy contract
   for files that project to repo-relative paths,
 - `.harnessIgnore` projection ignore files, including repo-root rules,
-  source-local rules, target-output-local rules, and `[mutable]` sections.
+  source-local rules, and target-output-local rules.
+- `.harnessMutable` projection mutable files, including repo-root rules,
+  source-local rules, and profile-local rules.
 
 Within v1, this document MAY receive editorial clarifications and
 backward-compatible normative refinements (for example, optional fields with
@@ -157,8 +162,9 @@ Harness config standardizes:
   leaves and copy-mode directories that project to repo-relative paths,
 - top-level extension declarations (discovery and activation policy only),
 - copy projection from configured resources sources to declared targets,
-- `.harnessIgnore` as the single projection filter, including target-output
-  exclusions and mutable-file rules.
+- `.harnessIgnore` as the projection exclusion filter, including
+  target-output exclusions.
+- `.harnessMutable` as the projection mutable-file filter.
 
 Declared targets are live harness surfaces, not source repositories. A
 repository MAY commit generated target outputs, gitignore them, or mix committed
@@ -167,9 +173,10 @@ in the selected manifest and configured source roots. This lets teams
 experiment in `.agents`, `.claude`, `.cursor`, or another surface without
 promoting runtime edits back into the canonical source layout.
 
-The `[mutable]` model is the file-level version of that boundary. It lets a
-repository publish an initial, reviewable template for target-local settings or
-state while keeping subsequent runtime edits out of the canonical source tree.
+The `.harnessMutable` model is the file-level version of that boundary. It
+lets a repository publish an initial, reviewable template for target-local
+settings or state while keeping subsequent runtime edits out of the canonical
+source tree.
 
 ### Out of Scope
 
@@ -425,8 +432,9 @@ extension explicitly defines its own.
 - **Hidden files.** Names beginning with `.` are not implicitly ignored.
   They participate in projection like any other file unless excluded by
   `.harnessIgnore`. This does not make Harness config declaration files target
-  payloads: `.harnessIgnore`, `.harnessProfile`, and `.harnessProfileRoot`
-  are boundary controls and MUST NOT be projected into targets.
+  payloads: `.harnessIgnore`, `.harnessMutable`, `.harnessProfile`, and
+  `.harnessProfileRoot` are boundary controls and MUST NOT be projected into
+  targets.
 
 ## Routing Resources To Targets
 
@@ -451,6 +459,8 @@ This is the v1 boundary:
 - the selected manifest declares targets.
 - configured resources sources carry the target resource tree.
 - `.harnessIgnore` filters source files and target output subtrees.
+- `.harnessMutable` marks source files that should seed target files once and
+  then become runtime-owned.
 
 Tools SHOULD NOT introduce per-target resource mappings in the selected
 manifest for v1. Keeping target declarations path-only and source roots
@@ -466,13 +476,14 @@ targets. The inputs are:
    configured resources sources, including their override folders,
 2. the selected versioned manifest,
 3. the repo-root `.harnessIgnore`,
-4. the cleanup policy (preserve unmanaged entries vs. remove them),
-5. the mutable policy (skip mutable files vs. force re-projection),
-6. the target symlink policy (conflict vs. replace).
+4. the repo-root `.harnessMutable`,
+5. the cleanup policy (preserve unmanaged entries vs. remove them),
+6. the mutable policy (skip mutable files vs. force re-projection),
+7. the target symlink policy (conflict vs. replace).
 
 **Idempotence (testable property).** Let `T_n` be the on-disk tree of a
 declared target after the `n`-th activation against an unchanged set of
-inputs (1)–(5). For every `n ≥ 2`:
+inputs (1)–(7). For every `n ≥ 2`:
 
 - the set of files in `T_n` MUST equal the set in `T_1`,
 - every managed (non-mutable) file in `T_n` MUST be byte-identical to its
@@ -498,7 +509,7 @@ take before writing:
 - `keep`: the target file already matches the projection.
 - `preserve`: an existing entry inside a declared target is not in the
   computed projection and will stay untouched.
-- `mutable`: a file declared mutable in `.harnessIgnore` already exists in the
+- `mutable`: a file declared mutable in `.harnessMutable` already exists in the
   target, even if its bytes still match the source. The runtime owns it;
   activation MUST NOT overwrite or remove it without an explicit force
   decision.
@@ -522,17 +533,23 @@ still letting runtimes own their per-machine configuration.
 Runtimes that read live target folders may also write into them — common cases
 include permission grants in `.claude/settings.local.json`, allow-listed
 commands, or learned hooks. Files the runtime owns can be declared mutable in
-`.harnessIgnore` under a `[mutable]` scope. Projection materializes them on
-first activation (action `create`) and reports them as `mutable` on every
-subsequent activation, whether or not target bytes still match the source.
-Tools SHOULD offer an explicit force decision that re-projects source bytes when
-the team needs to reset runtime-owned state.
+`.harnessMutable`. Projection materializes them on first activation (action
+`create`) and reports them as `mutable` on every subsequent activation,
+whether or not target bytes still match the source. Tools SHOULD offer an
+explicit force decision that re-projects source bytes when the team needs to
+reset runtime-owned state.
 
 Mutable is an ownership declaration, not a synonym for ignore. Ignored files do
 not enter the projection. Mutable files do enter the projection when missing,
 so the source tree can provide an initial shape and reviewable intent. Once the
 target file exists, the runtime owns its bytes and activation MUST NOT
 overwrite it unless the mutable policy explicitly forces re-projection.
+
+During migration, a mutable file that should exist for fresh users SHOULD be
+copied into a configured source root before its path is added to
+`.harnessMutable`. Declaring a target file mutable without a source seed only
+protects an existing local file; it does not give new checkouts an initial
+version.
 
 The standard does not classify why a non-mutable target file differs from the
 current projection. A direct-copy implementation may report that difference as
@@ -589,15 +606,17 @@ These rules are normative for v1 activation:
 - Target-output `.harnessIgnore` and `.harnessProfile` files are protected
   local state and MUST NOT be projected over or removed by unmanaged cleanup.
 - Activation is deterministic for fixed source trees, selected manifest,
-  profile selectors, ignore rules, cleanup policy, and mutable policy.
+  profile selectors, ignore rules, mutable rules, cleanup policy, and mutable
+  policy.
 - Targets MUST NOT point at `./.harness`, overlap configured source roots, or
   overlap each other.
 
 For example, `.harness/resources/hooks.json` may update `.agents/hooks.json`
 when source bytes change, while `.agents/skills/review/settings.local.json`
-matched by `[mutable]` is seeded once and then left untouched as runtime-owned
-state. A target-output file such as `.claude/skills/review/.harnessIgnore` can
-filter that `.claude` subtree and remains local target state.
+matched by `.harnessMutable` is seeded once and then left untouched as
+runtime-owned state. A target-output file such as
+`.claude/skills/review/.harnessIgnore` can filter that `.claude` subtree and
+remains local target state.
 
 ## Overrides
 
@@ -777,9 +796,9 @@ Target-output `.harnessIgnore` rules also apply to dir outputs after the
 candidate output path is known. Implementations MAY use a bootstrap pass to
 compute candidate dir outputs, discover `.harnessIgnore` files in existing
 output ancestor directories, and then recompute final outputs with those
-rules. During dir collection only global ignore rules participate. The
-`[mutable]` section applies only to target resource projections; dir outputs
-are not mutable target files.
+rules. During dir collection only global ignore rules participate.
+`.harnessMutable` applies only to target resource projections; dir outputs are
+not mutable target files.
 
 Active profile roots also participate in dir collection. Profile dir folders
 overlay the matching configured dir source path, can add copy files or
@@ -791,7 +810,7 @@ base dir files or base composable parts.
 `.harnessIgnore` defines files that MUST be ignored when projecting resources
 and dir outputs. The repo-root file is the repository-wide boundary; local
 files may refine the boundary for a source subtree or an existing target
-output subtree.
+output subtree. Ignore means excluded from projection entirely.
 
 ```text
 # .harnessIgnore
@@ -803,9 +822,6 @@ output subtree.
 [*]
 .harness/**/tmp/
 
-[mutable]
-.harness/**/settings.local.json
-
 # Root rules may also match target output paths.
 .agents/**/scratch.tmp
 ```
@@ -816,34 +832,26 @@ relative to the directory containing that `.harnessIgnore` file. Tools MUST
 support blank lines, `#` comments, `!` negation, leading `/` anchors,
 trailing `/` directory patterns, `*`, `**`, and `?`.
 
-A rule has a kind (`ignore` or `mutable`). The kind decides whether the rule
-excludes a file from projection or marks it as mutable in the target. Both
-kinds share the same pattern grammar and the same precedence rule: the last
-matching participating rule wins.
-
 Ignore evaluation is ordered:
 
-1. Start with `included` and `not mutable`.
+1. Start with `included`.
 2. Read rules from top to bottom.
-3. For ignore rules, a matching non-negated rule changes state to `ignored`;
-   a matching negated rule changes state back to `included`.
-4. For mutable rules, a matching non-negated rule changes state to `mutable`;
-   a matching negated rule changes state back to `not mutable`.
-5. The last matching participating rule of each kind wins.
+3. A matching non-negated rule changes state to `ignored`; a matching negated
+   rule changes state back to `included`.
+4. The last matching participating rule wins.
 
 Section headers affect subsequent rules:
 
 - `[*]` or `[global]` applies subsequent ignore rules to every target.
-- `[mutable]` applies subsequent mutable rules to every target.
 - `[ignore]` switches subsequent rules back to ignore rules.
+- `[mutable]` is unsupported in `.harnessIgnore`. Tools MUST report
+  `harness.ignore_mutable_section_unsupported` and MUST NOT treat rules below
+  that header as mutable declarations. Mutable declarations belong in
+  `.harnessMutable`.
 - Target-specific headers such as `[.claude]`, `[!.cursor]`, and
   `[mutable .claude]` are unsupported. Tools MUST report
   `harness.ignore_unsupported_scope` and MUST NOT apply rules below that
   unsupported header until another supported section header appears.
-
-Mutable files MUST still flow through the projection ignore step. If a file is
-both ignored and marked mutable, the ignore decision wins because the file
-never enters the projection in the first place.
 
 A trailing `/` pattern is directory-only. For non-negated ignore rules, it
 matches the directory itself and descendants of that directory. For negated
@@ -852,6 +860,48 @@ their own negated rule such as `!path/to/item/**`. This preserves the
 gitignore-style pattern where broad ignores can close a subtree while deeper
 logical rules selectively reopen one child.
 
+## `.harnessMutable`
+
+`.harnessMutable` defines source files that are projected only as initial
+seeds. Mutable is different from ignore: ignored files stay out of the
+projection, while mutable files enter the projection when the target file is
+missing. Once the target file exists, activation reports it as `mutable` and
+MUST NOT overwrite its bytes unless the mutable policy explicitly forces
+re-projection.
+
+```text
+# .harnessMutable
+.harness/**/settings.local.json
+.harness/resources/skills/*/permissions.json
+```
+
+Patterns use the same syntax, locality, negation, anchors, directory-only
+suffix, and last-match-wins precedence as `.harnessIgnore`. The repo-root file
+is repo-relative and may match source paths or target output paths. Source
+local and profile-local files are interpreted relative to their logical source
+directory. Target-output `.harnessMutable` files are not part of v1; mutable
+declarations belong to source, not to live targets.
+
+Mutable evaluation is ordered independently from ignore evaluation:
+
+1. Start with `not mutable`.
+2. Read participating `.harnessMutable` rules from top to bottom.
+3. A matching non-negated rule changes state to `mutable`; a matching negated
+   rule changes state back to `not mutable`.
+4. The last matching participating mutable rule wins.
+
+Section headers are optional in `.harnessMutable`:
+
+- `[*]`, `[global]`, and `[mutable]` apply subsequent mutable rules globally.
+- `[ignore]` is unsupported in `.harnessMutable`; ignore rules belong in
+  `.harnessIgnore`.
+- Target-specific headers are unsupported for the same reason they are
+  unsupported in `.harnessIgnore`.
+
+Mutable files MUST still flow through the projection ignore step. If a file is
+both ignored and marked mutable, the ignore decision wins because the file
+never enters the projection in the first place.
+
 ### Local `.harnessIgnore` Files
 
 Additional `.harnessIgnore` files MAY appear inside source locations and
@@ -859,10 +909,17 @@ inside existing target-output locations. They let a resource author or
 consumer keep ignore rules next to the files they apply to, without
 bloating the repo-root file.
 
+Additional `.harnessMutable` files MAY appear inside source locations and
+profile roots. They let a resource author keep seed-only ownership rules next
+to the source template files they affect.
+
 ```text
 .harnessIgnore                                  # root file
+.harnessMutable                                 # root mutable file
 .harness/resources/skills/review/.harnessIgnore           # source-local resource rules
+.harness/resources/skills/review/.harnessMutable          # source-local mutable rules
 .harness/resources/skills/review/.claude/.harnessIgnore   # source-local override rules
+.harness/resources/skills/review/.claude/.harnessMutable  # source-local override mutable rules
 resources/AGENTS.md/.harnessIgnore              # source-local custom dir rules
 .agents/skills/review/.harnessIgnore            # target-output-local rules
 notes/.harnessIgnore                            # target-output rules for dir outputs
@@ -877,6 +934,10 @@ The following rules apply:
   `.harness/resources/skills/review/scratch.tmp` and
   `.harness/resources/skills/review/nested/scratch.tmp` but does NOT match
   `.harness/resources/skills/triage/scratch.tmp`.
+- **Source-local mutable rules.** A `.harnessMutable` file under `./.harness`
+  or under a configured resources source matches source paths with the same
+  locality. It marks matching projected resource files as seed-only mutable
+  files. Dir outputs are not mutable target files.
 - **Target-output-local rules.** A `.harnessIgnore` file under an existing
   declared target root matches target output paths. A pattern like `*.tmp`
   in `.agents/skills/review/.harnessIgnore` matches an output path such as
@@ -909,18 +970,18 @@ The following rules apply:
   logical source and target locations, not merely at the physical dot-folder
   used to store the override.
 - **Same grammar.** Nested files support the same comments, negation,
-  anchors, glob syntax, and supported section headers (`[*]`, `[global]`,
-  `[ignore]`, and `[mutable]`) as the repo-root file.
+  anchors, glob syntax, and supported section headers as the corresponding
+  repo-root file.
 - **Target-specific placement.** A nested `.harnessIgnore` inside a target
   output subtree is the target-specific mechanism. Target-specific section
   headers are invalid even inside override folders.
-- **Synthetic ignore.** Every `.harnessIgnore`, `.harnessProfile`, and
-  `.harnessProfileRoot` file is itself excluded from projection, equivalent
-  to global declaration-file ignore rules. Implementations MUST NOT copy
-  those declaration files into targets, even when no explicit rule excludes
-  them. A target-output declaration file may still affect projection from its
-  existing target location; it is read as a local control, not projected as
-  managed target content.
+- **Synthetic ignore.** Every `.harnessIgnore`, `.harnessMutable`,
+  `.harnessProfile`, and `.harnessProfileRoot` file is itself excluded from
+  projection, equivalent to global declaration-file ignore rules.
+  Implementations MUST NOT copy those declaration files into targets, even
+  when no explicit rule excludes them. A target-output declaration file may
+  still affect projection from its existing target location; it is read as a
+  local control, not projected as managed target content.
 - **Target-output protection.** A `.harnessIgnore` file that already exists
   in a target-output location MUST NOT be overwritten by projection and MUST
   NOT be removed by unmanaged cleanup. Ancestor directories required to keep
@@ -983,8 +1044,8 @@ active profile files inside the matching target override. A generic profile
 overlay therefore cannot replace a target-specific override such as `.codex`;
 a profile-specific `.codex` override can. If multiple active profile roots
 project the same logical file, a tool SHOULD warn and MAY use deterministic
-last-wins ordering. Profile-local `.harnessIgnore` files match the logical
-overlay path, not the storage path.
+last-wins ordering. Profile-local `.harnessIgnore` and `.harnessMutable` files
+match the logical overlay path, not the storage path.
 For example, an ignore file at
 `.harness/profiles/personal/dir/AGENTS.md/.harnessIgnore` applies as if it
 were located at `.harness/dir/AGENTS.md/.harnessIgnore`, so it can suppress
@@ -1015,9 +1076,11 @@ The source/projection boundary makes cross-surface differences reviewable:
   projects that resource path.
 - A diff under `.agents`, `.claude`, `.cursor`, or another override folder
   inside a resource item affects only targets that use that override.
-- A diff in the repo-root `.harnessIgnore` changes projection boundaries
-  globally; a diff in a nested `.harnessIgnore` changes projection only
-  inside that file's source or target-output directory.
+- A diff in the repo-root `.harnessIgnore` changes projection exclusion
+  boundaries globally; a diff in a nested `.harnessIgnore` changes projection
+  only inside that file's source or target-output directory.
+- A diff in `.harnessMutable` changes which projected source files become
+  seed-only runtime-owned target files.
 - A diff in an existing target-output `.harnessIgnore` changes what will be
   copied into that output subtree, without making the target folder a source
   of truth.
@@ -1037,14 +1100,15 @@ The source/projection boundary makes cross-surface differences reviewable:
   mutation.
 - Read-only path introspection, when provided by a tool, MUST be derived from
   the same selected manifest, configured source roots, profile selectors,
-  ignore rules, mutable policy, and projection model as activation.
+  ignore rules, mutable rules, mutable policy, and projection model as
+  activation.
 - Live harness surfaces MUST be treated as projection targets, not source
   repositories.
 - Teams MAY gitignore live harness surfaces because they are generated outputs;
   doing so does not change the source of truth or target declaration contract.
 - Activation MUST be idempotent for the same selected manifest, configured
-  source roots, `.harnessIgnore`, participating resources, cleanup policy, and
-  mutable policy.
+  source roots, `.harnessIgnore`, `.harnessMutable`, participating resources,
+  cleanup policy, and mutable policy.
 - Projection MUST honor `.harnessIgnore` so logs, metadata, caches, and
   implementation state stay out of live harness surfaces.
 - Tools MUST merge target-derived overrides when present and fall back to the
@@ -1078,9 +1142,9 @@ SHOULD consider the following threats explicitly:
 - **Unmanaged-entry deletion.** Cleanup deletes user files. The default
   policy MUST be preserve, and any deletion MUST be visible in the plan
   before it happens.
-- **Mutable bypass.** `[mutable]` rules are an explicit "the runtime owns
-  this after first projection" declaration. Implementations MUST NOT overwrite
-  a mutable target without an explicit, user-visible force decision.
+- **Mutable bypass.** `.harnessMutable` rules are an explicit "the runtime
+  owns this after first projection" declaration. Implementations MUST NOT
+  overwrite a mutable target without an explicit, user-visible force decision.
 - **Untrusted overrides.** A repository may import resource items from
   third parties. Because override folders can rewrite arbitrary target
   files, implementations and downstream products SHOULD provide tooling to

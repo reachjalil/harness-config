@@ -115,10 +115,10 @@ sequence:
    guidance for agent-config operations.
 9. Use target-derived overrides for target-specific differences.
 10. Copy mutable files that fresh users should receive into `.harness` as seed
-    files before adding `[mutable]` rules.
+    files before adding `.harnessMutable` rules.
 11. Add scoped `.harnessIgnore` files, target-output `.harnessIgnore` files in
-    generated surfaces such as `.agents` when needed, and narrow `[mutable]`
-    rules.
+    generated surfaces such as `.agents` when needed, and narrow
+    `.harnessMutable` rules.
 12. Run `npx harnessc validate`.
 13. Run `npx harnessc activate` and review the dry-run plan.
 14. Use `npx harnessc explain <path>` for surprising paths.
@@ -142,7 +142,7 @@ Use this checklist in the response before claiming adoption is complete:
 | Inventory | All live harness surfaces and root instruction files were scanned. |
 | Skills/resources | All durable skills, plugins, prompts, rules, commands, hooks, and agents were migrated into `.harness/resources*` or explicitly blocked. |
 | Settings | Settings that should exist for fresh users were seeded in `.harness`; runtime-only settings were left local. |
-| Mutability | `[mutable]` is used only for seeded create-once files, not as a substitute for migration. |
+| Mutability | `.harnessMutable` is used only for seeded create-once files, not as a substitute for migration or ignore. |
 | Target ignores | Target-output `.harnessIgnore` files are added inside generated surfaces when local output boundaries are needed. |
 | Root files | Simple root files are direct copies or normal tracked files; `.harnessComposable` is used only when needed. |
 | Generated surfaces | After convergence, generated surfaces are recommended for `.gitignore` with a tracked bootstrap. |

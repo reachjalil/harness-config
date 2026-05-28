@@ -82,7 +82,7 @@ re-projection is the only path back to source bytes.
 | Dir | `[[dir]]` outputs that fall under a declared target are merged into that target's projection | `packages/core/test/dir.test.ts` |
 | Dir | Dir outputs do nothing when no `[[dir]]` entries are declared even if a conventional folder exists | `packages/core/test/dir.test.ts` |
 | CLI | `harnessc activate` runs dir composition + copy alongside resource projection | `packages/cli/test/run.test.ts` |
-| Ignore | `[mutable]` sections | `packages/core/test/standard.test.ts` |
+| Ignore | `.harnessMutable` rules and unsupported `[mutable]` sections in `.harnessIgnore` | `packages/core/test/standard.test.ts` |
 | Docs | `STANDARD.md` stays independent of package names, repo paths, and CLI flags | `packages/core/test/docs.test.ts` |
 | CLI | `harnessc init` dry-runs by default | `packages/cli/test/run.test.ts` |
 | CLI | `harnessc init --yes` creates the standard files and resource folders under `.harness/resources` by default | `packages/cli/test/run.test.ts` |
@@ -157,7 +157,7 @@ For a focused mutable smoke test:
 tmp="$(mktemp -d)"
 mkdir -p "$tmp/.harness/resources/skills/review"
 printf 'version = 1\n\n[[resources]]\npath = "./.harness/resources"\n\n[[targets]]\npath = "./.agents"\n' > "$tmp/.harness/harness.toml"
-printf '[mutable]\n.harness/resources/**/settings.local.json\n' > "$tmp/.harnessIgnore"
+printf '.harness/resources/**/settings.local.json\n' > "$tmp/.harnessMutable"
 printf 'base\n' > "$tmp/.harness/resources/skills/review/SKILL.md"
 printf 'source local\n' > "$tmp/.harness/resources/skills/review/settings.local.json"
 node packages/cli/dist/bin.js activate --root "$tmp" --yes

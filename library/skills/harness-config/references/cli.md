@@ -43,7 +43,7 @@ files as preserved.
 - `--root <path>`: run against another repository root.
 - `--config <path>`: use a non-default manifest path.
 - `--yes`: apply the activation plan.
-- `--force-mutable`: rewrite files protected by `[mutable]` rules.
+- `--force-mutable`: rewrite files protected by `.harnessMutable` rules.
 - `--keep-unmanaged`: preserve unmanaged target files.
 - `--remove-unmanaged`: remove unmanaged target files when the plan says so.
 - `--replace-target-symlinks`: replace a target symlink when projection needs
@@ -113,8 +113,8 @@ generated surface.
 - An ignored resource can be explained with `npx harnessc explain <path>
   --json`; inspect the `ignore.source.finalMatch` or
   `ignore.targetOutput.finalMatch` fields.
-- Unexpected overwrites usually mean a runtime-owned file is not listed under
-  `[mutable]`.
+- Unexpected overwrites usually mean a runtime-owned file is not matched by
+  `.harnessMutable`.
 - Divergent `.agents` and `.claude` output should usually be represented with
   target-derived overrides, not copied source trees.
 

@@ -30,8 +30,9 @@ specific runtime, CLI, or hosted service.
 - Extension declaration conformance: an `[extensions.<id>]` table contains a
   positive integer `version`, may set `activation` to `explicit` or `auto`, and
   leaves all other fields to the extension implementation.
-- Projection conformance: activation applies `.harnessIgnore`, including
-  source-local files, target-output-local files, and `[mutable]` scopes,
+- Projection conformance: activation applies `.harnessIgnore` exclusions and
+  `.harnessMutable` seed-only ownership rules, including source-local,
+  profile-local, and target-output-local ignore files where applicable,
   distinguishes ignored files from runtime-owned mutable files, treats every
   declared target as a copy projection, and yields the same target tree for
   the same inputs, cleanup policy, and mutable policy.
@@ -40,8 +41,8 @@ specific runtime, CLI, or hosted service.
   unmanaged entries, and mutable-skipped files, and never reads a live target
   folder as the source of truth. When a tool offers path introspection, that
   explanation is read-only and is derived from the same selected manifest,
-  configured source roots, profile selectors, ignore rules, mutable policy,
-  and projection model as activation.
+  configured source roots, profile selectors, ignore rules, mutable rules,
+  mutable policy, and projection model as activation.
 
 ## Repository Checklist
 
@@ -61,8 +62,8 @@ specific runtime, CLI, or hosted service.
   declared.
 - `.harnessIgnore` patterns are repo-relative and parse cleanly.
 - Global ignore sections such as `[*]` and `[global]` are recognized.
-- Mutable sections such as `[mutable]` are recognized and identify files that
-  the source projection may seed once before the runtime owns the target bytes.
+- `.harnessMutable` patterns are recognized and identify files that the source
+  projection may seed once before the runtime owns the target bytes.
 - If `[[dir]]` entries are declared, each dir source root resolves repo-locally and
   every composable leaf carries a `.harnessComposable` marker. Copy folders
   and individual files under dir sources carry no marker.
@@ -77,16 +78,16 @@ specific runtime, CLI, or hosted service.
 - Resource kinds outside common conventions MAY be used when they live under
   configured resources sources and follow the same override contract.
 - Resource composable leaves MUST project as one file at the leaf path and
-  MUST NOT project their marker, `.harnessRef`, `.harnessIgnore`, or numbered
-  part files individually.
+  MUST NOT project their marker, `.harnessRef`, `.harnessIgnore`,
+  `.harnessMutable`, or numbered part files individually.
 - Overrides MUST be derived from the target path.
 - The selected manifest MUST keep target entries path-only. Targets MUST NOT
   redefine resources, modes, or override names. Top-level `[[resources]]`
   and `[[dir]]` tables declare ordered source roots.
 - Activation SHOULD be derived from projection.
 - Activation MUST be idempotent for the same configured source trees,
-  manifest, overrides, `.harnessIgnore` rules, cleanup choice, and mutable
-  policy, and target symlink policy.
+  manifest, overrides, `.harnessIgnore` rules, `.harnessMutable` rules,
+  cleanup choice, mutable policy, and target symlink policy.
 - Implementations MUST NOT follow symlinks while discovering configured source
   roots, declared target trees, ignore files, profile selectors, or dir
   outputs.
@@ -113,11 +114,11 @@ specific runtime, CLI, or hosted service.
   a configured resources source, or a configured dir source, MUST
   be skipped as normal resource items, and MUST merge by logical source path
   for both resources and dir outputs.
-- Implementations MUST support `[mutable]` scopes in `.harnessIgnore` and
-  treat matching files as create-once, runtime-owned target files even when
-  target bytes still match the source template. This behavior is separate
-  from ignore behavior: ignored files stay out of projection, while mutable
-  files may be projected when missing and preserved after creation.
+- Implementations MUST support `.harnessMutable` and treat matching files as
+  create-once, runtime-owned target files even when target bytes still match
+  the source template. This behavior is separate from ignore behavior:
+  ignored files stay out of projection, while mutable files may be projected
+  when missing and preserved after creation.
 - Declared target folders MUST be treated as projection outputs, not source
   repositories.
 - Declared target folders MUST NOT point at `./.harness`, overlap configured
@@ -137,10 +138,11 @@ specific runtime, CLI, or hosted service.
 
 ## Evidence
 
-Repository evidence is a versioned manifest, configured source trees, and a
-`.harnessIgnore` visible in version control. Profile evidence, when used, is
-the selected `.harnessProfile` file and matching `.harnessProfileRoot`
-folders under configured source roots.
+Repository evidence is a versioned manifest, configured source trees,
+`.harnessIgnore`, and `.harnessMutable` visible in version control when
+mutable files are declared. Profile evidence, when used, is the selected
+`.harnessProfile` file and matching `.harnessProfileRoot` folders under
+configured source roots.
 
 Tool evidence is a dry-run report that lists creates, updates, requested
 removals, kept files, mutable-skipped files, and preserved unmanaged entries
