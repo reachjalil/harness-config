@@ -50,6 +50,41 @@ path = "./.harness/dir"
 path = "./.harness/local/dir"
 ```
 
+## Resource Groups
+
+For non-trivial repositories, use multiple resources sources when it makes the
+catalog easier to understand and reuse. Name groups by usefulness: workflow,
+strategy, team, mode, product area, agent set, or kit.
+
+```toml
+[[resources]]
+path = "./.harness/resources-review"
+
+[[resources]]
+path = "./.harness/resources-frontend"
+
+[[resources]]
+path = "./.harness/local/resources"
+```
+
+```text
+.harness/
+  resources-review/
+    README.md
+    skills/
+    rules/
+  resources-frontend/
+    README.md
+    skills/
+    plugins/
+  local/
+    resources/
+```
+
+Short README files make each group easier to copy into another project. The
+local layer is useful for personal skills, plugins, agents, prompts, and
+experiments before promotion into tracked source.
+
 ## Target-Output Ignore For One Live Surface
 
 Use a target-output `.harnessIgnore` when the rule belongs to one live output
@@ -82,6 +117,42 @@ This pattern is intentionally target-local. It is most useful for gitignored
 live harness surfaces, local development experiments, or machine-specific
 runtime files that should not become shared source. The file is preserved and
 read from the target output, but it is not copied there by projection.
+
+## Logical Ignore Re-Includes
+
+Use shallow rules for broad boundaries and deeper logical rules for selected
+exceptions. Profile-local ignore files are evaluated at the profile root's
+logical overlay location, not at the physical profile folder.
+
+```text
+.harnessIgnore
+.harnessProfile                  # contains: cloudflare-react
+.harness/
+  resources-tooling/
+    skills/
+      vite-worker-imports-config-skill/SKILL.md
+      codex-agent-management/SKILL.md
+    cloudflare-react/
+      .harnessProfileRoot         # contains: cloudflare-react
+      .harnessIgnore
+```
+
+```gitignore
+# .harnessIgnore
+.harness/resources-tooling/skills/**
+```
+
+```gitignore
+# .harness/resources-tooling/cloudflare-react/.harnessIgnore
+!skills/
+!skills/vite-worker-imports-config-skill/
+!skills/vite-worker-imports-config-skill/**
+```
+
+With `cloudflare-react` active, only `vite-worker-imports-config-skill`
+crosses the projection boundary. `codex-agent-management` stays ignored
+because the profile-local file participates at `.harness/resources-tooling/`
+and its descendant re-include names only the Vite worker skill.
 
 ## Runtime-Owned Mutable Files
 

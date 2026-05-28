@@ -976,6 +976,257 @@ describe("HarnessConfig activation projection", () => {
     ).resolves.toBe("keep");
   });
 
+  it("lets a deeper source-local ignore re-include a shallower source-local exclusion", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root, { targets: ["./.agents"] });
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harness/resources/skills/.harnessIgnore", "foo/**\n");
+    await write(
+      root,
+      ".harness/resources/skills/foo/.harnessIgnore",
+      "!SKILL.md\n"
+    );
+    await write(root, ".harness/resources/skills/foo/SKILL.md", "foo");
+    await write(root, ".harness/resources/skills/foo/drop.md", "drop");
+
+    await applyHarnessActivation(root, { dryRun: false, yes: true });
+
+    await expect(
+      readFile(path.join(root, ".agents/skills/foo/SKILL.md"), "utf8")
+    ).resolves.toBe("foo");
+    await expect(
+      readFile(path.join(root, ".agents/skills/foo/drop.md"))
+    ).rejects.toThrow();
+  });
+
+  it("can ignore whole configured resource roots and clean unmanaged outputs", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root, {
+      resources: [
+        "./.harness/resources-active",
+        "./.harness/resources-root-muted",
+        "./.harness/resources-local-muted",
+      ],
+      targets: ["./.agents"],
+    });
+    await write(root, ".harnessIgnore", ".harness/resources-root-muted/**\n");
+    await write(
+      root,
+      ".harness/resources-active/skills/active/SKILL.md",
+      "active"
+    );
+    await write(
+      root,
+      ".harness/resources-root-muted/skills/root-muted/SKILL.md",
+      "root muted"
+    );
+    await write(root, ".harness/resources-local-muted/.harnessIgnore", "**\n");
+    await write(
+      root,
+      ".harness/resources-local-muted/skills/local-muted/SKILL.md",
+      "local muted"
+    );
+    await write(root, ".agents/skills/stale/SKILL.md", "stale");
+
+    const result = await applyHarnessActivation(root, {
+      cleanupUnmanaged: "remove",
+      dryRun: false,
+      yes: true,
+    });
+
+    expect(result.plan.diagnostics).toEqual([]);
+    await expect(
+      readFile(path.join(root, ".agents/skills/active/SKILL.md"), "utf8")
+    ).resolves.toBe("active");
+    await expect(
+      readFile(path.join(root, ".agents/skills/root-muted/SKILL.md"))
+    ).rejects.toThrow();
+    await expect(
+      readFile(path.join(root, ".agents/skills/local-muted/SKILL.md"))
+    ).rejects.toThrow();
+    await expect(
+      readFile(path.join(root, ".agents/skills/stale/SKILL.md"))
+    ).rejects.toThrow();
+  });
+
+  it("uses profile-local ignores to select resources across groups", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root, {
+      resources: [
+        "./.harness/resources-review",
+        "./.harness/resources-frontend",
+      ],
+      targets: ["./.agents"],
+    });
+    await write(root, ".harnessIgnore", ".harness/resources-frontend/**\n");
+    await write(root, ".harnessProfile", "frontend\n");
+    await write(
+      root,
+      ".harness/resources-review/skills/generic-review/SKILL.md",
+      "generic"
+    );
+    await write(
+      root,
+      ".harness/resources-frontend/skills/vite-worker-imports/SKILL.md",
+      "vite"
+    );
+    await write(
+      root,
+      ".harness/profiles/frontend/.harnessProfileRoot",
+      "frontend\n"
+    );
+    await write(
+      root,
+      ".harness/profiles/frontend/resources-review/.harnessIgnore",
+      "skills/generic-review/**\n"
+    );
+    await write(
+      root,
+      ".harness/profiles/frontend/resources-frontend/.harnessIgnore",
+      [
+        "!skills/",
+        "!skills/vite-worker-imports/",
+        "!skills/vite-worker-imports/**",
+        "",
+      ].join("\n")
+    );
+
+    await applyHarnessActivation(root, { dryRun: false, yes: true });
+
+    await expect(
+      readFile(path.join(root, ".agents/skills/generic-review/SKILL.md"))
+    ).rejects.toThrow();
+    await expect(
+      readFile(
+        path.join(root, ".agents/skills/vite-worker-imports/SKILL.md"),
+        "utf8"
+      )
+    ).resolves.toBe("vite");
+  });
+
+  it("lets a profile-local ignore re-include one root-ignored resource at its logical overlay", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root, {
+      resources: ["./.harness/resources-tooling"],
+      targets: ["./.agents"],
+    });
+    await write(
+      root,
+      ".harnessIgnore",
+      ".harness/resources-tooling/skills/**\n"
+    );
+    await write(root, ".harnessProfile", "cloudflare-react\n");
+    await write(
+      root,
+      ".harness/resources-tooling/skills/vite-worker-imports-config-skill/SKILL.md",
+      "vite"
+    );
+    await write(
+      root,
+      ".harness/resources-tooling/skills/codex-agent-management/SKILL.md",
+      "codex"
+    );
+    await write(
+      root,
+      ".harness/resources-tooling/cloudflare-react/.harnessProfileRoot",
+      "cloudflare-react\n"
+    );
+    await write(
+      root,
+      ".harness/resources-tooling/cloudflare-react/.harnessIgnore",
+      [
+        "!skills/",
+        "!skills/vite-worker-imports-config-skill/",
+        "!skills/vite-worker-imports-config-skill/**",
+        "",
+      ].join("\n")
+    );
+
+    await applyHarnessActivation(root, { dryRun: false, yes: true });
+
+    await expect(
+      readFile(
+        path.join(
+          root,
+          ".agents/skills/vite-worker-imports-config-skill/SKILL.md"
+        ),
+        "utf8"
+      )
+    ).resolves.toBe("vite");
+    await expect(
+      readFile(
+        path.join(root, ".agents/skills/codex-agent-management/SKILL.md")
+      )
+    ).rejects.toThrow();
+  });
+
+  it("keeps same-named profiles independent across multiple resource roots", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root, {
+      resources: ["./.harness/resources-a", "./.harness/resources-b"],
+      targets: ["./.agents"],
+    });
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harnessProfile", "team\n");
+    await write(root, ".harness/resources-a/skills/a/SKILL.md", "a");
+    await write(root, ".harness/resources-b/skills/b/SKILL.md", "b");
+    await write(
+      root,
+      ".harness/resources-a/team/.harnessProfileRoot",
+      "team\n"
+    );
+    await write(
+      root,
+      ".harness/resources-a/team/.harnessIgnore",
+      "skills/a/**\n"
+    );
+    await write(
+      root,
+      ".harness/resources-b/team/.harnessProfileRoot",
+      "team\n"
+    );
+    await write(
+      root,
+      ".harness/resources-b/team/.harnessIgnore",
+      "skills/b/hidden.md\n"
+    );
+    await write(root, ".harness/resources-b/skills/b/hidden.md", "hidden");
+
+    await applyHarnessActivation(root, { dryRun: false, yes: true });
+
+    await expect(
+      readFile(path.join(root, ".agents/skills/a/SKILL.md"))
+    ).rejects.toThrow();
+    await expect(
+      readFile(path.join(root, ".agents/skills/b/SKILL.md"), "utf8")
+    ).resolves.toBe("b");
+    await expect(
+      readFile(path.join(root, ".agents/skills/b/hidden.md"))
+    ).rejects.toThrow();
+  });
+
+  it("evaluates target-derived override ignores at their logical target location", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root, { targets: ["./.agents"] });
+    await write(root, ".harnessIgnore", ".agents/skills/override/target.md\n");
+    await write(
+      root,
+      ".harness/resources/skills/override/.agents/.harnessIgnore",
+      "!target.md\n"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/override/.agents/target.md",
+      "target"
+    );
+
+    await applyHarnessActivation(root, { dryRun: false, yes: true });
+
+    await expect(
+      readFile(path.join(root, ".agents/skills/override/target.md"), "utf8")
+    ).resolves.toBe("target");
+  });
+
   it("honors a target-output .harnessIgnore for one target", async () => {
     const root = await rootFixture();
     await writeHarnessConfig(root, { targets: ["./.agents", "./.claude"] });
@@ -2094,7 +2345,9 @@ describe("HarnessConfig activation projection", () => {
       "dir"
     );
 
-    const plan = await planHarnessActivation(root);
+    const plan = await planHarnessActivation(root, {
+      targetSymlinkPolicy: "replace",
+    });
     expect(plan.diagnostics).not.toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -2117,7 +2370,11 @@ describe("HarnessConfig activation projection", () => {
       ])
     );
 
-    await applyHarnessActivation(root, { dryRun: false, yes: true });
+    await applyHarnessActivation(root, {
+      dryRun: false,
+      yes: true,
+      targetSymlinkPolicy: "replace",
+    });
 
     const targetState = await lstat(path.join(root, ".cursor"));
     expect(targetState.isSymbolicLink()).toBe(false);
@@ -2155,7 +2412,9 @@ describe("HarnessConfig activation projection", () => {
       path.join(root, ".agents/skills/review/LOCAL.md")
     );
 
-    const plan = await planHarnessActivation(root);
+    const plan = await planHarnessActivation(root, {
+      targetSymlinkPolicy: "replace",
+    });
     expect(plan.diagnostics).not.toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -2178,7 +2437,11 @@ describe("HarnessConfig activation projection", () => {
       ])
     );
 
-    await applyHarnessActivation(root, { dryRun: false, yes: true });
+    await applyHarnessActivation(root, {
+      dryRun: false,
+      yes: true,
+      targetSymlinkPolicy: "replace",
+    });
 
     const replaced = await lstat(
       path.join(root, ".agents/skills/review/LINK.md")
@@ -2195,6 +2458,124 @@ describe("HarnessConfig activation projection", () => {
     await expect(readFile(path.join(root, "outside.md"), "utf8")).resolves.toBe(
       "outside"
     );
+  });
+
+  it("reports target symlink conflicts by default when projection needs the path", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root, { targets: ["./.claude"] });
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harness/resources/skills/demo/SKILL.md", "# Demo\n");
+    await mkdir(path.join(root, ".claude/skills"), { recursive: true });
+    await mkdir(path.join(root, ".agents/skills/demo"), { recursive: true });
+    await symlink(
+      path.relative(
+        path.join(root, ".claude/skills"),
+        path.join(root, ".agents/skills/demo")
+      ),
+      path.join(root, ".claude/skills/demo"),
+      "dir"
+    );
+
+    const plan = await planHarnessActivation(root);
+    expect(plan.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          severity: "error",
+          code: "harness.target_symlink_conflict",
+          path: path.join(root, ".claude/skills/demo"),
+        }),
+      ])
+    );
+    expect(plan.targets[0]?.actions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "create",
+          relativePath: "skills/demo/SKILL.md",
+        }),
+      ])
+    );
+    await expect(
+      applyHarnessActivation(root, { dryRun: false, yes: true })
+    ).rejects.toThrow(
+      "Cannot activate while Harness config validation has errors."
+    );
+    const demoState = await lstat(path.join(root, ".claude/skills/demo"));
+    expect(demoState.isSymbolicLink()).toBe(true);
+  });
+
+  it("replaces a nested target symlink when explicit policy allows it", async () => {
+    const root = await rootFixture();
+    await write(
+      root,
+      ".harness/harness.toml",
+      [
+        "version = 1",
+        "",
+        "[activation]",
+        'targetSymlinks = "replace"',
+        "",
+        "[[resources]]",
+        'path = "./.harness/resources"',
+        "",
+        "[[targets]]",
+        'path = "./.claude"',
+        "",
+      ].join("\n")
+    );
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harness/resources/skills/demo/SKILL.md", "# Demo\n");
+    await mkdir(path.join(root, ".claude/skills"), { recursive: true });
+    await mkdir(path.join(root, ".agents/skills/demo"), { recursive: true });
+    await symlink(
+      path.relative(
+        path.join(root, ".claude/skills"),
+        path.join(root, ".agents/skills/demo")
+      ),
+      path.join(root, ".claude/skills/demo"),
+      "dir"
+    );
+
+    const plan = await planHarnessActivation(root);
+    expect(plan.diagnostics).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "harness.target_symlink_conflict",
+        }),
+      ])
+    );
+    expect(plan.targets[0]?.actions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "remove",
+          relativePath: "skills/demo",
+          reason: "replace existing symlink with copy projection",
+        }),
+        expect.objectContaining({
+          kind: "create",
+          relativePath: "skills/demo/SKILL.md",
+        }),
+      ])
+    );
+
+    await applyHarnessActivation(root, { dryRun: false, yes: true });
+
+    const demoState = await lstat(path.join(root, ".claude/skills/demo"));
+    expect(demoState.isSymbolicLink()).toBe(false);
+    expect(demoState.isDirectory()).toBe(true);
+    await expect(
+      readFile(path.join(root, ".claude/skills/demo/SKILL.md"), "utf8")
+    ).resolves.toBe("# Demo\n");
+    await expect(
+      readFile(path.join(root, ".agents/skills/demo/SKILL.md"), "utf8")
+    ).rejects.toThrow();
+
+    const secondPlan = await planHarnessActivation(root);
+    expect(secondPlan.targets[0]?.actions).toEqual([
+      expect.objectContaining({
+        kind: "keep",
+        relativePath: "skills/demo/SKILL.md",
+      }),
+    ]);
   });
 
   it("replaces an existing non-directory target root with a copy projection", async () => {

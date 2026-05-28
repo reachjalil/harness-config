@@ -38,7 +38,10 @@ specific runtime, CLI, or hosted service.
 - Tool conformance: an implementation reports the activation plan before
   writing, lists creates, updates, requested removals, kept files, preserved
   unmanaged entries, and mutable-skipped files, and never reads a live target
-  folder as the source of truth.
+  folder as the source of truth. When a tool offers path introspection, that
+  explanation is read-only and is derived from the same selected manifest,
+  configured source roots, profile selectors, ignore rules, mutable policy,
+  and projection model as activation.
 
 ## Repository Checklist
 
@@ -83,19 +86,28 @@ specific runtime, CLI, or hosted service.
 - Activation SHOULD be derived from projection.
 - Activation MUST be idempotent for the same configured source trees,
   manifest, overrides, `.harnessIgnore` rules, cleanup choice, and mutable
-  policy.
+  policy, and target symlink policy.
 - Implementations MUST NOT follow symlinks while discovering configured source
   roots, declared target trees, ignore files, profile selectors, or dir
   outputs.
+- Implementations MUST report target symlink conflicts when a symlink occupies
+  a projected path and the selected target symlink policy is `conflict`.
+  Implementations MAY replace the link itself only when the selected policy is
+  `replace`.
 - Implementations MUST report managed target files as updates when the target
   bytes differ from the computed source projection, and applying activation
   MUST write the current source projection.
 - Implementations MUST preserve unmanaged target entries by default and MUST
   require an explicit cleanup choice before removal.
-- Implementations MUST support `.harnessIgnore` for global, source-local, and
-  target-output-local files that stay out of live projections. Target-output
-  `.harnessIgnore` files that already exist MUST be preserved during
-  activation and unmanaged cleanup.
+- Implementations MUST support `.harnessIgnore` for global, source-local,
+  profile-local, target-derived override, and target-output-local files that
+  stay out of live projections. Precedence MUST use logical location and
+  logical directory depth with last-matching participating rule wins.
+  Profile-local files MUST evaluate at the profile overlay location,
+  target-derived override files MUST evaluate at their logical source and
+  target locations, and target-output `.harnessIgnore` files that already
+  exist MUST remain the final boundary and be preserved during activation and
+  unmanaged cleanup.
 - Implementations MUST support `.harnessProfile` selectors and
   `.harnessProfileRoot` overlays. Profile roots MUST live under `./.harness`,
   a configured resources source, or a configured dir source, MUST

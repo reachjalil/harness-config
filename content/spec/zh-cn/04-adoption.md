@@ -14,7 +14,7 @@ llmSummary: 覆盖创建 .harness 目录、声明目标、预览激活、迁移 
 audience: 在新仓库或现有仓库中引入 .harness 的开发者。
 contentKind: spec
 status: draft
-updated: 2026-05-26
+updated: 2026-05-27
 ---
 
 # 采用
@@ -32,13 +32,16 @@ updated: 2026-05-26
 ```bash
 npx harnessc init
 npx harnessc validate
+npx harnessc explain .agents/skills/review/SKILL.md
 npx harnessc activate
 npx harnessc activate --yes
 ```
 
+当某个源路径或输出路径需要单独检查时，使用 `npx harnessc explain <path>`。
+
 ## 迁移现有仓库
 
-先保存当前 harness surface 的快照。然后把持久内容移到资源源，把目标差异放入 `.claude` 等覆盖文件夹，在 manifest 中声明目标，并在应用前审查计划。
+先保存当前 harness surface 的快照。然后把持久内容移到资源源，把目标差异放入 `.claude` 等覆盖文件夹，在 manifest 中声明目标，必要时用 `npx harnessc explain <path>` 检查具体路径，并在应用前审查计划。
 
 没有变更时，第二次 dry-run 应当收敛为：受管理文件为 `keep`，runtime 拥有文件为 `mutable`。
 

@@ -2,19 +2,19 @@
 title: Tooling
 seoTitle: .harness Tooling
 socialTitle: Tooling for validating and activating .harness config
-description: The npx harnessc standard implementation, local validation, no-telemetry operation, runtime-owned mutable handling, profile discovery, planning, activation, and cleanup commands.
+description: The npx harnessc standard implementation, local validation, explain introspection, no-telemetry operation, runtime-owned mutable handling, profile discovery, planning, activation, and cleanup commands.
 socialDescription: The command and helper layer for local .harness validation, no-telemetry activation, runtime-owned mutable files, profile overlays, and activation projections.
 canonicalPath: /specifications/v1/tooling/
 slug: tooling
 order: 5
 locale: en
 sectionCode: "05"
-summary: "The npx harnessc standard implementation: local validation, no-telemetry operation, runtime-owned mutable handling, profile discovery, planning, activation, and cleanup commands."
-llmSummary: Describes tooling expectations for local validation, no-telemetry activation, runtime-owned mutable files, profile overlays, dry-run planning, diagnostics, cleanup, and implementation helpers around .harness.
+summary: "The npx harnessc standard implementation: local validation, explain introspection, no-telemetry operation, runtime-owned mutable handling, profile discovery, planning, activation, and cleanup commands."
+llmSummary: Describes tooling expectations for local validation, explain introspection, no-telemetry activation, runtime-owned mutable files, profile overlays, dry-run planning, diagnostics, cleanup, and implementation helpers around .harness.
 audience: CLI authors and developers operating .harness repositories.
 contentKind: spec
 status: draft
-updated: 2026-05-26
+updated: 2026-05-27
 ---
 
 # Harness config tooling
@@ -61,7 +61,11 @@ npx harnessc plan
   composable leaves, symlink leaf handling, and dir composition/copy issues.
 - `npx harnessc explain <path>` explains how a source or output path
   participates in the current projection plan, including winning source paths,
-  configured source roots, dir outputs, and blocking diagnostics.
+  configured source roots, dir outputs, blocking diagnostics, and
+  `.harnessIgnore` decisions. JSON output includes source and target-output
+  ignore traces so a caller can distinguish a repo-root exclusion, a deeper
+  source-local re-include, a profile-local logical re-include, and a
+  target-output final boundary.
 - `npx harnessc activate` dry-runs the activation projection and shows creates,
   updates, requested removals, kept files, mutable-skipped files, and preserved
   unmanaged entries before writing.
@@ -74,9 +78,24 @@ npx harnessc plan
 
 `init`, `activate`, and `extension activate` are dry runs unless `--yes` is
 supplied.
+
+Common introspection examples:
+
+```bash
+npx harnessc explain .agents/skills/review/SKILL.md
+npx harnessc explain AGENTS.md
+npx harnessc explain .harness/local/resources/skills/review/SKILL.md
+```
+
 Unmanaged target entries are kept by default. Use `--remove-unmanaged` when a
 target should be cleaned to match configured sources; use `--keep-unmanaged`
 to make the default explicit.
+
+Generated harness surfaces such as `.agents`, `.claude`, `.cursor`, and
+`.gemini` can be gitignored when they are reproducible from `.harness`.
+Projects that do this should keep a tracked bootstrap such as a root
+instruction note, README setup step, or package script that tells users and
+agents to run validation and activation on fresh checkout.
 
 Cleanup applies only to targets that are still declared in the selected
 manifest. After a target declaration is removed, base `npx harnessc activate` no
@@ -105,6 +124,22 @@ overwrites the target with the current source bytes. Mutable files declared
 under `[mutable]` in `.harnessIgnore` are created once from source and skipped
 on subsequent activations because the live target bytes are runtime-owned. Use
 `--force-mutable` to re-project them from source.
+
+Target symlinks are not followed. If a target symlink occupies a path that
+projection needs to write, `npx harnessc activate` reports
+`harness.target_symlink_conflict` and refuses `--yes` by default. Select one of
+the explicit replacement policies when replacing the link itself is intended:
+
+```toml
+[activation]
+targetSymlinks = "replace"
+```
+
+or for a single run:
+
+```bash
+npx harnessc activate --yes --replace-target-symlinks
+```
 
 Selection workflows, marketplace behavior, target edit review, capture, and
 other product opinions belong above `npx harnessc`.

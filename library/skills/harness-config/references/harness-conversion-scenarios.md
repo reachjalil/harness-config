@@ -8,15 +8,16 @@ targets, target-derived overrides, and activation checks.
 Start by explaining the conversion opportunities to the user: what can become
 shared source, what needs target-specific wrappers, what should remain
 runtime-owned, and which steps can be handled by `npx harnessc` versus ordinary
-file edits. Prefer `npx harnessc validate`, `npx harnessc activate`, and
-`npx harnessc activate --yes` whenever the CLI supports the operation. Use
-manual file edits for content migration, manifest/source authoring, and
-harness-specific wrapper design.
+file edits. Prefer `npx harnessc validate`, `npx harnessc activate`,
+`npx harnessc explain`, and `npx harnessc activate --yes` whenever the CLI
+supports the operation. Use manual file edits for content migration,
+manifest/source authoring, and harness-specific wrapper design.
 
 ## Contents
 
 - [Core Conversion Model](#core-conversion-model)
 - [Target Mapping](#target-mapping)
+- [Scenario: Resource Groups](#scenario-resource-groups)
 - [Scenario: Merge Duplicate Skills](#scenario-merge-duplicate-skills)
 - [Scenario: Root Instructions](#scenario-root-instructions)
 - [Scenario: Codex Plugin](#scenario-codex-plugin)
@@ -47,8 +48,11 @@ Separate every existing file into one of four layers:
 
 Map these layers into Harness config:
 
-- Put portable target resources under `.harness/resources`.
-- Put repo-relative outputs under `.harness/dir`.
+- Put portable target resources under configured `.harness/resources*` roots.
+- Group resources by usefulness: workflow, strategy, team, mode, agent set,
+  product area, or kit. Match the user's language.
+- Put repo-relative outputs under `.harness/dir*` only when generation,
+  composition, profile overlays, or local overlays are useful.
 - Represent harness-specific differences with target-derived overrides such as
   `.harness/resources/.claude/...` or
   `.harness/resources/skills/review/.claude/SKILL.md`.
@@ -77,13 +81,52 @@ path = "./.cursor"
 
 [[resources]]
 path = "./.harness/resources"
-
-[[dir]]
-path = "./.harness/dir"
 ```
 
 Do not add a target just because a folder exists. First classify whether the
 folder is durable source, generated output, runtime state, or obsolete.
+
+## Scenario: Resource Groups
+
+Use this when a repo has enough skills, plugins, hooks, rules, prompts, or
+agents that one flat `.harness/resources` folder would hide intent.
+
+```text
+.harness/
+  resources-review/
+    README.md
+    skills/
+    rules/
+  resources-frontend/
+    README.md
+    skills/
+    plugins/
+  resources-platform/
+    README.md
+    hooks.json
+    agents/
+```
+
+```toml
+[[resources]]
+path = "./.harness/resources-review"
+
+[[resources]]
+path = "./.harness/resources-frontend"
+
+[[resources]]
+path = "./.harness/resources-platform"
+```
+
+Rules:
+
+- Name groups for how the user will use them, not just file type.
+- Add short README files for non-obvious groups.
+- Keep resource groups copy/pasteable between projects.
+- Use profiles and nested `.harnessIgnore` to switch groups or selected
+  resources on and off.
+- Use `.harness/local/resources` for personal experiments and private
+  additions.
 
 ## Scenario: Merge Duplicate Skills
 
@@ -98,20 +141,20 @@ Before:
 .cursor/skills/review/SKILL.md
 ```
 
-After:
+After, in the resource group that matches how the user thinks about the skill:
 
 ```text
-.harness/resources/skills/review/SKILL.md
-.harness/resources/skills/review/references/
-.harness/resources/skills/review/scripts/
+.harness/resources-review/skills/review/SKILL.md
+.harness/resources-review/skills/review/references/
+.harness/resources-review/skills/review/scripts/
 ```
 
 If one harness needs different wording or support files, add an override:
 
 ```text
-.harness/resources/skills/review/SKILL.md
-.harness/resources/skills/review/.claude/SKILL.md
-.harness/resources/skills/review/.cursor/SKILL.md
+.harness/resources-review/skills/review/SKILL.md
+.harness/resources-review/skills/review/.claude/SKILL.md
+.harness/resources-review/skills/review/.cursor/SKILL.md
 ```
 
 Rules:
@@ -125,8 +168,10 @@ Rules:
 
 ## Scenario: Root Instructions
 
-Use configured `[[dir]]` roots such as `.harness/dir` for repo-root
-instruction files:
+First assess whether root instruction files should stay normal tracked files or
+become generated repo-relative outputs. Keep them as normal files when they are
+simple and already coherent. Use configured `[[dir]]` roots such as
+`.harness/dir` when generation creates a cleaner setup:
 
 ```text
 .harness/dir/AGENTS.md/
@@ -150,7 +195,10 @@ Claude or Gemini instructions can import the shared base and add a short
 target-specific tail.
 
 Do not copy long procedural workflows into every root instruction file. Convert
-long procedures into skills and leave a short pointer in always-on instructions.
+long procedures into skills and leave a short pointer in always-on
+instructions. Do not split root instruction files into composable parts unless
+the split removes real duplication, supports profiles/local layers, or improves
+review.
 
 ## Scenario: Codex Plugin
 
@@ -168,10 +216,10 @@ plugins/my-plugin/
 Conversion pattern:
 
 ```text
-.harness/resources/plugins/my-plugin/.codex-plugin/plugin.json
-.harness/resources/plugins/my-plugin/skills/
-.harness/resources/plugins/my-plugin/hooks/hooks.json
-.harness/resources/plugins/my-plugin/.mcp.json
+.harness/resources-platform/plugins/my-plugin/.codex-plugin/plugin.json
+.harness/resources-platform/plugins/my-plugin/skills/
+.harness/resources-platform/plugins/my-plugin/hooks/hooks.json
+.harness/resources-platform/plugins/my-plugin/.mcp.json
 ```
 
 Project to `.agents` when the repository wants Codex to receive the plugin
@@ -185,7 +233,7 @@ path = "./.agents"
 For local marketplaces:
 
 ```text
-.harness/resources/plugins/marketplace.json
+.harness/resources-platform/plugins/marketplace.json
 ```
 
 or, when the marketplace should live at a repo-relative path outside `.agents`,
@@ -215,20 +263,20 @@ plugins/my-plugin/
 Conversion pattern:
 
 ```text
-.harness/resources/plugins/my-plugin/.claude-plugin/plugin.json
-.harness/resources/plugins/my-plugin/skills/
-.harness/resources/plugins/my-plugin/commands/
-.harness/resources/plugins/my-plugin/agents/
-.harness/resources/plugins/my-plugin/hooks/hooks.json
-.harness/resources/plugins/my-plugin/.mcp.json
+.harness/resources-platform/plugins/my-plugin/.claude-plugin/plugin.json
+.harness/resources-platform/plugins/my-plugin/skills/
+.harness/resources-platform/plugins/my-plugin/commands/
+.harness/resources-platform/plugins/my-plugin/agents/
+.harness/resources-platform/plugins/my-plugin/hooks/hooks.json
+.harness/resources-platform/plugins/my-plugin/.mcp.json
 ```
 
 Use `.claude` target overrides when Claude needs a different package wrapper
 than Codex:
 
 ```text
-.harness/resources/plugins/my-plugin/.codex-plugin/plugin.json
-.harness/resources/plugins/my-plugin/.claude/.claude-plugin/plugin.json
+.harness/resources-platform/plugins/my-plugin/.codex-plugin/plugin.json
+.harness/resources-platform/plugins/my-plugin/.claude/.claude-plugin/plugin.json
 ```
 
 Rules:
@@ -442,14 +490,22 @@ Before running or projecting active harness behavior, review trust boundaries:
   runtime-owned.
 - Preserve existing live outputs until `npx harnessc activate` explains the
   planned creates, updates, mutable entries, and preserves.
+- Replace target symlinks only after checking where they point and confirming
+  the dry-run plan. If the symlink and source files are tracked, explain that
+  git makes the change easy to review and revert. Stop before replacing
+  symlinks that point outside the repo or into secrets/runtime state.
 
 ## Merge Checklist
 
 Before applying activation:
 
 - [ ] Every live output folder is declared as an explicit target.
-- [ ] Durable reusable content lives under `.harness/resources` or
-      `.harness/dir`.
+- [ ] Durable reusable content lives under `.harness/resources` or another
+      configured resource group.
+- [ ] Repo-relative generated outputs live under `.harness/dir` only when
+      useful.
+- [ ] Resource groups have names and README files that make their purpose clear
+      when copied to another project.
 - [ ] Harness-specific differences are encoded as target-derived overrides.
 - [ ] Runtime state, secrets, caches, logs, and machine-local settings are not
       in `.harness`.

@@ -29,6 +29,7 @@ re-projection is the only path back to source bytes.
 | Profiles | Nested `.harnessProfileRoot` declarations and profile roots outside configured source roots are diagnostics | `packages/core/test/standard.test.ts` |
 | Projection | Explicit `.agents` copy projection with `.agents` overrides | `packages/core/test/projection.test.ts` |
 | Projection | Explicit `.harness/resources` tree projects direct files and target-root overrides | `packages/core/test/projection.test.ts`, `packages/cli/test/run.test.ts` |
+| Projection | Repo-root `.harnessIgnore` filters resource projection by configured source paths and target output paths | `packages/core/test/projection.test.ts` |
 | Projection | Ordered `[[resources]]` roots project resources, target overrides, profile roots, source-local ignores, exact replacement, and composable merge behavior | `packages/core/test/projection.test.ts` |
 | Projection | Activation can load a repo-local manifest from an explicit non-default config path | `packages/core/test/projection.test.ts`, `packages/cli/test/run.test.ts` |
 | Projection | Resource files can be composed from `.harnessComposable` leaves, including `.harnessRef` imports, recipient-local `.harnessIgnore` filters, target-output `.harnessIgnore` boundaries, and profile overlays | `packages/core/test/projection.test.ts` |
@@ -37,6 +38,11 @@ re-projection is the only path back to source bytes.
 | Projection | Nested override contents such as plugin manifests and nested skills | `packages/core/test/projection.test.ts` |
 | Projection | Arbitrary resource kinds under configured resources sources project without per-kind manifest declarations | `packages/core/test/projection.test.ts` |
 | Projection | Scoped `.harnessIgnore` changes target output independently | `packages/core/test/projection.test.ts` |
+| Projection | Logical-depth `.harnessIgnore` precedence lets deeper source-local and profile-local rules re-include selected paths while leaving siblings ignored | `packages/core/test/projection.test.ts` |
+| Projection | Whole configured resource roots can be suppressed by repo-root or source-local `.harnessIgnore`, and cleanup remains explicit with `--remove-unmanaged` | `packages/core/test/projection.test.ts` |
+| Projection | Profile-local `.harnessIgnore` can select resources across multiple resource groups without copying a profile catalog | `packages/core/test/projection.test.ts` |
+| Projection | Same-named active profiles across multiple resource roots evaluate profile-local `.harnessIgnore` files independently | `packages/core/test/projection.test.ts` |
+| Projection | Target-derived override `.harnessIgnore` files evaluate at logical target/source locations rather than physical dot-folder storage paths | `packages/core/test/projection.test.ts` |
 | Projection | Target-output `.harnessIgnore` filters one target and is preserved during cleanup | `packages/core/test/projection.test.ts` |
 | Projection | Active `.harnessProfileRoot` overlays merge resources, suppress base resources with logical `.harnessIgnore`, and preserve target-local `.harnessProfile` during cleanup | `packages/core/test/projection.test.ts` |
 | Projection | Target-output `.harnessIgnore` remains the final boundary when profile-local rules also match | `packages/core/test/projection.test.ts` |
@@ -47,7 +53,8 @@ re-projection is the only path back to source bytes.
 | TOML | Target paths determine override folders from the first path segment | `packages/core/test/standard.test.ts` |
 | TOML | Target paths are explicit repo-local paths and are not constrained to named harness surfaces | `packages/core/test/standard.test.ts`, `packages/cli/test/run.test.ts` |
 | Projection | Identical declared targets are still materialized as copy projections | `packages/core/test/projection.test.ts` |
-| Projection | Target root and nested target symlinks are treated as leaf entries: writable paths replace the link itself, unmanaged links are preserved by default | `packages/core/test/projection.test.ts` |
+| TOML | `[activation].targetSymlinks` defaults to `conflict` and accepts explicit `replace` | `packages/core/test/standard.test.ts` |
+| Projection | Target root and nested target symlinks are treated as leaf entries: projected symlink paths conflict by default, explicit replacement replaces the link itself, unmanaged links are preserved by default | `packages/core/test/projection.test.ts` |
 | Projection | Changed source files plan `update` actions | `packages/core/test/projection.test.ts` |
 | Projection | Unmanaged target entries are preserved by default and summarized at one level | `packages/core/test/projection.test.ts` |
 | Projection | Explicit unmanaged cleanup plans `remove` actions | `packages/core/test/projection.test.ts` |
@@ -85,10 +92,12 @@ re-projection is the only path back to source bytes.
 | CLI | `--remove-unmanaged` changes preserved unmanaged entries into removals | `packages/cli/test/run.test.ts` |
 | CLI | `--keep-unmanaged` and `--remove-unmanaged` cannot be used together | `packages/cli/test/run.test.ts` |
 | CLI | `--force-mutable` re-projects mutable files; default skips them | `packages/cli/test/run.test.ts` |
+| CLI | `--replace-target-symlinks` is required before `harnessc activate --yes` replaces a target symlink conflict | `packages/cli/test/run.test.ts` |
 | CLI | Invalid activation TOML returns diagnostics and a non-zero exit | `packages/cli/test/run.test.ts` |
 | CLI | Human output is colorized only for color-capable sinks, while `--json` stays unstyled | `packages/cli/test/run.test.ts` |
 | CLI | `harnessc extension activate` reports unsupported extension selections and conflicting flags | `packages/cli/test/run.test.ts` |
-| CLI | `harnessc explain <path>` reports projected outputs, participating source roots, source-use paths, and diagnostics in JSON and human-readable forms | `packages/cli/test/run.test.ts` |
+| CLI | `harnessc explain <path>` reports projected outputs, participating source roots, source-use paths, ignore decisions, and diagnostics in JSON and human-readable forms | `packages/cli/test/run.test.ts` |
+| CLI | `harnessc explain --json` reports winning ignore decisions for repo-root exclusions, source-local and profile-local re-includes, and target-output final boundaries | `packages/cli/test/run.test.ts` |
 | CLI E2E | `harnessc activate` runs composable + copy + `.harnessRef` + cross-target dir composition end-to-end | `packages/cli/test/run.test.ts` |
 | CLI E2E | `harnessc activate` honors target-output `.harnessIgnore`, custom dir source ignores, and cleanup preservation | `packages/cli/test/run.test.ts` |
 | CLI E2E | `harnessc activate` projects resource composables through target-output `.harnessIgnore`, target-local `.harnessProfile`, and unmanaged cleanup | `packages/cli/test/run.test.ts` |

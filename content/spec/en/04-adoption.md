@@ -14,7 +14,7 @@ llmSummary: Covers practical workflows for creating a .harness catalog, declarin
 audience: Developers introducing .harness into existing or new repositories.
 contentKind: spec
 status: draft
-updated: 2026-05-26
+updated: 2026-05-27
 ---
 
 # Harness config adoption
@@ -46,6 +46,7 @@ Harness config v1 starts from a small source contract:
 npx harnessc init
 npx harnessc init --yes --resource skills --target ./runtime/agent
 npx harnessc validate
+npx harnessc explain .agents/skills/review/SKILL.md
 npx harnessc activate
 npx harnessc activate --yes
 ```
@@ -62,13 +63,15 @@ Recommended sequence:
 1. **Snapshot existing targets.** Commit the current live folders, or copy
    them to a branch. Adoption is reversible, but a known-good baseline
    makes review easier.
-2. **Move durable content into the resources source.** Most
-   `.claude/skills/foo/` contents become
-   `./.harness/resources/skills/foo/`. Files
-   that differ only for one agent move into the matching override folder
-   (e.g., `./.harness/resources/skills/foo/.claude/`). Target-root files
-   such as `.claude/hooks.json` become `.harness/resources/hooks.json`, with
-   target-specific versions under `.harness/resources/.claude/`.
+2. **Move durable content into resource groups.** Tiny repos can use one
+   `./.harness/resources` root. Larger migrations should group resources by
+   usefulness: workflow, strategy, team, mode, agent set, product area, or kit.
+   Most `.claude/skills/foo/` contents become something like
+   `./.harness/resources-review/skills/foo/`. Files that differ only for one
+   agent move into the matching override folder (for example
+   `./.harness/resources-review/skills/foo/.claude/`). Target-root files such
+   as `.claude/hooks.json` become a shared resource with target-specific
+   versions under an override folder.
 3. **Declare targets in the selected manifest.** Add a `[[targets]]` entry for
    each harness surface you want regenerated. A target only receives projections
    when it appears here. Declare every shared source with an explicit
@@ -85,16 +88,21 @@ Recommended sequence:
    user/local output preferences can live in target-output files such as
    `runtime/agent/skills/foo/.harnessIgnore`. Target-output files are useful
    when the live harness surface is gitignored and a developer needs a local,
-   temporary boundary; shared rules should live in source.
+   temporary boundary; shared rules should live in source. Precedence follows
+   logical directory depth, so deeper source/profile rules can re-include
+   selected paths while target-output rules remain the final boundary.
 5. **Add profile overrides only where they clarify ownership.** Put
    `.harnessProfileRoot` under `.harness`, a configured resources source, or
    a configured dir source for optional kits or personal overlays, and
    select them with repo-root or target-output `.harnessProfile` files.
    Profile-local `.harnessIgnore` files can hide base files or composable
-   parts for that profile.
-6. **Dry run, review, then apply.** `npx harnessc activate` prints the plan
-   without writing. Review `create` / `update` / `remove` actions against
-   the snapshot, then re-run with `--yes`.
+   parts for that profile and are evaluated at the profile overlay location.
+   Use profiles as switchable modes across resource groups first, and as file
+   overlays only when they genuinely add or replace content.
+6. **Dry run, explain, review, then apply.** `npx harnessc activate` prints
+   the plan without writing. Use `npx harnessc explain <path>` for a specific
+   source or output that needs inspection, then review `create` / `update` /
+   `remove` actions against the snapshot and re-run with `--yes`.
 7. **Re-run activation.** A second dry run on unchanged inputs should
    converge to `keep` for managed files and `mutable` for runtime-owned
    files. If it does not, the source tree is still drifting from the
@@ -138,8 +146,10 @@ runtime-owned state out of the canonical source tree.
   `.harnessIgnore`, `.harnessProfile`, and `.harnessProfileRoot` are read as
   controls and are not copied into targets as managed files.
 - **Symlinking targets.** Harness config v1 does not follow symlinks. If a
-  symlink occupies a path activation needs to write, activation may replace the
-  link itself; review the plan before applying.
+  symlink occupies a path activation needs to write, activation reports a
+  conflict by default. Replace the link manually, set
+  `[activation].targetSymlinks = "replace"`, or use
+  `--replace-target-symlinks` only when replacing the link itself is intended.
 
 ## Scope Reminder
 

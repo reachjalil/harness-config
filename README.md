@@ -10,7 +10,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](./LICENSE)
 
 **Status:** Specification proposal with an alpha reference implementation.
-The npm package set is currently `1.0.0-alpha.3`. Treat the v1 file shape and
+The npm package set is currently `1.0.0-alpha.4`. Treat the v1 file shape and
 activation model as a public proposal while public releases, conformance
 fixtures, adopter repositories, and external issue traffic mature.
 
@@ -45,10 +45,10 @@ instruction parts. Live harness surfaces are generated outputs. Files declared
 under `[mutable]` cross the boundary once as seed data, then become
 runtime-owned state that activation reports but does not overwrite by default.
 
-The alpha reference CLI is intentionally boring: initialize, validate, preview,
-and activate file projections with explicit targets and reviewable diffs. Both
-the manifest path and resources source path can be explicit when a repository
-needs a different layout.
+The alpha reference CLI is intentionally boring: initialize, validate, explain,
+preview, and activate file projections with explicit targets and reviewable
+diffs. Both the manifest path and resources source path can be explicit when a
+repository needs a different layout.
 
 Harness config does not collect telemetry. The `harnessc` CLI does not send
 analytics, usage events, file paths, repository names, command history, machine
@@ -215,6 +215,7 @@ source maintainers.
 npx harnessc
 npx harnessc init
 npx harnessc validate
+npx harnessc explain .agents/skills/review/SKILL.md
 npx harnessc activate
 npx harnessc activate --yes
 ```
@@ -394,6 +395,11 @@ resource or dir source trees overlay their parent folder, which lets a skill
 carry its own portable profile override. Profile-local `.harnessIgnore` files
 match the logical overlay path, so a profile can suppress base files or
 composable parts while adding its own files.
+Ignore precedence follows logical path depth: repo-root rules run first,
+source/profile-local rules run shallow-to-deep at their logical locations, and
+target-output rules are the final boundary. Target-derived override ignores
+are evaluated at their logical source and target locations rather than at the
+physical dot-folder storage path.
 
 ## CLI
 
@@ -409,16 +415,18 @@ pnpm --filter @harnessconfig/cli exec harnessc init --resource prompts --target 
 pnpm --filter @harnessconfig/cli exec harnessc plan
 ```
 
-After publishing, run the CLI through npm. During alpha, use the alpha tag:
+After publishing, run the CLI through npm. During v1 alpha, release automation
+publishes the current alpha as the npm `latest` dist-tag, so the default
+`npx harnessc` command resolves to the current alpha:
 
 ```bash
-npx harnessc@alpha validate
-npx harnessc@alpha explain .agents/skills/review/SKILL.md
-npx harnessc@alpha init
-npx harnessc@alpha activate
-npx harnessc@alpha activate --yes
-npx harnessc@alpha init --yes --resource prompts --target ./runtime/agent
-npx harnessc@alpha plan
+npx harnessc validate
+npx harnessc explain .agents/skills/review/SKILL.md
+npx harnessc init
+npx harnessc activate
+npx harnessc activate --yes
+npx harnessc init --yes --resource prompts --target ./runtime/agent
+npx harnessc plan
 ```
 
 The public CLI package is `harnessc`.
@@ -441,7 +449,8 @@ Run `harnessc activate` without `--yes` to preview the projection.
 
 `harnessc explain <path>` is read-only introspection for a source or output
 path. It shows the matching target or repo-relative output, configured source
-root, source-use entries, dir actions, and blocking diagnostics.
+root, source-use entries, dir actions, blocking diagnostics, and the winning
+`.harnessIgnore` decision for source and target-output paths.
 
 `harnessc activate` is also a dry run unless `--yes` is supplied. The dry run
 prints the target strategy and the filesystem actions that would be taken.

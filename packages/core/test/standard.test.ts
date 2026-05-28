@@ -40,8 +40,24 @@ path = "./.claude"
 
     expect(config.version).toBe(CURRENT_HARNESS_CONFIG_VERSION);
     expect(config.targets[0]?.path).toBe("./.claude");
+    expect(config.activation.targetSymlinks).toBe("conflict");
     expect(config.extensions).toEqual({});
     expect(listHarnessProjectionTargets(config)).toEqual(["./.claude"]);
+  });
+
+  it("parses activation target symlink policy", () => {
+    const config = parseHarnessConfigToml(`
+version = 1
+
+[activation]
+targetSymlinks = "replace"
+`);
+
+    expect(config.activation.targetSymlinks).toBe("replace");
+    expect(stringifyHarnessConfig(config)).toContain("[activation]");
+    expect(
+      stringifyHarnessConfig(parseHarnessConfigToml("version = 1"))
+    ).not.toContain("[activation]");
   });
 
   it("parses ordered configurable resources source roots", () => {
@@ -791,6 +807,26 @@ path = "./.cursor"
     );
   });
 
+  it("keeps negated directory-only patterns from re-including every descendant", () => {
+    const matcher = createHarnessIgnoreMatcher([
+      {
+        rules: parseHarnessIgnore(
+          ".harness/resources/skills/**\n!.harness/resources/skills/\n!.harness/resources/skills/selected/**\n"
+        ),
+        directory: "",
+        sourcePath: ".harnessIgnore",
+        isRoot: true,
+      },
+    ]);
+
+    expect(matcher.ignores(".harness/resources/skills/other/SKILL.md")).toBe(
+      true
+    );
+    expect(matcher.ignores(".harness/resources/skills/selected/SKILL.md")).toBe(
+      false
+    );
+  });
+
   it("lets a deeper nested rule override a shallower nested rule", () => {
     const matcher = createHarnessIgnoreMatcher([
       {
@@ -1340,6 +1376,33 @@ path = "./.agents"
     ).toBe(true);
     expect(
       matcher.ignores(".harness/resources/skills/deploy/.harnessProfileRoot")
+    ).toBe(true);
+  });
+
+  it("does not let user negation re-include harness declaration files", () => {
+    const matcher = createHarnessIgnoreMatcher([
+      {
+        rules: parseHarnessIgnoreFile(
+          "!.harnessIgnore\n!.harnessProfile\n!.harnessProfileRoot\n",
+          {
+            isRoot: false,
+            sourcePath: ".harness/resources/skills/review/.harnessIgnore",
+          }
+        ).rules,
+        directory: ".harness/resources/skills/review",
+        sourcePath: ".harness/resources/skills/review/.harnessIgnore",
+        isRoot: false,
+      },
+    ]);
+
+    expect(
+      matcher.ignores(".harness/resources/skills/review/.harnessIgnore")
+    ).toBe(true);
+    expect(
+      matcher.ignores(".harness/resources/skills/review/.harnessProfile")
+    ).toBe(true);
+    expect(
+      matcher.ignores(".harness/resources/skills/review/.harnessProfileRoot")
     ).toBe(true);
   });
 

@@ -1,7 +1,10 @@
 import { parse, stringify } from "smol-toml";
 import { z } from "zod";
 
-import type { HarnessExtensionDefinition } from "./types";
+import type {
+  HarnessActivationConfig,
+  HarnessExtensionDefinition,
+} from "./types";
 
 export const DEFAULT_HARNESS_CONFIG_PATH = "./.harness/harness.toml";
 export const DEFAULT_HARNESS_RESOURCES_PATH = "./.harness/resources";
@@ -68,6 +71,14 @@ export const harnessTargetSchema = z
 
 export const harnessExtensionActivationSchema = z.enum(["explicit", "auto"]);
 
+export const harnessTargetSymlinkPolicySchema = z.enum(["conflict", "replace"]);
+
+export const harnessActivationSchema = z
+  .object({
+    targetSymlinks: harnessTargetSymlinkPolicySchema.default("conflict"),
+  })
+  .strict() satisfies z.ZodType<HarnessActivationConfig>;
+
 export const harnessExtensionSchema = z
   .object({
     version: z.number().int().positive(),
@@ -128,6 +139,7 @@ export const harnessConfigSchema = z
       })
       .strict()
       .default({ name: "harness-config" }),
+    activation: harnessActivationSchema.default({ targetSymlinks: "conflict" }),
     targets: z.array(harnessTargetSchema).default([]),
     resources: z.array(harnessResourcesSchema).default([]),
     dir: z.array(harnessDirSchema).default([]),
@@ -143,6 +155,7 @@ export function createDefaultHarnessConfig(): HarnessConfig {
     resources: [],
     dir: [],
     targets: [],
+    activation: { targetSymlinks: "conflict" },
     extensions: {},
   });
 }
@@ -216,6 +229,9 @@ export function stringifyHarnessConfig(config: HarnessConfig): string {
   const manifest: Record<string, unknown> = { ...config };
   if (config.targets.length === 0) {
     delete manifest.targets;
+  }
+  if (config.activation.targetSymlinks === "conflict") {
+    delete manifest.activation;
   }
   if (config.resources.length === 0) {
     delete manifest.resources;

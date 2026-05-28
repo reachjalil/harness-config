@@ -86,7 +86,10 @@ tree.
 configured resources sources, or configured dir sources, or
 target-output-local under existing target/output folders. Target-output rules
 match final output paths and existing target-output `.harnessIgnore` files are
-preserved during cleanup.
+preserved during cleanup. Precedence uses logical directory depth: profile
+ignores run at their overlay location, target-derived override ignores run at
+their logical source and target locations, and target-output ignores remain the
+final boundary.
 
 `.harnessProfile` selectors can activate `.harnessProfileRoot` overlays under
 `.harness`, a configured resources source, or a configured dir source.
@@ -100,4 +103,6 @@ pass `{ cleanupUnmanaged: "remove" }` to plan and apply explicit cleanup.
 Files declared mutable in `.harnessIgnore` are created once from source and
 skipped on later activations because the live target bytes are runtime-owned.
 Managed target files that differ from the current projection are reported as
-updates by direct comparison and overwritten on apply.
+updates by direct comparison and overwritten on apply. Target symlinks that
+occupy projected paths are conflicts unless the selected target symlink policy
+is `"replace"`.

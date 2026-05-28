@@ -18,6 +18,9 @@ import {
   formatInitializationPlan,
   formatInitializationResult,
   harnessConfigSchema,
+  loadHarnessIgnoreMatcherDetailed,
+  loadHarnessProfileContext,
+  logicalPathForProfilePath,
   parseHarnessConfigToml,
   planHarnessActivation,
   planHarnessInitialization,
@@ -29,6 +32,7 @@ import type {
   HarnessActivationPlan,
   HarnessConfig,
   HarnessFormatOptions,
+  HarnessIgnoreExplanation,
   HarnessInspection,
 } from "@harnessconfig/core";
 import {
@@ -52,6 +56,7 @@ type CliOptions = {
   help: boolean;
   cleanupUnmanaged?: "keep" | "remove";
   mutablePolicy?: "skip" | "force";
+  targetSymlinkPolicy?: "conflict" | "replace";
   allExtensions: boolean;
   extensions: string[];
   explainPath?: string;
@@ -82,7 +87,7 @@ Usage:
   harnessc activate [--root <path>] [--dry-run] [--yes]
                     [--config <path>]
                     [--keep-unmanaged|--remove-unmanaged]
-                    [--force-mutable] [--json]
+                    [--force-mutable] [--replace-target-symlinks] [--json]
   harnessc extension activate [--root <path>] [--config <path>]
                               [--dry-run] [--yes]
                               [--extension <id>|--all] [--json]
@@ -114,7 +119,9 @@ target entries by default. Use --remove-unmanaged to delete target entries that
 are not present in the computed Harness config projection. Managed target edits are
 overwritten from configured sources on update. Mutable target files declared under
 [mutable] in .harnessIgnore are created once and then left alone; use
---force-mutable to re-project them from source. Extensions are activated
+--force-mutable to re-project them from source. Target symlinks that occupy
+projected paths are conflicts by default; use --replace-target-symlinks or
+[activation].targetSymlinks = "replace" to replace the link itself. Extensions are activated
 separately with harnessc extension activate. Init, activate, and extension
 activate are dry runs unless --yes is supplied.
 `;
@@ -167,6 +174,10 @@ function parseArgs(argv: string[]): CliOptions {
     }
     if (arg === "--force-mutable") {
       options.mutablePolicy = "force";
+      continue;
+    }
+    if (arg === "--replace-target-symlinks") {
+      options.targetSymlinkPolicy = "replace";
       continue;
     }
     if (arg === "--all") {
@@ -528,7 +539,45 @@ async function explainHarnessPath(
 
   const config = parseHarnessConfigToml(raw);
   const paths = resolveHarnessPaths(absoluteRoot, { config, configPath });
+  const sourceRoots = [
+    ...paths.resourcesDirs.map((sourceRoot, index) => ({
+      kind: "resources",
+      index,
+      path: sourceRoot,
+    })),
+    ...paths.dirDirs.map((sourceRoot, index) => ({
+      kind: "dir",
+      index,
+      path: sourceRoot,
+    })),
+  ];
+  const matchingSourceRoot = sourceRoots.find((sourceRoot) =>
+    isInsideOrEqual(sourceRoot.path, absoluteInput)
+  );
+  const matchingTargetRoot = config.targets.find((target) =>
+    isInsideOrEqual(path.resolve(absoluteRoot, target.path), absoluteInput)
+  );
   const plan = await planHarnessActivation(absoluteRoot, { configPath });
+  const targetOutputPaths = [
+    ...plan.targets.flatMap((target) =>
+      target.actions.map((action) =>
+        toRepoRelative(plan.root, action.targetPath)
+      )
+    ),
+    ...plan.dir.actions.map((action) => action.relativePath),
+    ...(matchingSourceRoot ? [] : [repoPath]),
+  ];
+  const profileContext = await loadHarnessProfileContext(absoluteRoot, {
+    config,
+    targetOutputPaths,
+  });
+  const { matcher, diagnostics: ignoreDiagnostics } =
+    await loadHarnessIgnoreMatcherDetailed(absoluteRoot, {
+      config,
+      extraRuleSets: profileContext.ignoreRuleSets,
+      protectedTargetPaths: profileContext.protectedTargetPaths,
+      targetOutputPaths,
+    });
   const matchingTargetActions = plan.targets.flatMap((target) =>
     target.actions
       .filter(
@@ -560,25 +609,55 @@ async function explainHarnessPath(
       )
     ),
   ];
-  const sourceRoots = [
-    ...paths.resourcesDirs.map((sourceRoot, index) => ({
-      kind: "resources",
-      index,
-      path: sourceRoot,
-    })),
-    ...paths.dirDirs.map((sourceRoot, index) => ({
-      kind: "dir",
-      index,
-      path: sourceRoot,
-    })),
-  ];
-  const matchingSourceRoot = sourceRoots.find((sourceRoot) =>
-    isInsideOrEqual(sourceRoot.path, absoluteInput)
+  const profileRoot = profileContext.profileRoots.find((candidate) =>
+    isInsideOrEqual(candidate.rootDir, absoluteInput)
   );
+  const logicalRepoPath = profileRoot
+    ? displayRepoPath(
+        toRepoRelative(
+          absoluteRoot,
+          logicalPathForProfilePath(profileRoot, absoluteInput)
+        )
+      )
+    : repoPath;
+  const activeProfile =
+    profileRoot?.profile ?? profileContext.profileForOutput(repoPath);
+  const sourceIgnore = matchingSourceRoot
+    ? matcher.explain(logicalRepoPath, {
+        isDirectory: (
+          await lstat(absoluteInput).catch(() => undefined)
+        )?.isDirectory(),
+        profile: activeProfile,
+      })
+    : undefined;
+  const targetIgnore = matchingTargetRoot
+    ? matcher.explain(repoPath, {
+        isDirectory: (
+          await lstat(absoluteInput).catch(() => undefined)
+        )?.isDirectory(),
+        outputPath: repoPath,
+        profile: profileContext.profileForOutput(repoPath),
+        targetPath: matchingTargetRoot.path,
+      })
+    : undefined;
+  const ignore = {
+    source: sourceIgnore
+      ? formatIgnoreExplanation(sourceIgnore, logicalRepoPath)
+      : undefined,
+    targetOutput: targetIgnore
+      ? formatIgnoreExplanation(targetIgnore, repoPath)
+      : undefined,
+  };
+  const ignoreSummary = explainIgnoreSummary(
+    ignore.source,
+    ignore.targetOutput
+  );
+  const diagnostics = [...plan.diagnostics, ...ignoreDiagnostics];
 
   return {
     root: absoluteRoot,
     path: repoPath,
+    logicalPath: logicalRepoPath !== repoPath ? logicalRepoPath : undefined,
     sourceRoot: matchingSourceRoot
       ? {
           kind: matchingSourceRoot.kind,
@@ -591,17 +670,92 @@ async function explainHarnessPath(
     outputActions: matchingTargetActions,
     dirActions: matchingDirActions,
     sourceActions: matchingSourceActions,
-    diagnostics: plan.diagnostics,
+    ignore,
+    diagnostics,
     explanation:
-      matchingTargetActions.length > 0 || matchingDirActions.length > 0
+      ignoreSummary ??
+      (matchingTargetActions.length > 0 || matchingDirActions.length > 0
         ? "This path is a planned output."
         : matchingSourceActions.length > 0
           ? "This source path participates in the current projection."
           : matchingSourceRoot
             ? "This path is under a configured source root but does not appear in the current projection plan. It may be ignored, inactive for the selected target/profile, overridden by a later source, or not a projectable file."
-            : "This path is not under a configured source root and is not a planned output.",
+            : "This path is not under a configured source root and is not a planned output."),
     color: options.color === true,
   };
+}
+
+type FormattedIgnoreExplanation = {
+  ignored: boolean;
+  path: string;
+  finalMatch?: {
+    candidatePath: string;
+    directory: string;
+    ignored: boolean;
+    matchBase: string;
+    pattern: string;
+    profile?: string;
+    sourceLine: number;
+    sourcePath: string;
+  };
+  matches: Array<{
+    candidatePath: string;
+    directory: string;
+    ignored: boolean;
+    matchBase: string;
+    pattern: string;
+    profile?: string;
+    sourceLine: number;
+    sourcePath: string;
+  }>;
+};
+
+function formatIgnoreExplanation(
+  explanation: HarnessIgnoreExplanation,
+  displayPath: string
+): FormattedIgnoreExplanation {
+  const matches = explanation.matches.map((match) => ({
+    candidatePath: match.candidatePath,
+    directory: match.directory,
+    ignored: match.ignored,
+    matchBase: match.matchBase,
+    pattern: match.rule.pattern,
+    profile: match.profile,
+    sourceLine: match.rule.sourceLine,
+    sourcePath: match.sourcePath,
+  }));
+  return {
+    ignored: explanation.ignored,
+    path: displayPath,
+    finalMatch: matches.at(-1),
+    matches,
+  };
+}
+
+function explainIgnoreSummary(
+  source: FormattedIgnoreExplanation | undefined,
+  targetOutput: FormattedIgnoreExplanation | undefined
+): string | undefined {
+  if (targetOutput?.ignored) {
+    const final = targetOutput.finalMatch;
+    if (final?.matchBase === "target") {
+      return "This path is excluded by a target-output .harnessIgnore final boundary.";
+    }
+    return "This path is ignored by .harnessIgnore output-path rules.";
+  }
+  if (source?.ignored) {
+    const final = source.finalMatch;
+    if (final?.sourcePath === ".harnessIgnore") {
+      return "This path is ignored by the repo-root .harnessIgnore.";
+    }
+    return "This path is ignored by .harnessIgnore source-path rules.";
+  }
+  if (source?.finalMatch?.ignored === false) {
+    return source.finalMatch.profile
+      ? "This path is re-included by a profile-local .harnessIgnore logical rule."
+      : "This path is re-included by a deeper source-local .harnessIgnore rule.";
+  }
+  return undefined;
 }
 
 function formatExplainResult(
@@ -634,6 +788,10 @@ function formatExplainResult(
       sourcePaths?: string[];
       reason?: string;
     }>;
+    ignore?: {
+      source?: FormattedIgnoreExplanation;
+      targetOutput?: FormattedIgnoreExplanation;
+    };
     diagnostics?: HarnessInspection["diagnostics"];
     explanation: string;
   };
@@ -675,6 +833,21 @@ function formatExplainResult(
       `${cliLabel(options, "Source use:")} ${action.kind}${
         action.target ? ` for ${action.target}` : ""
       }${action.reason ? ` (${action.reason})` : ""}`
+    );
+  }
+  for (const [label, explanation] of [
+    ["Source ignore", value.ignore?.source],
+    ["Output ignore", value.ignore?.targetOutput],
+  ] as const) {
+    if (!explanation?.finalMatch) {
+      continue;
+    }
+    lines.push(
+      `${cliLabel(options, `${label}:`)} ${
+        explanation.ignored ? "ignored" : "included"
+      } by ${explanation.finalMatch.sourcePath}:${
+        explanation.finalMatch.sourceLine
+      } (${explanation.finalMatch.pattern})`
     );
   }
   const diagnostics = (value.diagnostics ?? []).filter(
@@ -953,6 +1126,7 @@ export async function runHarnessConfigCli(
           configPath: options.configPath,
           cleanupUnmanaged: cleanupUnmanaged ?? "keep",
           mutablePolicy: options.mutablePolicy,
+          targetSymlinkPolicy: options.targetSymlinkPolicy,
         });
         if (!cleanupUnmanaged && hasUnmanagedEntries(promptPlan)) {
           cleanupUnmanaged = await promptCleanupUnmanaged();
@@ -972,6 +1146,7 @@ export async function runHarnessConfigCli(
         yes: options.yes,
         cleanupUnmanaged,
         mutablePolicy: options.mutablePolicy,
+        targetSymlinkPolicy: options.targetSymlinkPolicy,
       });
       const extensionResult = autoExtensionHasOutput
         ? await applyRegisteredExtensions(options.root, {
@@ -1055,6 +1230,7 @@ export async function runHarnessConfigCli(
         configPath: options.configPath,
         cleanupUnmanaged: options.cleanupUnmanaged,
         mutablePolicy: options.mutablePolicy,
+        targetSymlinkPolicy: options.targetSymlinkPolicy,
       });
       io.stderr(formatActivationPlan(plan, formatOptions));
     }

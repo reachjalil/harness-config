@@ -6,6 +6,12 @@ export type HarnessTargetDefinition = {
 
 export type HarnessExtensionActivation = "explicit" | "auto";
 
+export type HarnessTargetSymlinkPolicy = "conflict" | "replace";
+
+export type HarnessActivationConfig = {
+  targetSymlinks: HarnessTargetSymlinkPolicy;
+};
+
 export type HarnessExtensionDefinition = {
   version: number;
   activation: HarnessExtensionActivation;
@@ -103,6 +109,7 @@ export type ApplyHarnessInitializationOptions = {
     standard: {
       name: string;
     };
+    activation?: HarnessActivationConfig;
     resources?: HarnessResourcesDefinition[];
     dir?: HarnessDirDefinition[];
     targets: HarnessTargetDefinition[];
@@ -173,6 +180,7 @@ export type ApplyHarnessActivationOptions = {
   configPath?: string;
   cleanupUnmanaged?: "keep" | "remove";
   mutablePolicy?: "skip" | "force";
+  targetSymlinkPolicy?: HarnessTargetSymlinkPolicy;
 };
 
 export type HarnessResourceItemProjectionOptions = {
@@ -207,6 +215,24 @@ export type HarnessIgnoreRuleSet = {
   profile?: string;
 };
 
+export type HarnessIgnoreRuleMatch = {
+  candidatePath: string;
+  directory: string;
+  ignored: boolean;
+  matchBase: HarnessIgnoreMatchBase;
+  profile?: string;
+  rule: HarnessIgnoreRule;
+  sourcePath: string;
+};
+
+export type HarnessIgnoreExplanation = {
+  ignored: boolean;
+  kind: HarnessIgnoreRuleKind;
+  matches: HarnessIgnoreRuleMatch[];
+  path: string;
+  finalMatch?: HarnessIgnoreRuleMatch;
+};
+
 export type HarnessIgnoreMatcher = {
   rules: HarnessIgnoreRule[];
   ruleSets: HarnessIgnoreRuleSet[];
@@ -230,4 +256,15 @@ export type HarnessIgnoreMatcher = {
       targetPath?: string;
     }
   ): boolean;
+  explain(
+    relativePath: string,
+    options?: {
+      isDirectory?: boolean;
+      kind?: HarnessIgnoreRuleKind;
+      outputPath?: string;
+      profile?: string;
+      target?: string;
+      targetPath?: string;
+    }
+  ): HarnessIgnoreExplanation;
 };

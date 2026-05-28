@@ -14,7 +14,7 @@ Expected result:
 - `validate` reports no errors for the selected manifest.
 - `activate` is a dry run and writes nothing.
 - The plan explains creates, updates, keeps, preserved unmanaged files, mutable
-  files, and requested removals.
+  files, requested removals, and any target symlink conflicts.
 
 ## Apply and confirm convergence
 
@@ -29,6 +29,9 @@ Expected result:
 - A second dry run converges to `keep` for managed files.
 - Runtime-owned files declared under `[mutable]` are reported as `mutable` and
   are not overwritten.
+- Target symlink conflicts are resolved manually or by explicit
+  `[activation].targetSymlinks = "replace"` / `--replace-target-symlinks`
+  policy before apply.
 
 ## Review checklist
 
@@ -40,11 +43,41 @@ git diff -- .harness .harnessIgnore AGENTS.md CLAUDE.md .agents .claude .cursor 
 
 Confirm:
 
-- durable shared source is under `.harness/resources` or `.harness/dir`,
+- durable shared source is under configured resource groups such as
+  `.harness/resources` or `.harness/resources-review`,
+- repo-relative generated outputs use `.harness/dir` only when useful,
+- resource groups have README files when their purpose is not obvious,
 - live harness surfaces are outputs, not source folders,
 - target-specific differences are encoded as target-derived overrides,
 - secrets and local machine settings are absent from `.harness`,
-- `.harnessIgnore` protects logs, caches, generated files, and mutable runtime
-  files,
+- scoped `.harnessIgnore` files protect logs, caches, generated files,
+  source-only files, and output-local boundaries,
 - gitignored harness surfaces can be regenerated from `.harness` plus the
-  selected manifest.
+  selected manifest,
+- a tracked bootstrap tells users and agents how to run activation when
+  generated harness surfaces are gitignored.
+
+## Explain Checks
+
+Use `explain` for representative paths:
+
+```bash
+npx harnessc explain .harness/resources-review/skills/foo/SKILL.md --json
+npx harnessc explain .agents/skills/foo/SKILL.md --json
+```
+
+Confirm ignored resources report the expected winning `.harnessIgnore` rule.
+For profile or local-layer changes, confirm the explanation uses the logical
+source path the user expects.
+
+## Cleanup Checks
+
+Before using cleanup:
+
+```bash
+npx harnessc activate --remove-unmanaged
+```
+
+Confirm every `remove` is expected. Target-output `.harnessIgnore` and
+`.harnessProfile` files should be preserved. Do not use cleanup to compensate
+for an unclear source layout.
