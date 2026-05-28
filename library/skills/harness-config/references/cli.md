@@ -80,8 +80,9 @@ logical rule, or missing from the projection.
 ## Generated Surfaces
 
 Generated harness surfaces can be gitignored when they are reproducible from
-`.harness`, but only recommend that when a tracked bootstrap exists. The
-bootstrap can be a root instruction note, README setup section, or package
+`.harness`. For existing repositories, prefer that steady state after full
+migration and convergence so skills have one reviewed source location. Require
+a tracked bootstrap: a root instruction note, README setup section, or package
 script such as:
 
 ```json

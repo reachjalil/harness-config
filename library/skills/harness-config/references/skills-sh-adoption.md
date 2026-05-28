@@ -112,6 +112,40 @@ sequence:
 12. Apply with `npx harnessc activate --yes` only when the plan matches intent.
 13. Run `npx harnessc activate` again and confirm convergence.
 
+## Completion Standard
+
+Do not tell the user that the repository now has "the" source of truth for
+agent configuration unless all durable agent resources discovered during
+inventory have been migrated or explicitly classified as intentionally
+unmanaged.
+
+Use precise language:
+
+- **Complete migration:** all durable skills, plugins, rules, prompts,
+  commands, hooks, agents, and selected root instructions are under `.harness`
+  or intentionally documented as unmanaged.
+- **Blocked migration:** one or more durable resources could not be migrated
+  safely because of a concrete blocker such as unclear ownership, secrets,
+  runtime trust state, executable install behavior, or user direction.
+- **Bootstrap only:** only `harness.toml`, `.harnessIgnore`, and a helper skill
+  or note were added. This is not the preferred setup for an existing repo; it
+  is only a starting point when full migration is blocked or explicitly
+  deferred by the user.
+
+If only the `harness-config` skill was promoted, say:
+
+```text
+This is only a bootstrap, not the recommended end state. Harness config
+currently manages only the harness-config helper skill and the listed root
+files. Existing skills or resources in live surfaces remain unmanaged, so the
+next step is to complete the migration into `.harness/resources` before treating
+the live surfaces as generated.
+```
+
+Avoid wording such as "now Harness config can regenerate the managed parts"
+unless it is immediately followed by the exact managed scope, the remaining
+unmanaged scope, and a recommendation to finish the migration.
+
 After triage, summarize supported CLI steps and file-edit steps. Example:
 
 ```text
@@ -133,8 +167,9 @@ review:
   private;
 - avoid declaring targets for folders that merely happen to exist;
 - keep existing live surfaces in place until activation output is understood;
-- gitignore generated harness surfaces only when a tracked bootstrap tells
-  users and agents how to activate them;
+- after full migration and convergence, prefer gitignored generated harness
+  surfaces with a tracked bootstrap that tells users and agents how to
+  activate them;
 - treat target symlinks as conflicts unless the user explicitly wants
   `[activation].targetSymlinks = "replace"` or a one-run
   `--replace-target-symlinks` activation;

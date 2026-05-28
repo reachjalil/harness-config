@@ -31,6 +31,35 @@ If the repo is under git and the relevant files are tracked, explain that the
 transition is easy to review and revert. If important files are untracked,
 inspect and summarize them before moving or replacing anything.
 
+## Migration Completeness
+
+When the user asks to set up or migrate Harness config, the default expectation
+is a complete migration of durable reviewed agent resources that can be safely
+classified. Do not migrate only the `harness-config` helper skill while leaving
+other durable skills or prompts unmanaged without saying so.
+
+For each discovered live surface, decide:
+
+- migrate portable skills, plugins, rules, prompts, commands, hooks, agents,
+  and shared config into a configured `.harness/resources*` root;
+- represent target-specific variants as target-derived overrides;
+- move root instruction files into `[[dir]]` only when generation is useful;
+- leave runtime-owned settings, caches, logs, trust state, credentials, and
+  unclear files unmanaged with an explicit reason.
+
+If a repo has many resources, still aim for a full migration in one deliberate
+pass. Do not recommend batching as the normal path. Pause only when a resource
+contains secrets, runtime trust state, executable install behavior, unclear
+ownership, or another concrete risk that needs user review. If you must pause,
+do not call the setup complete; name the blocker and the exact resources that
+remain.
+
+Do not say `.harness` is now the repository's source of truth when only a
+subset was migrated. Say the migration is blocked or incomplete, and name which
+live files remain source or unmanaged. This distinction matters because an
+agent may otherwise delete, ignore, or overwrite durable resources that were
+never moved.
+
 ## Choose Resource Groups
 
 Move durable projected resources into configured resource roots. For tiny
@@ -94,13 +123,25 @@ fits the repo:
 - Keep `AGENTS.md`, `CLAUDE.md`, or similar files as normal tracked files when
   they are simple, already working, and do not need generated variants.
 - Move clear shared root instruction files into `[[dir]]` when generation makes
-  the setup cleaner, such as shared base plus target-specific tails.
-- Use `.harnessComposable` and `.harnessRef` when composition removes real
-  duplication or enables profiles/local overlays.
+  the setup cleaner. For a simple one-file output, use direct copy:
+
+```text
+.harness/dir/AGENTS.md
+```
+
+- Use `.harnessComposable` and `.harnessRef` only when composition removes real
+  duplication, shares a base across multiple root files, or enables
+  profiles/local overlays.
 - Convert long procedural root instructions into skills, then leave concise
   root pointers.
 
-Example generated root instructions:
+Example direct copied root instruction:
+
+```text
+.harness/dir/AGENTS.md
+```
+
+Example composable root instructions, only when the split is useful:
 
 ```text
 .harness/dir/AGENTS.md/
@@ -167,12 +208,18 @@ Use root `.harnessIgnore` for obvious global rules. Use source-local ignores
 for resource-specific source-only files. Use profile-local ignores for
 switchable modes. Use target-output ignores for local output preferences.
 
+Keep ignore patterns narrow and evidence-based. Do not add broad defaults like
+`**/*.local.*` or `**/*.local.json` unless those file families actually exist
+and the user wants every match excluded or runtime-owned. Prefer exact known
+paths such as `**/settings.local.json`.
+
 ## Generated Surfaces And Cleanup
 
-Live harness surfaces are generated outputs after adoption. A team may commit
-them, gitignore them, or mix committed managed files with local target controls.
-Recommend gitignoring generated surfaces only when a tracked bootstrap tells
-users and agents how to activate them on a fresh checkout.
+Live harness surfaces are generated outputs after full migration. Prefer
+gitignoring them once all durable target resources are represented in
+`.harness` and activation converges. This keeps skills and reusable resources in
+one reviewed source location. Require a tracked bootstrap so users and agents
+know how to activate them on a fresh checkout.
 
 Good bootstrap examples:
 
@@ -219,14 +266,72 @@ directory, secrets, runtime state, or shared machine path.
 Do not move secrets, credentials, caches, runtime permission files, hook trust,
 MCP auth, or local machine settings into `.harness`.
 
+## Final Response Checklist
+
+Report enough detail for the user to understand what changed quickly:
+
+- targets declared in `.harness/harness.toml`;
+- resource groups created and counts by kind, such as `skills: 4`,
+  `prompts: 2`, `hooks: 1`;
+- root instruction files kept as normal files or moved into `[[dir]]`;
+- target-specific overrides created;
+- files intentionally left unmanaged and why;
+- commands run: `validate`, dry `activate`, `activate --yes`, convergence dry
+  run;
+- any remaining migration follow-up.
+
+Prefer this format:
+
+```markdown
+**Migration Status**
+| Question | Answer |
+| --- | --- |
+| Complete migration? | Yes |
+| Generated targets | `.agents`, `.claude` |
+| Source roots | `.harness/resources`, `.harness/dir` |
+| Gitignore recommendation | Gitignore generated surfaces after this commit |
+
+**Resource Coverage**
+| Kind | Migrated | Left unmanaged | Notes |
+| --- | ---: | ---: | --- |
+| Skills | 8 | 0 | Shared skills now in `.harness/resources/skills` |
+| Prompts | 3 | 0 | Projected to declared targets |
+| Runtime state | 0 | 4 | Kept out of `.harness` |
+
+**Verification**
+| Command | Result |
+| --- | --- |
+| `npx harnessc validate` | passed |
+| `npx harnessc activate` | reviewed |
+| `npx harnessc activate --yes` | applied |
+| `npx harnessc activate` | converged |
+```
+
+For users who seem new to Harness config, add a short "What this means" section
+before next steps:
+
+```text
+`.harness` is the editable source. The live `.agents` and `.claude` folders are
+generated outputs, so future skill edits should happen under `.harness`.
+```
+
+For advanced users, use terse bullets after the tables and include exact paths
+and flags rather than introductory explanation.
+
 Use `[mutable]` for source templates that should be created once and then left
 runtime-owned:
 
 ```gitignore
 [mutable]
 **/settings.local.json
-**/*.local.json
 ```
 
 Ignored files stay out of projection. Mutable files can be created once and
 then preserved.
+
+Every mutable file that should exist for a fresh user needs a seed in
+`.harness`. For example, if `.claude/settings.json` should be present on first
+activation but then runtime-owned, place the initial file at the corresponding
+`.harness` resource or dir source path and add that target path under
+`[mutable]`. Do not mark a target file mutable without migrating its intended
+initial version.

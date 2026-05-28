@@ -29,6 +29,8 @@ Expected result:
 - A second dry run converges to `keep` for managed files.
 - Runtime-owned files declared under `[mutable]` are reported as `mutable` and
   are not overwritten.
+- Mutable files that should exist for fresh users have an initial seed under
+  `.harness`; `[mutable]` is not just an ignore rule.
 - Target symlink conflicts are resolved manually or by explicit
   `[activation].targetSymlinks = "replace"` / `--replace-target-symlinks`
   policy before apply.
