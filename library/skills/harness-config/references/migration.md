@@ -65,11 +65,16 @@ approval. The plan must include:
 
 - skill guide version;
 - explicit targets and why each existing surface is included or excluded;
-- resource roots and grouping vocabulary;
+- two or three layout options when the repo is large enough to justify them,
+  including one ambitious organization option based on the repo's workflows,
+  domains, teams, target agent sets, or kits;
+- recommended resource roots and grouping vocabulary;
 - root-file strategy, including direct copy vs `.harnessComposable`;
 - root instruction updates that tell future agents to use Harness config
   guidance for any agent-configuration operation;
-- mutable files and their seed locations in `.harness`;
+- mutable files copied into `.harness` as seed files and their seed locations;
+- target-output `.harnessIgnore` files needed in generated surfaces such as
+  `.agents` or `.claude`;
 - generated-surface `.gitignore` recommendation after convergence;
 - cleanup policy, especially whether unmanaged live files are preserved,
   migrated, archived, or explicitly approved for removal;
@@ -90,8 +95,9 @@ A full transition has all of these properties:
 | Skills/resources | Every reusable skill, plugin, prompt, rule, command, hook, and agent is migrated or explicitly blocked with a reason. |
 | Root files | Root instructions are normal tracked files, direct `[[dir]]` copies, or composable only when composition is useful. |
 | Agent guidance | Root agent instructions tell future agents to modify `.harness` sources and use Harness validation/activation for any agent-config change. |
-| Mutable files | Files marked `[mutable]` have source seeds in `.harness` when they should exist for fresh users. |
+| Mutable files | Files marked `[mutable]` are copied into `.harness` as source seeds when they should exist for fresh users. |
 | Cleanup | Unmanaged live files are preserved until migrated, archived, or explicitly approved for deletion after a dry-run removal list. |
+| Target ignores | Generated surfaces have target-output `.harnessIgnore` files when a target needs local-only output rules. |
 | Local state | Secrets, caches, logs, credentials, trust state, and machine-local settings stay out of `.harness`. |
 | Verification | Activation converges after apply. |
 
@@ -113,6 +119,19 @@ repos, one root is fine:
 For real migrations, prefer meaningful resource groups over a flat dumping
 ground. Let the user choose the vocabulary: workflows, strategies, teams,
 modes, kits, agents, products, or domains.
+
+Before implementing, spend time understanding the repository and present a
+small option set. The user should be able to compare tradeoffs before files are
+moved:
+
+| Option | Layout | When to choose |
+| --- | --- | --- |
+| Conservative | one `.harness/resources` root | small repo, few durable resources |
+| Organized | roots by workflow/domain/team | several skills or prompts with clear ownership |
+| Ambitious | reusable kits plus target overrides | repo has reusable agent sets, platform guidance, or multiple teams |
+
+Recommend one option and explain why. Do not implement the first workable
+skeleton before the user has seen the plan.
 
 ```text
 .harness/

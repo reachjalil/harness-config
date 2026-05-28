@@ -1,12 +1,12 @@
 ---
 name: harness-config
 description: Use when working with Harness config in a customer repository. Triggers include setting up, adopting, migrating, validating, activating, or troubleshooting .harness/harness.toml, .harness resources, AGENTS.md, CLAUDE.md, .agents, .claude, .cursor, .gemini, skills, rules, plugins, prompts, hooks, .harnessIgnore, mutable files, or CLI commands such as npx harnessc validate and npx harnessc activate.
-version: 2026-05-28.full-transition-plan
+version: 2026-05-28.best-practice-options
 ---
 
 # Harness Config
 
-Skill guide version: `2026-05-28.full-transition-plan`.
+Skill guide version: `2026-05-28.best-practice-options`.
 
 When using this skill for setup or migration, include the skill guide version
 in the proposed plan and final summary. This lets the user tell whether an
@@ -73,6 +73,10 @@ Use these defaults unless the user's repository clearly points elsewhere:
   kit. Let the user choose the vocabulary. Add short `README.md` files to
   non-obvious resource roots so someone can copy a folder and understand why it
   exists.
+- **Understand before recommending.** Spend enough time reading the repository
+  to propose useful resource group options. Do not default to a flat
+  `.harness/resources` dump when the repo has clear teams, domains, workflows,
+  agent sets, or kits. Present options and recommend one.
 - **`[[dir]]` when useful.** Use `.harness/dir*` for repo-relative outputs such
   as `AGENTS.md`, `CLAUDE.md`, or setup files when generated repo files improve
   the repo. Prefer a direct copied file such as `.harness/dir/AGENTS.md` for a
@@ -90,6 +94,10 @@ Use these defaults unless the user's repository clearly points elsewhere:
 - **Nested ignores for locality.** Keep repo-root `.harnessIgnore` small and put
   scoped `.harnessIgnore` files near the resource group, skill, profile, or
   output subtree they control.
+- **Target-output ignores are part of migration.** When a generated surface such
+  as `.agents`, `.claude`, `.cursor`, or `.gemini` has local-only output rules,
+  add a target-local `.harnessIgnore` in that surface or subtree. Use it for
+  runtime output boundaries while keeping source-local ignores near source.
 - **Full migration by default.** For existing agent surfaces, prefer migrating
   all durable skills, plugins, rules, prompts, commands, hooks, agents, and
   reusable wrappers into `.harness` in the same pass. Do not recommend a
@@ -129,33 +137,40 @@ Use these defaults unless the user's repository clearly points elsewhere:
    setup. The plan must state the skill guide version, targets, source roots,
    root-file strategy, mutable seed handling, generated-surface gitignore
    recommendation, and blockers if any.
-6. Choose explicit targets from actual intended harness surfaces. If `.claude`,
+6. When the repo has enough structure to justify it, present two or three
+   layout options in a table before making a recommendation. Include an
+   ambitious organization option when useful, such as grouping skills by
+   workflow, domain, team, target agent set, or kit.
+7. Choose explicit targets from actual intended harness surfaces. If `.claude`,
    `.agents`, `.cursor`, `.gemini`, matching root files, or runtime settings
    are present and durable content exists for them, recommend declaring those
    targets rather than leaving them unmanaged.
-7. For setup in a repository with existing agent surfaces, migrate every
+8. For setup in a repository with existing agent surfaces, migrate every
    durable reviewed skill, rule, plugin, prompt, command, hook, agent, and root
    instruction file you can confidently classify. Do not stop after promoting
    only the `harness-config` helper skill. Leave a file in the live surface only
    when it is runtime-owned, secret/local, generated/cache state, unsupported,
    or unclear enough to need user review.
-8. Create or update `.harness/harness.toml` with explicit `[[resources]]`
+9. Create or update `.harness/harness.toml` with explicit `[[resources]]`
    source roots before projecting skills, rules, plugins, prompts, agents,
    hooks, commands, MCP config, or other target resources.
-9. Move durable shared content into configured resource groups and use `[[dir]]`
+10. Move durable shared content into configured resource groups and use `[[dir]]`
    only when repo-relative output generation improves the repository.
-10. Keep runtime state, secrets, caches, and local settings out of committed
+11. Keep runtime state, secrets, caches, and local settings out of committed
    `.harness` source; offer optional local layers when they fit the user's
    workflow.
-11. Add scoped `.harnessIgnore` files and narrow `[mutable]` entries for
-   runtime-owned files. When a mutable file should exist for fresh users, first
-   migrate its initial seed into `.harness`; mutable means "create once from
-   source, then preserve runtime edits."
-12. Use `npx harnessc explain <path>` for confusing source or output paths.
-13. Run `npx harnessc validate`, `npx harnessc activate`, then
+12. Add scoped `.harnessIgnore` files and narrow `[mutable]` entries for
+   runtime-owned files. When a mutable file should exist for fresh users, copy
+   its initial reviewed version into `.harness` before listing it under
+   `[mutable]`; mutable means "copy once from source for new users, then
+   preserve runtime edits."
+13. Add target-output `.harnessIgnore` files inside generated surfaces such as
+   `.agents` or `.claude` when that target needs local-only output boundaries.
+14. Use `npx harnessc explain <path>` for confusing source or output paths.
+15. Run `npx harnessc validate`, `npx harnessc activate`, then
    `npx harnessc activate --yes`.
-14. Re-run dry activation and confirm convergence.
-15. Use `--remove-unmanaged` only after the dry-run removal list has been
+16. Re-run dry activation and confirm convergence.
+17. Use `--remove-unmanaged` only after the dry-run removal list has been
     shown to the user and every removed durable item is migrated to `.harness`,
     intentionally archived, or explicitly approved for deletion.
 
@@ -166,15 +181,17 @@ plan like this and wait for the user to approve it:
 
 ```markdown
 **Recommended Full Transition Plan**
-Skill guide: `2026-05-28.full-transition-plan`
+Skill guide: `2026-05-28.best-practice-options`
 
 | Decision | Recommendation | Reason |
 | --- | --- | --- |
 | Targets | `.agents`, `.claude` | Both surfaces exist and contain durable config |
 | Source roots | `.harness/resources`, `.harness/dir` | One reviewed source for skills and root files |
+| Resource layout | grouped by workflow/domain/agent set | Repo has enough durable resources to benefit from meaningful groups |
 | Root files | direct copy `.harness/dir/AGENTS.md` | No composition needed for a single file |
 | Agent instructions | add Harness maintenance note to `AGENTS.md`/`CLAUDE.md` | Future agents must use Harness guidance for agent-config changes |
-| Mutable files | seed `.harness/resources/.claude/settings.json`, mark target mutable | Fresh users get the file; runtime edits are preserved |
+| Mutable files | copy seed to `.harness/resources/.claude/settings.json`, mark target mutable | Fresh users get the file once; runtime edits are preserved |
+| Target ignores | add `.agents/.harnessIgnore` or subtree ignores when needed | Target-local output boundaries belong with the generated surface |
 | Generated surfaces | add `.agents/`, `.claude/` to `.gitignore` after convergence | Live surfaces are reproducible outputs |
 | Cleanup | preserve unmanaged until migrated or explicitly approved for removal | Narrowing active skills must not delete the only copy |
 
@@ -202,8 +219,9 @@ stop and report the exact blocker instead of doing a partial adoption.
 | Target differences preserved | Runtime-specific differences are represented as target-derived overrides, not copied live surfaces. |
 | Root files decided | Each root instruction file is either kept tracked as-is, copied directly through `.harness/dir`, or made composable only when composition is actually useful. |
 | Agent instructions updated | `AGENTS.md`, `CLAUDE.md`, or equivalent root instructions tell future agents to use Harness config guidance for any agent-config operation and to edit `.harness` sources instead of generated target folders. |
-| Mutable seeds present | Every mutable file that should exist for a fresh user has an initial seed in `.harness` before it is listed under `[mutable]`. |
+| Mutable seeds present | Every mutable file that should exist for a fresh user is copied into `.harness` as the seed before it is listed under `[mutable]`; activation creates it once and then preserves runtime edits. |
 | Ignores are narrow | `.harnessIgnore` contains only evidence-based patterns; no broad `*.local.*` families unless explicitly justified. |
+| Target ignores present | Generated surfaces such as `.agents` or `.claude` have target-output `.harnessIgnore` files when they need local output boundaries. |
 | Generated surfaces handled | After full migration and convergence, `.agents`, `.claude`, `.cursor`, `.gemini`, or similar generated surfaces are recommended for `.gitignore` with a tracked bootstrap. |
 | Cleanup reviewed | Any `--remove-unmanaged` run has a reviewed dry-run removal list; no durable skill/resource is deleted from live surfaces unless it exists in `.harness`, is archived, or the user explicitly approved deletion. |
 | Activation verified | `npx harnessc validate`, dry `activate`, `activate --yes`, and a second dry `activate` all pass and converge. |
@@ -213,6 +231,27 @@ configuration, while live harness surfaces are generated outputs and local
 runtime state remains outside source. It does not mean copying every runtime
 file into `.harness`: secrets, caches, logs, trust state, credentials, and
 machine-local settings stay local.
+
+## Best Practice Review Checklist
+
+Use this checklist when the user asks whether an existing Harness config setup
+is correct, even when they are not asking for a migration:
+
+| Area | Best-practice check |
+| --- | --- |
+| Skill version | The installed `harness-config` skill reports the current skill guide version in `SKILL.md`. |
+| Source of truth | Durable skills, prompts, rules, hooks, commands, agents, and shared settings are represented in configured `.harness` source roots. |
+| Resource organization | Resource groups reflect the repo's real workflows, domains, teams, target agent sets, or kits; a flat dump is used only when the repo is genuinely small. |
+| Explicit targets | Every intended live surface is declared as `[[targets]]`; no target is inferred only because a folder exists. |
+| Root instructions | `AGENTS.md`, `CLAUDE.md`, or equivalents either remain normal tracked files or are generated through `[[dir]]`; `.harnessComposable` is used only when composition adds value. |
+| Mutable files | Mutable files that fresh users need are copied into `.harness` as seeds before `[mutable]`; `[mutable]` is not used as a substitute for source migration. |
+| Ignore locality | Source-local ignores live near source; target-output `.harnessIgnore` files live inside `.agents`, `.claude`, or relevant target subtrees when a generated surface needs local output rules. |
+| Cleanup safety | `--remove-unmanaged` is not used until removals are previewed and each durable item is migrated, archived, or explicitly approved for deletion. |
+| Verification | `npx harnessc validate`, dry activation, apply, and a second dry activation converge. |
+
+Report best-practice reviews with a table of findings, risks, and recommended
+actions. If multiple improvements are possible, provide options and recommend
+the option that best matches the repo's size and ownership model.
 
 ## Migration Autonomy
 
