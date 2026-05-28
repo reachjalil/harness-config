@@ -67,10 +67,10 @@ Promotion examples:
 ```
 
 Choose subfolders by usefulness: workflow, strategy, team, mode, domain, agent
-set, or kit. Add a short `README.md` when the grouping is not self-evident. For
-the first clean full migration, default to one `.harness/resources` root and
-organize inside it; add additional configured roots only for optional catalogs,
-profile-selected kits, ownership boundaries, or local/private work.
+set, or reusable concern. Add a short `README.md` when the grouping is not
+self-evident. For many first migrations, one `.harness/resources` root is enough;
+organize inside it and add configured roots only for optional catalogs,
+profile-selected specializations, ownership boundaries, or local/private work.
 
 ## Repository Triage
 
@@ -139,7 +139,11 @@ by default:
     subtrees, with a tracked activation note, unless the user wants generated
     outputs tracked. If generated files are already tracked, report the
     reviewed `git rm --cached` follow-up instead of deleting working-tree files.
-18. Use `--remove-unmanaged` only after a reviewed dry run shows exact removals
+18. Add repo-native activation commands when available, such as `package.json`
+    scripts, Makefile targets, justfile recipes, README setup steps, or a
+    guarded post-install hook when the repo intentionally wants automatic
+    activation after dependency install.
+19. Use `--remove-unmanaged` only after a reviewed dry run shows exact removals
     and every removed durable item is migrated, archived, or explicitly
     approved for deletion.
 
@@ -163,6 +167,7 @@ Use this checklist in the response before claiming adoption is complete:
 | Target ignores | Target-output `.harnessIgnore` files are added inside generated surfaces when local output boundaries are needed. |
 | Root files | Simple root files are direct copies or normal tracked files; `.harnessComposable` is used only when needed. |
 | Generated-surface gitignore | After convergence, root `.gitignore` ignores generated surfaces or exact generated subtrees, with tracked activation instructions, unless the user wants generated outputs tracked. |
+| Activation path | A tracked repo-native command or setup note can validate and activate generated surfaces on a fresh checkout. |
 | Verification | Validate, dry activation, apply, and convergence dry run all succeeded. |
 
 If any check is incomplete, say the migration is blocked/incomplete and name the

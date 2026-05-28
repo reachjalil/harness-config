@@ -83,15 +83,22 @@ Generated harness surfaces can be gitignored when they are reproducible from
 `.harness`. For existing repositories, prefer that steady state after full
 migration and convergence so skills have one reviewed source location. Require
 tracked activation instructions: a root instruction note, README setup section,
-or package script such as:
+Makefile target, justfile recipe, or package scripts such as:
 
 ```json
 {
   "scripts": {
-    "setup:harness": "npx harnessc validate && npx harnessc activate --yes"
+    "harness:validate": "npx harnessc validate",
+    "harness:preview": "npx harnessc activate",
+    "harness:activate": "npx harnessc activate --yes",
+    "setup:harness": "npm run harness:validate && npm run harness:activate"
   }
 }
 ```
+
+Prefer explicit scripts first. Add a guarded `postinstall` hook only when the
+repo already uses install-time setup or the user wants generated surfaces
+restored automatically after dependency install.
 
 On a fresh checkout, users and agents should know to run:
 

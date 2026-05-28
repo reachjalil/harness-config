@@ -72,13 +72,15 @@ never moved.
 Before editing, inventory the repo and proceed with the full transition by
 default. Use the Full Transition Definition below as the implementation and
 best-practice checklist: satisfy each applicable row, or identify a blocker or
-explicit user preference before activation. The final summary must include:
+explicit user preference before activation. Keep the layout as simple as the
+repo allows, and use examples as patterns rather than a forced file tree. The
+final summary must include:
 
 - skill guide version;
 - explicit targets and why each existing surface is included or excluded;
 - the chosen layout, including any concern roots based on the repo's workflows,
-  domains, teams, target agent sets, or kits;
-- recommended resource roots and grouping vocabulary;
+  domains, teams, target agent sets, or reusable concerns;
+- resource roots and grouping vocabulary chosen from the repo's own structure;
 - confirmation that target-level seeds such as `.claude/settings.json` stay at
   target-derived paths under the resources root, for example
   `.harness/resources/.claude/settings.json`;
@@ -90,6 +92,8 @@ explicit user preference before activation. The final summary must include:
   `.agents` or `.claude`;
 - generated-surface root `.gitignore` entries added after convergence, or the
   explicit user preference or constraint for keeping generated output tracked;
+- tracked regeneration commands or setup notes, such as package scripts,
+  Makefile targets, justfile recipes, README steps, or a guarded install hook;
 - cleanup policy, especially whether unmanaged live files are preserved,
   migrated, archived, or explicitly approved for removal;
 - concrete blockers, if any.
@@ -116,6 +120,7 @@ A full transition has all of these properties:
 | Cleanup | Unmanaged live files are preserved until migrated, archived, or explicitly approved for deletion after a dry-run removal list. |
 | Target ignores | Generated surfaces have target-output `.harnessIgnore` files when a target needs local-only output rules. |
 | Git ignore best practice | Root `.gitignore` ignores each generated surface or exact generated subtree after convergence unless the user wants generated output tracked; target-output `.harnessIgnore` is still used separately for Harness projection boundaries. |
+| Regeneration path | A tracked command or setup note tells users and agents how to validate and activate generated surfaces on a fresh checkout. |
 | Local state | Secrets, caches, logs, credentials, trust state, and machine-local settings stay out of `.harness`. |
 | Verification | Activation converges after apply. |
 
@@ -127,8 +132,9 @@ remain only in live target surfaces.
 
 ## Choose Resource Groups
 
-Move durable projected resources into configured resource roots. For most first
-full migrations, start with one configured root:
+Move durable projected resources into configured resource roots. Start with the
+simplest reviewed layout that preserves behavior and matches the repo's
+vocabulary. For many first migrations, one configured root is enough:
 
 ```text
 .harness/resources/
@@ -144,19 +150,19 @@ full migrations, start with one configured root:
   plugins/
 ```
 
-Inside that root, prefer meaningful folders over a flat dumping ground. Let the
-user choose the vocabulary: workflows, strategies, teams, modes, kits, agents,
-products, or domains.
+Inside that root, use meaningful folders only when they help review or reuse.
+Let the repo supply the vocabulary: workflows, strategies, teams, modes, agent
+sets, products, reusable concerns, or domains.
 
 Target-level files must stay at the target-derived path under the root. For
 example, `.claude/settings.json` belongs at
 `.harness/resources/.claude/settings.json`, with
 `.harness/resources/.claude/.harnessMutable` when it is a create-once mutable
 seed. Do not place target-level settings under `skills/`,
-an optional kit root, or another unrelated resource group.
+an optional catalog, or another unrelated resource group.
 
 Before implementing, spend time understanding the repository and choose the
-layout that matches the repo's structure:
+layout that matches the repo's structure. These options are examples:
 
 | Option | Layout | When to choose |
 | --- | --- | --- |
@@ -164,9 +170,9 @@ layout that matches the repo's structure:
 | Organized subfolders | one `.harness/resources` root with skill families under `skills/` | many skills or prompts with clear workflow/domain names |
 | Multiple roots | `.harness/resources`, `.harness/resources-testing`, `.harness/resources-deployment`, `.harness/resources-ui`, `.harness/local/resources` | only when concern catalogs are independently optional, profile-selected, separately owned, or private/local |
 
-Choose one option deliberately and explain why in the final summary. Do not
-implement the first workable manifest if the repo has a clearer concern-based
-structure.
+Choose deliberately and explain why in the final summary. Do not invent a
+concern taxonomy when the repo does not have one; also do not flatten a repo
+that already has clear boundaries.
 
 ```text
 .harness/
@@ -514,10 +520,31 @@ Harness surfaces are generated. Run:
 ```json
 {
   "scripts": {
-    "setup:harness": "npx harnessc validate && npx harnessc activate --yes"
+    "harness:validate": "npx harnessc validate",
+    "harness:preview": "npx harnessc activate",
+    "harness:activate": "npx harnessc activate --yes",
+    "setup:harness": "npm run harness:validate && npm run harness:activate"
   }
 }
 ```
+
+For repos with `package.json`, prefer explicit scripts first. Add a
+`postinstall` hook only when the repo already uses install-time setup or the
+user wants generated harness surfaces restored automatically. If you add one,
+make it guarded so install does not overwrite active user work. A common shape
+is a small tracked script that activates only when the manifest exists and the
+declared generated surfaces are missing:
+
+```json
+{
+  "scripts": {
+    "postinstall": "node .harness/scripts/activate-if-missing.mjs"
+  }
+}
+```
+
+Use equivalent Makefile targets, justfile recipes, README setup commands, or
+repo-specific bootstrap scripts when those are more natural than `package.json`.
 
 Use `--remove-unmanaged` only after the dry run clearly shows removals the user
 expects. Target-output `.harnessIgnore` and `.harnessProfile` files are local
@@ -557,6 +584,7 @@ Report enough detail for the user to understand what changed quickly:
 - files intentionally left unmanaged and why;
 - commands run: `validate`, dry `activate`, `activate --yes`, convergence dry
   run;
+- tracked activation command or setup note added;
 - any remaining migration follow-up.
 
 Prefer this format:
@@ -569,6 +597,7 @@ Prefer this format:
 | Generated targets | `.agents`, `.claude` |
 | Source roots | `.harness/resources`, `.harness/dir` |
 | Gitignore best practice | Root `.gitignore` ignores generated surfaces after convergence unless intentionally tracked |
+| Activation path | `npm run setup:harness` |
 
 **Resource Coverage**
 | Kind | Migrated | Left unmanaged | Notes |

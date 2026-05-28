@@ -50,7 +50,7 @@ Map these layers into Harness config:
 
 - Put portable target resources under configured `.harness/resources*` roots.
 - Group resources by usefulness: workflow, strategy, team, mode, agent set,
-  product area, or kit. Match the user's language.
+  product area, or reusable concern. Match the user's language.
 - Put repo-relative outputs under `.harness/dir*` only when generation,
   composition, profile overlays, or local overlays are useful.
 - Represent harness-specific differences with target-derived overrides such as
@@ -123,7 +123,7 @@ Rules:
 - Keep target-level files at target-derived paths, such as
   `.harness/resources/.claude/settings.json`.
 - Add more configured roots only for optional catalogs, ownership boundaries,
-  profile-selected kits, or local/private work.
+  profile-selected specializations, or local/private work.
 - Use profiles and nested `.harnessIgnore` to switch groups or selected
   resources on and off.
 - Use `.harness/local/resources` for personal experiments and private

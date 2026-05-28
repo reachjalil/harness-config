@@ -72,7 +72,7 @@ Target-level settings stay at their target-derived path:
 `.harness/resources/.claude/settings.json`. Do not put them inside
 `skills/` or an unrelated resource group. Skill folder names should match
 how the user thinks: workflow, team, strategy, mode, agent set, product area,
-or kit.
+or reusable concern.
 
 ## Multiple Resource Roots
 
@@ -293,10 +293,28 @@ Package script:
 ```json
 {
   "scripts": {
-    "setup:harness": "npx harnessc validate && npx harnessc activate --yes"
+    "harness:validate": "npx harnessc validate",
+    "harness:preview": "npx harnessc activate",
+    "harness:activate": "npx harnessc activate --yes",
+    "setup:harness": "npm run harness:validate && npm run harness:activate"
   }
 }
 ```
+
+Optional guarded post-install hook, only when the repo wants generated surfaces
+restored automatically after dependency install:
+
+```json
+{
+  "scripts": {
+    "postinstall": "node .harness/scripts/activate-if-missing.mjs"
+  }
+}
+```
+
+Keep the guard script small and repo-specific: check that
+`.harness/harness.toml` exists, skip CI or read-only installs if needed, and
+activate only when the generated surfaces the repo expects are missing.
 
 Activation note:
 
