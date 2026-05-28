@@ -98,5 +98,6 @@ Harness config v1 fija un comportamiento conservador para el sistema de archivos
 - Los `.harnessIgnore` y `.harnessProfile` dentro de salidas de destino son estado local protegido.
 - Con el mismo arbol fuente, manifest, perfiles, reglas ignore, politica de limpieza y politica mutable, la activacion es determinista.
 - Los destinos no pueden apuntar a `.harness`, solaparse con fuentes configuradas ni solaparse entre si.
+- La introspeccion de rutas, cuando una herramienta la ofrece, debe ser de solo lectura y derivarse del mismo manifest seleccionado, fuentes configuradas, perfiles, reglas ignore, politica mutable y modelo de proyeccion que la activacion.
 
 Por ejemplo, un archivo fuente como `.harness/resources/hooks.json` puede actualizar `.agents/hooks.json`, mientras que un archivo target-owned como `.agents/skills/review/settings.local.json` marcado por `[mutable]` queda intacto despues de la primera proyeccion. Un archivo target-output como `.claude/skills/review/.harnessIgnore` puede filtrar ese subarbol de destino y se preserva durante la limpieza.

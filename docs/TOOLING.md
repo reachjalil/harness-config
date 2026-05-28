@@ -42,10 +42,16 @@ harnessc plan
   composable leaves, symlink leaf handling, and dir composition/copy issues.
 - `harnessc explain <path>` explains how a source or output path participates
   in the current projection plan, including winning source paths, configured
-  source roots, dir outputs, and blocking diagnostics.
+  source roots, dir outputs, blocking diagnostics, and `.harnessIgnore`
+  decisions. JSON output includes source and target-output ignore traces so a
+  caller can distinguish a repo-root exclusion, a deeper source-local
+  re-include, a profile-local logical re-include, and a target-output final
+  boundary.
 - `harnessc activate` dry-runs the activation projection and shows creates,
   updates, requested removals, kept files, mutable-skipped files, and preserved
-  unmanaged entries before writing.
+  unmanaged entries before writing. By default it reports target symlinks that
+  occupy projected paths as conflicts; pass `--replace-target-symlinks` or set
+  `[activation].targetSymlinks = "replace"` to replace the link itself.
 - `harnessc extension activate` runs registered extensions. Use
   `--extension <id>` to run one declared extension or `--all` to run every
   declared supported extension.
@@ -55,9 +61,24 @@ harnessc plan
 
 `init`, `activate`, and `extension activate` are dry runs unless `--yes` is
 supplied.
+
+Common introspection examples:
+
+```bash
+harnessc explain .agents/skills/review/SKILL.md
+harnessc explain AGENTS.md
+harnessc explain .harness/local/resources/skills/review/SKILL.md
+```
+
 Unmanaged target entries are kept by default. Use `--remove-unmanaged` when a
 target should be cleaned to match configured sources; use `--keep-unmanaged`
 to make the default explicit.
+
+Generated harness surfaces such as `.agents`, `.claude`, `.cursor`, and
+`.gemini` can be gitignored when they are reproducible from `.harness`.
+Projects that do this should keep a tracked bootstrap such as a root
+instruction note, README setup step, or package script that tells users and
+agents to run validation and activation on fresh checkout.
 
 Cleanup applies only to targets that are still declared in the selected
 manifest. After a target declaration is removed, base `harnessc activate` no
@@ -86,9 +107,27 @@ under `[mutable]` in `.harnessIgnore` are created once from source and skipped
 on subsequent activations because the live target bytes are runtime-owned. Use
 `--force-mutable` to re-project them from source.
 
+Target symlinks are not followed. If a target symlink occupies a path that
+projection needs to write, `harnessc activate` reports
+`harness.target_symlink_conflict` and refuses `--yes` by default. Select one of
+the explicit replacement policies when replacing the link itself is intended:
+
+```toml
+[activation]
+targetSymlinks = "replace"
+```
+
+or for a single run:
+
+```bash
+harnessc activate --yes --replace-target-symlinks
+```
+
 Filesystem behavior follows the v1 release freeze:
 
 - symlinks are treated as leaf entries and are not followed;
+- target symlinks that occupy projected paths are conflicts unless replacement
+  is selected by manifest policy or `--replace-target-symlinks`;
 - unmanaged target entries are preserved unless `--remove-unmanaged` is
   selected;
 - target-output `.harnessIgnore` and `.harnessProfile` files are preserved as

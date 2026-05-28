@@ -1,5 +1,50 @@
 # Harness config release notes
 
+## 1.0.0-alpha.4
+
+`1.0.0-alpha.4` completes the v1 ignore precedence model, tightens activation
+explainability, and updates adoption guidance before the v1 proposal is treated
+as final.
+
+### Ignore And Projection Semantics
+
+- Defines `.harnessIgnore` precedence by logical location and logical directory
+  depth, with last matching participating rule winning.
+- Lets deeper source-local and profile-local ignore files refine or re-include
+  paths ignored by shallower rules.
+- Evaluates profile-local ignore files at their logical overlay location and
+  target-derived override ignore files at their logical source/target
+  locations.
+- Keeps target-output `.harnessIgnore` files as the final boundary that cannot
+  be undone by repo, source, or profile rules.
+- Keeps Harness declaration files out of projection, including
+  `.harnessIgnore`, `.harnessProfile`, and `.harnessProfileRoot`.
+
+### Tooling And Safety
+
+- Expands `harnessc explain --json` so ignored, re-included, profile-selected,
+  and target-output-filtered paths report the winning rule consistently.
+- Adds explicit target symlink policy: target symlinks conflict by default and
+  are replaced only when the manifest or CLI explicitly selects replacement.
+- Adds coverage for resource-root ignores, profile selection across resource
+  groups, target-derived override ignores, target-output final boundaries,
+  synthetic declaration ignores, and idempotent activation.
+
+### Adoption Guidance
+
+- Updates the public Harness config skill and references with the v1 adoption
+  model: resources-first, meaningful resource groups, first-class
+  `.harness/local/`, scoped nested ignores, profiles as modes, and tracked
+  bootstrap for gitignored generated surfaces.
+- Clarifies that `AGENTS.md`, `CLAUDE.md`, and similar root files can stay as
+  normal tracked files unless `[[dir]]`, composition, profiles, or local
+  overlays make generation useful.
+- Documents `npx skills` / skills.sh workflows, `skills-lock.json` provenance,
+  and promotion of reviewed skills into `.harness` source.
+- During the v1 alpha, release automation continues publishing the current
+  alpha on the npm `latest` dist-tag so default `npx harnessc` resolves to the
+  current proposal.
+
 ## 1.0.0-alpha.3
 
 `1.0.0-alpha.3` updates the v1 proposal to the ordered source-root model and

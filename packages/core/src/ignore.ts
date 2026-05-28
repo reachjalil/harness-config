@@ -12,9 +12,11 @@ import {
 import type { HarnessConfig } from "./standard";
 import type {
   HarnessDiagnostic,
+  HarnessIgnoreExplanation,
   HarnessIgnoreMatcher,
   HarnessIgnoreMatchBase,
   HarnessIgnoreRule,
+  HarnessIgnoreRuleMatch,
   HarnessIgnoreRuleKind,
   HarnessIgnoreRuleSet,
 } from "./types";
@@ -166,6 +168,14 @@ export function createHarnessIgnoreMatcher(
     },
     isMutable(relativePath, options = {}) {
       return evaluate(ruleSets, "mutable", relativePath, options);
+    },
+    explain(relativePath, options = {}) {
+      return evaluateWithExplanation(
+        ruleSets,
+        options.kind ?? "ignore",
+        relativePath,
+        options
+      );
     },
   };
 }
@@ -350,7 +360,133 @@ function evaluate(
       }
     }
   }
+  return applySyntheticDeclarationDecision(kind, normalized, state);
+}
+
+function evaluateWithExplanation(
+  ruleSets: HarnessIgnoreRuleSet[],
+  kind: HarnessIgnoreRuleKind,
+  relativePath: string,
+  options: {
+    isDirectory?: boolean;
+    outputPath?: string;
+    profile?: string;
+    target?: string;
+    targetPath?: string;
+  }
+): HarnessIgnoreExplanation {
+  const normalized = normalizeIgnorePath(relativePath);
+  const matches: HarnessIgnoreRuleMatch[] = [];
+  if (!normalized) {
+    return { ignored: false, kind, matches, path: normalized };
+  }
+  const outputNormalized = options.outputPath
+    ? normalizeIgnorePath(options.outputPath)
+    : undefined;
+
+  let state = false;
+  for (const ruleSet of ruleSets) {
+    if (ruleSet.profile !== undefined && ruleSet.profile !== options.profile) {
+      continue;
+    }
+    const candidates = evaluationCandidates(
+      ruleSet,
+      normalized,
+      outputNormalized
+    )
+      .filter((candidate) => ruleSetParticipates(ruleSet.directory, candidate))
+      .map((candidate) => ({
+        absolute: candidate,
+        relative: pathRelativeToRuleSetDirectory(ruleSet.directory, candidate),
+      }));
+    if (candidates.length === 0) {
+      continue;
+    }
+
+    for (const rule of ruleSet.rules) {
+      if (rule.kind !== kind || !ruleScopeParticipates(rule, options)) {
+        continue;
+      }
+      const matchedCandidate = candidates.find((candidate) =>
+        matchesRule(rule, candidate.relative, options.isDirectory === true)
+      );
+      if (!matchedCandidate) {
+        continue;
+      }
+      state = !rule.negated;
+      matches.push({
+        candidatePath: matchedCandidate.absolute,
+        directory: ruleSet.directory,
+        ignored: state,
+        matchBase: ruleSet.matchBase ?? "source",
+        profile: ruleSet.profile,
+        rule,
+        sourcePath: ruleSet.sourcePath,
+      });
+    }
+  }
+
+  if (isSyntheticDeclarationPath(normalized) && kind === "ignore") {
+    state = true;
+    matches.push({
+      candidatePath: normalized,
+      directory: "",
+      ignored: true,
+      matchBase: "both",
+      rule: syntheticDeclarationRuleForPath(normalized),
+      sourcePath: "<synthetic>",
+    });
+  }
+
+  return {
+    ignored: state,
+    kind,
+    matches,
+    path: normalized,
+    finalMatch: matches.at(-1),
+  };
+}
+
+function applySyntheticDeclarationDecision(
+  kind: HarnessIgnoreRuleKind,
+  normalizedPath: string,
+  state: boolean
+): boolean {
+  if (kind === "ignore" && isSyntheticDeclarationPath(normalizedPath)) {
+    return true;
+  }
   return state;
+}
+
+function isSyntheticDeclarationPath(normalizedPath: string): boolean {
+  return [
+    HARNESS_IGNORE_FILE,
+    HARNESS_PROFILE_FILE,
+    HARNESS_PROFILE_ROOT_FILE,
+  ].some(
+    (fileName) =>
+      normalizedPath === fileName || normalizedPath.endsWith(`/${fileName}`)
+  );
+}
+
+function syntheticDeclarationRuleForPath(
+  normalizedPath: string
+): HarnessIgnoreRule {
+  const fileName =
+    [HARNESS_IGNORE_FILE, HARNESS_PROFILE_FILE, HARNESS_PROFILE_ROOT_FILE].find(
+      (candidate) =>
+        normalizedPath === candidate || normalizedPath.endsWith(`/${candidate}`)
+    ) ?? HARNESS_IGNORE_FILE;
+  return {
+    kind: "ignore",
+    pattern: `**/${fileName}`,
+    negated: false,
+    directoryOnly: false,
+    anchored: false,
+    sourceLine: 0,
+    scope: "all",
+    target: undefined,
+  };
 }
 
 function ruleScopeParticipates(
@@ -826,6 +962,9 @@ function directoryRuleCanMatch(
   if (!rule.directoryOnly) {
     return true;
   }
+  if (rule.negated) {
+    return isDirectory && matchedSegmentIndex === segments.length - 1;
+  }
   return isDirectory || matchedSegmentIndex < segments.length - 1;
 }
 
@@ -844,6 +983,9 @@ function directoryAwarePathMatches(
 
   if (globExactPathMatches(normalizedPath, pattern)) {
     return isDirectory;
+  }
+  if (rule.negated) {
+    return false;
   }
   return true;
 }

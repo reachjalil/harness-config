@@ -10,7 +10,8 @@ project; library skills are installable guidance for users.
 ## Skills
 
 - `harness-config`: Set up, migrate, validate, activate, and troubleshoot
-  Harness config in a repository.
+  Harness config in a repository, including portable resource groups,
+  profiles, local layers, and generated harness surfaces.
 
 Install with a skill installer from:
 

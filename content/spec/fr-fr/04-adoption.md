@@ -14,7 +14,7 @@ llmSummary: Couvre les workflows de création d'un catalogue .harness, de décla
 audience: Développeurs introduisant .harness dans des dépôts nouveaux ou existants.
 contentKind: spec
 status: draft
-updated: 2026-05-26
+updated: 2026-05-27
 ---
 
 # Adoption
@@ -39,6 +39,7 @@ Harness config v1 commence par un petit contrat source:
 npx harnessc init
 npx harnessc init --yes --resource skills --target ./runtime/agent
 npx harnessc validate
+npx harnessc explain .agents/skills/review/SKILL.md
 npx harnessc activate
 npx harnessc activate --yes
 ```
@@ -56,7 +57,7 @@ Séquence recommandée:
 3. **Déclarez les cibles dans le manifeste sélectionné.** Ajoutez un `[[targets]]` pour chaque surface de harness à régénérer. Déclarez chaque source partagée avec une entrée `[[resources]]`.
 4. **Écrivez `.harnessIgnore` pour les artefacts source-only.** Logs, scratch files, métadonnées et fixtures appartiennent généralement aux règles d'ignore. Les fichiers écrits par le runtime appartiennent à `[mutable]`.
 5. **Ajoutez des profils seulement quand ils clarifient l'ownership.** Placez `.harnessProfileRoot` sous `.harness`, sous une source de ressources configurée ou sous une source `[[dir]]`, puis sélectionnez ces profils avec `.harnessProfile`.
-6. **Dry run, revue, puis apply.** `npx harnessc activate` affiche le plan sans écrire; relancez avec `--yes` après revue.
+6. **Dry run, explain, revue, puis apply.** `npx harnessc activate` affiche le plan sans écrire; utilisez `npx harnessc explain <path>` pour inspecter une source ou une sortie précise, puis relancez avec `--yes` après revue.
 7. **Relancez l'activation.** Un second dry run sans changement doit converger vers `keep` pour les fichiers gérés et `mutable` pour les fichiers runtime-owned.
 
 ## Règles D'Ignore

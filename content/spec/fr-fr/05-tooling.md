@@ -2,24 +2,24 @@
 title: Outillage
 seoTitle: Outillage .harness
 socialTitle: Outillage pour valider et activer .harness config
-description: L'implémentation de référence npx harnessc, la validation, le planning et les commandes d'activation.
+description: L'implémentation de référence npx harnessc, la validation, l'introspection explain, le planning et les commandes d'activation.
 socialDescription: La couche de commandes pour valider les dépôts .harness et appliquer les projections d'activation.
 canonicalPath: /specifications/v1/tooling/
 slug: tooling
 order: 5
 locale: fr-fr
 sectionCode: "05"
-summary: "L'implémentation de référence npx harnessc: validation, planning et commandes d'activation."
-llmSummary: Décrit les attentes d'outillage pour validation, dry-run, activation, diagnostics et helpers autour de .harness.
+summary: "L'implémentation de référence npx harnessc: validation, introspection explain, planning et commandes d'activation."
+llmSummary: Décrit les attentes d'outillage pour validation, introspection explain, dry-run, activation, diagnostics et helpers autour de .harness.
 audience: Auteurs de CLI et développeurs opérant des dépôts .harness.
 contentKind: spec
 status: draft
-updated: 2026-05-26
+updated: 2026-05-27
 ---
 
 # Outillage
 
-`npx harnessc` est l'implémentation de référence pour valider, planifier et activer Harness config.
+`npx harnessc` est l'implémentation de référence pour valider, planifier, expliquer et activer Harness config.
 
 ## Commandes
 
@@ -27,8 +27,17 @@ updated: 2026-05-26
 npx harnessc plan
 npx harnessc init
 npx harnessc validate
+npx harnessc explain <path>
 npx harnessc activate
 npx harnessc extension activate
+```
+
+`npx harnessc explain <path>` est une introspection en lecture seule pour un chemin source ou de sortie. Exemples:
+
+```bash
+npx harnessc explain .agents/skills/review/SKILL.md
+npx harnessc explain AGENTS.md
+npx harnessc explain .harness/local/resources/skills/review/SKILL.md
 ```
 
 `npx harnessc activate` est dry-run par défaut. Il affiche les créations, mises à jour, fichiers mutables ignorés, suppressions demandées, fichiers inchangés et entrées non gérées préservées avant écriture.

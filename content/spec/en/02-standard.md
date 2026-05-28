@@ -282,6 +282,9 @@ version = 1
 [standard]
 name = "harness-config"
 
+[activation]
+targetSymlinks = "conflict"
+
 [[resources]]
 path = "./.harness/resources"
 
@@ -415,10 +418,12 @@ extension explicitly defines its own.
   `./.harness`, or a declared target tree is treated as a leaf filesystem
   entry. v1 implementations MUST NOT follow symlinks while discovering source
   trees, existing target trees, ignores, profiles, or dir outputs. When a
-  symlink occupies a path activation needs to write, the link itself MAY be
-  replaced according to the same file/path conflict rules used for other
-  non-directory entries. v1 does not require preserving symlinks as links or
-  projecting source symlinks into targets.
+  target symlink occupies a path activation needs to write, activation MUST
+  report a conflict unless an explicit target symlink replacement policy is
+  selected. With that policy, the link itself MAY be replaced according to the
+  same file/path conflict rules used for other non-directory entries. v1 does
+  not require preserving symlinks as links or projecting source symlinks into
+  targets.
 - **Hidden files.** Names beginning with `.` are not implicitly ignored.
   They participate in projection like any other file unless excluded by
   `.harnessIgnore`. This does not make Harness config declaration files target
@@ -574,6 +579,9 @@ These rules are normative for v1 activation:
 - Symlinks are never followed while discovering source roots, target trees,
   ignore files, profile selectors, or dir outputs. A symlink is a leaf
   filesystem entry.
+- When a target symlink occupies a path activation needs to write, activation
+  MUST report a conflict unless the selected target symlink policy explicitly
+  permits replacing the link itself.
 - Managed target files are overwritten from the current source projection when
   their bytes differ.
 - Mutable target files are created from source once and then become
@@ -838,8 +846,12 @@ Mutable files MUST still flow through the projection ignore step. If a file is
 both ignored and marked mutable, the ignore decision wins because the file
 never enters the projection in the first place.
 
-A trailing `/` pattern is directory-only. It matches the directory itself only
-when the candidate is a directory, and it matches descendants of that directory.
+A trailing `/` pattern is directory-only. For non-negated ignore rules, it
+matches the directory itself and descendants of that directory. For negated
+rules, it re-includes only the directory entry itself; descendants still need
+their own negated rule such as `!path/to/item/**`. This preserves the
+gitignore-style pattern where broad ignores can close a subtree while deeper
+logical rules selectively reopen one child.
 
 ### Local `.harnessIgnore` Files
 
@@ -885,13 +897,18 @@ The following rules apply:
   source path or target output path is inside that file's directory.
 - **Evaluation order.** Rule sets are evaluated in phases: the repo-root file
   first, then source-local and profile-local files in order of increasing
-  directory depth, then target-output-local files in order of increasing
-  directory depth. Within each rule set, rules are read top-to-bottom. The
+  logical directory depth, then target-output-local files in order of
+  increasing logical directory depth. Within each rule set, rules are read top-to-bottom. The
   last-matching participating rule across all files wins. A deeper source or
   target file can therefore re-include a path that a shallower file in the
   same phase excluded, or exclude a path that a shallower file would have
   included. Target-output-local rules form the final output boundary for a
   target subtree and cannot be undone by profile-local source rules.
+- **Logical location.** Every participating local `.harnessIgnore` has a
+  logical location. Profile-local files participate at the profile root's
+  logical overlay location. Target-derived override files participate at their
+  logical source and target locations, not merely at the physical dot-folder
+  used to store the override.
 - **Same grammar.** Nested files support the same comments, negation,
   anchors, glob syntax, and supported section headers (`[*]`, `[global]`,
   `[ignore]`, and `[mutable]`) as the repo-root file.
@@ -1019,6 +1036,9 @@ The source/projection boundary makes cross-surface differences reviewable:
 - Activation commands SHOULD offer a dry run and explain creates, updates,
   removals, keeps, unmanaged preserved entries, and mutable skips before
   mutation.
+- Read-only path introspection, when provided by a tool, MUST be derived from
+  the same selected manifest, configured source roots, profile selectors,
+  ignore rules, mutable policy, and projection model as activation.
 - Live harness surfaces MUST be treated as projection targets, not source
   repositories.
 - Teams MAY gitignore live harness surfaces because they are generated outputs;
@@ -1050,7 +1070,9 @@ SHOULD consider the following threats explicitly:
 - **Symlink redirection.** Symlinks in the source tree or in declared target
   trees can redirect reads or writes outside the repository if followed. v1
   implementations MUST treat symlinks as leaf entries and MUST NOT silently
-  follow them.
+  follow them. Replacing a target symlink that occupies a projected path MUST
+  require an explicit target symlink policy, either from the selected manifest
+  or from an equivalent operator-selected activation option.
 - **TOCTOU on apply.** A target may be modified between planning and
   applying. Implementations SHOULD re-check the existence and managed/
   unmanaged classification of files at apply time, not only at plan time.

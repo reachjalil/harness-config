@@ -15,6 +15,7 @@ Most users should run:
 ```bash
 npx harnessc
 npx harnessc validate
+npx harnessc explain .agents/skills/review/SKILL.md
 ```
 
 This package exists so the public `harnessc` package can depend on a scoped
@@ -76,13 +77,24 @@ manifest.
 
 `harnessc explain <path>` is read-only introspection for a source or output
 path. It reports matching target outputs, configured source roots, source-use
-paths, dir actions, and diagnostics. Use `--json` for automation.
+paths, dir actions, ignore decisions, and diagnostics. Use `--json` for
+automation; JSON output includes source and target-output ignore traces.
+
+Examples:
+
+```bash
+harnessc explain .agents/skills/review/SKILL.md
+harnessc explain AGENTS.md
+harnessc explain .harness/local/resources/skills/review/SKILL.md
+```
 
 `harnessc activate` is the reference projection command. Without `--yes`, it
 prints a dry run for every declared target, including creates, updates,
 mutable skipped files, requested removals, projected keeps, and unmanaged
 entries preserved outside the projection. With `--yes`, it applies the computed
-copy projection.
+copy projection. Target symlinks that occupy projected paths are conflicts by
+default; set `[activation].targetSymlinks = "replace"` or pass
+`--replace-target-symlinks` when replacing the link itself is intended.
 
 `harnessc extension activate` runs registered extensions. Extensions default to
 explicit activation; use `--extension <id>` for one extension or `--all` for
@@ -102,10 +114,12 @@ with the current source bytes. Mutable files declared under `[mutable]` in
 `.harnessIgnore` are created once from source and then left untouched as
 runtime-owned target state unless `--force-mutable` is supplied.
 
-`.harnessIgnore` files can be repo-root, source-local, or target-output-local.
-Target-output files, such as `.agents/skills/review/.harnessIgnore`, match
-final output paths for that subtree and are preserved even when activation is
-run with `--remove-unmanaged`.
+`.harnessIgnore` files can be repo-root, source-local, profile-local,
+target-derived override-local, or target-output-local. Precedence follows
+logical directory depth with last matching rule wins. Target-output files,
+such as `.agents/skills/review/.harnessIgnore`, match final output paths for
+that subtree, remain the final boundary, and are preserved even when
+activation is run with `--remove-unmanaged`.
 
 `.harnessProfile` files select optional profile overlays. A matching
 `.harnessProfileRoot` under `.harness`, a configured resources source, or

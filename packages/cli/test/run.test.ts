@@ -1,4 +1,11 @@
-import { lstat, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import {
+  lstat,
+  mkdir,
+  mkdtemp,
+  readFile,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -389,6 +396,167 @@ describe("harnessc", () => {
     );
   });
 
+  it("explains logical-depth ignore precedence decisions as json", async () => {
+    const root = await rootFixture();
+    await writeConfig(root);
+    await write(
+      root,
+      ".harnessIgnore",
+      [
+        ".harness/resources/skills/root-ignored/**",
+        ".harness/resources/skills/source-reincluded/**",
+        ".harness/resources/skills/profile-reincluded/**",
+        "",
+      ].join("\n")
+    );
+    await write(root, ".harnessProfile", "team\n");
+    await write(
+      root,
+      ".harness/resources/skills/root-ignored/SKILL.md",
+      "root ignored"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/source-reincluded/.harnessIgnore",
+      "!SKILL.md\n"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/source-reincluded/SKILL.md",
+      "source reincluded"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/profile-reincluded/SKILL.md",
+      "profile reincluded"
+    );
+    await write(root, ".harness/profiles/team/.harnessProfileRoot", "team\n");
+    await write(
+      root,
+      ".harness/profiles/team/resources/.harnessIgnore",
+      "!skills/profile-reincluded/SKILL.md\n"
+    );
+    await write(root, ".agents/skills/final/.harnessIgnore", "SKILL.md\n");
+    await write(root, ".harness/resources/skills/final/SKILL.md", "final");
+    await write(
+      root,
+      ".harness/resources/skills/root-local/.harnessIgnore",
+      "**\n"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/root-local/SKILL.md",
+      "root local"
+    );
+
+    async function explain(relativePath: string) {
+      const capture = captureIo();
+      const exitCode = await runHarnessConfigCli(
+        ["explain", relativePath, "--root", root, "--json"],
+        capture.io
+      );
+      expect(exitCode).toBe(0);
+      return JSON.parse(capture.stdout.join("\n")) as {
+        explanation: string;
+        ignore: {
+          source?: {
+            ignored: boolean;
+            finalMatch?: {
+              pattern: string;
+              profile?: string;
+              sourcePath: string;
+            };
+          };
+          targetOutput?: {
+            ignored: boolean;
+            finalMatch?: {
+              matchBase: string;
+              pattern: string;
+              sourcePath: string;
+            };
+          };
+        };
+      };
+    }
+
+    await expect(
+      explain(".harness/resources/skills/root-ignored/SKILL.md")
+    ).resolves.toMatchObject({
+      explanation: "This path is ignored by the repo-root .harnessIgnore.",
+      ignore: {
+        source: {
+          ignored: true,
+          finalMatch: {
+            pattern: ".harness/resources/skills/root-ignored/**",
+            sourcePath: ".harnessIgnore",
+          },
+        },
+      },
+    });
+    await expect(
+      explain(".harness/resources/skills/source-reincluded/SKILL.md")
+    ).resolves.toMatchObject({
+      explanation:
+        "This path is re-included by a deeper source-local .harnessIgnore rule.",
+      ignore: {
+        source: {
+          ignored: false,
+          finalMatch: {
+            pattern: "SKILL.md",
+            sourcePath:
+              ".harness/resources/skills/source-reincluded/.harnessIgnore",
+          },
+        },
+      },
+    });
+    await expect(
+      explain(".harness/resources/skills/root-local/SKILL.md")
+    ).resolves.toMatchObject({
+      explanation: "This path is ignored by .harnessIgnore source-path rules.",
+      ignore: {
+        source: {
+          ignored: true,
+          finalMatch: {
+            pattern: "**",
+            sourcePath: ".harness/resources/skills/root-local/.harnessIgnore",
+          },
+        },
+      },
+    });
+    await expect(
+      explain(".harness/resources/skills/profile-reincluded/SKILL.md")
+    ).resolves.toMatchObject({
+      explanation:
+        "This path is re-included by a profile-local .harnessIgnore logical rule.",
+      ignore: {
+        source: {
+          ignored: false,
+          finalMatch: {
+            pattern: "skills/profile-reincluded/SKILL.md",
+            profile: "team",
+            sourcePath: ".harness/profiles/team/resources/.harnessIgnore",
+          },
+        },
+      },
+    });
+    await expect(
+      explain(".agents/skills/final/SKILL.md")
+    ).resolves.toMatchObject({
+      explanation:
+        "This path is excluded by a target-output .harnessIgnore final boundary.",
+      ignore: {
+        targetOutput: {
+          ignored: true,
+          finalMatch: {
+            matchBase: "target",
+            pattern: "SKILL.md",
+            sourcePath: ".agents/skills/final/.harnessIgnore",
+          },
+        },
+      },
+    });
+  });
+
   it("activates an explicit .harness/resources tree", async () => {
     const root = await rootFixture();
     await write(
@@ -462,6 +630,53 @@ describe("harnessc", () => {
     expect(dryRunExitCode).toBe(0);
     expect(dryRunCapture.stdout.join("\n")).toContain("activation dry run");
     expect(dryRunCapture.stdout.join("\n")).toContain("keep");
+  });
+
+  it("reports target symlink conflicts unless replacement is explicit", async () => {
+    const root = await rootFixture();
+    await writeConfig(root, ["./.claude"]);
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harness/resources/skills/demo/SKILL.md", "# Demo\n");
+    await mkdir(path.join(root, ".claude/skills"), { recursive: true });
+    await mkdir(path.join(root, ".agents/skills/demo"), { recursive: true });
+    await symlink(
+      path.relative(
+        path.join(root, ".claude/skills"),
+        path.join(root, ".agents/skills/demo")
+      ),
+      path.join(root, ".claude/skills/demo"),
+      "dir"
+    );
+
+    const conflictCapture = captureIo();
+    const conflictExitCode = await runHarnessConfigCli(
+      ["activate", "--root", root, "--yes"],
+      conflictCapture.io
+    );
+    expect(conflictExitCode).toBe(1);
+    expect(conflictCapture.stderr.join("\n")).toContain(
+      "harness.target_symlink_conflict"
+    );
+    expect(
+      (await lstat(path.join(root, ".claude/skills/demo"))).isSymbolicLink()
+    ).toBe(true);
+
+    const replaceCapture = captureIo();
+    const replaceExitCode = await runHarnessConfigCli(
+      ["activate", "--root", root, "--yes", "--replace-target-symlinks"],
+      replaceCapture.io
+    );
+    expect(replaceExitCode).toBe(0);
+    expect(replaceCapture.stdout.join("\n")).toContain("remove");
+    expect(
+      (await lstat(path.join(root, ".claude/skills/demo"))).isSymbolicLink()
+    ).toBe(false);
+    await expect(
+      readFile(path.join(root, ".claude/skills/demo/SKILL.md"), "utf8")
+    ).resolves.toBe("# Demo\n");
+    await expect(
+      readFile(path.join(root, ".agents/skills/demo/SKILL.md"), "utf8")
+    ).rejects.toThrow();
   });
 
   it("summarizes unmanaged target entries and keeps them by default", async () => {

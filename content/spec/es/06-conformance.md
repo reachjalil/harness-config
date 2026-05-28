@@ -2,19 +2,19 @@
 title: Conformidad
 seoTitle: Conformidad .harness
 socialTitle: Claims de conformidad testables para herramientas .harness
-description: Claims testables para repositorios, recursos, destinos, perfiles, proyecciones y herramientas.
+description: Claims testables para repositorios, recursos, destinos, perfiles, proyecciones, introspeccion de rutas y herramientas.
 socialDescription: Criterios de conformidad para repositorios y herramientas que implementan la especificacion .harness.
 canonicalPath: /specifications/v1/conformance/
 slug: conformance
 order: 6
 locale: es
 sectionCode: "06"
-summary: Claims testables para repositorios, recursos, destinos, perfiles, proyecciones y herramientas.
-llmSummary: Lista expectativas de conformidad para forma del repositorio, rutas, proyeccion, sobrescrituras, ignores, perfiles, extensiones y salida de activacion.
+summary: Claims testables para repositorios, recursos, destinos, perfiles, proyecciones, introspeccion de rutas y herramientas.
+llmSummary: Lista expectativas de conformidad para forma del repositorio, rutas, proyeccion, sobrescrituras, ignores, perfiles, extensiones, salida de activacion e introspeccion de rutas.
 audience: Autores de pruebas e implementadores que validan compatibilidad .harness.
 contentKind: spec
 status: draft
-updated: 2026-05-26
+updated: 2026-05-27
 ---
 
 # Conformidad
@@ -28,7 +28,7 @@ Un claim de soporte Harness config debe ser testable desde la forma de archivos 
 - Conformidad de destino: cada `[[targets]]` contiene solo una ruta repo-local y no apunta hacia `.harness`.
 - Conformidad `[[dir]]`: `[[dir]]` compone sus hojas `.harnessComposable` y copia otros archivos hacia salidas relativas al repositorio, separadas de los recursos proyectados.
 - Conformidad de proyeccion: activacion aplica `.harnessIgnore`, incluyendo raiz, fuente, salida y `[mutable]`.
-- Conformidad de herramienta: la herramienta informa el plan antes de escribir y nunca trata una superficie de harness como fuente de verdad.
+- Conformidad de herramienta: la herramienta informa el plan antes de escribir y nunca trata una superficie de harness como fuente de verdad. Si ofrece introspeccion de rutas, esa explicacion es de solo lectura y usa el mismo manifest seleccionado, fuentes configuradas, perfiles, reglas ignore, politica mutable y modelo de proyeccion que la activacion.
 
 ## Requisitos clave
 

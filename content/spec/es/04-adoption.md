@@ -14,7 +14,7 @@ llmSummary: Cubre workflows para crear un catalogo .harness, declarar destinos, 
 audience: Desarrolladores que introducen .harness en repositorios nuevos o existentes.
 contentKind: spec
 status: draft
-updated: 2026-05-26
+updated: 2026-05-27
 ---
 
 # Adopcion
@@ -32,13 +32,16 @@ Este guia cubre dos caminos: greenfield, sin superficies de harness existentes, 
 ```bash
 npx harnessc init
 npx harnessc validate
+npx harnessc explain .agents/skills/review/SKILL.md
 npx harnessc activate
 npx harnessc activate --yes
 ```
 
+Use `npx harnessc explain <path>` cuando una ruta fuente o de salida necesita inspeccion antes de aplicar.
+
 ## Migrar un repositorio existente
 
-Primero conserva una fotografia de las superficies de harness actuales. Luego mueve el contenido durable a la fuente de recursos, coloca diferencias por destino en carpetas como `.claude`, declara los destinos en el manifiesto y revisa el plan antes de aplicar.
+Primero conserva una fotografia de las superficies de harness actuales. Luego mueve el contenido durable a la fuente de recursos, coloca diferencias por destino en carpetas como `.claude`, declara los destinos en el manifiesto, usa `npx harnessc explain <path>` para rutas especificas y revisa el plan antes de aplicar.
 
 Un segundo dry run sin cambios debe converger hacia `keep` para archivos gestionados y `mutable` para archivos propiedad del runtime.
 

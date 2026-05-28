@@ -16,6 +16,13 @@ npx harnessc activate
 `validate` checks the selected manifest and source layout. `activate` without
 `--yes` is a dry run and should not write files.
 
+Use `explain` for any path that surprises the user:
+
+```bash
+npx harnessc explain .harness/resources-review/skills/foo/SKILL.md --json
+npx harnessc explain .agents/skills/foo/SKILL.md --json
+```
+
 After reviewing the plan, apply:
 
 ```bash
@@ -39,8 +46,17 @@ files as preserved.
 - `--force-mutable`: rewrite files protected by `[mutable]` rules.
 - `--keep-unmanaged`: preserve unmanaged target files.
 - `--remove-unmanaged`: remove unmanaged target files when the plan says so.
+- `--replace-target-symlinks`: replace a target symlink when projection needs
+  to occupy that path.
 
-Use removal flags only after the user has inspected the dry-run plan.
+Use removal and symlink replacement flags only after the user has inspected the
+dry-run plan. Prefer the declarative manifest policy when a repository
+intentionally replaces target symlinks:
+
+```toml
+[activation]
+targetSymlinks = "replace"
+```
 
 ## Reading plans
 
@@ -58,8 +74,33 @@ layout, manifest targets, `.harnessIgnore`, and target-derived overrides before
 applying.
 
 Use `npx harnessc explain <path>` when the user asks why a specific source or
-output path participates, is overridden, is ignored, or is missing from the
-projection.
+output path participates, is overridden, is ignored, re-included by a deeper
+logical rule, or missing from the projection.
+
+## Generated Surfaces
+
+Generated harness surfaces can be gitignored when they are reproducible from
+`.harness`, but only recommend that when a tracked bootstrap exists. The
+bootstrap can be a root instruction note, README setup section, or package
+script such as:
+
+```json
+{
+  "scripts": {
+    "setup:harness": "npx harnessc validate && npx harnessc activate --yes"
+  }
+}
+```
+
+On a fresh checkout, users and agents should know to run:
+
+```bash
+npx harnessc validate
+npx harnessc activate
+```
+
+before relying on `.agents`, `.claude`, `.cursor`, `.gemini`, or another
+generated surface.
 
 ## Troubleshooting
 
@@ -68,6 +109,9 @@ projection.
 - Unexpected target output usually means a source file is under
   `.harness/resources` or `.harness/dir` without the intended
   `.harnessIgnore` boundary.
+- An ignored resource can be explained with `npx harnessc explain <path>
+  --json`; inspect the `ignore.source.finalMatch` or
+  `ignore.targetOutput.finalMatch` fields.
 - Unexpected overwrites usually mean a runtime-owned file is not listed under
   `[mutable]`.
 - Divergent `.agents` and `.claude` output should usually be represented with

@@ -2,19 +2,19 @@
 title: Conformité
 seoTitle: Conformité .harness
 socialTitle: Claims de conformité testables pour les outils .harness
-description: Claims testables pour dépôts, ressources, cibles, projections et outils.
+description: Claims testables pour dépôts, ressources, cibles, projections, introspection de chemin et outils.
 socialDescription: Critères de conformité pour les dépôts et outils qui implémentent la spécification .harness.
 canonicalPath: /specifications/v1/conformance/
 slug: conformance
 order: 6
 locale: fr-fr
 sectionCode: "06"
-summary: Claims testables pour dépôts, ressources, cibles, projections et outils.
-llmSummary: Liste les attentes de conformité testables pour forme du dépôt, chemins de ressources, projection, surcharges, ignores, extensions et activation.
+summary: Claims testables pour dépôts, ressources, cibles, projections, introspection de chemin et outils.
+llmSummary: Liste les attentes de conformité testables pour forme du dépôt, chemins de ressources, projection, surcharges, ignores, extensions, activation et introspection de chemin.
 audience: Auteurs de tests et implémenteurs validant la compatibilité .harness.
 contentKind: spec
 status: draft
-updated: 2026-05-26
+updated: 2026-05-27
 ---
 
 # Conformité
@@ -28,7 +28,7 @@ Une revendication de support Harness config doit être testable depuis la forme 
 - Conformité cible: chaque `[[targets]]` contient seulement un chemin repo-local et ne pointe pas vers `.harness`.
 - Conformité dir: `[[dir]]` compose ses feuilles `.harnessComposable` et copie les autres fichiers vers des chemins repo-relatifs; ces sorties sont séparées des ressources projetées dans les cibles.
 - Conformité projection: l'activation applique `.harnessIgnore`, y compris les fichiers racine, source-locaux, target-output-locaux et les sections `[mutable]`. Les sections ciblées comme `[.claude]` sont invalides.
-- Conformité outil: l'outil rapporte le plan avant écriture et ne lit jamais une surface de harness comme source de vérité.
+- Conformité outil: l'outil rapporte le plan avant écriture et ne lit jamais une surface de harness comme source de vérité. S'il fournit une introspection de chemin, cette explication est en lecture seule et utilise le même manifeste sélectionné, les sources configurées, les profils, les règles ignore, la politique mutable et le modèle de projection que l'activation.
 
 ## Exigences Clés
 
