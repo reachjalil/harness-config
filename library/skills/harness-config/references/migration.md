@@ -67,6 +67,8 @@ approval. The plan must include:
 - explicit targets and why each existing surface is included or excluded;
 - resource roots and grouping vocabulary;
 - root-file strategy, including direct copy vs `.harnessComposable`;
+- root instruction updates that tell future agents to use Harness config
+  guidance for any agent-configuration operation;
 - mutable files and their seed locations in `.harness`;
 - generated-surface `.gitignore` recommendation after convergence;
 - concrete blockers, if any.
@@ -85,6 +87,7 @@ A full transition has all of these properties:
 | Live surfaces | `.agents`, `.claude`, `.cursor`, `.gemini`, and similar folders are generated outputs, preferably gitignored after convergence. |
 | Skills/resources | Every reusable skill, plugin, prompt, rule, command, hook, and agent is migrated or explicitly blocked with a reason. |
 | Root files | Root instructions are normal tracked files, direct `[[dir]]` copies, or composable only when composition is useful. |
+| Agent guidance | Root agent instructions tell future agents to modify `.harness` sources and use Harness validation/activation for any agent-config change. |
 | Mutable files | Files marked `[mutable]` have source seeds in `.harness` when they should exist for fresh users. |
 | Local state | Secrets, caches, logs, credentials, trust state, and machine-local settings stay out of `.harness`. |
 | Verification | Activation converges after apply. |
@@ -165,11 +168,31 @@ fits the repo:
   profiles/local overlays.
 - Convert long procedural root instructions into skills, then leave concise
   root pointers.
+- Add or preserve a short Harness maintenance note in `AGENTS.md`, `CLAUDE.md`,
+  or equivalent root instructions. The note should say that any future
+  operation touching skills, prompts, rules, hooks, commands, target folders,
+  settings, ignores, cleanup, or generated surfaces must use Harness config
+  guidance, edit `.harness` sources, preview activation, and verify
+  convergence.
 
 Example direct copied root instruction:
 
 ```text
 .harness/dir/AGENTS.md
+```
+
+Example maintenance note:
+
+```markdown
+## Harness Config Maintenance
+
+This repository manages agent configuration with Harness config. For any change
+to skills, prompts, rules, hooks, commands, target folders, settings, ignores,
+cleanup, or generated agent surfaces, use the `harness-config` skill guidance,
+edit `.harness` sources, run `npx harnessc validate`, preview
+`npx harnessc activate`, apply with `npx harnessc activate --yes`, and confirm a
+second dry run converges. Treat `.agents`, `.claude`, `.cursor`, `.gemini`, and
+similar target folders as generated outputs after adoption.
 ```
 
 Example composable root instructions, only when the split is useful:

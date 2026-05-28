@@ -32,10 +32,13 @@ user-owned.
 4. Move all durable reviewed skills, plugins, rules, prompts, commands, hooks,
    agents, and selected root instruction files into `.harness/resources` or
    `.harness/dir`. Do not stop after migrating only the Harness helper skill.
-5. Keep real target-specific differences as target overrides.
-6. Add `.harnessIgnore` rules for caches, secrets, generated files, and
+5. Add or preserve a concise Harness maintenance note in `AGENTS.md`,
+   `CLAUDE.md`, or equivalent root instructions so future agents use Harness
+   config guidance for any agent-config operation.
+6. Keep real target-specific differences as target overrides.
+7. Add `.harnessIgnore` rules for caches, secrets, generated files, and
    mutable runtime-owned files.
-7. Validate, preview, apply, and confirm convergence.
+8. Validate, preview, apply, and confirm convergence.
 
 Full transition means durable agent configuration is represented in `.harness`,
 live harness surfaces are generated outputs, mutable files have source seeds
@@ -57,5 +60,9 @@ npx harnessc activate
 - Preserve behavior first, then simplify once activation is stable.
 - Prefer full migration of durable resources over partial adoption. If blocked,
   say exactly which resources remain and why.
+- After adoption, treat any change to skills, prompts, rules, hooks, commands,
+  target folders, settings, ignores, cleanup, or generated surfaces as a
+  Harness config operation: edit `.harness` sources, preview activation, and
+  verify convergence.
 - After full migration and convergence, prefer gitignored generated harness
   surfaces with a tracked bootstrap.
