@@ -99,7 +99,10 @@ by default:
 
 1. Spend time understanding the repo, choose the full-transition layout, and
    implement it end to end. Use the adoption checklist below as the
-   implementation checklist.
+   implementation checklist. In a version-controlled repo, do not stop after
+   installing the skill or describing the next plan just because tracked agent
+   surfaces are large; treat tracked durable files as reviewable migration
+   input unless a concrete blocker is found.
 2. Create `.harness/harness.toml` with explicit targets for every intended
    live harness surface, including `.claude` when `.claude` content or settings
    are present.
