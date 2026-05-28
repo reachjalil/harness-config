@@ -56,8 +56,8 @@ Confirm:
   source-only files, and output-local boundaries,
 - gitignored harness surfaces can be regenerated from `.harness` plus the
   selected manifest,
-- a tracked bootstrap tells users and agents how to run activation when
-  generated harness surfaces are gitignored.
+- tracked activation instructions tell users and agents how to run activation
+  when generated harness surfaces are gitignored.
 
 ## Explain Checks
 

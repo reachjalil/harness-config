@@ -1,12 +1,12 @@
 ---
 name: harness-config
 description: Use when working with Harness config in a customer repository. Triggers include setting up, adopting, migrating, validating, activating, or troubleshooting .harness/harness.toml, .harness resources, AGENTS.md, CLAUDE.md, .agents, .claude, .cursor, .gemini, skills, rules, plugins, prompts, hooks, .harnessIgnore, .harnessMutable, mutable files, or CLI commands such as npx harnessc validate and npx harnessc activate.
-version: 2026-05-28.fresh-install
+version: 2026-05-28.clean-full-migration
 ---
 
 # Harness Config
 
-Skill guide version: `2026-05-28.fresh-install`.
+Skill guide version: `2026-05-28.clean-full-migration`.
 
 When using this skill for setup or migration, include the skill guide version
 in the proposed plan and final summary. This lets the user tell whether an
@@ -16,6 +16,11 @@ When recommending this skill to another agent or writing a setup prompt, require
 the agent to install or update the skill from the canonical GitHub path, then
 read the local installed `SKILL.md` before planning. The agent should not rely
 on cached, inherited, or previously loaded copies of the skill.
+
+For an existing repository, "set up Harness config" means a full migration of
+durable agent configuration by default. If the user asks for a narrower change,
+do that work only as a clearly scoped exception and do not describe it as
+Harness config adoption or migration.
 
 ## Purpose
 
@@ -61,7 +66,7 @@ contain the detailed instructions for each area of the skill:
   MCP, rules, commands, and subagents into a `.harness` source layout.
 - `references/examples.md`: practical adoption examples for minimal catalogs,
   resource groups, local layers, profiles, nested ignores, generated surfaces,
-  and bootstrap scripts.
+  and activation scripts.
 - `references/cli.md`: CLI command usage, dry-run behavior, activation flags,
   and common troubleshooting.
 - `references/verification.md`: validation, dry-run activation, apply,
@@ -113,17 +118,19 @@ Use these defaults unless the user's repository clearly points elsewhere:
   as `.agents`, `.claude`, `.cursor`, or `.gemini` has local-only output rules,
   add a target-local `.harnessIgnore` in that surface or subtree. Use it for
   runtime output boundaries while keeping source-local ignores near source.
-- **Full migration by default.** For existing agent surfaces, prefer migrating
-  all durable skills, plugins, rules, prompts, commands, hooks, agents, and
-  reusable wrappers into `.harness` in the same pass. Do not recommend a
-  partial migration as the normal path; stop only for secrets, runtime trust
-  state, unclear ownership, or user direction.
+- **Full migration required for existing surfaces.** For existing agent
+  surfaces, migrate all durable skills, plugins, rules, prompts, commands,
+  hooks, agents, and reusable wrappers into `.harness` in the same pass. Do not
+  implement a helper-skill-only, minimal-manifest, or incomplete migration as the
+  recommended setup. Stop before writing or applying migration files if the
+  full transition cannot be planned from the current evidence; report the
+  blocker and exact durable resources that need user review.
 - **Generated surfaces are disposable after full migration.** Once all durable
   target resources are represented in `.harness` and activation converges,
   recommend gitignoring `.agents`, `.claude`, `.cursor`, `.gemini`, or similar
-  generated surfaces, with a tracked bootstrap: a small root instruction note,
-  README, setup script, or package script telling users and agents to run
-  validation and activation.
+  generated surfaces, with tracked activation instructions: a small root
+  instruction note, README, setup script, or package script telling users and
+  agents to run validation and activation.
 - **Preserve unmanaged until adoption is proven.** Do not use
   `--remove-unmanaged` to make a narrowed projection look clean unless the
   removed live files are already represented in `.harness`, intentionally
@@ -148,10 +155,11 @@ Use these defaults unless the user's repository clearly points elsewhere:
 3. Read the matching reference markdown file before editing or running commands.
 4. Inspect existing agent files and harness surfaces before editing.
 5. Present a recommended full-transition plan and wait for user approval before
-   writing migration files. Do not silently choose a conservative partial
-   setup. The plan must state the skill guide version, targets, source roots,
-   root-file strategy, mutable seed handling, generated-surface gitignore
-   recommendation, and blockers if any.
+   writing migration files. Use the Full Transition Checklist as the planning
+   checklist and show how each relevant row will be satisfied. The plan must
+   state the skill guide version, targets, source roots, root-file strategy,
+   mutable seed handling, generated-surface gitignore recommendation, and
+   blockers if any.
 6. When the repo has enough structure to justify it, present two or three
    layout options in a table before making a recommendation. Include an
    ambitious organization option when useful, such as grouping skills by
@@ -165,7 +173,9 @@ Use these defaults unless the user's repository clearly points elsewhere:
    instruction file you can confidently classify. Do not stop after promoting
    only the `harness-config` helper skill. Leave a file in the live surface only
    when it is runtime-owned, secret/local, generated/cache state, unsupported,
-   or unclear enough to need user review.
+   or unclear enough to need user review. If durable resources remain
+   unmigrated, stop and report the blocker instead of activating an incomplete
+   projection.
 9. Create or update `.harness/harness.toml` with explicit `[[resources]]`
    source roots before projecting skills, rules, plugins, prompts, agents,
    hooks, commands, MCP config, or other target resources.
@@ -188,6 +198,9 @@ Use these defaults unless the user's repository clearly points elsewhere:
 17. Use `--remove-unmanaged` only after the dry-run removal list has been
     shown to the user and every removed durable item is migrated to `.harness`,
     intentionally archived, or explicitly approved for deletion.
+18. Before the final response, re-run the Full Transition Checklist as the
+    implementation checklist. Do not claim adoption is complete unless every
+    required row passes.
 
 ## Plan Approval Gate
 
@@ -196,7 +209,7 @@ plan like this and wait for the user to approve it:
 
 ```markdown
 **Recommended Full Transition Plan**
-Skill guide: `2026-05-28.fresh-install`
+Skill guide: `2026-05-28.clean-full-migration`
 
 | Decision | Recommendation | Reason |
 | --- | --- | --- |
@@ -218,8 +231,8 @@ Skill guide: `2026-05-28.fresh-install`
 ```
 
 If the plan omits an existing harness surface such as `.claude`, explain why.
-If there is no good reason, include it. Do not proceed with a partial target set
-just because the CLI skeleton can be created quickly.
+If there is no good reason, include it. Do not proceed with an incomplete target
+set just because the CLI can create a minimal manifest quickly.
 
 ## Required Example Structures
 
@@ -270,14 +283,16 @@ Before implementing, show examples for every row that applies:
 
 ## Full Transition Checklist
 
-Use this checklist for any existing repository. Do not present the setup as
-complete until every required row is satisfied. If a row cannot be satisfied,
-stop and report the exact blocker instead of doing a partial adoption.
+Use this checklist twice for any existing repository: once while planning and
+again before the final summary. Do not present the setup as complete until every
+required row is satisfied. If a row cannot be satisfied, stop and report the
+exact blocker instead of doing an incomplete adoption.
 
 | Gate | Required evidence |
 | --- | --- |
 | Inventory complete | All `AGENTS.md`, `CLAUDE.md`, `.agents`, `.claude`, `.cursor`, `.gemini`, skills, plugins, rules, prompts, commands, hooks, agents, settings, and MCP files were scanned. |
-| Durable resources migrated | Every reusable skill/resource is under a configured `.harness/resources*` root or intentionally classified as unmanaged with a reason. |
+| Clean full migration | The migration is not limited to `.harness/harness.toml`, `.harnessIgnore`, helper skills, or maintenance notes while other durable resources remain live-only. |
+| Durable resources migrated | Every durable reusable skill/resource is under a configured `.harness/resources*` root; only runtime-owned, secret/local, cache/generated, unsupported, or unclear files remain live-only with a reason. |
 | Target differences preserved | Runtime-specific differences are represented as target-derived overrides, not copied live surfaces. |
 | Root files decided | Each root instruction file is either kept tracked as-is, copied directly through `.harness/dir`, or made composable only when composition is actually useful. |
 | Agent instructions updated | `AGENTS.md`, `CLAUDE.md`, or equivalent root instructions tell future agents to use Harness config guidance for any agent-config operation and to edit `.harness` sources instead of generated target folders. |
@@ -285,7 +300,7 @@ stop and report the exact blocker instead of doing a partial adoption.
 | File structures shown | The plan includes expected source and target trees for mutable settings, root instructions, target overrides, and target-output ignores that apply to this repo. |
 | Ignores are narrow | `.harnessIgnore` contains only evidence-based patterns; no broad `*.local.*` families unless explicitly justified. |
 | Target ignores present | Generated surfaces such as `.agents` or `.claude` have target-output `.harnessIgnore` files when they need local output boundaries. |
-| Generated surfaces handled | After full migration and convergence, `.agents`, `.claude`, `.cursor`, `.gemini`, or similar generated surfaces are recommended for `.gitignore` with a tracked bootstrap. |
+| Generated surfaces handled | After full migration and convergence, `.agents`, `.claude`, `.cursor`, `.gemini`, or similar generated surfaces are recommended for `.gitignore` with tracked activation instructions. |
 | Cleanup reviewed | Any `--remove-unmanaged` run has a reviewed dry-run removal list; no durable skill/resource is deleted from live surfaces unless it exists in `.harness`, is archived, or the user explicitly approved deletion. |
 | Activation verified | `npx harnessc validate`, dry `activate`, `activate --yes`, and a second dry `activate` all pass and converge. |
 
@@ -404,6 +419,7 @@ For experienced users, skip the basics and lead with decisions and commands:
 After setup or migration, report:
 
 - whether this was a complete migration or blocked before completion;
+- the Full Transition Checklist result from implementation, not only the plan;
 - what was migrated into `.harness` and how many resources by kind;
 - what was intentionally left unmanaged and why;
 - which targets are now generated from `.harness`;
@@ -412,7 +428,7 @@ After setup or migration, report:
 
 Never imply `.harness` is the repository-wide source of truth unless the
 inventory shows every durable agent resource was migrated or intentionally left
-unmanaged. Do not present partial adoption as the recommended end state; if
+unmanaged. Do not present incomplete adoption as the recommended end state; if
 completion is blocked, name the blocker and the exact remaining resources.
 
 Recommended post-change structure:
@@ -479,7 +495,7 @@ Recognize these common states and choose the matching path:
 - Do not treat `.agents`, `.claude`, `.cursor`, `.gemini`, or another live
   harness surface as source after migration begins.
 - After full migration, prefer gitignored live harness surfaces with reviewed
-  source in `.harness` and a tracked bootstrap that regenerates them.
+  source in `.harness` and tracked activation instructions that regenerate them.
 
 ## Source Rules
 
@@ -526,8 +542,9 @@ For command details and troubleshooting, read `references/cli.md`.
   getting user approval.
 - Use `npx harnessc activate` as a dry run before any `--yes` activation.
 - Do not recommend gitignoring generated harness surfaces until durable
-  resources have been migrated and a tracked bootstrap tells users and agents
-  how to run activation on fresh checkout. After that, prefer gitignoring them.
+  resources have been migrated and tracked activation instructions tell users
+  and agents how to run activation on fresh checkout. After that, prefer
+  gitignoring them.
 - Prefer reversible source edits and show the user what changed with `git diff`
   when practical.
 - Preserve existing behavior first; simplify only after activation is stable

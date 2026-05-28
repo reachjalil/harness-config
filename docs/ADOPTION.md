@@ -34,7 +34,7 @@ path = "./.agents"
 ```
 
 ```text
-AGENTS.md                         # tracked bootstrap/root instructions
+AGENTS.md                         # tracked activation/root instructions
 .harnessIgnore
 .harnessMutable
 .harness/

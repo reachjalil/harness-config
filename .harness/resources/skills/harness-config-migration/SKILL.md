@@ -1,7 +1,7 @@
 ---
 name: harness-config-migration
 description: Use when migrating an existing repository to Harness config from ad hoc agent instructions, runtime folders, skills, plugins, prompts, commands, hooks, or local agent settings.
-version: 2026-05-28.fresh-install
+version: 2026-05-28.clean-full-migration
 ---
 
 # Harness config Migration
@@ -27,8 +27,10 @@ user-owned.
 1. Inventory current agent config and note any secrets or local-only state.
 2. Spend time understanding the repository, then present a recommended
    full-transition plan with this skill guide version and wait for user
-   approval before writing migration files. Include two or three layout options
-   when the repo has enough durable resources to justify meaningful grouping.
+   approval before writing migration files. Use the migration checklist while
+   planning and show how each relevant row will be satisfied. Include two or
+   three layout options when the repo has enough durable resources to justify
+   meaningful grouping.
 3. Choose explicit targets in `.harness/harness.toml`, including `.claude` when
    `.claude` durable content or settings are present.
 4. Move all durable reviewed skills, plugins, rules, prompts, commands, hooks,
@@ -50,6 +52,8 @@ user-owned.
 10. Do not run `--remove-unmanaged` until the exact removal list is reviewed and
    every removed durable item is migrated into `.harness`, archived, or
    explicitly approved for deletion.
+11. Re-run the migration checklist during implementation before applying
+   activation or claiming completion.
 
 Full transition means durable agent configuration is represented in `.harness`,
 live harness surfaces are generated outputs, mutable files have source seeds in
@@ -70,8 +74,8 @@ npx harnessc activate
 - Do not move secrets or local machine settings into `.harness`.
 - Do not infer targets from folders that happen to exist.
 - Preserve behavior first, then simplify once activation is stable.
-- Prefer full migration of durable resources over partial adoption. If blocked,
-  say exactly which resources remain and why.
+- Require clean full migration of durable resources for existing agent
+  surfaces. If blocked, say exactly which resources need a decision and why.
 - After adoption, treat any change to skills, prompts, rules, hooks, commands,
   target folders, settings, ignores, cleanup, or generated surfaces as a
   Harness config operation: edit `.harness` sources, preview activation, and
@@ -80,4 +84,4 @@ npx harnessc activate
   a dry-run removal review proves no durable resource would be deleted as the
   only copy.
 - After full migration and convergence, prefer gitignored generated harness
-  surfaces with a tracked bootstrap.
+  surfaces with tracked activation instructions.

@@ -58,8 +58,8 @@ list them in the summary, and do not call the migration complete.
 
 After full migration and convergence, prefer gitignoring generated harness
 surfaces so `.harness` remains the single reviewed source for skills and
-resources. Keep a tracked bootstrap that tells users and agents how to run
-activation.
+resources. Keep tracked activation instructions that tell users and agents how
+to run activation.
 
 ## Overrides
 

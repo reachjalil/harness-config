@@ -76,9 +76,9 @@ to make the default explicit.
 
 Generated harness surfaces such as `.agents`, `.claude`, `.cursor`, and
 `.gemini` can be gitignored when they are reproducible from `.harness`.
-Projects that do this should keep a tracked bootstrap such as a root
-instruction note, README setup step, or package script that tells users and
-agents to run validation and activation on fresh checkout.
+Projects that do this should keep tracked activation instructions such as a
+root instruction note, README setup step, or package script that tells users
+and agents to run validation and activation on fresh checkout.
 
 Cleanup applies only to targets that are still declared in the selected
 manifest. After a target declaration is removed, base `harnessc activate` no
