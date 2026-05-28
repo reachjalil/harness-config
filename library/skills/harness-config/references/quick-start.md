@@ -135,18 +135,27 @@ activation instruction options:
 
 - a short tracked `AGENTS.md`;
 - a `README.md` setup section;
-- a package script such as `setup:harness`;
-- a post-install or onboarding command documented in source.
+- package scripts such as `harness:validate`, `harness:preview`,
+  `harness:activate`, and `setup:harness`;
+- a Makefile target, justfile recipe, or repo bootstrap script;
+- a guarded post-install hook when the repo wants generated surfaces restored
+  automatically after dependency install.
 
 Example package script:
 
 ```json
 {
   "scripts": {
-    "setup:harness": "npx harnessc validate && npx harnessc activate --yes"
+    "harness:validate": "npx harnessc validate",
+    "harness:preview": "npx harnessc activate",
+    "harness:activate": "npx harnessc activate --yes",
+    "setup:harness": "npm run harness:validate && npm run harness:activate"
   }
 }
 ```
+
+Do not add hidden install-time mutation by default. If `postinstall` is useful
+for the repo, make it guarded and document what it does.
 
 Always dry run before first apply:
 
