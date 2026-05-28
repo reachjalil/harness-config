@@ -60,15 +60,17 @@ Promotion examples:
 
 ```text
 # shared/reviewed
-.harness/resources-review/skills/code-review/SKILL.md
+.harness/resources/skills/code-review/SKILL.md
 
 # personal/experimental
 .harness/local/resources/skills/code-review/SKILL.md
 ```
 
-Choose the resource group by usefulness: workflow, strategy, team, mode,
-domain, agent set, or kit. Add a short `README.md` when the grouping is not
-self-evident.
+Choose subfolders by usefulness: workflow, strategy, team, mode, domain, agent
+set, or kit. Add a short `README.md` when the grouping is not self-evident. For
+the first clean full migration, default to one `.harness/resources` root and
+organize inside it; add additional configured roots only for optional catalogs,
+profile-selected kits, ownership boundaries, or local/private work.
 
 ## Repository Triage
 
@@ -102,10 +104,12 @@ sequence:
 2. Create `.harness/harness.toml` with explicit targets for every intended
    live harness surface, including `.claude` when `.claude` content or settings
    are present.
-3. Create one or more resource groups for portable projected resources.
+3. Create `.harness/resources` as the default source root for portable
+   projected resources. Use subfolders such as `skills/`, `prompts/`,
+   `skills-kit/`, and target-derived folders such as `.claude/`.
 4. Add concise README files for non-obvious resource groups.
 5. Promote reviewed installed skills into the right shared or local resource
-   group.
+   subfolder, usually `.harness/resources/skills/<name>`.
 6. Add `.harness/local/resources` for personal or experimental skills when
    useful.
 7. Decide whether root instruction files should stay tracked as-is or move into
@@ -116,6 +120,10 @@ sequence:
 9. Use target-derived overrides for target-specific differences.
 10. Copy mutable files that fresh users should receive into `.harness` as seed
     files before adding `.harnessMutable` rules.
+    Target-level settings such as `.claude/settings.json` should become
+    `.harness/resources/.claude/settings.json` plus
+    `.harness/resources/.claude/.harnessMutable`, not a file inside
+    `skills-kit` or an unrelated resource group.
 11. Add scoped `.harnessIgnore` files, target-output `.harnessIgnore` files in
     generated surfaces such as `.agents` when needed, and narrow
     `.harnessMutable` rules.

@@ -19,7 +19,7 @@ npx harnessc activate
 Use `explain` for any path that surprises the user:
 
 ```bash
-npx harnessc explain .harness/resources-review/skills/foo/SKILL.md --json
+npx harnessc explain .harness/resources/skills/foo/SKILL.md --json
 npx harnessc explain .agents/skills/foo/SKILL.md --json
 ```
 

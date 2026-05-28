@@ -39,13 +39,23 @@ Use this default shape:
       .harnessRef
       200_claude.md
   resources/
+    .claude/
+      settings.json
+      .harnessMutable
     skills/
+    prompts/
+    skills-kit/
     plugins/
     rules/
 ```
 
 Use `.harness/dir` for repo-root output such as `AGENTS.md` and `CLAUDE.md`.
-Use `.harness/resources` for files that project into declared runtime folders.
+Use one `.harness/resources` root for the first clean full migration unless a
+separate optional catalog, ownership boundary, profile-selected kit, or local
+layer is genuinely needed. Use subfolders inside that root for skills, prompts,
+rules, plugins, kits, and target-derived settings. Target-level files such as
+`.claude/settings.json` belong at `.harness/resources/.claude/settings.json`,
+not inside `skills-kit` or an unrelated resource group.
 Prefer direct copied files under `.harness/dir` for simple one-file outputs.
 Use `.harnessComposable` only when composition removes duplication, shares a
 base across root files, or enables profiles/local overlays.

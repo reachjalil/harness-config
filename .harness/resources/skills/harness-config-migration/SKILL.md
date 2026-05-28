@@ -1,7 +1,7 @@
 ---
 name: harness-config-migration
 description: Use when migrating an existing repository to Harness config from ad hoc agent instructions, runtime folders, skills, plugins, prompts, commands, hooks, or local agent settings.
-version: 2026-05-28.clean-full-migration
+version: 2026-05-28.simple-resource-layout
 ---
 
 # Harness config Migration
@@ -28,9 +28,10 @@ user-owned.
 2. Spend time understanding the repository, then present a recommended
    full-transition plan with this skill guide version and wait for user
    approval before writing migration files. Use the migration checklist while
-   planning and show how each relevant row will be satisfied. Include two or
-   three layout options when the repo has enough durable resources to justify
-   meaningful grouping.
+   planning and show how each relevant row will be satisfied. Default to one
+   `.harness/resources` root with meaningful subfolders; include a multi-root
+   option only for optional catalogs, ownership boundaries, profile-selected
+   kits, or local/private work.
 3. Choose explicit targets in `.harness/harness.toml`, including `.claude` when
    `.claude` durable content or settings are present.
 4. Move all durable reviewed skills, plugins, rules, prompts, commands, hooks,
@@ -44,6 +45,8 @@ user-owned.
    files before declaring them in `.harnessMutable`. Show exact file trees in
    the plan, for example `.harness/resources/.claude/settings.json` plus
    `.harness/resources/.claude/.harnessMutable` containing `settings.json`.
+   Do not put target-level settings inside `skills-kit`,
+   `resources-agent-kit`, or another unrelated resource group.
 8. Add `.harnessIgnore` rules for caches, secrets, generated files, and
    target-output ignores in generated surfaces such as `.agents` or `.claude`
    when those targets need local-only boundaries. Add `.harnessMutable` only
