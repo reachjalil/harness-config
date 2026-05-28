@@ -126,9 +126,11 @@ do not require it.
 
 Generated harness surfaces such as `.agents`, `.claude`, `.cursor`, and
 `.gemini` should be treated as disposable outputs after full migration. For an
-existing repo, prefer gitignoring them once all durable skills and reusable
-resources are represented in `.harness` and activation converges. Require a
-tracked activation note so a fresh checkout knows how to regenerate them. Good
+existing repo, the best-practice default is to add root `.gitignore` entries
+for generated surfaces or exact generated subtrees once all durable skills and
+reusable resources are represented in `.harness` and activation converges,
+unless the user wants generated outputs tracked. Pair this with a tracked
+activation note so a fresh checkout knows how to regenerate them. Good
 activation instruction options:
 
 - a short tracked `AGENTS.md`;

@@ -131,8 +131,11 @@ by default:
 14. Use `npx harnessc explain <path>` for surprising paths.
 15. Apply with `npx harnessc activate --yes` after the dry run matches intent.
 16. Run `npx harnessc activate` again and confirm convergence.
-17. Recommend gitignoring generated surfaces after convergence with a tracked
-    activation note.
+17. Check generated-surface `.gitignore` best practice after convergence. Add
+    root `.gitignore` entries for generated surfaces or exact generated
+    subtrees, with a tracked activation note, unless the user wants generated
+    outputs tracked. If generated files are already tracked, report the
+    reviewed `git rm --cached` follow-up instead of deleting working-tree files.
 18. Use `--remove-unmanaged` only after a reviewed dry run shows exact removals
     and every removed durable item is migrated, archived, or explicitly
     approved for deletion.
@@ -156,7 +159,7 @@ Use this checklist in the response before claiming adoption is complete:
 | Mutability | `.harnessMutable` is used only for seeded create-once files, not as a substitute for migration or ignore. |
 | Target ignores | Target-output `.harnessIgnore` files are added inside generated surfaces when local output boundaries are needed. |
 | Root files | Simple root files are direct copies or normal tracked files; `.harnessComposable` is used only when needed. |
-| Generated surfaces | After convergence, generated surfaces are recommended for `.gitignore` with tracked activation instructions. |
+| Generated-surface gitignore | After convergence, root `.gitignore` ignores generated surfaces or exact generated subtrees, with tracked activation instructions, unless the user wants generated outputs tracked. |
 | Verification | Validate, dry activation, apply, and convergence dry run all succeeded. |
 
 If any check is incomplete, say the migration is blocked/incomplete and name the
@@ -212,9 +215,10 @@ review:
   private;
 - avoid declaring targets for folders that merely happen to exist;
 - keep existing live surfaces in place until activation output is understood;
-- after full migration and convergence, prefer gitignored generated harness
-  surfaces with tracked activation instructions that tell users and agents how
-  to activate them;
+- after full migration and convergence, apply the best-practice root
+  `.gitignore` entries for generated harness surfaces with tracked activation
+  instructions that tell users and agents how to activate them, unless the user
+  wants generated outputs tracked;
 - treat target symlinks as conflicts unless the user explicitly wants
   `[activation].targetSymlinks = "replace"` or a one-run
   `--replace-target-symlinks` activation;

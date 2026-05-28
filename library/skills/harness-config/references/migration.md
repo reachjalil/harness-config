@@ -61,9 +61,9 @@ agent may otherwise delete, ignore, or overwrite durable resources that were
 never moved.
 
 Before editing, inventory the repo and proceed with the full transition by
-default. Use the Full Transition Definition below as the implementation
-checklist: the migration must satisfy each applicable row, or identify a
-blocker before activation. The final summary must include:
+default. Use the Full Transition Definition below as the implementation and
+best-practice checklist: satisfy each applicable row, or identify a blocker or
+explicit user preference before activation. The final summary must include:
 
 - skill guide version;
 - explicit targets and why each existing surface is included or excluded;
@@ -79,7 +79,8 @@ blocker before activation. The final summary must include:
 - mutable files copied into `.harness` as seed files and their seed locations;
 - target-output `.harnessIgnore` files needed in generated surfaces such as
   `.agents` or `.claude`;
-- generated-surface `.gitignore` recommendation after convergence;
+- generated-surface root `.gitignore` entries added after convergence, or the
+  explicit user preference or constraint for keeping generated output tracked;
 - cleanup policy, especially whether unmanaged live files are preserved,
   migrated, archived, or explicitly approved for removal;
 - concrete blockers, if any.
@@ -95,16 +96,17 @@ there is a specific reason not to.
 
 A full transition has all of these properties:
 
-| Area | Full-transition requirement |
+| Area | Full-transition best practice |
 | --- | --- |
 | Source of truth | Durable agent configuration lives under configured `.harness` source roots. |
-| Live surfaces | `.agents`, `.claude`, `.cursor`, `.gemini`, and similar folders are generated outputs, preferably gitignored after convergence. |
+| Live surfaces | `.agents`, `.claude`, `.cursor`, `.gemini`, and similar folders are generated outputs with root `.gitignore` entries after convergence, unless the user wants generated output tracked. |
 | Skills/resources | Every reusable skill, plugin, prompt, rule, command, hook, and agent is migrated or explicitly blocked with a reason. |
 | Root files | Root instructions are normal tracked files, direct `[[dir]]` copies, or composable only when composition is useful. |
 | Agent guidance | Root agent instructions tell future agents to modify `.harness` sources and use Harness validation/activation for any agent-config change. |
 | Mutable files | Files matched by `.harnessMutable` are copied into `.harness` as source seeds when they should exist for fresh users. |
 | Cleanup | Unmanaged live files are preserved until migrated, archived, or explicitly approved for deletion after a dry-run removal list. |
 | Target ignores | Generated surfaces have target-output `.harnessIgnore` files when a target needs local-only output rules. |
+| Git ignore best practice | Root `.gitignore` ignores each generated surface or exact generated subtree after convergence unless the user wants generated output tracked; target-output `.harnessIgnore` is still used separately for Harness projection boundaries. |
 | Local state | Secrets, caches, logs, credentials, trust state, and machine-local settings stay out of `.harness`. |
 | Verification | Activation converges after apply. |
 
@@ -447,11 +449,47 @@ paths such as `**/settings.local.json`.
 
 ## Generated Surfaces And Cleanup
 
-Live harness surfaces are generated outputs after full migration. Prefer
-gitignoring them once all durable target resources are represented in
-`.harness` and activation converges. This keeps skills and reusable resources in
-one reviewed source location. Require tracked activation instructions so users
-and agents know how to activate them on a fresh checkout.
+Live harness surfaces are generated outputs after full migration. The
+best-practice default is to add root `.gitignore` entries for them once all
+durable target resources are represented in `.harness` and activation
+converges. This keeps skills and reusable resources in one reviewed source
+location. Do this unless the user wants generated output tracked. Pair it with
+tracked activation instructions so users and agents know how to activate them
+on a fresh checkout.
+
+Use root `.gitignore` for Git tracking policy:
+
+```gitignore
+# Harness-generated agent surfaces
+.agents/
+.claude/
+.cursor/
+.gemini/
+```
+
+If only part of a surface is generated, ignore the exact generated subtree
+instead:
+
+```gitignore
+# Harness-generated Claude skills; other Claude files stay tracked
+.claude/skills/
+```
+
+Do not confuse this with target-output `.harnessIgnore`. A target-output
+`.harnessIgnore` inside `.agents` or `.claude` controls what Harness projects
+into that target. Root `.gitignore` controls whether generated outputs are
+tracked by Git. A complete migration normally needs both when local target
+boundaries exist.
+
+If generated files are already tracked, adding `.gitignore` is not enough to
+untrack them. Report the reviewed follow-up after `.harness` is committed and
+activation converges:
+
+```bash
+git rm -r --cached .agents .claude
+```
+
+Use exact subtrees instead when only part of a target is generated.
 
 Good activation instruction examples:
 
@@ -521,7 +559,7 @@ Prefer this format:
 | Complete migration? | Yes |
 | Generated targets | `.agents`, `.claude` |
 | Source roots | `.harness/resources`, `.harness/dir` |
-| Gitignore recommendation | Gitignore generated surfaces after this commit |
+| Gitignore best practice | Root `.gitignore` ignores generated surfaces after convergence unless intentionally tracked |
 
 **Resource Coverage**
 | Kind | Migrated | Left unmanaged | Notes |
