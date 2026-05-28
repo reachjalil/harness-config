@@ -14,7 +14,7 @@ llmSummary: Shows practical Harness config patterns for runtime-owned mutable fi
 audience: Developers and platform teams adopting Harness config in real repositories.
 contentKind: spec
 status: draft
-updated: 2026-05-26
+updated: 2026-05-28
 ---
 
 # Harness config Patterns
@@ -73,16 +73,14 @@ reviewed source lives and which live harness surfaces activation can generate.
 
 ## Resource Groups
 
-For non-trivial repositories, use multiple resources sources when it makes the
-catalog easier to understand and reuse. Name groups by usefulness: workflow,
-strategy, team, mode, product area, agent set, or kit.
+For most migrations, start with one shared `.harness/resources` root and group
+inside it by the target path that should be generated. This keeps the source
+catalog easy to inspect and avoids inventing separate source roots before the
+repository needs them.
 
 ```toml
 [[resources]]
-path = "./.harness/resources-review"
-
-[[resources]]
-path = "./.harness/resources-frontend"
+path = "./.harness/resources"
 
 [[resources]]
 path = "./.harness/local/resources"
@@ -90,21 +88,32 @@ path = "./.harness/local/resources"
 
 ```text
 .harness/
-  resources-review/
+  resources/
     README.md
+    .claude/
+      settings.json
+      .harnessMutable
     skills/
+      review/
+      frontend/
+    prompts/
+    skills-kit/
     rules/
-  resources-frontend/
-    README.md
-    skills/
     plugins/
   local/
     resources/
 ```
 
-Short README files make each group easier to copy into another project. The
-local layer is useful for personal skills, plugins, agents, prompts, and
-experiments before promotion into tracked source.
+Target-root files belong at their target-root path inside the resource root:
+for example `.claude/settings.json` becomes
+`.harness/resources/.claude/settings.json`. If that file is runtime-owned after
+the first seed, add `.harness/resources/.claude/.harnessMutable` with
+`settings.json` in it.
+
+Additional resources roots are useful when they represent a real boundary:
+independently optional catalogs, ownership boundaries, profile-selected kits,
+or private local overlays. The local layer is useful for personal skills,
+plugins, agents, prompts, and experiments before promotion into tracked source.
 
 ## Target-Output Ignore For One Live Surface
 
@@ -358,10 +367,7 @@ control; the live folders can be regenerated after checkout.
 
 ```toml
 [[resources]]
-path = "./.harness/resources-agent-tools"
-
-[[resources]]
-path = "./.harness/resources-review"
+path = "./.harness/resources"
 
 [[targets]]
 path = "./.agents"
@@ -376,27 +382,32 @@ package.json                      # optional setup:harness script
 .gitignore
 .harness/
   harness.toml
-  resources-agent-tools/
+  resources/
     README.md
     skills/
       harness-config/
         SKILL.md
-  resources-review/
-    README.md
-    skills/
+      review/
 .agents/                          # generated, gitignored
 .claude/                          # generated, gitignored
 ```
 
 ```gitignore
+# Harness-generated live surfaces
 .agents/
 .claude/
+
+# Private Harness overlays
+.harness/local/
 ```
 
 The activation instructions should tell users and agents to run
 `npx harnessc validate` and dry-run activation before applying. Do not
 gitignore generated surfaces when a fresh checkout would leave users with empty
-harness folders and no clear activation path.
+harness folders and no clear activation path. Do not gitignore all of
+`.harness/`; keep the manifest, shared resources, dir sources, `.harnessIgnore`,
+and `.harnessMutable` declarations tracked so the live surfaces remain
+reproducible.
 
 ## Personal AGENTS.md Override
 

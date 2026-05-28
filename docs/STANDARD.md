@@ -173,6 +173,14 @@ in the selected manifest and configured source roots. This lets teams
 experiment in `.agents`, `.claude`, `.cursor`, or another surface without
 promoting runtime edits back into the canonical source layout.
 
+When a repository gitignores generated target outputs, it SHOULD keep tracked
+activation instructions, such as a root instruction note, README setup step, or
+script, so a fresh checkout can validate and regenerate those outputs. Shared
+configured source roots that make the targets reproducible SHOULD stay tracked;
+private or experimental local roots such as `.harness/local/` MAY be
+gitignored when the repository intentionally treats them as developer-local
+overlays.
+
 The `.harnessMutable` model is the file-level version of that boundary. It
 lets a repository publish an initial, reviewable template for target-local
 settings or state while keeping subsequent runtime edits out of the canonical
@@ -1106,6 +1114,11 @@ The source/projection boundary makes cross-surface differences reviewable:
   repositories.
 - Teams MAY gitignore live harness surfaces because they are generated outputs;
   doing so does not change the source of truth or target declaration contract.
+- Repositories that gitignore live harness surfaces SHOULD keep tracked
+  activation instructions and SHOULD NOT gitignore the shared configured
+  source roots required to regenerate those surfaces. Developer-local source
+  roots MAY be gitignored when they are intentionally outside the shared
+  source of truth.
 - Activation MUST be idempotent for the same selected manifest, configured
   source roots, `.harnessIgnore`, `.harnessMutable`, participating resources,
   cleanup policy, and mutable policy.
