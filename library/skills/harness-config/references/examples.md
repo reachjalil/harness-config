@@ -321,7 +321,8 @@ Package script:
     "harness:validate": "npx harnessc validate",
     "harness:preview": "npx harnessc activate",
     "harness:activate": "npx harnessc activate --yes",
-    "setup:harness": "npm run harness:validate && npm run harness:activate"
+    "setup:harness": "npm run harness:validate && npm run harness:activate",
+    "update:harness": "npm run setup:harness"
   }
 }
 ```
@@ -348,10 +349,12 @@ Harness surfaces are generated. On fresh checkout, run:
 
   npx harnessc validate
   npx harnessc activate
+
+After `git pull`, run the same commands when `.harness` changed.
 ```
 
 Do not gitignore generated surfaces until the activation path is tracked and
-obvious.
+obvious for both fresh checkout and after-update workflows.
 
 If generated surfaces are already tracked by Git, adding `.gitignore` does not
 untrack them. After activation converges and the user does not want generated

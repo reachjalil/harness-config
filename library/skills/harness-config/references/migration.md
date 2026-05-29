@@ -147,7 +147,7 @@ A full transition has all of these properties:
 | Mutable files | Files matched by `.harnessMutable` are copied into `.harness` as source seeds when they should exist for fresh users; target-level settings such as `.claude/settings.json` are seeded at `.harness/resources/.claude/settings.json` unless explicitly blocked as secret/local state. |
 | Cleanup | Unmanaged live files are preserved until migrated, archived, or explicitly approved for deletion after a dry-run removal list. |
 | Target ignores | Generated surfaces have target-output `.harnessIgnore` files when a target needs local-only output rules. |
-| Git ignore and untracking | Root `.gitignore` ignores each generated surface or exact generated subtree after convergence unless the user wants generated output tracked; target-output `.harnessIgnore` is still used separately for Harness projection boundaries. If generated files are already tracked, run `git rm --cached -r` for every tracked generated surface or exact subtree, stage the transition with `git add`, and verify no working-tree data was lost. |
+| Git ignore and untracking | Root `.gitignore` ignores each generated target surface, generated `[[dir]]` output, or exact generated subtree after convergence unless the user wants generated output tracked; target-output `.harnessIgnore` is still used separately for Harness projection boundaries. If generated files are already tracked, run `git rm --cached -r` or `git rm --cached` for every tracked generated output, stage the transition with `git add`, verify the staged deletions, and verify no working-tree data was lost. |
 | Regeneration path | A tracked command or setup note tells users and agents how to validate and activate generated surfaces on a fresh checkout. |
 | Local state | Secrets, caches, logs, credentials, trust state, and machine-local settings stay out of `.harness`. |
 | Verification | Activation converges after apply. |
@@ -500,13 +500,15 @@ paths such as `**/settings.local.json`.
 
 ## Generated Surfaces And Cleanup
 
-Live harness surfaces are generated outputs after full migration. The
+Live harness surfaces and generated `[[dir]]` outputs are generated outputs
+after full migration. The
 best-practice default is to add root `.gitignore` entries for them once all
 durable target resources are represented in `.harness` and activation
 converges. This keeps skills and reusable resources in one reviewed source
 location. Do this unless the user wants generated output tracked. Pair it with
-tracked activation instructions so users and agents know how to activate them
-on a fresh checkout.
+tracked activation instructions outside the generated output set so users and
+agents know how to activate them on a fresh checkout and refresh them after
+updates such as `git pull`.
 
 Use root `.gitignore` for Git tracking policy:
 
@@ -516,6 +518,11 @@ Use root `.gitignore` for Git tracking policy:
 .claude/
 .cursor/
 .gemini/
+
+# Harness-generated root instruction outputs
+AGENTS.md
+CLAUDE.md
+GEMINI.md
 ```
 
 If only part of a surface is generated, ignore the exact generated subtree
@@ -534,24 +541,29 @@ boundaries exist.
 
 If generated files are already tracked, adding `.gitignore` is not enough and
 reporting a follow-up is not enough. After `.harness` represents the durable
-source and activation converges, actually untrack every generated surface or
-exact generated subtree that should no longer be tracked:
+source and activation converges, actually untrack every generated target
+surface, exact generated subtree, and generated `[[dir]]` output that should no
+longer be tracked:
 
 ```bash
-git ls-files .agents .claude .cursor .gemini
+git ls-files .agents .claude .cursor .gemini AGENTS.md CLAUDE.md GEMINI.md
 git rm --cached -r .agents .claude .cursor .gemini
+git rm --cached AGENTS.md CLAUDE.md GEMINI.md
 git add .gitignore .harness AGENTS.md CLAUDE.md GEMINI.md README.md package.json
 git diff --cached --name-status
 git status --short
 ```
 
 Use exact subtrees instead when only part of a target is generated. Include
-`.agents`, `.claude`, `.cursor`, `.gemini`, and similar generated surfaces as
+`.agents`, `.claude`, `.cursor`, `.gemini`, similar generated surfaces, and
+generated dir outputs such as `AGENTS.md`, `CLAUDE.md`, or `GEMINI.md` as
 applicable; do not special-case only `.agents`. `git rm --cached` must not
 remove working-tree files. Verify representative generated files still exist
 after untracking and that `npx harnessc activate` can regenerate them from
-`.harness`. If any file would be lost because it was not migrated, restore or
-migrate it before claiming completion.
+`.harness`. `git diff --cached --name-status` must show the expected staged
+deletions from the index for generated outputs that are no longer tracked. If
+any file would be lost because it was not migrated, restore or migrate it before
+claiming completion.
 
 Good activation instruction examples:
 
@@ -562,6 +574,9 @@ Harness surfaces are generated. Run:
 
   npx harnessc validate
   npx harnessc activate
+
+After pulling changes that touch `.harness`, run the same commands to refresh
+generated outputs.
 ```
 
 If `npx` is unavailable, explain that Node.js/npm must be installed before
@@ -581,17 +596,22 @@ npx --version
     "harness:validate": "npx harnessc validate",
     "harness:preview": "npx harnessc activate",
     "harness:activate": "npx harnessc activate --yes",
-    "setup:harness": "npm run harness:validate && npm run harness:activate"
+    "setup:harness": "npm run harness:validate && npm run harness:activate",
+    "update:harness": "npm run setup:harness"
   }
 }
 ```
 
 For repos with `package.json`, prefer explicit scripts first. Add a
 `postinstall` hook only when the repo already uses install-time setup or the
-user wants generated harness surfaces restored automatically. If you add one,
-make it guarded so install does not overwrite active user work. A common shape
-is a small tracked script that activates only when the manifest exists and the
-declared generated surfaces are missing:
+user wants generated harness surfaces restored automatically. For after-pull
+refreshes, prefer an explicit `update:harness`/`setup:harness` script and README
+instruction; add a tracked opt-in post-merge hook setup only when the repo
+already uses trusted hooks and the user approves automatic activation after
+`git pull`. If you add an automatic path, make it guarded so install or update
+does not overwrite active user work. A common shape is a small tracked script
+that activates only when the manifest exists and the declared generated
+surfaces are missing:
 
 ```json
 {
@@ -602,7 +622,8 @@ declared generated surfaces are missing:
 ```
 
 Use equivalent Makefile targets, justfile recipes, README setup commands, or
-repo-specific bootstrap scripts when those are more natural than `package.json`.
+repo-specific bootstrap/update scripts when those are more natural than
+`package.json`.
 
 Use `--remove-unmanaged` only after the dry run clearly shows removals the user
 expects. Target-output `.harnessIgnore` and `.harnessProfile` files are local
@@ -641,14 +662,18 @@ Report enough detail for the user to understand what changed quickly:
   documented as blocked/excepted;
 - target-specific overrides created;
 - files intentionally left unmanaged and why;
-- generated-surface `.gitignore` entries added after convergence, and any
-  `git rm --cached -r` commands run for tracked generated surfaces;
-- staged no-data-loss verification: generated files still exist locally,
-  activation can regenerate them from `.harness`, and the staged diff was
-  inspected;
+- generated-output `.gitignore` entries added after convergence, and any
+  `git rm --cached -r` or `git rm --cached` commands run for tracked generated
+  target surfaces, generated dir outputs, or exact generated subtrees;
+- staged deletion and no-data-loss verification: `git diff --cached
+  --name-status` shows expected deletions from the index, generated files still
+  exist locally, activation can regenerate them from `.harness`, and the staged
+  diff was inspected;
 - commands run: `validate`, dry `activate`, `activate --yes`, convergence dry
   run;
 - tracked activation command or setup note added;
+- tracked after-update command or setup note added for refreshing generated
+  outputs after `git pull`;
 - any remaining migration follow-up.
 
 Prefer this format:
@@ -660,8 +685,8 @@ Prefer this format:
 | Complete migration? | Yes |
 | Generated targets | `.agents`, `.claude` |
 | Source roots | `.harness/resources`, `.harness/dir` |
-| Gitignore best practice | Root `.gitignore` ignores generated surfaces after convergence unless intentionally tracked |
-| Activation path | `npm run setup:harness` |
+| Gitignore best practice | Root `.gitignore` ignores generated target surfaces and generated dir outputs after convergence unless intentionally tracked |
+| Activation path | `npm run setup:harness`; after `git pull`, run `npm run update:harness` |
 
 **Resource Coverage**
 | Kind | Migrated | Left unmanaged | Notes |
