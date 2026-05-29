@@ -3,9 +3,12 @@
 Use these examples as starting points. Adapt names to the user's repo instead
 of forcing a taxonomy.
 
-## Minimal Adoption
+## Minimal Greenfield Or Scoped Setup
 
-Best when a repo wants one portable skill catalog and one generated surface.
+Best when a new repo or explicitly scoped non-migration change wants one
+portable skill catalog and one generated surface. For full migration/adoption
+of an existing repo, use `.harness/dir` for durable root instruction files as
+shown in the next example.
 
 ```toml
 version = 1
@@ -29,8 +32,9 @@ AGENTS.md
         SKILL.md
 ```
 
-Keep `AGENTS.md` tracked as the root instruction file unless
-generating it through `[[dir]]` is clearly useful.
+Keeping `AGENTS.md` as a normal tracked root file is acceptable for this
+greenfield or explicitly scoped path. It is not the full-adoption default for
+existing durable root instruction files.
 
 ## Clean Full Migration With One Resources Root
 
@@ -48,10 +52,16 @@ path = "./.agents"
 
 [[targets]]
 path = "./.claude"
+
+[[dir]]
+path = "./.harness/dir"
 ```
 
 ```text
 .harness/
+  dir/
+    AGENTS.md
+    CLAUDE.md
   resources/
     README.md
     .claude/
@@ -73,6 +83,14 @@ Target-level settings stay at their target-derived path:
 `skills/` or an unrelated resource group. Skill folder names should match
 how the user thinks: workflow, team, strategy, mode, agent set, product area,
 or reusable concern.
+
+Durable root instruction files such as `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`,
+and equivalents should be copied into `.harness/dir` as direct Markdown files
+by default during full adoption. Use `.harnessComposable`, `.harnessRef`, or
+split root instructions only when there is a concrete reason such as
+deduplication, profile overlays, local overlays, or target-specific tails.
+Leaving a durable root instruction file only as a normal tracked repo file
+requires an explicit blocker or user-directed exception in the final summary.
 
 ## Multiple Resource Roots
 
@@ -327,3 +345,10 @@ Harness surfaces are generated. On fresh checkout, run:
 
 Do not gitignore generated surfaces until the activation path is tracked and
 obvious.
+
+If generated surfaces are already tracked by Git, adding `.gitignore` does not
+untrack them. Report the required follow-up in the final summary, for example:
+
+```bash
+git rm --cached -r .agents .claude .cursor .gemini
+```

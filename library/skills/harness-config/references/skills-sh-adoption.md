@@ -117,8 +117,12 @@ by default:
    subfolder, usually `.harness/resources/skills/<name>`.
 6. Add `.harness/local/resources` for personal or experimental skills when
    useful.
-7. Decide whether root instruction files should stay tracked as-is or move into
-   `[[dir]]`; use direct copied files unless composition is justified.
+7. Copy durable root instruction files such as `AGENTS.md`, `CLAUDE.md`,
+   `GEMINI.md`, and equivalents into `.harness/dir` as direct Markdown files by
+   default. Do not leave them only as normal tracked repo files after adoption
+   unless there is an explicit blocker or user-directed exception; use
+   `.harnessComposable`, `.harnessRef`, or split files only when composition is
+   justified by deduplication, overlays, or target-specific tails.
 8. Add a concise Harness maintenance note to `AGENTS.md`, `CLAUDE.md`, or
    equivalent root instructions so future agents know to use Harness config
    guidance for agent-config operations.
@@ -168,8 +172,8 @@ Use this checklist in the response before claiming adoption is complete:
 | Settings | Settings that should exist for fresh users were seeded in `.harness`; runtime-only settings were left local. |
 | Mutability | `.harnessMutable` is used only for seeded create-once files, not as a substitute for migration or ignore. |
 | Target ignores | Target-output `.harnessIgnore` files are added inside generated surfaces when local output boundaries are needed. |
-| Root files | Simple root files are direct copies or normal tracked files; `.harnessComposable` is used only when needed. |
-| Generated-surface gitignore | After convergence, root `.gitignore` ignores generated surfaces or exact generated subtrees, with tracked activation instructions, unless the user wants generated outputs tracked. |
+| Root instructions represented | Durable root instruction files such as `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and equivalents were copied into `.harness/dir` as direct Markdown files by default, or explicitly documented as blocked/excepted. |
+| Generated-surface gitignore | After convergence, root `.gitignore` ignores generated surfaces or exact generated subtrees, with tracked activation instructions, unless the user wants generated outputs tracked; if generated files are already tracked, the final summary reports the required `git rm --cached` follow-up. |
 | Activation path | A tracked repo-native command or setup note can validate and activate generated surfaces on a fresh checkout. |
 | Verification | Validate, dry activation, apply, and convergence dry run all succeeded. |
 
@@ -187,8 +191,8 @@ unmanaged.
 Use precise language:
 
 - **Complete migration:** all durable skills, plugins, rules, prompts,
-  commands, hooks, agents, and selected root instructions are under `.harness`
-  or intentionally documented as unmanaged.
+  commands, hooks, agents, and durable root instruction files are under
+  `.harness` or intentionally documented as blocked/excepted.
 - **Blocked migration:** one or more durable resources could not be migrated
   safely because of a concrete blocker such as unclear ownership, secrets,
   runtime trust state, executable install behavior, or user direction.

@@ -15,6 +15,9 @@ Expected result:
 - `activate` is a dry run and writes nothing.
 - The plan explains creates, updates, keeps, preserved unmanaged files, mutable
   files, requested removals, and any target symlink conflicts.
+- For full migration/adoption, durable root instruction files such as
+  `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and equivalents are sourced from
+  `.harness/dir` or explicitly documented as blocked/excepted.
 
 ## Apply and confirm convergence
 
@@ -47,7 +50,12 @@ Confirm:
 
 - durable shared source is under configured resource groups such as
   `.harness/resources`,
-- repo-relative generated outputs use `.harness/dir` only when useful,
+- durable root instruction files such as `AGENTS.md`, `CLAUDE.md`,
+  `GEMINI.md`, and equivalents are copied into `.harness/dir` as direct
+  Markdown files by default, or explicitly documented as blocked/excepted,
+- `.harnessComposable`, `.harnessRef`, or split root instructions are used only
+  for concrete reasons such as deduplication, profile overlays, local overlays,
+  or target-specific tails,
 - resource groups have README files when their purpose is not obvious,
 - live harness surfaces are outputs, not source folders,
 - target-specific differences are encoded as target-derived overrides,
@@ -58,6 +66,9 @@ Confirm:
   selected manifest,
 - tracked activation instructions tell users and agents how to run activation
   when generated harness surfaces are gitignored.
+- if generated harness surfaces are already tracked by Git, the final summary
+  reports the required `git rm --cached` follow-up rather than treating
+  `.gitignore` as sufficient.
 
 ## Explain Checks
 

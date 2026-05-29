@@ -51,7 +51,9 @@ For each discovered live surface, decide:
 - migrate portable skills, plugins, rules, prompts, commands, hooks, agents,
   and shared config into a configured `.harness/resources*` root;
 - represent target-specific variants as target-derived overrides;
-- move root instruction files into `[[dir]]` only when generation is useful;
+- copy durable root instruction files such as `AGENTS.md`, `CLAUDE.md`,
+  `GEMINI.md`, and equivalents into `.harness/dir` as direct Markdown files by
+  default;
 - leave runtime-owned settings, caches, logs, trust state, credentials, and
   unclear files unmanaged with an explicit reason.
 
@@ -84,7 +86,8 @@ final summary must include:
 - confirmation that target-level seeds such as `.claude/settings.json` stay at
   target-derived paths under the resources root, for example
   `.harness/resources/.claude/settings.json`;
-- root-file strategy, including direct copy vs `.harnessComposable`;
+- root-file strategy, including the `.harness/dir` copies made by default and
+  any blocked or user-directed exceptions;
 - root instruction updates that tell future agents to use Harness config
   guidance for any agent-configuration operation;
 - mutable files copied into `.harness` as seed files and their seed locations;
@@ -114,12 +117,12 @@ A full transition has all of these properties:
 | Source of truth | Durable agent configuration lives under configured `.harness` source roots. |
 | Live surfaces | `.agents`, `.claude`, `.cursor`, `.gemini`, and similar folders are generated outputs with root `.gitignore` entries after convergence, unless the user wants generated output tracked. |
 | Skills/resources | Every reusable skill, plugin, prompt, rule, command, hook, and agent is migrated or explicitly blocked with a reason. |
-| Root files | Root instructions are normal tracked files, direct `[[dir]]` copies, or composable only when composition is useful. |
+| Root files | Durable root instructions such as `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and equivalents are copied into `.harness/dir` as direct Markdown files by default, or explicitly documented as blocked/excepted. |
 | Agent guidance | Root agent instructions tell future agents to modify `.harness` sources and use Harness validation/activation for any agent-config change. |
 | Mutable files | Files matched by `.harnessMutable` are copied into `.harness` as source seeds when they should exist for fresh users. |
 | Cleanup | Unmanaged live files are preserved until migrated, archived, or explicitly approved for deletion after a dry-run removal list. |
 | Target ignores | Generated surfaces have target-output `.harnessIgnore` files when a target needs local-only output rules. |
-| Git ignore best practice | Root `.gitignore` ignores each generated surface or exact generated subtree after convergence unless the user wants generated output tracked; target-output `.harnessIgnore` is still used separately for Harness projection boundaries. |
+| Git ignore best practice | Root `.gitignore` ignores each generated surface or exact generated subtree after convergence unless the user wants generated output tracked; target-output `.harnessIgnore` is still used separately for Harness projection boundaries. If generated files are already tracked, the final summary reports the required `git rm --cached` follow-up. |
 | Regeneration path | A tracked command or setup note tells users and agents how to validate and activate generated surfaces on a fresh checkout. |
 | Local state | Secrets, caches, logs, credentials, trust state, and machine-local settings stay out of `.harness`. |
 | Verification | Activation converges after apply. |
@@ -214,21 +217,23 @@ generated harness surfaces. Personal experiments belong in
 
 ## Root Instructions
 
-Do not automatically split root instruction files. First decide which stance
-fits the repo:
+During full migration or adoption, copy durable repo-level instruction files
+such as `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and similar always-on agent
+guidance into `.harness/dir` by default. Do not leave those files only as
+normal tracked repo files after adoption unless there is a concrete blocker or
+the user explicitly directs that exception. Record the exception in the final
+summary and checklist.
 
-- Keep `AGENTS.md`, `CLAUDE.md`, or similar files as normal tracked files when
-  they are simple, already working, and do not need generated variants.
-- Move clear shared root instruction files into `[[dir]]` when generation makes
-  the setup cleaner. For a simple one-file output, use direct copy:
+Do not automatically split root instruction files. Prefer direct copied
+Markdown files for simple one-file outputs:
 
 ```text
 .harness/dir/AGENTS.md
 ```
 
 - Use `.harnessComposable` and `.harnessRef` only when composition removes real
-  duplication, shares a base across multiple root files, or enables
-  profiles/local overlays.
+  duplication, shares a base across multiple root files, enables
+  profiles/local overlays, or supports target-specific tails.
 - Convert long procedural root instructions into skills, then leave concise
   root pointers.
 - Add or preserve a short Harness maintenance note in `AGENTS.md`, `CLAUDE.md`,
@@ -590,9 +595,12 @@ Report enough detail for the user to understand what changed quickly:
 - targets declared in `.harness/harness.toml`;
 - resource groups created and counts by kind, such as `skills: 4`,
   `prompts: 2`, `hooks: 1`;
-- root instruction files kept as normal files or moved into `[[dir]]`;
+- durable root instruction files copied into `.harness/dir`, or explicitly
+  documented as blocked/excepted;
 - target-specific overrides created;
 - files intentionally left unmanaged and why;
+- generated-surface `.gitignore` entries added after convergence, and any
+  required `git rm --cached` follow-up when generated files are already tracked;
 - commands run: `validate`, dry `activate`, `activate --yes`, convergence dry
   run;
 - tracked activation command or setup note added;
