@@ -738,7 +738,8 @@ export async function loadHarnessIgnoreRuleSets(
         directory,
         sourcePath,
         isRoot,
-        matchBase: isRoot ? "both" : ruleEntry.matchBase,
+        matchBase:
+          isRoot && ruleEntry.kind === "ignore" ? "both" : ruleEntry.matchBase,
       },
     });
 
@@ -818,7 +819,7 @@ async function findHarnessRuleFileEntries(
   const paths = resolveHarnessPaths(root, { config: options.config });
   const entries = new Map<string, HarnessRuleFileEntry>();
   await addRuleFileIfPresent(entries, paths.ignorePath, "both", "ignore");
-  await addRuleFileIfPresent(entries, paths.mutablePath, "both", "mutable");
+  await addRuleFileIfPresent(entries, paths.mutablePath, "source", "mutable");
 
   const sourceRoots =
     options.sourceRoots ??

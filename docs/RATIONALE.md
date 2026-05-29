@@ -187,7 +187,7 @@ repo-local source-to-runtime projection problem and leaves the rest.
   for an "ignore for projection" filter, comes from that lineage.
 - **Conventional commits / SemVer / RFC 2119** inspired the explicit
   normative language and forward-compatibility policy in
-  [STANDARD.md](./STANDARD.md). A spec that future implementers can read
+  [STANDARD.md](/specifications/v1/standard/). A spec that future implementers can read
   in isolation is more likely to survive a change of maintainer.
 - **`AGENTS.md`, `CLAUDE.md`, and `copilot-instructions.md`** are the
   immediate prior art for *what* gets projected. Harness config does not

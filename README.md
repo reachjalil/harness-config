@@ -2,7 +2,7 @@
 
 [![Website](https://img.shields.io/badge/website-harnessconfig.dev-111827)](https://www.harnessconfig.dev/)
 [![Specification](https://img.shields.io/badge/spec-proposal-111827)](https://www.harnessconfig.dev/specifications/v1/)
-[![CI](https://github.com/reachjalil/harness-config/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/reachjalil/harness-config/actions/workflows/ci.yml)
+[![CI](https://github.com/reachjalil/harness-config/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/reachjalil/harness-config/actions/workflows/ci.yml?query=branch%3Amain)
 [![skills.sh](https://skills.sh/b/reachjalil/harness-config)](https://skills.sh/reachjalil/harness-config)
 [![npm harnessc](https://img.shields.io/npm/v/harnessc?label=harnessc)](https://www.npmjs.com/package/harnessc)
 [![npm @harnessconfig/core](https://img.shields.io/npm/v/@harnessconfig/core?label=%40harnessconfig%2Fcore)](https://www.npmjs.com/package/@harnessconfig/core)
@@ -10,7 +10,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](./LICENSE)
 
 **Status:** Specification proposal with an alpha reference implementation.
-The npm package set is currently `1.0.0-alpha.5`. Treat the v1 file shape and
+The npm package set is currently `1.0.0-alpha.6`. Treat the v1 file shape and
 activation model as a public proposal while public releases, conformance
 fixtures, adopter repositories, and external issue traffic mature.
 
@@ -297,9 +297,6 @@ repo-local manifest path explicitly:
 ```toml
 version = 1
 
-[standard]
-name = "harness-config"
-
 [[resources]]
 path = "./.harness/resources"
 
@@ -426,7 +423,6 @@ pnpm --filter @harnessconfig/cli exec harnessc init
 pnpm --filter @harnessconfig/cli exec harnessc activate
 pnpm --filter @harnessconfig/cli exec harnessc activate --yes
 pnpm --filter @harnessconfig/cli exec harnessc init --resource prompts --target ./.claude
-pnpm --filter @harnessconfig/cli exec harnessc plan
 ```
 
 After publishing, run the CLI through npm. During v1 alpha, release automation
@@ -440,7 +436,6 @@ npx harnessc init
 npx harnessc activate
 npx harnessc activate --yes
 npx harnessc init --yes --resource prompts --target ./runtime/agent
-npx harnessc plan
 ```
 
 The public CLI package is `harnessc`.
@@ -452,14 +447,14 @@ flags are supplied. Use `--resources-path <path>` to write an explicit
 `--config <path>` when the manifest should be somewhere other than
 `./.harness/harness.toml`. Passing one or more `--resource <kind>` flags
 writes only those resource folders. Passing `--target <path>` declares
-explicit projection targets. Init is a dry run
-unless `--yes` is supplied.
+explicit projection targets.
 
-`harnessc plan` is a read-only initialization/adoption plan. It is not a
-projection preview, and it does not infer targets from existing folders.
-Folders receive projection only after they are declared in the selected
-manifest.
-Run `harnessc activate` without `--yes` to preview the projection.
+Without `--yes`, `harnessc init` shows the adoption plan: the manifest, the
+ignore and mutable files, and the resource folders that would be created. It
+does not infer targets from existing folders — folders receive projection only
+after they are declared in the selected manifest. Run `harnessc activate`
+without `--yes` to preview the projection that will be applied to those
+declared targets.
 
 `harnessc explain <path>` is read-only introspection for a source or output
 path. It shows the matching target or repo-relative output, configured source
@@ -613,5 +608,6 @@ See [the rationale](./docs/RATIONALE.md),
 [the standard](./docs/STANDARD.md),
 [the adoption guide](./docs/ADOPTION.md),
 [tooling](./docs/TOOLING.md),
-[conformance](./docs/CONFORMANCE.md), and
+[conformance](./docs/CONFORMANCE.md),
+[diagnostic catalog](./docs/DIAGNOSTICS.md), and
 [test matrix](./docs/TESTING.md) for details.

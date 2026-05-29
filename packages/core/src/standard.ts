@@ -67,7 +67,7 @@ export const overrideDirectorySchema = z
 
 export const harnessTargetSchema = z
   .object({ path: harnessTargetPathSchema })
-  .strict();
+  .catchall(z.unknown());
 
 export const harnessExtensionActivationSchema = z.enum(["explicit", "auto"]);
 
@@ -77,7 +77,7 @@ export const harnessActivationSchema = z
   .object({
     targetSymlinks: harnessTargetSymlinkPolicySchema.default("conflict"),
   })
-  .strict() satisfies z.ZodType<HarnessActivationConfig>;
+  .catchall(z.unknown()) satisfies z.ZodType<HarnessActivationConfig>;
 
 export const harnessExtensionSchema = z
   .object({
@@ -106,13 +106,13 @@ export const harnessDirSchema = z
   .object({
     path: harnessSourcePathSchema,
   })
-  .strict();
+  .catchall(z.unknown());
 
 export const harnessResourcesSchema = z
   .object({
     path: harnessSourcePathSchema,
   })
-  .strict();
+  .catchall(z.unknown());
 
 export const harnessConfigSchema = z
   .object({
@@ -133,19 +133,13 @@ export const harnessConfigSchema = z
           });
         }
       }),
-    standard: z
-      .object({
-        name: z.string().default("harness-config"),
-      })
-      .strict()
-      .default({ name: "harness-config" }),
     activation: harnessActivationSchema.default({ targetSymlinks: "conflict" }),
     targets: z.array(harnessTargetSchema).default([]),
     resources: z.array(harnessResourcesSchema).default([]),
     dir: z.array(harnessDirSchema).default([]),
     extensions: harnessExtensionsSchema,
   })
-  .strict();
+  .catchall(z.unknown());
 
 export type HarnessConfig = z.infer<typeof harnessConfigSchema>;
 

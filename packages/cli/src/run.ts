@@ -91,16 +91,13 @@ Usage:
   harnessc extension activate [--root <path>] [--config <path>]
                               [--dry-run] [--yes]
                               [--extension <id>|--all] [--json]
-  harnessc plan [--root <path>] [--config <path>] [--resources-path <path>]
-                [--resource <kind>] [--target <path>] [--json]
 
 Commands:
   validate    Validate the repository against the Harness config standard.
   explain     Explain how a source or output path participates in projection.
-  init        Plan or create .harness resource structure.
-  activate    Plan or apply idempotent Harness config projections.
+  init        Show an adoption plan (default) or write .harness scaffolding with --yes.
+  activate    Show a projection preview (default) or apply it with --yes.
   extension   Plan or apply registered Harness config extensions.
-  plan        Show a read-only initialization/adoption plan, not a projection preview.
 
 Harness config standardizes a versioned TOML manifest, configured resources
 source tree, target declarations, and .harnessIgnore projection boundaries.
@@ -1092,16 +1089,10 @@ export async function runHarnessConfigCli(
     }
 
     if (options.command === "plan") {
-      const plan = await planHarnessInitialization(options.root, {
-        configPath: options.configPath,
-        ...initOptionsFromCli(options),
-      });
-      io.stdout(
-        options.json
-          ? JSON.stringify(plan, null, 2)
-          : formatInitializationPlan(plan, formatOptions)
+      io.stderr(
+        "harnessc plan has been removed. Use 'harnessc init' (no --yes) for an adoption plan or 'harnessc activate' (no --yes) for a projection preview."
       );
-      return 0;
+      return 1;
     }
 
     if (options.command === "activate") {

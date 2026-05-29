@@ -17,10 +17,11 @@ specific runtime, CLI, or hosted service.
   appears as a dot-prefixed folder directly inside a conventional item.
   Resource files may also be composed from directories marked with
   `.harnessComposable`.
-- Target conformance: a `[[targets]]` entry contains only a repo-local path.
+- Target conformance: a `[[targets]]` entry contains a required repo-local path.
   The matching override folder is inferred from the first path segment. No
   target may point at `.harness`, overlap a configured source root, or
-  redeclare resource mappings.
+  redeclare resource mappings. Unknown keys reserved for future v1 revisions
+  are tolerated and surfaced as informational diagnostics.
 - Dir conformance: each `[[dir]]` table declares one ordered repo-local dir
   source root. Directories inside that source
   marked with an empty `.harnessComposable` file are composable leaves
@@ -34,15 +35,14 @@ specific runtime, CLI, or hosted service.
   `.harnessMutable` seed-only ownership rules, including source-local,
   profile-local, and target-output-local ignore files where applicable,
   distinguishes ignored files from runtime-owned mutable files, treats every
-  declared target as a copy projection, and yields the same target tree for
-  the same inputs, cleanup policy, and mutable policy.
+  declared target as a copy projection, and yields the same managed projection
+  subset for the same canonical inputs.
 - Tool conformance: an implementation reports the activation plan before
   writing, lists creates, updates, requested removals, kept files, preserved
   unmanaged entries, and mutable-skipped files, and never reads a live target
   folder as the source of truth. When a tool offers path introspection, that
-  explanation is read-only and is derived from the same selected manifest,
-  configured source roots, profile selectors, ignore rules, mutable rules,
-  mutable policy, and projection model as activation.
+  explanation is read-only and is derived from the same canonical inputs as
+  activation.
 
 ## Repository Checklist
 
@@ -55,7 +55,7 @@ specific runtime, CLI, or hosted service.
   an empty `.harnessComposable` marker, and numeric-prefix parts.
 - Target-derived overrides appear only as dot-prefixed folders directly under
   a resources source or directly inside a conventional resource item.
-- `[[targets]]` entries contain only repo-local paths.
+- `[[targets]]` entries contain required repo-local paths.
 - No target redefines resources, modes, or override names.
 - No target points at `./.harness`.
 - Extension ids and core extension fields validate when extensions are
@@ -80,14 +80,16 @@ specific runtime, CLI, or hosted service.
 - Resource composable leaves MUST project as one file at the leaf path and
   MUST NOT project their marker, `.harnessRef`, `.harnessIgnore`,
   `.harnessMutable`, or numbered part files individually.
+  When `.harnessMutable` matches the composable leaf's logical output path, the
+  composed output file MUST be treated as the mutable target file.
 - Overrides MUST be derived from the target path.
-- The selected manifest MUST keep target entries path-only. Targets MUST NOT
-  redefine resources, modes, or override names. Top-level `[[resources]]`
-  and `[[dir]]` tables declare ordered source roots.
+- The selected manifest MUST keep target entries limited to required
+  repo-local paths plus unrecognized keys reserved for future v1 revisions.
+  Targets MUST NOT redefine resources, modes, or override names. Top-level
+  `[[resources]]` and `[[dir]]` tables declare ordered source roots.
 - Activation SHOULD be derived from projection.
-- Activation MUST be idempotent for the same configured source trees,
-  manifest, overrides, `.harnessIgnore` rules, `.harnessMutable` rules,
-  cleanup choice, mutable policy, and target symlink policy.
+- Activation MUST be idempotent for the canonical input set defined in the
+  Standard's Copy Projection section.
 - Implementations MUST NOT follow symlinks while discovering configured source
   roots, declared target trees, ignore files, profile selectors, or dir
   outputs.
@@ -164,3 +166,11 @@ contributor uses locally.
 Privacy evidence is simple: validation, planning, and activation can be
 demonstrated from repository files without telemetry, analytics, remote error
 reporting, or network access.
+
+## Diagnostic Codes
+
+Conforming tools SHOULD report machine-readable diagnostic codes alongside
+human messages. The catalog of v1 codes is maintained in
+[`docs/DIAGNOSTICS.md`](https://github.com/reachjalil/harness-config/blob/main/docs/DIAGNOSTICS.md). Tools that emit a `harness.*` code
+MUST use a code from that catalog. Tools MAY emit codes in their own
+namespace (for example `my-tool.*`) for conditions outside the standard.

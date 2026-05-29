@@ -155,8 +155,12 @@ Recommended sequence:
    projection boundary. Files the runtime writes back (permissions, local
    settings, learned commands) belong in `.harnessMutable` when the source
    catalog should seed them once and the target runtime should own them after
-   that. Copy those seed files into `.harness` before declaring them mutable,
-   so fresh checkouts receive an initial version.
+   that. Runtime-owned settings must be represented through resource
+   projection, usually as direct resource files or target-root overrides such as
+   `.harness/resources/.claude/settings.local.json`, rather than as `[[dir]]`
+   outputs, because dir outputs are durable repo-relative files and are not
+   mutable target files. Copy those seed files into `.harness` before declaring
+   them mutable, so fresh checkouts receive an initial version.
    Repository-wide rules usually live in `./.harnessIgnore`; resource- or
    dir-specific rules can live in source-local `.harnessIgnore` files, and
    user/local output preferences can live in target-output files such as
@@ -239,7 +243,7 @@ source required to regenerate the live harness surfaces.
   `[[targets]]`.
 - **Putting product or runtime state under `.harness/`.** `./.harness/`
   is for durable, reviewable source. Activation records, drift hashes, and
-  product caches belong in product-owned folders such as `.harnex/` and
+  product caches belong in product-owned folders such as `.harness-cache/` and
   in `.harnessIgnore`.
 - **Putting target-root files in a kit by accident.** A target-root file such
   as `.claude/settings.json` should be represented at

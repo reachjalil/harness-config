@@ -95,7 +95,6 @@ describe("HarnessConfig initialization", () => {
       resourceKinds: ["prompts", "workflows"],
       config: {
         version: 1,
-        standard: { name: "harness-config" },
         targets: [{ path: "./runtime/agent" }, { path: "./custom-target" }],
       },
     });
@@ -158,7 +157,6 @@ describe("HarnessConfig initialization", () => {
     const plan = await planHarnessInitialization(root, {
       config: {
         version: 1,
-        standard: { name: "harness-config" },
         targets: [{ path: "./.agents" }],
       },
       resourceKinds: ["skills"],

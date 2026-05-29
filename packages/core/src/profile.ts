@@ -541,17 +541,15 @@ async function readProfileDeclaration(
 
   if (profileLines.length > 1) {
     options.diagnostics.push({
-      severity: options.required ? "error" : "warning",
+      severity: "error",
       code: "harness.profile_invalid",
       message:
         options.type === "root"
           ? ".harnessProfileRoot must contain exactly one profile name."
-          : ".harnessProfile should contain at most one profile name.",
+          : ".harnessProfile must contain at most one profile name.",
       path: toRepoRelative(root, declarationPath),
     });
-    if (options.required) {
-      return undefined;
-    }
+    return undefined;
   }
 
   return profileLines[0];

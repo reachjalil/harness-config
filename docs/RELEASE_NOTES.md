@@ -1,5 +1,42 @@
 # Harness config release notes
 
+## 1.0.0-alpha.6
+
+`1.0.0-alpha.6` hardens the v1 manifest and projection contract for forward
+compatibility, aligns the reference implementation with that contract, and
+syncs the public English, Spanish, French, and Chinese specification content.
+
+### Manifest Compatibility
+
+- Allows unknown top-level manifest fields and unknown fields on
+  `[[resources]]`, `[[targets]]`, `[[dir]]`, and `[activation]` as
+  informational diagnostics instead of validation failures.
+- Keeps singular `[resources]`, `[resources.<kind>]`, and `[dir]` tables
+  invalid in v1.
+- Adds `harness.manifest_unknown_field` so newer v1 manifests can be surfaced
+  clearly to older tools.
+
+### Projection Semantics
+
+- Defines idempotence over the managed projection subset `M_n`, so unmanaged
+  target state and mutable-file edits do not contradict repeat activation.
+- Clarifies that `.harnessMutable` is source-owned in v1 and does not read
+  target-output `.harnessMutable` files.
+- Requires `.harnessProfile` selectors to contain zero or one active profile;
+  multi-profile selectors are now errors and do not participate.
+- Documents deterministic override/profile precedence, target overlap
+  rejection, shared first-segment override namespaces, and mutable resource
+  composable outputs.
+
+### Docs And Tooling
+
+- Updates Standard, Conformance, Tooling, Adoption, Diagnostics, and Testing
+  docs with the hardened v1 behavior.
+- Documents `harnessc init --resource <kind>` and `--target <path>`, removes
+  stale `plan` command prose, and keeps website content links deploy-safe.
+- Syncs the website-ready Spanish, French, and Chinese pages for the changed
+  v1 semantics.
+
 ## 1.0.0-alpha.5
 
 `1.0.0-alpha.5` separates mutable-file ownership from ignore rules, updates

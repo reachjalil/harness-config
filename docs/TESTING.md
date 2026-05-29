@@ -1,8 +1,8 @@
 # Harness config test matrix
 
 Harness config tests should prove that activation is a deterministic projection:
-the same source trees, selected manifest, override folders, and
-`.harnessIgnore` rules produce the same live target trees.
+the same canonical input set from the Standard's Copy Projection section
+produces the same managed projection subset.
 
 Mutable-file tests should also prove the ownership transition: source creates
 the target file once, runtime edits are preserved, and explicit force
@@ -12,9 +12,9 @@ re-projection is the only path back to source bytes.
 
 | Area | Scenario | Test |
 | --- | --- | --- |
-| TOML | Valid `harness.toml` with path-only targets, default `.harness/harness.toml` manifest path, and ordered `[[resources]]` / `[[dir]]` source roots | `packages/core/test/standard.test.ts` |
+| TOML | Valid `harness.toml` with required target paths, default `.harness/harness.toml` manifest path, and ordered `[[resources]]` / `[[dir]]` source roots | `packages/core/test/standard.test.ts` |
 | TOML | Unsupported standard versions fail validation | `packages/core/test/standard.test.ts` |
-| TOML | Target entries reject fields other than `path` | `packages/core/test/standard.test.ts` |
+| TOML | Unknown top-level tables or keys and unknown `[[targets]]`, `[[resources]]`, `[[dir]]`, and `[activation]` fields are accepted and surfaced as informational diagnostics | `packages/core/test/standard.test.ts` |
 | TOML | Target paths reject absolute paths, `..`, `.harness`, duplicate normalized paths, and overlapping target roots while allowing arbitrary repo-local target folders | `packages/core/test/standard.test.ts` |
 | TOML | Legacy single `[resources]` and `[dir]` tables are rejected; configured source paths reject target overlaps and resolve independently from target roots | `packages/core/test/standard.test.ts` |
 | TOML | Missing configured source roots pass as empty layers | `packages/core/test/standard.test.ts` |
@@ -47,6 +47,7 @@ re-projection is the only path back to source bytes.
 | Projection | Active `.harnessProfileRoot` overlays merge resources, suppress base resources with logical `.harnessIgnore`, and preserve target-local `.harnessProfile` during cleanup | `packages/core/test/projection.test.ts` |
 | Projection | Target-output `.harnessIgnore` remains the final boundary when profile-local rules also match | `packages/core/test/projection.test.ts` |
 | Projection | Target overrides stay above generic active profile overlays, while profile target overrides can still specialize targets | `packages/core/test/projection.test.ts` |
+| Projection | Exact target-root and item-level override collisions resolve by deterministic last-wins ordering, while file/directory shape conflicts remain errors | `packages/core/test/projection.test.ts` |
 | Projection | Portable profile roots nested inside resource items overlay the containing item | `packages/core/test/projection.test.ts` |
 | Projection | Multiple active profile roots projecting the same file emit a warning and resolve deterministically | `packages/core/test/projection.test.ts` |
 | Projection | Activation planning reports profile diagnostics once despite shared dir/resource phases | `packages/core/test/projection.test.ts` |
@@ -61,6 +62,7 @@ re-projection is the only path back to source bytes.
 | Projection | Source deletion plus explicit cleanup removes stale target files | `packages/core/test/projection.test.ts` |
 | Projection | Re-running after apply converges to `keep` actions | `packages/core/test/projection.test.ts` |
 | Projection | Mutable files are created once and then reported as `mutable` | `packages/core/test/projection.test.ts` |
+| Projection | Resource composable leaves matched by `.harnessMutable` are created once as composed files and then reported as `mutable` | `packages/core/test/projection.test.ts` |
 | Projection | Mutable files report `mutable` even when target bytes still match source | `packages/core/test/projection.test.ts` |
 | Projection | Mutable files are not overwritten when bytes diverge in the target | `packages/core/test/projection.test.ts` |
 | Projection | `--force-mutable` re-projects mutable files from source | `packages/core/test/projection.test.ts` |

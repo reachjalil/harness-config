@@ -33,9 +33,6 @@ describe("HarnessConfig standard", () => {
     const config = parseHarnessConfigToml(`
 version = 1
 
-[standard]
-name = "harness-config"
-
 [[targets]]
 path = "./.claude"
 `);
@@ -136,16 +133,90 @@ path = "./.harness/dir"
     expect(config.extensions.dir?.activation).toBe("auto");
   });
 
-  it("rejects target fields other than path", () => {
-    expect(() =>
-      parseHarnessConfigToml(`
+  it("accepts unknown standard fields and reports them as informational diagnostics", async () => {
+    const config = parseHarnessConfigToml(`
 version = 1
+mode = "copy"
+
+[standard]
+name = "harness-config"
+
+[activation]
+targetSymlinks = "conflict"
+futurePolicy = "preview"
+
+[[resources]]
+path = "./.harness/resources"
+label = "shared"
 
 [[targets]]
 path = "./.claude"
 mode = "copy"
-`)
-    ).toThrow(/Unrecognized key/);
+
+[[dir]]
+path = "./.harness/dir"
+label = "root files"
+`);
+
+    expect(config.targets[0]?.path).toBe("./.claude");
+
+    const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
+    await write(
+      root,
+      ".harness/harness.toml",
+      `
+version = 1
+mode = "copy"
+
+[standard]
+name = "harness-config"
+
+[activation]
+targetSymlinks = "conflict"
+futurePolicy = "preview"
+
+[[resources]]
+path = "./.harness/resources"
+label = "shared"
+
+[[targets]]
+path = "./.claude"
+mode = "copy"
+
+[[dir]]
+path = "./.harness/dir"
+label = "root files"
+`
+    );
+    await write(root, ".harnessIgnore", "");
+
+    const validation = await validateHarnessConfig(root);
+
+    expect(
+      validation.diagnostics.filter(
+        (diagnostic) => diagnostic.code === "harness.manifest_unknown_field"
+      )
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ severity: "info", path: "mode" }),
+        expect.objectContaining({ severity: "info", path: "standard" }),
+        expect.objectContaining({
+          severity: "info",
+          path: "activation.futurePolicy",
+        }),
+        expect.objectContaining({
+          severity: "info",
+          path: "resources[0].label",
+        }),
+        expect.objectContaining({ severity: "info", path: "targets[0].mode" }),
+        expect.objectContaining({ severity: "info", path: "dir[0].label" }),
+      ])
+    );
+    expect(
+      validation.diagnostics.some(
+        (diagnostic) => diagnostic.severity === "error"
+      )
+    ).toBe(false);
   });
 
   it("rejects legacy single-table and per-kind manifest resource declarations", () => {
@@ -205,25 +276,6 @@ version = 1
 activation = "sometimes"
 `)
     ).toThrow();
-  });
-
-  it("rejects unknown top-level and standard fields", () => {
-    expect(() =>
-      parseHarnessConfigToml(`
-version = 1
-mode = "copy"
-`)
-    ).toThrow(/Unrecognized key/);
-
-    expect(() =>
-      parseHarnessConfigToml(`
-version = 1
-
-[standard]
-name = "harness-config"
-runtime = "agents"
-`)
-    ).toThrow(/Unrecognized key/);
   });
 
   it("returns structured safe-parse failures for invalid TOML", () => {
@@ -1498,7 +1550,7 @@ path = "./.agents"
     ]);
   });
 
-  it("warns on multi-line .harnessProfile selectors and uses the first profile", async () => {
+  it("errors on multi-line .harnessProfile selectors and ignores that selector", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
     await write(root, ".harnessProfile", "\n personal \n team \n");
     await write(
@@ -1511,12 +1563,12 @@ path = "./.agents"
     const context = await loadHarnessProfileContext(root);
 
     expect(context.profileForOutput(".agents/skills/review/SKILL.md")).toBe(
-      "personal"
+      undefined
     );
     expect(context.diagnostics).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          severity: "warning",
+          severity: "error",
           code: "harness.profile_invalid",
           path: ".harnessProfile",
         }),

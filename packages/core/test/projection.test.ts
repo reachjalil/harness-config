@@ -2692,6 +2692,36 @@ describe("HarnessConfig activation projection", () => {
     ).rejects.toThrow(/validation has errors/);
   });
 
+  it("uses deterministic last-wins order for exact target-root and item override collisions", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root);
+    await write(root, ".harnessIgnore", "");
+    await write(
+      root,
+      ".harness/resources/.agents/skills/review/SKILL.md",
+      "target root"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/review/.agents/SKILL.md",
+      "item"
+    );
+
+    const result = await applyHarnessActivation(root, {
+      dryRun: false,
+      yes: true,
+    });
+
+    expect(result.plan.diagnostics).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "harness.projection_path_conflict" }),
+      ])
+    );
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/SKILL.md"), "utf8")
+    ).resolves.toBe("item");
+  });
+
   it("creates mutable files on first activation and skips them afterwards", async () => {
     const root = await rootFixture();
     await writeHarnessConfig(root);
@@ -2880,6 +2910,79 @@ describe("HarnessConfig activation projection", () => {
     await expect(
       readFile(path.join(root, ".agents/skills/review/settings.local.json"))
     ).rejects.toThrow();
+  });
+
+  it("treats repo-root .harnessMutable patterns as source-path rules only", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root);
+    await write(root, ".harnessMutable", ".agents/**/settings.local.json\n");
+    await write(
+      root,
+      ".harness/resources/skills/review/settings.local.json",
+      '{"allow":[]}'
+    );
+
+    await applyHarnessActivation(root, { dryRun: false, yes: true });
+    await writeFile(
+      path.join(root, ".agents/skills/review/settings.local.json"),
+      '{"allow":["runtime"]}',
+      "utf8"
+    );
+
+    const plan = await planHarnessActivation(root);
+    expect(
+      plan.targets[0]?.actions.find(
+        (action) => action.relativePath === "skills/review/settings.local.json"
+      )
+    ).toEqual(
+      expect.objectContaining({
+        kind: "update",
+        relativePath: "skills/review/settings.local.json",
+      })
+    );
+  });
+
+  it("marks resource composable outputs mutable by logical output path", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root);
+    await write(
+      root,
+      ".harnessMutable",
+      ".harness/resources/skills/review/SKILL.md\n"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/review/SKILL.md/.harnessComposable",
+      ""
+    );
+    await write(
+      root,
+      ".harness/resources/skills/review/SKILL.md/100_base.md",
+      "Base\n"
+    );
+
+    await applyHarnessActivation(root, { dryRun: false, yes: true });
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/SKILL.md"), "utf8")
+    ).resolves.toBe("Base\n");
+
+    await writeFile(
+      path.join(root, ".agents/skills/review/SKILL.md"),
+      "Runtime\n",
+      "utf8"
+    );
+
+    const plan = await planHarnessActivation(root);
+    expect(
+      plan.targets[0]?.actions.find(
+        (action) => action.relativePath === "skills/review/SKILL.md"
+      )
+    ).toEqual(
+      expect.objectContaining({
+        kind: "mutable",
+        relativePath: "skills/review/SKILL.md",
+      })
+    );
   });
 
   it("reports target byte changes as updates by direct comparison", async () => {
