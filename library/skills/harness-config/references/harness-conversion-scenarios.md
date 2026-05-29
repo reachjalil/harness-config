@@ -539,6 +539,10 @@ Before applying activation:
       before migration edits; otherwise migration paused while the user was
       offered options to initialize Git or preserve dirty work before
       continuing.
+- [ ] A migration ledger records every durable live path, root instruction file,
+      target-level seed, generated target surface, generated dir output, and
+      blocker with a `.harness` destination, generated output path, tracking
+      decision, or explicit exception.
 - [ ] Every live output folder is declared as an explicit target.
 - [ ] Durable reusable content lives under `.harness/resources` or another
       configured resource group.
@@ -566,12 +570,18 @@ Before applying activation:
 - [ ] `npx harnessc validate` passes.
 - [ ] `npx harnessc activate` produces an expected dry-run plan before
       `--yes` is used.
-- [ ] After convergence, root `.gitignore` ignores generated surfaces such as
-      `.agents/`, `.claude/`, `.cursor/`, `.gemini/`, generated dir outputs
-      such as `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, or exact generated
-      subtrees unless the user wants generated outputs tracked; if generated
-      files are already tracked, `git rm --cached -r` or `git rm --cached` is
-      run for every tracked generated output and staged with `git add`.
+- [ ] After convergence, root `.gitignore` ignores generated surfaces with
+      root-anchored patterns such as `/.agents/`, `/.claude/`, `/.cursor/`,
+      `/.gemini/`, generated dir outputs such as `/AGENTS.md`, `/CLAUDE.md`,
+      `/GEMINI.md`, or exact generated subtrees unless the user wants generated
+      outputs tracked; `.harness` source paths such as
+      `.harness/resources/.claude/settings.json` are proven not ignored; if
+      generated files are already tracked, `git rm --cached -r` or
+      `git rm --cached` is run for every tracked generated output and staged
+      with `git add`.
+- [ ] The generated-output ignore check is built from the repo-specific ledger:
+      expected generated outputs are ignored, and representative `.harness`,
+      profile, local, and target-derived source paths are not ignored.
 - [ ] Generated-output gitignore is paired with a tracked fresh-checkout and
       after-update activation path, including what users or scripts should run
       after `git pull` to refresh generated outputs.

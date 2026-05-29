@@ -298,19 +298,32 @@ version control.
 Tracked activation instructions:
 
 ```text
-AGENTS.md
 README.md
 package.json
 .harness/
 ```
 
+Use `AGENTS.md`, `CLAUDE.md`, or `GEMINI.md` for tracked activation
+instructions only when that root instruction file is intentionally tracked and
+not a generated `[[dir]]` output.
+
 `.gitignore`:
 
 ```gitignore
-.agents/
-.claude/
-.cursor/
-.gemini/
+# Harness-generated target surfaces at repo root
+/.agents/
+/.claude/
+/.cursor/
+/.gemini/
+
+# Harness-generated root instruction outputs
+/AGENTS.md
+/CLAUDE.md
+/GEMINI.md
+
+# Harness source must remain tracked
+!/.harness/
+!/.harness/**
 ```
 
 Package script:
@@ -366,9 +379,12 @@ git ls-files .agents .claude .cursor .gemini
 git rm --cached -r .agents .claude .cursor .gemini
 git add .gitignore .harness AGENTS.md CLAUDE.md GEMINI.md README.md package.json
 git diff --cached --name-status
+git check-ignore -v .harness/resources/.claude/settings.json || true
 ```
 
 Use only the surfaces or subtrees that actually apply. Verify generated files
 still exist in the working tree after `git rm --cached` and that activation can
 regenerate them from `.harness`; migrate or restore anything missing before
-completion.
+completion. `git check-ignore -v` must not report `.harness` source paths as
+ignored. If it does, root-anchor or narrow the generated-output ignore rules
+before staging.
