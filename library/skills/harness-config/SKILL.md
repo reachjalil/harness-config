@@ -104,14 +104,14 @@ Use these defaults unless the user's repository clearly points elsewhere:
   repo that already has clear teams, domains, workflows, agent sets, or reusable
   concerns. Report the chosen structure in progress updates and in the final
   summary.
-- **Git safety gate is mandatory.** Refuse to start full migration or adoption
-  unless the repository is inside a Git worktree and `git status --short` is
-  clean before migration edits. If the repo is not using Git, offer to help run
+- **Git safety gate is mandatory.** Before full migration or adoption, check
+  that the repository is inside a Git worktree and `git status --short` is clean.
+  If the repo is not using Git, pause and offer options first: help run
   `git init`, add an initial commit, or set up the user's preferred version
-  control first. If the worktree is dirty, offer to help review, commit, stash,
-  or otherwise preserve the existing changes before starting. Do not edit
-  migration files, run activation, or untrack generated surfaces until this gate
-  is clean.
+  control. If the worktree is dirty, pause and offer options first: review,
+  commit, stash, or otherwise preserve the existing changes. Do not edit
+  migration files, run activation, or untrack generated surfaces until the user
+  chooses a preservation option and the gate is clean.
 - **Clean version control supports action.** Once the Git safety gate passes,
   broad migration can usually be reviewed and reverted. When the user has asked
   to configure, adopt, or migrate Harness config, proceed with the end-to-end
@@ -166,8 +166,8 @@ Use these defaults unless the user's repository clearly points elsewhere:
   the migration must copy its reviewed non-secret initial value to the matching
   target-derived source path, such as
   `.harness/resources/.claude/settings.json`, before adding
-  `.harnessMutable`. Refuse to call the migration complete if a fresh-user
-  mutable seed was not copied into `.harness` or explicitly blocked.
+  `.harnessMutable`. Do not call the migration complete if a fresh-user mutable
+  seed was not copied into `.harness` or explicitly blocked.
 - **Target-output ignores are part of migration.** When a generated surface such
   as `.agents`, `.claude`, `.cursor`, or `.gemini` has local-only output rules,
   add a target-local `.harnessIgnore` in that surface or subtree. Use it for
@@ -228,8 +228,9 @@ Use these defaults unless the user's repository clearly points elsewhere:
 4. Inspect existing agent files and harness surfaces before editing.
 5. For full migration/adoption, enforce the Git safety gate before editing:
    `git rev-parse --is-inside-work-tree` must succeed and `git status --short`
-   must be clean. If not, refuse to start migration and offer to help initialize
-   Git or preserve the dirty worktree first.
+   must be clean. If not, pause and offer options first: initialize Git, make an
+   initial commit, review, commit, stash, or otherwise preserve the existing
+   state before migration edits begin.
 6. Execute a full clean install/migration end to end by default. Use the Full
    Transition Checklist as the implementation checklist and report the checklist
    result in the final summary. In a version-controlled repo, do not answer only
@@ -420,7 +421,7 @@ instead of doing an incomplete adoption.
 
 | Gate | Best-practice check |
 | --- | --- |
-| Git safety gate | The repo is inside a Git worktree and `git status --short` was clean before migration edits; otherwise migration was refused until Git was initialized or dirty work was preserved. |
+| Git safety gate | The repo is inside a Git worktree and `git status --short` was clean before migration edits; otherwise migration paused while the user was offered options to initialize Git or preserve dirty work before continuing. |
 | Inventory complete | All `AGENTS.md`, `CLAUDE.md`, `.agents`, `.claude`, `.cursor`, `.gemini`, skills, plugins, rules, prompts, commands, hooks, agents, settings, and MCP files were scanned. |
 | Clean full migration | The migration is not limited to `.harness/harness.toml`, `.harnessIgnore`, helper skills, or maintenance notes while other durable resources remain live-only. |
 | Durable resources migrated | Every durable reusable skill/resource is under a configured `.harness/resources*` root; only runtime-owned, secret/local, cache/generated, unsupported, or unclear files remain live-only with a reason. |

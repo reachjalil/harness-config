@@ -102,10 +102,11 @@ by default:
 
 1. Enforce the Git safety gate before migration edits. `git rev-parse
    --is-inside-work-tree` must succeed and `git status --short` must be clean.
-   If the repo is not using Git, refuse to start adoption and offer to help run
-   `git init`, make an initial commit, or set up the user's preferred version
-   control first. If the worktree is dirty, refuse to start adoption and offer
-   to help review, commit, stash, or otherwise preserve the existing changes.
+   If the repo is not using Git, pause and offer options before adoption: help
+   run `git init`, make an initial commit, or set up the user's preferred
+   version control first. If the worktree is dirty, pause and offer options
+   before adoption: review, commit, stash, or otherwise preserve the existing
+   changes.
 2. Spend time understanding the repo, choose the full-transition layout, and
    implement it end to end. Use the adoption checklist below as the
    implementation checklist. After the Git safety gate passes, do not stop after
@@ -182,7 +183,7 @@ Use this checklist in the response before claiming adoption is complete:
 
 | Check | Complete when |
 | --- | --- |
-| Git safety gate | The repo is inside a Git worktree and `git status --short` was clean before migration edits; otherwise adoption was refused until Git was initialized or dirty work was preserved. |
+| Git safety gate | The repo is inside a Git worktree and `git status --short` was clean before migration edits; otherwise adoption paused while the user was offered options to initialize Git or preserve dirty work before continuing. |
 | Inventory | All live harness surfaces and root instruction files were scanned. |
 | Skills/resources | All durable skills, plugins, prompts, rules, commands, hooks, and agents were migrated into `.harness/resources*` or explicitly blocked. |
 | Settings | Settings that should exist for fresh users were seeded in `.harness`; existing non-secret `.claude/settings.json` was copied to `.harness/resources/.claude/settings.json` or explicitly blocked as secret/local; runtime-only settings were left local. |
