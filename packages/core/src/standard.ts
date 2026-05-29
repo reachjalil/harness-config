@@ -133,12 +133,6 @@ export const harnessConfigSchema = z
           });
         }
       }),
-    standard: z
-      .object({
-        name: z.string().default("harness-config"),
-      })
-      .strict()
-      .default({ name: "harness-config" }),
     activation: harnessActivationSchema.default({ targetSymlinks: "conflict" }),
     targets: z.array(harnessTargetSchema).default([]),
     resources: z.array(harnessResourcesSchema).default([]),

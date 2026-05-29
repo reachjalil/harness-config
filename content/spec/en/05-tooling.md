@@ -46,16 +46,15 @@ harnessc validate
 harnessc explain <path>
 harnessc activate
 harnessc extension activate
-harnessc plan
 ```
 
 - `harnessc` with no command validates the nearest repository config and prints
   the detected manifest path with suggested next steps.
-- `harnessc init` creates the selected manifest (`./.harness/harness.toml` by
-  default), conventional or custom resource folders under the configured
-  resources source root, `.harnessIgnore`, and `.harnessMutable` when applied
-  with `--yes`. The generated starter manifest declares `[[resources]] path =
-  "./.harness/resources"` explicitly.
+- `harnessc init` shows an adoption plan when run without `--yes`. With `--yes`
+  it creates the selected manifest (`./.harness/harness.toml` by default),
+  conventional or custom resource folders under the configured resources
+  source root, `.harnessIgnore`, and `.harnessMutable`. The generated starter
+  manifest declares `[[resources]] path = "./.harness/resources"` explicitly.
 - `harnessc validate` checks version support, repo-local paths, target
   mappings, projection ignore syntax, mutable declaration syntax, resource
   composable leaves, symlink leaf handling, and dir composition/copy issues.
@@ -66,20 +65,19 @@ harnessc plan
   source and target-output ignore traces so a caller can distinguish a
   repo-root exclusion, a deeper source-local re-include, a profile-local
   logical re-include, and a target-output final boundary.
-- `harnessc activate` dry-runs the activation projection and shows creates,
-  updates, requested removals, kept files, mutable-skipped files, and preserved
-  unmanaged entries before writing. By default it reports target symlinks that
-  occupy projected paths as conflicts; pass `--replace-target-symlinks` or set
-  `[activation].targetSymlinks = "replace"` to replace the link itself.
+- `harnessc activate` shows the projection preview when run without `--yes` and
+  reports creates, updates, requested removals, kept files, mutable-skipped
+  files, and preserved unmanaged entries. By default it reports target symlinks
+  that occupy projected paths as conflicts; pass `--replace-target-symlinks` or
+  set `[activation].targetSymlinks = "replace"` to replace the link itself.
 - `harnessc extension activate` runs registered extensions. Use
   `--extension <id>` to run one declared extension or `--all` to run every
   declared supported extension.
-- `harnessc plan` is a read-only initialization/adoption plan. It is not a
-  projection preview. Use `harnessc activate` without `--yes` to preview
-  projection.
 
 `init`, `activate`, and `extension activate` are dry runs unless `--yes` is
-supplied.
+supplied. The dry-run form of `init` replaces the previous `harnessc plan`
+command, so a single mental model — "no flag previews, `--yes` writes" —
+applies to every mutating command.
 
 Common introspection examples:
 

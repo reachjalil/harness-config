@@ -205,12 +205,12 @@ describe("harnessc", () => {
     ).rejects.toThrow();
   });
 
-  it("does not suggest undeclared target names during plan", async () => {
+  it("does not suggest undeclared target names during init plan", async () => {
     const root = await rootFixture();
     await mkdir(path.join(root, ".agents", "skills"), { recursive: true });
     const capture = captureIo();
     const exitCode = await runHarnessConfigCli(
-      ["plan", "--root", root],
+      ["init", "--root", root],
       capture.io
     );
     const output = capture.stdout.join("\n");
@@ -221,6 +221,21 @@ describe("harnessc", () => {
     await expect(
       readFile(path.join(root, ".harness", "harness.toml"), "utf8")
     ).rejects.toThrow();
+  });
+
+  it("redirects the removed plan command to init and activate", async () => {
+    const root = await rootFixture();
+    const capture = captureIo();
+    const exitCode = await runHarnessConfigCli(
+      ["plan", "--root", root],
+      capture.io
+    );
+    expect(exitCode).toBe(1);
+    expect(capture.stderr.join("\n")).toContain(
+      "harnessc plan has been removed"
+    );
+    expect(capture.stderr.join("\n")).toContain("harnessc init");
+    expect(capture.stderr.join("\n")).toContain("harnessc activate");
   });
 
   it("creates greenfield .harness with init --yes", async () => {

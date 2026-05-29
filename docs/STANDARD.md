@@ -276,9 +276,6 @@ item and the override segment is stripped from the output path.
 ```toml
 version = 1
 
-[standard]
-name = "harness-config"
-
 [activation]
 targetSymlinks = "conflict"
 

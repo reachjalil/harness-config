@@ -164,3 +164,11 @@ contributor uses locally.
 Privacy evidence is simple: validation, planning, and activation can be
 demonstrated from repository files without telemetry, analytics, remote error
 reporting, or network access.
+
+## Diagnostic Codes
+
+Conforming tools SHOULD report machine-readable diagnostic codes alongside
+human messages. The catalog of v1 codes is maintained in
+[`./DIAGNOSTICS.md`](./DIAGNOSTICS.md). Tools that emit a `harness.*` code
+MUST use a code from that catalog. Tools MAY emit codes in their own
+namespace (for example `my-tool.*`) for conditions outside the standard.

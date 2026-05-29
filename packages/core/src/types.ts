@@ -108,9 +108,6 @@ export type ApplyHarnessInitializationOptions = {
   resourceKinds?: string[];
   config?: {
     version: number;
-    standard: {
-      name: string;
-    };
     activation?: HarnessActivationConfig;
     resources?: HarnessResourcesDefinition[];
     dir?: HarnessDirDefinition[];

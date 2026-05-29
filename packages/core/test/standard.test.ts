@@ -33,9 +33,6 @@ describe("HarnessConfig standard", () => {
     const config = parseHarnessConfigToml(`
 version = 1
 
-[standard]
-name = "harness-config"
-
 [[targets]]
 path = "./.claude"
 `);
@@ -221,7 +218,6 @@ version = 1
 
 [standard]
 name = "harness-config"
-runtime = "agents"
 `)
     ).toThrow(/Unrecognized key/);
   });

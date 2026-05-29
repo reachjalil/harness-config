@@ -11,7 +11,7 @@ import {
   resourceIdSchema,
   stringifyHarnessConfig,
 } from "./standard";
-import { inspectHarnessConfig } from "./validation";
+import { validateHarnessConfig } from "./validation";
 import {
   CONVENTIONAL_HARNESS_RESOURCES,
   defaultHarnessResourcesDefinition,
@@ -72,7 +72,7 @@ export async function planHarnessInitialization(
         ? baseConfig.resources
         : [defaultHarnessResourcesDefinition()],
   });
-  const inspection = await inspectHarnessConfig(root, {
+  const inspection = await validateHarnessConfig(root, {
     config,
     configPath: options.configPath,
   });

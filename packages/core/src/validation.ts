@@ -46,7 +46,28 @@ async function findProfileRootsOutsideAllowedRoots(
   allowedRoots: string[]
 ): Promise<string[]> {
   const markers: string[] = [];
-  const ignoredDirectories = new Set([".git", "node_modules"]);
+  const ignoredDirectories = new Set([
+    ".git",
+    ".hg",
+    ".svn",
+    ".jj",
+    ".idea",
+    ".vscode",
+    ".turbo",
+    ".next",
+    ".nuxt",
+    ".cache",
+    ".pnpm-store",
+    "node_modules",
+    "bower_components",
+    "vendor",
+    "dist",
+    "build",
+    "out",
+    "target",
+    "coverage",
+    "__pycache__",
+  ]);
   const resolvedAllowedRoots = allowedRoots.map((allowedRoot) =>
     path.resolve(allowedRoot)
   );
@@ -247,7 +268,7 @@ function dedupeDiagnostics(
   return output;
 }
 
-export async function inspectHarnessConfig(
+export async function validateHarnessConfig(
   root = process.cwd(),
   options: HarnessValidationOptions = {}
 ): Promise<HarnessInspection> {
@@ -390,11 +411,4 @@ export async function inspectHarnessConfig(
     hasHarnessMutable,
     diagnostics: dedupeDiagnostics(diagnostics),
   };
-}
-
-export async function validateHarnessConfig(
-  root = process.cwd(),
-  options: HarnessValidationOptions = {}
-): Promise<HarnessInspection> {
-  return inspectHarnessConfig(root, options);
 }
