@@ -15,7 +15,7 @@ Expected result:
 
 - The repository is inside a Git worktree.
 - `git status --short` is empty before any migration edits.
-- If either check fails, refuse to start migration/adoption and offer to help
+- If either check fails, pause before migration/adoption and offer options to
   initialize Git or preserve the dirty worktree first.
 
 ## Validate and preview

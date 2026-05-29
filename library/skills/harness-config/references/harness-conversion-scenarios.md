@@ -536,8 +536,9 @@ Before running or projecting active harness behavior, review trust boundaries:
 Before applying activation:
 
 - [ ] The repository is inside a Git worktree and `git status --short` was clean
-      before migration edits; otherwise migration was refused until Git was
-      initialized or dirty work was preserved.
+      before migration edits; otherwise migration paused while the user was
+      offered options to initialize Git or preserve dirty work before
+      continuing.
 - [ ] Every live output folder is declared as an explicit target.
 - [ ] Durable reusable content lives under `.harness/resources` or another
       configured resource group.

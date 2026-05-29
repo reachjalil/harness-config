@@ -13,11 +13,11 @@ git rev-parse --is-inside-work-tree
 git status --short
 ```
 
-If the repository is not inside a Git worktree, refuse to start full migration
-or adoption. Offer to help run `git init`, make an initial commit, or set up the
-user's preferred version control first. If `git status --short` is not empty,
-refuse to start migration edits until the existing changes are reviewed,
-committed, stashed, or otherwise preserved. A clean Git checkpoint is required
+If the repository is not inside a Git worktree, pause and offer options before
+full migration or adoption: help run `git init`, make an initial commit, or set
+up the user's preferred version control first. If `git status --short` is not
+empty, pause and offer options before migration edits: review, commit, stash, or
+otherwise preserve the existing changes. A clean Git checkpoint is required
 because the migration will move source, activate generated outputs, and may
 untrack generated surfaces.
 
@@ -138,7 +138,7 @@ A full transition has all of these properties:
 
 | Area | Full-transition best practice |
 | --- | --- |
-| Git safety gate | The repository is a Git worktree with a clean `git status --short` before migration edits; otherwise migration is refused until Git is initialized or dirty work is preserved. |
+| Git safety gate | The repository is a Git worktree with a clean `git status --short` before migration edits; otherwise migration pauses while the user is offered options to initialize Git or preserve dirty work before continuing. |
 | Source of truth | Durable agent configuration lives under configured `.harness` source roots. |
 | Live surfaces | `.agents`, `.claude`, `.cursor`, `.gemini`, and similar folders are generated outputs with root `.gitignore` entries after convergence, unless the user wants generated output tracked. |
 | Skills/resources | Every reusable skill, plugin, prompt, rule, command, hook, and agent is migrated or explicitly blocked with a reason. |
