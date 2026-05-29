@@ -2,6 +2,22 @@
 
 Run these checks from the repository being set up or migrated.
 
+## Git safety gate
+
+Before migration edits:
+
+```bash
+git rev-parse --is-inside-work-tree
+git status --short
+```
+
+Expected result:
+
+- The repository is inside a Git worktree.
+- `git status --short` is empty before any migration edits.
+- If either check fails, refuse to start migration/adoption and offer to help
+  initialize Git or preserve the dirty worktree first.
+
 ## Validate and preview
 
 ```bash
@@ -33,10 +49,41 @@ Expected result:
 - Runtime-owned files declared in `.harnessMutable` are reported as `mutable` and
   are not overwritten.
 - Mutable files that should exist for fresh users have an initial seed under
-  `.harness`; `.harnessMutable` is not an ignore rule.
+  `.harness`; `.harnessMutable` is not an ignore rule. Existing non-secret
+  target-level settings such as `.claude/settings.json` must be copied to the
+  matching seed path, such as `.harness/resources/.claude/settings.json`, before
+  they are marked mutable.
 - Target symlink conflicts are resolved manually or by explicit
   `[activation].targetSymlinks = "replace"` / `--replace-target-symlinks`
   policy before apply.
+
+## Generated surface untracking
+
+When generated surfaces are tracked and the user does not want generated output
+tracked after convergence:
+
+```bash
+git ls-files .agents .claude .cursor .gemini
+git rm --cached -r .agents .claude .cursor .gemini
+git add .gitignore .harness AGENTS.md CLAUDE.md GEMINI.md README.md package.json
+git diff --cached --name-status
+git status --short
+```
+
+Use exact generated subtrees when only part of a surface is generated. Include
+`.agents`, `.claude`, `.cursor`, `.gemini`, and similar target folders as
+applicable; do not only untrack `.agents`.
+
+Expected result:
+
+- `git rm --cached -r` stages removal from the index only; generated files still
+  exist in the working tree.
+- `.gitignore`, `.harness` sources, activation instructions, and untracking are
+  staged together with `git add`.
+- `git diff --cached --name-status` shows the intended source additions/updates
+  and index removals for generated outputs.
+- A dry activation can regenerate the generated surfaces from `.harness`.
+- Any file that would be lost is restored or migrated before completion.
 
 ## Review checklist
 
@@ -59,6 +106,9 @@ Confirm:
 - resource groups have README files when their purpose is not obvious,
 - live harness surfaces are outputs, not source folders,
 - target-specific differences are encoded as target-derived overrides,
+- mutable target-level settings such as `.claude/settings.json` are copied to
+  `.harness/resources/.claude/settings.json` or explicitly blocked as
+  secret/local state before `.harnessMutable` is used,
 - secrets and local machine settings are absent from `.harness`,
 - scoped `.harnessIgnore` files protect logs, caches, generated files,
   source-only files, and output-local boundaries,
@@ -66,9 +116,9 @@ Confirm:
   selected manifest,
 - tracked activation instructions tell users and agents how to run activation
   when generated harness surfaces are gitignored.
-- if generated harness surfaces are already tracked by Git, the final summary
-  reports the required `git rm --cached` follow-up rather than treating
-  `.gitignore` as sufficient.
+- if generated harness surfaces were already tracked by Git, `git rm --cached
+  -r` was actually run for every tracked generated surface or exact subtree,
+  staged with `git add`, and verified for no working-tree data loss.
 
 ## Explain Checks
 

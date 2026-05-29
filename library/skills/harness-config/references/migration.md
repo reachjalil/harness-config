@@ -6,6 +6,21 @@ grounded in the user's repo conventions.
 
 ## Inventory
 
+Before inventory that can lead to edits, enforce the Git safety gate:
+
+```bash
+git rev-parse --is-inside-work-tree
+git status --short
+```
+
+If the repository is not inside a Git worktree, refuse to start full migration
+or adoption. Offer to help run `git init`, make an initial commit, or set up the
+user's preferred version control first. If `git status --short` is not empty,
+refuse to start migration edits until the existing changes are reviewed,
+committed, stashed, or otherwise preserved. A clean Git checkpoint is required
+because the migration will move source, activate generated outputs, and may
+untrack generated surfaces.
+
 Look for:
 
 ```bash
@@ -54,6 +69,10 @@ For each discovered live surface, decide:
 - copy durable root instruction files such as `AGENTS.md`, `CLAUDE.md`,
   `GEMINI.md`, and equivalents into `.harness/dir` as direct Markdown files by
   default;
+- copy target-level mutable seeds that should exist for fresh users, especially
+  non-secret `.claude/settings.json`, into matching target-derived source paths
+  such as `.harness/resources/.claude/settings.json` before adding
+  `.harnessMutable`;
 - leave runtime-owned settings, caches, logs, trust state, credentials, and
   unclear files unmanaged with an explicit reason.
 
@@ -91,10 +110,15 @@ final summary must include:
 - root instruction updates that tell future agents to use Harness config
   guidance for any agent-configuration operation;
 - mutable files copied into `.harness` as seed files and their seed locations;
+- confirmation that `.claude/settings.json` and similar target-level settings
+  were copied as mutable seeds or explicitly blocked as secret/local state;
 - target-output `.harnessIgnore` files needed in generated surfaces such as
   `.agents` or `.claude`;
 - generated-surface root `.gitignore` entries added after convergence, or the
   explicit user preference or constraint for keeping generated output tracked;
+- `git rm --cached -r` commands actually run for tracked generated surfaces,
+  including `.agents`, `.claude`, `.cursor`, `.gemini`, or exact generated
+  subtrees, and the staged no-data-loss check;
 - tracked regeneration commands or setup notes, such as package scripts,
   Makefile targets, justfile recipes, README steps, or a guarded install hook;
 - cleanup policy, especially whether unmanaged live files are preserved,
@@ -114,15 +138,16 @@ A full transition has all of these properties:
 
 | Area | Full-transition best practice |
 | --- | --- |
+| Git safety gate | The repository is a Git worktree with a clean `git status --short` before migration edits; otherwise migration is refused until Git is initialized or dirty work is preserved. |
 | Source of truth | Durable agent configuration lives under configured `.harness` source roots. |
 | Live surfaces | `.agents`, `.claude`, `.cursor`, `.gemini`, and similar folders are generated outputs with root `.gitignore` entries after convergence, unless the user wants generated output tracked. |
 | Skills/resources | Every reusable skill, plugin, prompt, rule, command, hook, and agent is migrated or explicitly blocked with a reason. |
 | Root files | Durable root instructions such as `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and equivalents are copied into `.harness/dir` as direct Markdown files by default, or explicitly documented as blocked/excepted. |
 | Agent guidance | Root agent instructions tell future agents to modify `.harness` sources and use Harness validation/activation for any agent-config change. |
-| Mutable files | Files matched by `.harnessMutable` are copied into `.harness` as source seeds when they should exist for fresh users. |
+| Mutable files | Files matched by `.harnessMutable` are copied into `.harness` as source seeds when they should exist for fresh users; target-level settings such as `.claude/settings.json` are seeded at `.harness/resources/.claude/settings.json` unless explicitly blocked as secret/local state. |
 | Cleanup | Unmanaged live files are preserved until migrated, archived, or explicitly approved for deletion after a dry-run removal list. |
 | Target ignores | Generated surfaces have target-output `.harnessIgnore` files when a target needs local-only output rules. |
-| Git ignore best practice | Root `.gitignore` ignores each generated surface or exact generated subtree after convergence unless the user wants generated output tracked; target-output `.harnessIgnore` is still used separately for Harness projection boundaries. If generated files are already tracked, the final summary reports the required `git rm --cached` follow-up. |
+| Git ignore and untracking | Root `.gitignore` ignores each generated surface or exact generated subtree after convergence unless the user wants generated output tracked; target-output `.harnessIgnore` is still used separately for Harness projection boundaries. If generated files are already tracked, run `git rm --cached -r` for every tracked generated surface or exact subtree, stage the transition with `git add`, and verify no working-tree data was lost. |
 | Regeneration path | A tracked command or setup note tells users and agents how to validate and activate generated surfaces on a fresh checkout. |
 | Local state | Secrets, caches, logs, credentials, trust state, and machine-local settings stay out of `.harness`. |
 | Verification | Activation converges after apply. |
@@ -333,6 +358,12 @@ to receive the seed. Target-output `.harnessIgnore` blocks projection for that
 target; `.harnessMutable` allows one initial projection and then preserves
 runtime edits.
 
+This is required for full migration when a non-secret `.claude/settings.json`
+already exists and should remain available to fresh users. Do not leave it only
+in `.claude`, do not only add it to `.harnessMutable`, and do not call the
+migration complete if the reviewed seed was not copied into `.harness` or
+explicitly blocked as secret/local state.
+
 ### Direct Root Instruction Copy
 
 Use this for a simple root `AGENTS.md` or `CLAUDE.md` that does not need
@@ -501,15 +532,26 @@ into that target. Root `.gitignore` controls whether generated outputs are
 tracked by Git. A complete migration normally needs both when local target
 boundaries exist.
 
-If generated files are already tracked, adding `.gitignore` is not enough to
-untrack them. Report the reviewed follow-up after `.harness` is committed and
-activation converges:
+If generated files are already tracked, adding `.gitignore` is not enough and
+reporting a follow-up is not enough. After `.harness` represents the durable
+source and activation converges, actually untrack every generated surface or
+exact generated subtree that should no longer be tracked:
 
 ```bash
-git rm -r --cached .agents .claude
+git ls-files .agents .claude .cursor .gemini
+git rm --cached -r .agents .claude .cursor .gemini
+git add .gitignore .harness AGENTS.md CLAUDE.md GEMINI.md README.md package.json
+git diff --cached --name-status
+git status --short
 ```
 
-Use exact subtrees instead when only part of a target is generated.
+Use exact subtrees instead when only part of a target is generated. Include
+`.agents`, `.claude`, `.cursor`, `.gemini`, and similar generated surfaces as
+applicable; do not special-case only `.agents`. `git rm --cached` must not
+remove working-tree files. Verify representative generated files still exist
+after untracking and that `npx harnessc activate` can regenerate them from
+`.harness`. If any file would be lost because it was not migrated, restore or
+migrate it before claiming completion.
 
 Good activation instruction examples:
 
@@ -600,7 +642,10 @@ Report enough detail for the user to understand what changed quickly:
 - target-specific overrides created;
 - files intentionally left unmanaged and why;
 - generated-surface `.gitignore` entries added after convergence, and any
-  required `git rm --cached` follow-up when generated files are already tracked;
+  `git rm --cached -r` commands run for tracked generated surfaces;
+- staged no-data-loss verification: generated files still exist locally,
+  activation can regenerate them from `.harness`, and the staged diff was
+  inspected;
 - commands run: `validate`, dry `activate`, `activate --yes`, convergence dry
   run;
 - tracked activation command or setup note added;

@@ -314,7 +314,11 @@ settings.json
 
 Do not put `settings.json` in `.claude/.harnessIgnore` when the desired
 behavior is seed-once projection. Target-output ignores block projection;
-mutable rules project once and then preserve runtime edits.
+mutable rules project once and then preserve runtime edits. During full
+migration, an existing non-secret `.claude/settings.json` that should exist for
+fresh users must be copied to `.harness/resources/.claude/settings.json` before
+the mutable rule is added. If it cannot be copied because it is secret or local
+state, document the blocker and do not call the migration complete.
 
 ## Scenario: Gemini Extension
 
@@ -531,6 +535,9 @@ Before running or projecting active harness behavior, review trust boundaries:
 
 Before applying activation:
 
+- [ ] The repository is inside a Git worktree and `git status --short` was clean
+      before migration edits; otherwise migration was refused until Git was
+      initialized or dirty work was preserved.
 - [ ] Every live output folder is declared as an explicit target.
 - [ ] Durable reusable content lives under `.harness/resources` or another
       configured resource group.
@@ -546,7 +553,10 @@ Before applying activation:
 - [ ] Runtime state, secrets, caches, logs, and machine-local settings are not
       in `.harness`.
 - [ ] `.harnessMutable` covers files that should be seeded once and then
-      runtime-owned, with source seeds shown in the plan.
+      runtime-owned, with source seeds shown in the plan; target-level settings
+      such as `.claude/settings.json` are seeded at
+      `.harness/resources/.claude/settings.json` or explicitly blocked as
+      secret/local state.
 - [ ] Plugin and extension manifests stay in their harness-specific wrapper
       paths.
 - [ ] Hook scripts are shared only when their stdin/stdout contracts are valid
@@ -558,5 +568,8 @@ Before applying activation:
 - [ ] After convergence, root `.gitignore` ignores generated surfaces such as
       `.agents/`, `.claude/`, `.cursor/`, `.gemini/`, or exact generated
       subtrees unless the user wants generated outputs tracked; if generated
-      files are already tracked, the final summary reports the required
-      `git rm --cached` follow-up.
+      files are already tracked, `git rm --cached -r` is run for every tracked
+      generated surface or exact subtree and staged with `git add`.
+- [ ] The staged diff and working tree are inspected after untracking; generated
+      files still exist locally, activation can regenerate them from `.harness`,
+      and any would-be data loss is fixed before completion.
