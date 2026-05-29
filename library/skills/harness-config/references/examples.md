@@ -268,6 +268,13 @@ should report it as `mutable` unless `--force-mutable` is used. Do not place
 `settings.json` in `.claude/.harnessIgnore` if the repo expects fresh users to
 receive the seed; target-output ignores block projection.
 
+For full migration, an existing non-secret `.claude/settings.json` that should
+exist for fresh users must be copied to
+`.harness/resources/.claude/settings.json` before adding the mutable rule. Do
+not only list it in `.harnessMutable`, and do not leave the only copy in the
+generated `.claude` surface unless it is explicitly blocked as secret/local
+state.
+
 For selective activation inside a group:
 
 ```gitignore
@@ -347,8 +354,18 @@ Do not gitignore generated surfaces until the activation path is tracked and
 obvious.
 
 If generated surfaces are already tracked by Git, adding `.gitignore` does not
-untrack them. Report the required follow-up in the final summary, for example:
+untrack them. After activation converges and the user does not want generated
+outputs tracked, untrack every generated surface or exact generated subtree and
+stage the safe transition:
 
 ```bash
+git ls-files .agents .claude .cursor .gemini
 git rm --cached -r .agents .claude .cursor .gemini
+git add .gitignore .harness AGENTS.md CLAUDE.md GEMINI.md README.md package.json
+git diff --cached --name-status
 ```
+
+Use only the surfaces or subtrees that actually apply. Verify generated files
+still exist in the working tree after `git rm --cached` and that activation can
+regenerate them from `.harness`; migrate or restore anything missing before
+completion.
