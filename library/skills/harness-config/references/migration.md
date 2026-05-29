@@ -139,6 +139,7 @@ A full transition has all of these properties:
 | Area | Full-transition best practice |
 | --- | --- |
 | Git safety gate | The repository is a Git worktree with a clean `git status --short` before migration edits; otherwise migration pauses while the user is offered options to initialize Git or preserve dirty work before continuing. |
+| Migration ledger | Every durable live path, root instruction file, target-level seed, generated target surface, generated `[[dir]]` output, and blocker is recorded with a `.harness` destination, generated output path, tracking decision, or explicit exception before activation and untracking. |
 | Source of truth | Durable agent configuration lives under configured `.harness` source roots. |
 | Live surfaces | `.agents`, `.claude`, `.cursor`, `.gemini`, and similar folders are generated outputs with root `.gitignore` entries after convergence, unless the user wants generated output tracked. |
 | Skills/resources | Every reusable skill, plugin, prompt, rule, command, hook, and agent is migrated or explicitly blocked with a reason. |
@@ -147,7 +148,7 @@ A full transition has all of these properties:
 | Mutable files | Files matched by `.harnessMutable` are copied into `.harness` as source seeds when they should exist for fresh users; target-level settings such as `.claude/settings.json` are seeded at `.harness/resources/.claude/settings.json` unless explicitly blocked as secret/local state. |
 | Cleanup | Unmanaged live files are preserved until migrated, archived, or explicitly approved for deletion after a dry-run removal list. |
 | Target ignores | Generated surfaces have target-output `.harnessIgnore` files when a target needs local-only output rules. |
-| Git ignore and untracking | Root `.gitignore` ignores each generated target surface, generated `[[dir]]` output, or exact generated subtree after convergence unless the user wants generated output tracked; target-output `.harnessIgnore` is still used separately for Harness projection boundaries. If generated files are already tracked, run `git rm --cached -r` or `git rm --cached` for every tracked generated output, stage the transition with `git add`, verify the staged deletions, and verify no working-tree data was lost. |
+| Git ignore and untracking | Root `.gitignore` ignores each root-level generated target surface, generated `[[dir]]` output, or exact generated subtree after convergence unless the user wants generated output tracked; use root-anchored patterns such as `/.claude/` and `/AGENTS.md` so `.harness` source paths are not ignored. Build a repo-specific `git check-ignore -v` matrix from the ledger and prove generated outputs are ignored while `.harness`, profile, local, and target-derived source paths are not. Target-output `.harnessIgnore` is still used separately for Harness projection boundaries. If generated files are already tracked, run `git rm --cached -r` or `git rm --cached` for every tracked generated output, stage the transition with `git add`, verify the staged deletions, and verify no working-tree data was lost. |
 | Regeneration path | A tracked command or setup note tells users and agents how to validate and activate generated surfaces on a fresh checkout. |
 | Local state | Secrets, caches, logs, credentials, trust state, and machine-local settings stay out of `.harness`. |
 | Verification | Activation converges after apply. |
@@ -510,19 +511,26 @@ tracked activation instructions outside the generated output set so users and
 agents know how to activate them on a fresh checkout and refresh them after
 updates such as `git pull`.
 
-Use root `.gitignore` for Git tracking policy:
+Use root-anchored `.gitignore` patterns for Git tracking policy. Do not use
+unanchored entries such as `.claude/` or `AGENTS.md`; they can ignore
+target-derived source paths under `.harness`, such as
+`.harness/resources/.claude/settings.json`.
 
 ```gitignore
 # Harness-generated agent surfaces
-.agents/
-.claude/
-.cursor/
-.gemini/
+/.agents/
+/.claude/
+/.cursor/
+/.gemini/
 
 # Harness-generated root instruction outputs
-AGENTS.md
-CLAUDE.md
-GEMINI.md
+/AGENTS.md
+/CLAUDE.md
+/GEMINI.md
+
+# Harness source must remain tracked
+!/.harness/
+!/.harness/**
 ```
 
 If only part of a surface is generated, ignore the exact generated subtree
@@ -530,7 +538,7 @@ instead:
 
 ```gitignore
 # Harness-generated Claude skills; other Claude files stay tracked
-.claude/skills/
+/.claude/skills/
 ```
 
 Do not confuse this with target-output `.harnessIgnore`. A target-output
@@ -552,6 +560,7 @@ git rm --cached AGENTS.md CLAUDE.md GEMINI.md
 git add .gitignore .harness AGENTS.md CLAUDE.md GEMINI.md README.md package.json
 git diff --cached --name-status
 git status --short
+git check-ignore -v .harness/resources/.claude/settings.json || true
 ```
 
 Use exact subtrees instead when only part of a target is generated. Include
@@ -563,7 +572,24 @@ after untracking and that `npx harnessc activate` can regenerate them from
 `.harness`. `git diff --cached --name-status` must show the expected staged
 deletions from the index for generated outputs that are no longer tracked. If
 any file would be lost because it was not migrated, restore or migrate it before
-claiming completion.
+claiming completion. `git check-ignore -v` should not report `.harness` source
+paths as ignored; if it does, root-anchor or narrow the generated-output ignore
+rules before staging.
+
+Before staging, create a repo-specific ignore matrix instead of trusting the
+example list. Check at least:
+
+- every declared generated target root or exact generated subtree,
+- every generated `[[dir]]` root output,
+- representative `.harness/resources`, `.harness/dir`, profile, and local
+  source files,
+- target-derived source paths that share generated-surface names, such as
+  `.harness/resources/.claude/settings.json`,
+- any custom target name or similar surface discovered during inventory.
+
+Generated outputs should match root-anchored ignore rules. Source paths should
+produce no ignore match. Fix the rules and re-run the matrix until both sides
+match intent.
 
 Good activation instruction examples:
 
@@ -665,6 +691,9 @@ Report enough detail for the user to understand what changed quickly:
 - generated-output `.gitignore` entries added after convergence, and any
   `git rm --cached -r` or `git rm --cached` commands run for tracked generated
   target surfaces, generated dir outputs, or exact generated subtrees;
+- confirmation that generated-output `.gitignore` patterns are root-anchored
+  and the repo-specific ignore matrix proves generated outputs are ignored while
+  `.harness`, profile, local, and target-derived source paths are not ignored;
 - staged deletion and no-data-loss verification: `git diff --cached
   --name-status` shows expected deletions from the index, generated files still
   exist locally, activation can regenerate them from `.harness`, and the staged

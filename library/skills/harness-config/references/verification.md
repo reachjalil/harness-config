@@ -90,6 +90,32 @@ Expected result:
 - A dry activation can regenerate the generated surfaces from `.harness`.
 - Any file that would be lost is restored or migrated before completion.
 
+## Gitignore anchoring
+
+When generated outputs are gitignored, verify Git ignores only the top-level
+generated outputs and does not hide Harness source paths. Build the checked
+paths from the actual manifest and migration ledger, not only the examples:
+
+```bash
+git check-ignore -v .agents/ .claude/ AGENTS.md CLAUDE.md GEMINI.md
+git check-ignore -v .harness/resources/.claude/settings.json || true
+git ls-files -ci --exclude-standard .harness
+```
+
+Expected result:
+
+- Root generated outputs match root-anchored patterns such as `/.agents/`,
+  `/.claude/`, `/AGENTS.md`, `/CLAUDE.md`, or `/GEMINI.md`.
+- `.harness/resources/.claude/settings.json` and similar target-derived source
+  paths produce no ignore match. If they are ignored, root-anchor or narrow the
+  generated-output patterns before staging.
+- `git ls-files -ci --exclude-standard .harness` prints nothing. If it prints
+  tracked `.harness` files ignored by the current rules, fix the ignore rules
+  before staging or finishing the migration.
+- Custom target names, exact generated subtrees, profile source paths, local
+  source paths, and generated `[[dir]]` outputs discovered during inventory are
+  added to the same matrix so missed use cases are caught by evidence.
+
 ## Review checklist
 
 Inspect:
@@ -119,6 +145,12 @@ Confirm:
   source-only files, and output-local boundaries,
 - gitignored harness surfaces can be regenerated from `.harness` plus the
   selected manifest,
+- root `.gitignore` uses root-anchored generated-output patterns and does not
+  ignore `.harness` source paths such as
+  `.harness/resources/.claude/settings.json`,
+- the ignore verification was built from the repo's actual targets, generated
+  dir outputs, target-derived source paths, and configured source roots rather
+  than only hard-coded example surfaces,
 - tracked activation instructions tell users and agents how to run activation
   on a fresh checkout and after `git pull` when generated harness outputs are
   gitignored.
