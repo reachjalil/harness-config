@@ -43,10 +43,14 @@ AGENTS.md
         SKILL.md
 ```
 
-`AGENTS.md` can stay as a normal tracked file in the minimal path. It gives a
-fresh checkout and future agents enough context before any generated harness
-surface exists. Add `.claude`, `.cursor`, `.gemini`, or another target only
-when the repository has real content for that harness surface.
+`AGENTS.md` can stay as a normal tracked file in this minimal greenfield path.
+It gives a fresh checkout and future agents enough context before any generated
+harness surface exists. This is not the full-migration default for existing
+durable root instruction files; during full adoption, copy files such as
+`AGENTS.md`, `CLAUDE.md`, and `GEMINI.md` into `.harness/dir` unless an explicit
+blocker or user-directed exception is documented. Add `.claude`, `.cursor`,
+`.gemini`, or another target only when the repository has real content for that
+harness surface.
 
 ## Resource Root README
 

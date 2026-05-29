@@ -170,10 +170,21 @@ Rules:
 
 ## Scenario: Root Instructions
 
-First assess whether root instruction files should stay normal tracked files or
-become generated repo-relative outputs. Keep them as normal files when they are
-simple and already coherent. Use configured `[[dir]]` roots such as
-`.harness/dir` when generation creates a cleaner setup:
+During full migration or adoption, durable repo-level instruction files such as
+`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and similar always-on agent guidance
+should become `.harness/dir` source by default. Use simple direct copied
+Markdown files for one-file outputs:
+
+```text
+.harness/dir/AGENTS.md
+.harness/dir/CLAUDE.md
+.harness/dir/GEMINI.md
+```
+
+Do not leave those root instruction files only as normal tracked repo files
+after adoption unless there is a concrete blocker or user-directed exception.
+Use configured `[[dir]]` roots such as `.harness/dir` with composition only when
+there is a concrete reason:
 
 ```text
 .harness/dir/AGENTS.md/
@@ -523,8 +534,12 @@ Before applying activation:
 - [ ] Every live output folder is declared as an explicit target.
 - [ ] Durable reusable content lives under `.harness/resources` or another
       configured resource group.
-- [ ] Repo-relative generated outputs live under `.harness/dir` only when
-      useful.
+- [ ] Durable root instruction files such as `AGENTS.md`, `CLAUDE.md`,
+      `GEMINI.md`, and equivalents are copied into `.harness/dir` as direct
+      Markdown files by default, or explicitly documented as blocked/excepted.
+- [ ] `.harnessComposable`, `.harnessRef`, or split root instructions are used
+      only for concrete reasons such as deduplication, profile overlays, local
+      overlays, or target-specific tails.
 - [ ] Resource groups have names and README files that make their purpose clear
       when copied to another project.
 - [ ] Harness-specific differences are encoded as target-derived overrides.
@@ -540,3 +555,8 @@ Before applying activation:
 - [ ] `npx harnessc validate` passes.
 - [ ] `npx harnessc activate` produces an expected dry-run plan before
       `--yes` is used.
+- [ ] After convergence, root `.gitignore` ignores generated surfaces such as
+      `.agents/`, `.claude/`, `.cursor/`, `.gemini/`, or exact generated
+      subtrees unless the user wants generated outputs tracked; if generated
+      files are already tracked, the final summary reports the required
+      `git rm --cached` follow-up.
