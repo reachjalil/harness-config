@@ -57,21 +57,23 @@ Expected result:
   `[activation].targetSymlinks = "replace"` / `--replace-target-symlinks`
   policy before apply.
 
-## Generated surface untracking
+## Generated output untracking
 
-When generated surfaces are tracked and the user does not want generated output
-tracked after convergence:
+When generated target surfaces or generated `[[dir]]` outputs are tracked and
+the user does not want generated output tracked after convergence:
 
 ```bash
-git ls-files .agents .claude .cursor .gemini
+git ls-files .agents .claude .cursor .gemini AGENTS.md CLAUDE.md GEMINI.md
 git rm --cached -r .agents .claude .cursor .gemini
+git rm --cached AGENTS.md CLAUDE.md GEMINI.md
 git add .gitignore .harness AGENTS.md CLAUDE.md GEMINI.md README.md package.json
 git diff --cached --name-status
 git status --short
 ```
 
 Use exact generated subtrees when only part of a surface is generated. Include
-`.agents`, `.claude`, `.cursor`, `.gemini`, and similar target folders as
+`.agents`, `.claude`, `.cursor`, `.gemini`, similar target folders, and
+generated dir outputs such as `AGENTS.md`, `CLAUDE.md`, or `GEMINI.md` as
 applicable; do not only untrack `.agents`.
 
 Expected result:
@@ -80,8 +82,11 @@ Expected result:
   exist in the working tree.
 - `.gitignore`, `.harness` sources, activation instructions, and untracking are
   staged together with `git add`.
+- The staged activation instructions include what to run on a fresh checkout
+  and after `git pull` to refresh generated outputs.
 - `git diff --cached --name-status` shows the intended source additions/updates
-  and index removals for generated outputs.
+  and index removals for generated outputs, including generated target folders
+  and generated root instruction outputs when applicable.
 - A dry activation can regenerate the generated surfaces from `.harness`.
 - Any file that would be lost is restored or migrated before completion.
 
@@ -115,10 +120,13 @@ Confirm:
 - gitignored harness surfaces can be regenerated from `.harness` plus the
   selected manifest,
 - tracked activation instructions tell users and agents how to run activation
-  when generated harness surfaces are gitignored.
-- if generated harness surfaces were already tracked by Git, `git rm --cached
-  -r` was actually run for every tracked generated surface or exact subtree,
-  staged with `git add`, and verified for no working-tree data loss.
+  on a fresh checkout and after `git pull` when generated harness outputs are
+  gitignored.
+- if generated harness target surfaces or generated dir outputs were already
+  tracked by Git, `git rm --cached -r` or `git rm --cached` was actually run for
+  every tracked generated output, staged with `git add`, visible as expected
+  deletions in `git diff --cached --name-status`, and verified for no
+  working-tree data loss.
 
 ## Explain Checks
 

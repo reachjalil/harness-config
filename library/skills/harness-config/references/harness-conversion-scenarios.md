@@ -567,10 +567,16 @@ Before applying activation:
 - [ ] `npx harnessc activate` produces an expected dry-run plan before
       `--yes` is used.
 - [ ] After convergence, root `.gitignore` ignores generated surfaces such as
-      `.agents/`, `.claude/`, `.cursor/`, `.gemini/`, or exact generated
+      `.agents/`, `.claude/`, `.cursor/`, `.gemini/`, generated dir outputs
+      such as `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, or exact generated
       subtrees unless the user wants generated outputs tracked; if generated
-      files are already tracked, `git rm --cached -r` is run for every tracked
-      generated surface or exact subtree and staged with `git add`.
-- [ ] The staged diff and working tree are inspected after untracking; generated
-      files still exist locally, activation can regenerate them from `.harness`,
-      and any would-be data loss is fixed before completion.
+      files are already tracked, `git rm --cached -r` or `git rm --cached` is
+      run for every tracked generated output and staged with `git add`.
+- [ ] Generated-output gitignore is paired with a tracked fresh-checkout and
+      after-update activation path, including what users or scripts should run
+      after `git pull` to refresh generated outputs.
+- [ ] The staged diff and working tree are inspected after untracking;
+      `git diff --cached --name-status` shows expected deletions from the index
+      for generated outputs, generated files still exist locally, activation can
+      regenerate them from `.harness`, and any would-be data loss is fixed
+      before completion.

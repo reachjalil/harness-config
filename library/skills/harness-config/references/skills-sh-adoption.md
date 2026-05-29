@@ -150,18 +150,26 @@ by default:
 15. Use `npx harnessc explain <path>` for surprising paths.
 16. Apply with `npx harnessc activate --yes` after the dry run matches intent.
 17. Run `npx harnessc activate` again and confirm convergence.
-18. Check generated-surface `.gitignore` best practice after convergence. Add
-    root `.gitignore` entries for generated surfaces or exact generated
-    subtrees, with a tracked activation note, unless the user wants generated
-    outputs tracked. If generated files are already tracked, run
-    `git rm --cached -r` for every tracked generated surface or exact generated
-    subtree, including `.agents`, `.claude`, `.cursor`, `.gemini`, and similar
-    surfaces as applicable; then `git add` `.gitignore`, `.harness`, activation
-    instructions, and the staged untracking changes.
+18. Check generated-output `.gitignore` and staging practice after convergence.
+    Add root `.gitignore` entries for generated target surfaces, generated
+    `[[dir]]` outputs, or exact generated subtrees, with tracked fresh-checkout
+    and after-update activation instructions outside the generated output set,
+    unless the user wants generated outputs tracked. Include what to run after
+    `git pull`, such as package scripts, Makefile target, justfile recipe,
+    setup/update script, README setup step, guarded `postinstall`, or opt-in
+    post-merge hook setup when trusted by the repo. If generated files are
+    already tracked, run
+    `git rm --cached -r` for every tracked generated target surface or exact
+    generated subtree and `git rm --cached` for tracked generated dir outputs,
+    including `.agents`, `.claude`, `.cursor`, `.gemini`, `AGENTS.md`,
+    `CLAUDE.md`, `GEMINI.md`, and similar outputs as applicable; then `git add`
+    `.gitignore`, `.harness`, activation instructions, and the staged
+    untracking changes.
 19. Inspect `git diff --cached --name-status` and the working tree after
-    untracking. Verify generated files still exist locally and activation can
-    regenerate them from `.harness`; restore or migrate anything that would be
-    lost before claiming adoption is complete.
+    untracking. Verify the expected staged deletions are present for generated
+    outputs removed from the index, generated files still exist locally, and
+    activation can regenerate them from `.harness`; restore or migrate anything
+    that would be lost before claiming adoption is complete.
 20. Add repo-native activation commands when available, such as `package.json`
     scripts, Makefile targets, justfile recipes, README setup steps, or a
     guarded post-install hook when the repo intentionally wants automatic
@@ -190,9 +198,10 @@ Use this checklist in the response before claiming adoption is complete:
 | Mutability | `.harnessMutable` is used only for seeded create-once files, not as a substitute for migration or ignore. |
 | Target ignores | Target-output `.harnessIgnore` files are added inside generated surfaces when local output boundaries are needed. |
 | Root instructions represented | Durable root instruction files such as `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and equivalents were copied into `.harness/dir` as direct Markdown files by default, or explicitly documented as blocked/excepted. |
-| Generated-surface untracking | After convergence, root `.gitignore` ignores generated surfaces or exact generated subtrees, with tracked activation instructions, unless the user wants generated outputs tracked; if generated files were already tracked, `git rm --cached -r` was run for every tracked generated surface or exact subtree and staged with `git add`. |
+| Generated-output untracking | After convergence, root `.gitignore` ignores generated target surfaces, generated `[[dir]]` outputs, or exact generated subtrees, with tracked fresh-checkout and after-update activation instructions outside the generated output set, unless the user wants generated outputs tracked; if generated files were already tracked, `git rm --cached -r` or `git rm --cached` was run for every tracked generated output and staged with `git add`. |
+| Staged deletions verified | `git diff --cached --name-status` shows expected staged deletions for generated outputs removed from the index, including agent surface folders and generated root instruction outputs when applicable. |
 | No data loss verified | The staged diff and working tree were inspected after untracking; generated files still exist locally and activation can regenerate them from `.harness`. |
-| Activation path | A tracked repo-native command or setup note can validate and activate generated surfaces on a fresh checkout. |
+| Activation path | A tracked repo-native command or setup note can validate and activate generated outputs on a fresh checkout and after `git pull`. |
 | Verification | Validate, dry activation, apply, and convergence dry run all succeeded. |
 
 If any check is incomplete, say the migration is blocked/incomplete and name the
