@@ -8,13 +8,16 @@
   the selected manifest.
 - Preserve the one-way projection model. Source of truth is configured source
   roots; target folders are generated outputs, not source repositories.
-- Use the standard filenames exactly: `.harnessIgnore`, `.harnessProfile`,
-  `.harnessProfileRoot`, `.harnessComposable`, and `.harnessRef`.
+- Use the standard filenames exactly: `.harnessIgnore`, `.harnessMutable`,
+  `.harnessProfile`, `.harnessProfileRoot`, `.harnessComposable`, and
+  `.harnessRef`.
 - Treat `.harnessProfileRoot` as profile source only. It must live under
   `.harness`, a configured resources source, or a configured dir source, must
   not be projected as a resource item, and must overlay resources or dir
   outputs by logical source path.
-- Keep `.harnessIgnore` as the projection boundary for global, source-local,
-  target-output-local, and `[mutable]` rules.
+- Keep `.harnessIgnore` as the projection ignore boundary for global,
+  source-local, profile-local, and target-output-local rules.
+- Keep `.harnessMutable` separate from `.harnessIgnore`. Mutable rules seed
+  target files once from `.harness` source and then preserve runtime edits.
 - Prefer focused tests near the behavior being changed. Update
   `docs/TESTING.md` when a new standard or CLI scenario is added.

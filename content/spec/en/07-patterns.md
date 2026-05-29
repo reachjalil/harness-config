@@ -14,7 +14,7 @@ llmSummary: Shows practical Harness config patterns for runtime-owned mutable fi
 audience: Developers and platform teams adopting Harness config in real repositories.
 contentKind: spec
 status: draft
-updated: 2026-05-26
+updated: 2026-05-28
 ---
 
 # Harness config Patterns
@@ -50,6 +50,74 @@ path = "./.harness/dir"
 path = "./.harness/local/dir"
 ```
 
+```text
+.harness/
+  harness.toml
+  resources/
+    README.md
+    skills/
+    rules/
+  dir/
+    AGENTS.md/
+      .harnessComposable
+  local/
+    resources/
+    dir/
+.agents/
+.claude/
+.gemini/
+```
+
+The manifest names the source roots and targets. The filesystem shows where
+reviewed source lives and which live harness surfaces activation can generate.
+
+## Resource Groups
+
+For most migrations, start with one shared `.harness/resources` root and group
+inside it by the target path that should be generated. This keeps the source
+catalog easy to inspect and avoids inventing separate source roots before the
+repository needs them.
+
+```toml
+[[resources]]
+path = "./.harness/resources"
+
+[[resources]]
+path = "./.harness/local/resources"
+```
+
+```text
+.harness/
+  resources/
+    README.md
+    .claude/
+      settings.json
+      .harnessMutable
+    skills/
+      review/
+      frontend/
+    prompts/
+    rules/
+    plugins/
+  local/
+    resources/
+```
+
+Target-root files belong at their target-root path inside the resource root:
+for example `.claude/settings.json` becomes
+`.harness/resources/.claude/settings.json`. If that file is runtime-owned after
+the first seed, add `.harness/resources/.claude/.harnessMutable` with
+`settings.json` in it.
+
+Additional resources roots are useful when they represent a real boundary:
+independently optional concern catalogs, ownership boundaries,
+profile-selected specializations, or private local overlays. For example,
+testing, deployment, and UI concerns can live in separate roots when a team
+intentionally combines them through manifest order, profile overlays, or
+profile-specific dir instructions. The local layer is useful for personal
+skills, plugins, agents, prompts, and experiments before promotion into
+tracked source.
+
 ## Target-Output Ignore For One Live Surface
 
 Use a target-output `.harnessIgnore` when the rule belongs to one live output
@@ -83,14 +151,57 @@ live harness surfaces, local development experiments, or machine-specific
 runtime files that should not become shared source. The file is preserved and
 read from the target output, but it is not copied there by projection.
 
-## Runtime-Owned Mutable Files
+## Logical Ignore Re-Includes
 
-Use `[mutable]` when the repository should seed a file once and the runtime
-should own it afterward.
+Use shallow rules for broad boundaries and deeper logical rules for selected
+exceptions. Profile-local ignore files are evaluated at the profile root's
+logical overlay location, not at the physical profile folder.
+
+```toml
+[[resources]]
+path = "./.harness/resources-tooling"
+
+[[targets]]
+path = "./.agents"
+```
 
 ```text
 .harnessIgnore
-[mutable]
+.harnessProfile                  # contains: cloudflare-react
+.harness/
+  resources-tooling/
+    skills/
+      vite-worker-imports-config-skill/SKILL.md
+      codex-agent-management/SKILL.md
+    cloudflare-react/
+      .harnessProfileRoot         # contains: cloudflare-react
+      .harnessIgnore
+```
+
+```gitignore
+# .harnessIgnore
+.harness/resources-tooling/skills/**
+```
+
+```gitignore
+# .harness/resources-tooling/cloudflare-react/.harnessIgnore
+!skills/
+!skills/vite-worker-imports-config-skill/
+!skills/vite-worker-imports-config-skill/**
+```
+
+With `cloudflare-react` active, only `vite-worker-imports-config-skill`
+crosses the projection boundary. `codex-agent-management` stays ignored
+because the profile-local file participates at `.harness/resources-tooling/`
+and its descendant re-include names only the Vite worker skill.
+
+## Runtime-Owned Mutable Files
+
+Use `.harnessMutable` when the repository should seed a file once and the
+runtime should own it afterward.
+
+```text
+.harnessMutable
 .harness/resources/**/settings.local.json
 ```
 
@@ -107,8 +218,8 @@ local settings, learned commands, and other state that must be visible in the
 plan without becoming canonical source.
 
 Use ignore rules for files that should never cross the projection boundary.
-Use `[mutable]` for files that should cross once as a template and then belong
-to the live harness surface.
+Use `.harnessMutable` for files that should cross once as a template and then
+belong to the live harness surface.
 
 ## Composable Instructions
 
@@ -119,28 +230,43 @@ file. When the same marker is used under a configured resources source, it
 composes a projected resource file inside each target instead of a repo-root or
 target-owned dir output.
 
+```toml
+[[dir]]
+path = "./.harness/dir"
+
+[[dir]]
+path = "./.harness/local/dir"
+```
+
 ```text
-.harness/dir/AGENTS.md/
-  .harnessComposable
-  100_intro.md
-  200_rules.md
+.harness/
+  dir/
+    AGENTS.md/
+      .harnessComposable
+      100_intro.md
+      200_rules.md
+    CLAUDE.md/
+      .harnessComposable
+      .harnessRef          # ../AGENTS.md
+      300_claude.md
+  local/
+    dir/
+      AGENTS.md/
+        900_local.md
 ```
 
 Projects:
 
 ```text
 AGENTS.md
+CLAUDE.md
 ```
 
-The output bytes are `100_intro.md` followed by `200_rules.md`. A `.harnessRef` file
-imports another composable leaf before sorting parts:
-
-```text
-.harness/dir/CLAUDE.md/
-  .harnessComposable
-  .harnessRef          # ../AGENTS.md
-  300_claude.md
-```
+`AGENTS.md` is composed from shared parts plus any later local parts.
+`CLAUDE.md` imports the `AGENTS.md` leaf first, then adds the Claude-specific
+tail. Use this pattern when generation removes real duplication or enables
+profiles/local overlays; keep simple root files as normal tracked files when
+composition does not help.
 
 Source-local `.harnessIgnore` files can remove individual parts:
 
@@ -162,6 +288,17 @@ release.md
 A repo-root `.harnessProfile` selects one profile for the whole projection.
 When a `.harnessProfileRoot` sits directly under the configured resources
 source, its children overlay that resources source.
+
+```toml
+[[resources]]
+path = "./.harness/resources"
+
+[[dir]]
+path = "./.harness/dir"
+
+[[targets]]
+path = "./.agents"
+```
 
 ```text
 .harnessProfile          # contains: deploy
@@ -189,6 +326,17 @@ Use this shape when the overlay belongs to one resource kind.
 A kit profile can overlay `.harness` itself and contribute several logical
 source roots at once.
 
+```toml
+[[resources]]
+path = "./.harness/resources"
+
+[[dir]]
+path = "./.harness/dir"
+
+[[targets]]
+path = "./.agents"
+```
+
 ```text
 .harnessProfile          # contains: deploy-kit
 
@@ -213,6 +361,56 @@ skill and add a deploy-specific instruction part without becoming a projected
 This is the right model for company-provided deploy, security, frontend,
 backend, or onboarding kits. The kit is reviewed source. The selector decides
 where it is active.
+
+## Generated Surfaces With Activation Instructions
+
+Generated harness surfaces can be gitignored when the repository keeps a
+tracked activation path. The manifest and source catalog stay in version
+control; the live folders can be regenerated after checkout.
+
+```toml
+[[resources]]
+path = "./.harness/resources"
+
+[[targets]]
+path = "./.agents"
+
+[[targets]]
+path = "./.claude"
+```
+
+```text
+AGENTS.md                         # activation note for humans and agents
+package.json                      # optional setup:harness script
+.gitignore
+.harness/
+  harness.toml
+  resources/
+    README.md
+    skills/
+      harness-config/
+        SKILL.md
+      review/
+.agents/                          # generated, gitignored
+.claude/                          # generated, gitignored
+```
+
+```gitignore
+# Harness-generated live surfaces
+.agents/
+.claude/
+
+# Private Harness overlays
+.harness/local/
+```
+
+The activation instructions should tell users and agents to run
+`npx harnessc validate` and dry-run activation before applying. Do not
+gitignore generated surfaces when a fresh checkout would leave users with empty
+harness folders and no clear activation path. Do not gitignore all of
+`.harness/`; keep the manifest, shared resources, dir sources, `.harnessIgnore`,
+and `.harnessMutable` declarations tracked so the live surfaces remain
+reproducible.
 
 ## Personal AGENTS.md Override
 
@@ -293,7 +491,7 @@ Keep the source and target roles separate:
   matters more than committing generated output.
 - Keep runtime or product state out of `.harness/`; put product caches and activation records in product-owned folders and ignore them.
 - Use target-derived overrides for exact file differences. If a target needs a very different skill, prefer a separate resource item over a deep override tree.
-- Declare runtime-owned files under `[mutable]` so projection seeds them once and then leaves them alone.
+- Declare runtime-owned files in `.harnessMutable` so projection seeds them once and then leaves them alone.
 - Do not rely on source or target symlinks being followed. Treat them as leaf entries and review any replace or remove action before activation.
 
 These recommendations keep activation one-way: configured source roots produce
@@ -304,7 +502,7 @@ target outputs, and live harness surfaces never become the next source of truth.
 Before running cleanup with `--remove-unmanaged`, check the plan:
 
 - Managed files should be `keep`, `create`, or `update`.
-- Runtime-owned files declared under `[mutable]` should be `mutable` after the
+- Runtime-owned files declared in `.harnessMutable` should be `mutable` after the
   first activation.
 - Unmanaged files should be removed only when the plan explicitly shows
   `remove`.

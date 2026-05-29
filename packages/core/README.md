@@ -24,6 +24,7 @@ Specification: https://www.harnessconfig.dev/specifications/v1/
 - `parseHarnessConfigToml(raw)`: parses and validates a Harness config TOML
   manifest.
 - `parseHarnessIgnore(raw)`: parses repo-relative `.harnessIgnore` rules.
+- `parseHarnessMutable(raw)`: parses repo-relative `.harnessMutable` rules.
 - `loadHarnessIgnoreMatcher(root)`: loads ignore rules for projection planning.
 - `listHarnessProjectionTargets(config)`: returns the explicitly declared
   target paths.
@@ -78,15 +79,18 @@ name is created, reserved, or projected by default.
 
 Use the activation helpers when a consuming tool projects resource views into a
 live harness. Source catalogs can contain metadata, logs, or local state, but
-matched files are excluded by `.harnessIgnore`. Repeated activation with the
-same inputs, cleanup policy, and mutable policy should produce the same target
-tree.
+matched files are excluded by `.harnessIgnore` or marked seed-only by
+`.harnessMutable`. Repeated activation with the same inputs, cleanup policy,
+and mutable policy should produce the same target tree.
 
 `.harnessIgnore` can be repo-root, source-local under `.harness`, the
 configured resources sources, or configured dir sources, or
 target-output-local under existing target/output folders. Target-output rules
 match final output paths and existing target-output `.harnessIgnore` files are
-preserved during cleanup.
+preserved during cleanup. Precedence uses logical directory depth: profile
+ignores run at their overlay location, target-derived override ignores run at
+their logical source and target locations, and target-output ignores remain the
+final boundary.
 
 `.harnessProfile` selectors can activate `.harnessProfileRoot` overlays under
 `.harness`, a configured resources source, or a configured dir source.
@@ -97,7 +101,9 @@ parts.
 
 Unmanaged target entries are preserved by default and reported at one level;
 pass `{ cleanupUnmanaged: "remove" }` to plan and apply explicit cleanup.
-Files declared mutable in `.harnessIgnore` are created once from source and
+Files declared mutable in `.harnessMutable` are created once from source and
 skipped on later activations because the live target bytes are runtime-owned.
 Managed target files that differ from the current projection are reported as
-updates by direct comparison and overwritten on apply.
+updates by direct comparison and overwritten on apply. Target symlinks that
+occupy projected paths are conflicts unless the selected target symlink policy
+is `"replace"`.

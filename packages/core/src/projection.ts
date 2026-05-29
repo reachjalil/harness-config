@@ -19,6 +19,7 @@ import { loadHarnessIgnoreMatcherDetailed } from "./ignore";
 import {
   assertRepoLocalPath,
   HARNESS_IGNORE_FILE,
+  HARNESS_MUTABLE_FILE,
   HARNESS_PROFILE_FILE,
   HARNESS_PROFILE_ROOT_FILE,
   resolveHarnessPaths,
@@ -74,6 +75,10 @@ type CleanupUnmanagedMode = NonNullable<
 
 type MutablePolicy = NonNullable<
   ApplyHarnessActivationOptions["mutablePolicy"]
+>;
+
+type TargetSymlinkPolicy = NonNullable<
+  ApplyHarnessActivationOptions["targetSymlinkPolicy"]
 >;
 
 type ExistingEntry = {
@@ -361,6 +366,7 @@ function isComposableDeclarationFile(fileName: string): boolean {
     fileName === HARNESS_COMPOSABLE_MARKER ||
     fileName === HARNESS_COMPOSABLE_REF_FILE ||
     fileName === HARNESS_IGNORE_FILE ||
+    fileName === HARNESS_MUTABLE_FILE ||
     fileName === HARNESS_PROFILE_FILE ||
     fileName === HARNESS_PROFILE_ROOT_FILE
   );
@@ -1289,6 +1295,8 @@ async function planCopyActions(
   projection: DesiredProjection,
   cleanupUnmanaged: CleanupUnmanagedMode,
   mutablePolicy: MutablePolicy,
+  targetSymlinkPolicy: TargetSymlinkPolicy,
+  diagnostics: HarnessDiagnostic[],
   protectedRelativePaths: Set<string> = new Set()
 ): Promise<HarnessActivationAction[]> {
   const targetState = await lstat(targetRoot).catch(() => undefined);
@@ -1296,7 +1304,13 @@ async function planCopyActions(
   const actions: HarnessActivationAction[] = [];
   const managedItemRoots = projectedItemRoots(projection);
 
-  if (targetState && !targetState.isDirectory()) {
+  if (
+    targetState?.isSymbolicLink() &&
+    targetSymlinkPolicy === "conflict" &&
+    projection.size > 0
+  ) {
+    diagnostics.push(targetSymlinkConflictDiagnostic(targetRoot));
+  } else if (targetState && !targetState.isDirectory()) {
     actions.push({
       kind: "remove",
       targetPath: targetRoot,
@@ -1316,6 +1330,11 @@ async function planCopyActions(
         relativePath,
         sourcePath: desired.sourcePath,
       });
+      continue;
+    }
+
+    if (current.type === "symlink" && targetSymlinkPolicy === "conflict") {
+      diagnostics.push(targetSymlinkConflictDiagnostic(targetPath));
       continue;
     }
 
@@ -1368,6 +1387,23 @@ async function planCopyActions(
 
   const unmanagedRoots = new Map<string, ExistingEntry>();
   for (const [relativePath, entry] of existing) {
+    if (
+      entry.type !== "directory" &&
+      isProjectionAncestor(relativePath, projection)
+    ) {
+      const targetPath = path.join(targetRoot, relativePath);
+      if (entry.type === "symlink" && targetSymlinkPolicy === "conflict") {
+        diagnostics.push(targetSymlinkConflictDiagnostic(targetPath));
+      } else {
+        actions.push({
+          kind: "remove",
+          targetPath,
+          relativePath,
+          reason: `replace existing ${entry.type} with copy projection`,
+        });
+      }
+      continue;
+    }
     if (isProtectedTargetIgnorePath(relativePath, protectedRelativePaths)) {
       continue;
     }
@@ -1401,7 +1437,7 @@ async function planCopyActions(
       protectedRelativePaths
     );
     const current = unmanagedRoots.get(root);
-    if (!current || current.type !== "directory") {
+    if (current?.type !== "directory") {
       unmanagedRoots.set(root, existing.get(root) ?? entry);
     }
   }
@@ -1419,6 +1455,19 @@ async function planCopyActions(
   }
 
   return sortActivationActions(actions);
+}
+
+function targetSymlinkConflictDiagnostic(
+  targetPath: string
+): HarnessDiagnostic {
+  return {
+    severity: "error",
+    code: "harness.target_symlink_conflict",
+    message: `Target symlink "${targetPath}" occupies a path required by projection.`,
+    path: targetPath,
+    recommendation:
+      'Harness config will not follow the symlink. Replace it manually, set [activation].targetSymlinks = "replace", or run harnessc activate with --replace-target-symlinks to replace the link itself.',
+  };
 }
 
 function isProtectedTargetIgnorePath(
@@ -1576,7 +1625,7 @@ export async function harnessResourceItemProjectionMatchesTarget(
 
   for (const relativePath of projection.keys()) {
     const entry = existing.get(relativePath);
-    if (!entry || entry.type !== "file") {
+    if (entry?.type !== "file") {
       return false;
     }
   }
@@ -1755,7 +1804,7 @@ async function prepareHarnessActivation(
   root = process.cwd(),
   options: Pick<
     ApplyHarnessActivationOptions,
-    "cleanupUnmanaged" | "configPath" | "mutablePolicy"
+    "cleanupUnmanaged" | "configPath" | "mutablePolicy" | "targetSymlinkPolicy"
   > = {}
 ): Promise<ActivationPreparation> {
   const absoluteRoot = path.resolve(root);
@@ -1816,6 +1865,8 @@ async function prepareHarnessActivation(
   if (!profileContext) {
     throw new Error("Profile context is required for activation planning.");
   }
+  const targetSymlinkPolicy =
+    options.targetSymlinkPolicy ?? config.activation.targetSymlinks;
 
   const dirPlanState = await planHarnessDir(absoluteRoot, config, {
     profileContext,
@@ -1868,6 +1919,8 @@ async function prepareHarnessActivation(
       targetProjection,
       cleanupUnmanaged,
       mutablePolicy,
+      targetSymlinkPolicy,
+      diagnostics,
       protectedTargetPathsForRoot(
         absoluteRoot,
         targetRoot,
@@ -1912,7 +1965,7 @@ export async function planHarnessActivation(
   root = process.cwd(),
   options: Pick<
     ApplyHarnessActivationOptions,
-    "cleanupUnmanaged" | "configPath" | "mutablePolicy"
+    "cleanupUnmanaged" | "configPath" | "mutablePolicy" | "targetSymlinkPolicy"
   > = {}
 ): Promise<HarnessActivationPlan> {
   return (await prepareHarnessActivation(root, options)).plan;
@@ -1995,6 +2048,7 @@ export async function applyHarnessActivation(
     cleanupUnmanaged: options.cleanupUnmanaged,
     configPath: options.configPath,
     mutablePolicy: options.mutablePolicy,
+    targetSymlinkPolicy: options.targetSymlinkPolicy,
   });
   const plan = state.plan;
   const dryRun = options.dryRun === true || options.yes !== true;

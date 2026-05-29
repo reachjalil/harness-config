@@ -1,7 +1,10 @@
 import { parse, stringify } from "smol-toml";
 import { z } from "zod";
 
-import type { HarnessExtensionDefinition } from "./types";
+import type {
+  HarnessActivationConfig,
+  HarnessExtensionDefinition,
+} from "./types";
 
 export const DEFAULT_HARNESS_CONFIG_PATH = "./.harness/harness.toml";
 export const DEFAULT_HARNESS_RESOURCES_PATH = "./.harness/resources";
@@ -64,9 +67,17 @@ export const overrideDirectorySchema = z
 
 export const harnessTargetSchema = z
   .object({ path: harnessTargetPathSchema })
-  .strict();
+  .catchall(z.unknown());
 
 export const harnessExtensionActivationSchema = z.enum(["explicit", "auto"]);
+
+export const harnessTargetSymlinkPolicySchema = z.enum(["conflict", "replace"]);
+
+export const harnessActivationSchema = z
+  .object({
+    targetSymlinks: harnessTargetSymlinkPolicySchema.default("conflict"),
+  })
+  .catchall(z.unknown()) satisfies z.ZodType<HarnessActivationConfig>;
 
 export const harnessExtensionSchema = z
   .object({
@@ -95,13 +106,13 @@ export const harnessDirSchema = z
   .object({
     path: harnessSourcePathSchema,
   })
-  .strict();
+  .catchall(z.unknown());
 
 export const harnessResourcesSchema = z
   .object({
     path: harnessSourcePathSchema,
   })
-  .strict();
+  .catchall(z.unknown());
 
 export const harnessConfigSchema = z
   .object({
@@ -122,18 +133,13 @@ export const harnessConfigSchema = z
           });
         }
       }),
-    standard: z
-      .object({
-        name: z.string().default("harness-config"),
-      })
-      .strict()
-      .default({ name: "harness-config" }),
+    activation: harnessActivationSchema.default({ targetSymlinks: "conflict" }),
     targets: z.array(harnessTargetSchema).default([]),
     resources: z.array(harnessResourcesSchema).default([]),
     dir: z.array(harnessDirSchema).default([]),
     extensions: harnessExtensionsSchema,
   })
-  .strict();
+  .catchall(z.unknown());
 
 export type HarnessConfig = z.infer<typeof harnessConfigSchema>;
 
@@ -143,6 +149,7 @@ export function createDefaultHarnessConfig(): HarnessConfig {
     resources: [],
     dir: [],
     targets: [],
+    activation: { targetSymlinks: "conflict" },
     extensions: {},
   });
 }
@@ -216,6 +223,9 @@ export function stringifyHarnessConfig(config: HarnessConfig): string {
   const manifest: Record<string, unknown> = { ...config };
   if (config.targets.length === 0) {
     delete manifest.targets;
+  }
+  if (config.activation.targetSymlinks === "conflict") {
+    delete manifest.activation;
   }
   if (config.resources.length === 0) {
     delete manifest.resources;

@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { join, resolve } from "node:path";
 
 const root = process.cwd();
 const packageDirs = ["packages/core", "packages/cli", "packages/harnessc"];
@@ -30,24 +31,12 @@ function readPackage(dir) {
   return JSON.parse(readFileSync(path, "utf8"));
 }
 
-function distTag(version) {
-  const prerelease = version.split("-")[1];
-
-  if (!prerelease) {
-    return "latest";
+export function distTag(version) {
+  if (typeof version !== "string" || version.length === 0) {
+    throw new Error("Package version is required to select an npm dist-tag.");
   }
 
-  const channel = prerelease.split(".")[0];
-
-  if (channel === "alpha" || channel === "beta") {
-    return channel;
-  }
-
-  if (channel === "rc") {
-    return "next";
-  }
-
-  return "next";
+  return "latest";
 }
 
 function packageExists(name, version) {
@@ -59,23 +48,34 @@ function packageExists(name, version) {
   return result.status === 0 && result.stdout.trim() === version;
 }
 
-for (const dir of packageDirs) {
-  const pkg = readPackage(dir);
-  const tag = distTag(pkg.version);
+function main() {
+  for (const dir of packageDirs) {
+    const pkg = readPackage(dir);
+    const tag = distTag(pkg.version);
 
-  if (packageExists(pkg.name, pkg.version)) {
-    console.log(`${pkg.name}@${pkg.version} already exists on npm; skipping.`);
-    continue;
+    if (packageExists(pkg.name, pkg.version)) {
+      console.log(
+        `${pkg.name}@${pkg.version} already exists on npm; skipping.`
+      );
+      continue;
+    }
+
+    const args = ["publish", "--access", "public", "--tag", tag];
+
+    if (dryRun) {
+      args.push("--dry-run");
+    } else {
+      args.push("--provenance");
+    }
+
+    console.log(`Publishing ${pkg.name}@${pkg.version} with npm tag ${tag}.`);
+    run("npm", args, { cwd: join(root, dir) });
   }
+}
 
-  const args = ["publish", "--access", "public", "--tag", tag];
-
-  if (dryRun) {
-    args.push("--dry-run");
-  } else {
-    args.push("--provenance");
-  }
-
-  console.log(`Publishing ${pkg.name}@${pkg.version} with npm tag ${tag}.`);
-  run("npm", args, { cwd: join(root, dir) });
+if (
+  process.argv[1] &&
+  fileURLToPath(import.meta.url) === resolve(process.argv[1])
+) {
+  main();
 }

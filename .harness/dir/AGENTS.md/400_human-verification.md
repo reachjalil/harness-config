@@ -24,7 +24,7 @@ Expected manual evidence:
 - Direct resource files project to target roots, with target-root overrides.
 - Root `.harnessIgnore` excludes source logs.
 - Target-output `.harnessIgnore` can filter one target while being preserved.
-- `[mutable]` files are created once, then left untouched until
+- `.harnessMutable` files are created once, then left untouched until
   `--force-mutable`.
 - Dir composition writes root files, follows `.harnessRef`, and merges outputs
   that land under a declared target.

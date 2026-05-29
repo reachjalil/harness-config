@@ -8,14 +8,16 @@ For a projection behavior, cover at least the observable result:
 
 - Validate reports useful diagnostics for invalid inputs.
 - Dry-run activation reports creates, updates, removes, keeps, mutable files,
-  or preserved unmanaged entries without writing.
+  preserved unmanaged entries, or target symlink conflicts without writing.
 - Apply with `--yes` writes only the desired files.
 - A second dry run converges to `keep` for managed files.
 - Target-output `.harnessIgnore` files are preserved during cleanup.
 - `.harnessProfile` files in target output are preserved and affect only their
   subtree.
-- `[mutable]` files are created once, then skipped unless force-mutable is
-  requested.
+- `.harnessMutable` files are created once, then skipped unless force-mutable
+  is requested.
+- Target symlinks that occupy projected paths remain links unless explicit
+  replacement policy is selected.
 
 ## High-Value Combined Fixtures
 

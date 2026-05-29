@@ -4,7 +4,14 @@ Read this for common migrations from existing runtime folders.
 
 ## Root AGENTS.md
 
-Move reusable root instructions into a `[[dir]]` composable:
+Move a simple reusable root instruction into `[[dir]]` as a direct copied file:
+
+```text
+.harness/dir/AGENTS.md
+```
+
+Use a composable only when the split removes duplication, supports profiles, or
+lets multiple root instruction files share a base:
 
 ```text
 .harness/dir/AGENTS.md/

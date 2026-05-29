@@ -8,15 +8,16 @@ targets, target-derived overrides, and activation checks.
 Start by explaining the conversion opportunities to the user: what can become
 shared source, what needs target-specific wrappers, what should remain
 runtime-owned, and which steps can be handled by `npx harnessc` versus ordinary
-file edits. Prefer `npx harnessc validate`, `npx harnessc activate`, and
-`npx harnessc activate --yes` whenever the CLI supports the operation. Use
-manual file edits for content migration, manifest/source authoring, and
-harness-specific wrapper design.
+file edits. Prefer `npx harnessc validate`, `npx harnessc activate`,
+`npx harnessc explain`, and `npx harnessc activate --yes` whenever the CLI
+supports the operation. Use manual file edits for content migration,
+manifest/source authoring, and harness-specific wrapper design.
 
 ## Contents
 
 - [Core Conversion Model](#core-conversion-model)
 - [Target Mapping](#target-mapping)
+- [Scenario: Resource Groups](#scenario-resource-groups)
 - [Scenario: Merge Duplicate Skills](#scenario-merge-duplicate-skills)
 - [Scenario: Root Instructions](#scenario-root-instructions)
 - [Scenario: Codex Plugin](#scenario-codex-plugin)
@@ -47,13 +48,16 @@ Separate every existing file into one of four layers:
 
 Map these layers into Harness config:
 
-- Put portable target resources under `.harness/resources`.
-- Put repo-relative outputs under `.harness/dir`.
+- Put portable target resources under configured `.harness/resources*` roots.
+- Group resources by usefulness: workflow, strategy, team, mode, agent set,
+  product area, or reusable concern. Match the user's language.
+- Put repo-relative outputs under `.harness/dir*` only when generation,
+  composition, profile overlays, or local overlays are useful.
 - Represent harness-specific differences with target-derived overrides such as
   `.harness/resources/.claude/...` or
   `.harness/resources/skills/review/.claude/SKILL.md`.
 - Keep local runtime state outside `.harness`, or seed it once through
-  `[mutable]` rules.
+  `.harnessMutable` rules.
 - Declare each live harness surface explicitly in `.harness/harness.toml`.
 
 ## Target Mapping
@@ -77,13 +81,53 @@ path = "./.cursor"
 
 [[resources]]
 path = "./.harness/resources"
-
-[[dir]]
-path = "./.harness/dir"
 ```
 
 Do not add a target just because a folder exists. First classify whether the
 folder is durable source, generated output, runtime state, or obsolete.
+
+## Scenario: Resource Groups
+
+Use this when a repo has enough skills, plugins, hooks, rules, prompts, or
+agents that one flat folder would hide intent. The default first migration is
+still one configured `.harness/resources` root with meaningful subfolders:
+
+```text
+.harness/
+  resources/
+    README.md
+    .claude/
+      settings.json
+      .harnessMutable
+    skills/
+      review/
+      frontend/
+      platform/
+    prompts/
+    rules/
+    plugins/
+    hooks.json
+    agents/
+```
+
+```toml
+[[resources]]
+path = "./.harness/resources"
+```
+
+Rules:
+
+- Name groups for how the user will use them, not just file type.
+- Add short README files for non-obvious groups.
+- Keep resource groups copy/pasteable between projects.
+- Keep target-level files at target-derived paths, such as
+  `.harness/resources/.claude/settings.json`.
+- Add more configured roots only for optional catalogs, ownership boundaries,
+  profile-selected specializations, or local/private work.
+- Use profiles and nested `.harnessIgnore` to switch groups or selected
+  resources on and off.
+- Use `.harness/local/resources` for personal experiments and private
+  additions.
 
 ## Scenario: Merge Duplicate Skills
 
@@ -98,7 +142,8 @@ Before:
 .cursor/skills/review/SKILL.md
 ```
 
-After:
+After, under the resource folder that matches how the user thinks about the
+skill:
 
 ```text
 .harness/resources/skills/review/SKILL.md
@@ -125,8 +170,21 @@ Rules:
 
 ## Scenario: Root Instructions
 
-Use configured `[[dir]]` roots such as `.harness/dir` for repo-root
-instruction files:
+During full migration or adoption, durable repo-level instruction files such as
+`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and similar always-on agent guidance
+should become `.harness/dir` source by default. Use simple direct copied
+Markdown files for one-file outputs:
+
+```text
+.harness/dir/AGENTS.md
+.harness/dir/CLAUDE.md
+.harness/dir/GEMINI.md
+```
+
+Do not leave those root instruction files only as normal tracked repo files
+after adoption unless there is a concrete blocker or user-directed exception.
+Use configured `[[dir]]` roots such as `.harness/dir` with composition only when
+there is a concrete reason:
 
 ```text
 .harness/dir/AGENTS.md/
@@ -150,7 +208,10 @@ Claude or Gemini instructions can import the shared base and add a short
 target-specific tail.
 
 Do not copy long procedural workflows into every root instruction file. Convert
-long procedures into skills and leave a short pointer in always-on instructions.
+long procedures into skills and leave a short pointer in always-on
+instructions. Do not split root instruction files into composable parts unless
+the split removes real duplication, supports profiles/local layers, or improves
+review.
 
 ## Scenario: Codex Plugin
 
@@ -237,6 +298,27 @@ Rules:
 - Keep plugin root components at the plugin root.
 - Treat plugin settings and hook trust as runtime-sensitive; do not project
   secrets or local machine settings.
+- If a non-secret Claude `settings.json` should be available on first
+  activation and then runtime-owned, seed it beside a source-local
+  `.harnessMutable` file:
+
+```text
+.harness/resources/.claude/settings.json
+.harness/resources/.claude/.harnessMutable
+```
+
+```gitignore
+# .harness/resources/.claude/.harnessMutable
+settings.json
+```
+
+Do not put `settings.json` in `.claude/.harnessIgnore` when the desired
+behavior is seed-once projection. Target-output ignores block projection;
+mutable rules project once and then preserve runtime edits. During full
+migration, an existing non-secret `.claude/settings.json` that should exist for
+fresh users must be copied to `.harness/resources/.claude/settings.json` before
+the mutable rule is added. If it cannot be copied because it is secret or local
+state, document the blocker and do not call the migration complete.
 
 ## Scenario: Gemini Extension
 
@@ -333,8 +415,8 @@ Rules:
 - Do not project hook trust decisions, secrets, or local allowlists unless the
   user explicitly wants managed policy.
 
-Use `[mutable]` for target-local hook state or logs if a seed file must be
-created once.
+Use `.harnessMutable` for target-local hook state or logs if a seed file must
+be created once.
 
 ## Scenario: MCP Servers
 
@@ -438,22 +520,48 @@ Before running or projecting active harness behavior, review trust boundaries:
   as runtime state unless the user explicitly wants managed policy.
 - Keep shared scripts small, readable, and time-bounded.
 - Prefer dry-run activation before writing outputs.
-- Use `[mutable]` for files that should be seeded once and then left
-  runtime-owned.
+- Use `.harnessMutable` for files that should be seeded once and then left
+  runtime-owned. Show the seed and declaration path, for example
+  `.harness/resources/.claude/settings.json` plus
+  `.harness/resources/.claude/.harnessMutable`.
 - Preserve existing live outputs until `npx harnessc activate` explains the
   planned creates, updates, mutable entries, and preserves.
+- Replace target symlinks only after checking where they point and confirming
+  the dry-run plan. If the symlink and source files are tracked, explain that
+  git makes the change easy to review and revert. Stop before replacing
+  symlinks that point outside the repo or into secrets/runtime state.
 
 ## Merge Checklist
 
 Before applying activation:
 
+- [ ] The repository is inside a Git worktree and `git status --short` was clean
+      before migration edits; otherwise migration paused while the user was
+      offered options to initialize Git or preserve dirty work before
+      continuing.
+- [ ] A migration ledger records every durable live path, root instruction file,
+      target-level seed, generated target surface, generated dir output, and
+      blocker with a `.harness` destination, generated output path, tracking
+      decision, or explicit exception.
 - [ ] Every live output folder is declared as an explicit target.
-- [ ] Durable reusable content lives under `.harness/resources` or
-      `.harness/dir`.
+- [ ] Durable reusable content lives under `.harness/resources` or another
+      configured resource group.
+- [ ] Durable root instruction files such as `AGENTS.md`, `CLAUDE.md`,
+      `GEMINI.md`, and equivalents are copied into `.harness/dir` as direct
+      Markdown files by default, or explicitly documented as blocked/excepted.
+- [ ] `.harnessComposable`, `.harnessRef`, or split root instructions are used
+      only for concrete reasons such as deduplication, profile overlays, local
+      overlays, or target-specific tails.
+- [ ] Resource groups have names and README files that make their purpose clear
+      when copied to another project.
 - [ ] Harness-specific differences are encoded as target-derived overrides.
 - [ ] Runtime state, secrets, caches, logs, and machine-local settings are not
       in `.harness`.
-- [ ] `[mutable]` covers files that should be seeded once and then runtime-owned.
+- [ ] `.harnessMutable` covers files that should be seeded once and then
+      runtime-owned, with source seeds shown in the plan; target-level settings
+      such as `.claude/settings.json` are seeded at
+      `.harness/resources/.claude/settings.json` or explicitly blocked as
+      secret/local state.
 - [ ] Plugin and extension manifests stay in their harness-specific wrapper
       paths.
 - [ ] Hook scripts are shared only when their stdin/stdout contracts are valid
@@ -462,3 +570,23 @@ Before applying activation:
 - [ ] `npx harnessc validate` passes.
 - [ ] `npx harnessc activate` produces an expected dry-run plan before
       `--yes` is used.
+- [ ] After convergence, root `.gitignore` ignores generated surfaces with
+      root-anchored patterns such as `/.agents/`, `/.claude/`, `/.cursor/`,
+      `/.gemini/`, generated dir outputs such as `/AGENTS.md`, `/CLAUDE.md`,
+      `/GEMINI.md`, or exact generated subtrees unless the user wants generated
+      outputs tracked; `.harness` source paths such as
+      `.harness/resources/.claude/settings.json` are proven not ignored; if
+      generated files are already tracked, `git rm --cached -r` or
+      `git rm --cached` is run for every tracked generated output and staged
+      with `git add`.
+- [ ] The generated-output ignore check is built from the repo-specific ledger:
+      expected generated outputs are ignored, and representative `.harness`,
+      profile, local, and target-derived source paths are not ignored.
+- [ ] Generated-output gitignore is paired with a tracked fresh-checkout and
+      after-update activation path, including what users or scripts should run
+      after `git pull` to refresh generated outputs.
+- [ ] The staged diff and working tree are inspected after untracking;
+      `git diff --cached --name-status` shows expected deletions from the index
+      for generated outputs, generated files still exist locally, activation can
+      regenerate them from `.harness`, and any would-be data loss is fixed
+      before completion.

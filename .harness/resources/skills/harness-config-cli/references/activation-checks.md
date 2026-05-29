@@ -36,5 +36,8 @@ node packages/cli/dist/bin.js activate --root . --yes
 - `activate --yes` should write the generated root files and declared targets.
 - A second dry activation should converge to `keep` for managed files and
   preserve unmanaged target files unless `--remove-unmanaged` is explicit.
+- Target symlink conflicts should remain blocked unless
+  `[activation].targetSymlinks = "replace"` or `--replace-target-symlinks` is
+  explicit.
 - Generated `.agents` and `.claude` files should match `.harness` source
   intent, including target-specific overrides.

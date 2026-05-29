@@ -72,12 +72,11 @@ Release steps:
    checks that package versions match the tag, reruns quality, publishes npm
    packages, and creates the GitHub release.
 
-Npm dist-tags are selected from the version:
-
-- `1.2.3-alpha.1` publishes with `alpha`;
-- `1.2.3-beta.1` publishes with `beta`;
-- `1.2.3-rc.1` publishes with `next`;
-- `1.2.3` publishes with `latest`.
+During the v1 alpha, every release tag publishes packages with the npm
+`latest` dist-tag, including prerelease versions such as `1.0.0-alpha.6`.
+The GitHub release is also explicitly marked as the latest release. This keeps
+the default npm package page and `npx harnessc` install path pointed at the
+current alpha until the project chooses a separate prerelease channel policy.
 
 Before pushing a release tag, configure npm trusted publishing for each
 publishable package:

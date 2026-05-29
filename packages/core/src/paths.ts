@@ -16,6 +16,7 @@ export const HARNESS_CONFIG_DIR = ".harness";
 export const HARNESS_CONFIG_FILE = "harness.toml";
 export const HARNESS_RESOURCES_DIR = "resources";
 export const HARNESS_IGNORE_FILE = ".harnessIgnore";
+export const HARNESS_MUTABLE_FILE = ".harnessMutable";
 export const HARNESS_PROFILE_FILE = ".harnessProfile";
 export const HARNESS_PROFILE_ROOT_FILE = ".harnessProfileRoot";
 export const CONVENTIONAL_HARNESS_RESOURCES = [
@@ -62,6 +63,7 @@ export function resolveHarnessPaths(
     harnessDir,
     configPath,
     ignorePath: path.join(absoluteRoot, HARNESS_IGNORE_FILE),
+    mutablePath: path.join(absoluteRoot, HARNESS_MUTABLE_FILE),
     resourcesDirs,
     dirDirs,
     resourcesDir,
@@ -130,7 +132,10 @@ export function detectImplicitOverrideTarget(
     .replace(/^\.\//, "")
     .replace(/\/+/g, "/")
     .replace(/\/+$/, "");
-  if (!normalizedPath.endsWith(`/${HARNESS_IGNORE_FILE}`)) {
+  if (
+    !normalizedPath.endsWith(`/${HARNESS_IGNORE_FILE}`) &&
+    !normalizedPath.endsWith(`/${HARNESS_MUTABLE_FILE}`)
+  ) {
     return undefined;
   }
   if (

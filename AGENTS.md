@@ -49,14 +49,17 @@ Remove `.harnessProfile` and activate again to return to the neutral guide.
   the selected manifest.
 - Preserve the one-way projection model. Source of truth is configured source
   roots; target folders are generated outputs, not source repositories.
-- Use the standard filenames exactly: `.harnessIgnore`, `.harnessProfile`,
-  `.harnessProfileRoot`, `.harnessComposable`, and `.harnessRef`.
+- Use the standard filenames exactly: `.harnessIgnore`, `.harnessMutable`,
+  `.harnessProfile`, `.harnessProfileRoot`, `.harnessComposable`, and
+  `.harnessRef`.
 - Treat `.harnessProfileRoot` as profile source only. It must live under
   `.harness`, a configured resources source, or a configured dir source, must
   not be projected as a resource item, and must overlay resources or dir
   outputs by logical source path.
-- Keep `.harnessIgnore` as the projection boundary for global, source-local,
-  target-output-local, and `[mutable]` rules.
+- Keep `.harnessIgnore` as the projection ignore boundary for global,
+  source-local, profile-local, and target-output-local rules.
+- Keep `.harnessMutable` separate from `.harnessIgnore`. Mutable rules seed
+  target files once from `.harness` source and then preserve runtime edits.
 - Prefer focused tests near the behavior being changed. Update
   `docs/TESTING.md` when a new standard or CLI scenario is added.
 ## Specification Source Of Truth
@@ -134,7 +137,7 @@ Expected manual evidence:
 - Direct resource files project to target roots, with target-root overrides.
 - Root `.harnessIgnore` excludes source logs.
 - Target-output `.harnessIgnore` can filter one target while being preserved.
-- `[mutable]` files are created once, then left untouched until
+- `.harnessMutable` files are created once, then left untouched until
   `--force-mutable`.
 - Dir composition writes root files, follows `.harnessRef`, and merges outputs
   that land under a declared target.
@@ -176,8 +179,9 @@ TOML
 
 cat > "$tmp/.harnessIgnore" <<'EOF'
 .harness/**/logs/
+EOF
 
-[mutable]
+cat > "$tmp/.harnessMutable" <<'EOF'
 .harness/**/settings.local.json
 EOF
 
@@ -259,8 +263,10 @@ clear non-zero diagnostics for:
 - duplicate target paths,
 - absolute paths or paths containing `..`,
 - targets under `./.harness`,
-- target entries with fields other than `path`,
-- malformed `.harnessIgnore` or `[mutable]` sections,
+- target entries with unknown fields report informational diagnostics instead
+  of errors,
+- malformed `.harnessIgnore` files, legacy `[mutable]` sections, or
+  malformed `.harnessMutable` files,
 - `.harnessProfileRoot` outside `.harness` and the configured source roots,
 - overlapping configured resources, dir, or target paths,
 - non-default manifest paths selected with `--config`,

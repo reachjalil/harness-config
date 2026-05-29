@@ -23,7 +23,7 @@ Harnesses expose live files and folders such as `AGENTS.md`, `.agents`, `.claude
 
 Harness config keeps reusable agent resources in configured repository-owned source roots, conventionally under `.harness`, declares every harness surface output as an explicit target, and materializes each target through a dry-run-first copy projection. Ordered source roots let a project layer shared configuration with optional local customization while keeping the reviewed source stable.
 
-The key idea is an ownership boundary. Canonical prompts, skills, rules, hooks, and instruction parts are repo-owned source. Live harness surfaces are generated outputs. Files declared under `[mutable]` are seeded from source once, then become runtime-owned target state for settings, permissions, learned commands, and other local data that should survive future activation.
+The key idea is an ownership boundary. Canonical prompts, skills, rules, hooks, and instruction parts are repo-owned source. Live harness surfaces are generated outputs. Files declared in `.harnessMutable` are seeded from source once, then become runtime-owned target state for settings, permissions, learned commands, and other local data that should survive future activation.
 
 The privacy model follows from the same file contract. Validation, planning, and activation operate on repository files locally; the standard does not require telemetry, analytics, hosted services, or network access.
 
@@ -50,7 +50,7 @@ Harness config answers four practical questions:
 - **Where does durable agent configuration live?** In configured source roots, under `.harness/` by default, not in a harness surface that a tool may also write.
 - **Which live folders receive generated files?** Only the paths declared as `[[targets]]` in the selected manifest, which defaults to `./.harness/harness.toml`.
 - **What is allowed to cross the projection boundary?** `.harnessIgnore` files can filter by source path and by final output path.
-- **Which target files can the runtime own?** `[mutable]` rules seed files once and then preserve the live target bytes as runtime-owned state.
+- **Which target files can the runtime own?** `.harnessMutable` rules seed files once and then preserve the live target bytes as runtime-owned state.
 - **How do teams vary the output safely?** Target-derived overrides handle runtime differences; profile overlays handle team kits, personal customizations, and target-local variants.
 - **How does local variation stay accountable?** Target-output profiles and ignores are preserved as live controls, while activation still reports the computed plan before writing.
 
@@ -78,7 +78,7 @@ Ignore and profile controls matter because real repositories have local variatio
 5. Compose or copy dir outputs and merge outputs that land under declared targets.
 6. Preview creates, updates, mutable skips, removals, keeps, and preserved unmanaged entries before writing.
 
-The important constraint is one-way ownership: `.harness/` is canonical, live targets are generated outputs, target-output declaration files such as `.harnessIgnore` and `.harnessProfile` are protected local controls rather than projected source files, and `[mutable]` files are runtime-owned after their first projection.
+The important constraint is one-way ownership: `.harness/` is canonical, live targets are generated outputs, target-output declaration files such as `.harnessIgnore` and `.harnessProfile` are protected local controls rather than projected source files, and `.harnessMutable` files are runtime-owned after their first projection.
 
 ## Open Proposal
 

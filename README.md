@@ -2,7 +2,7 @@
 
 [![Website](https://img.shields.io/badge/website-harnessconfig.dev-111827)](https://www.harnessconfig.dev/)
 [![Specification](https://img.shields.io/badge/spec-proposal-111827)](https://www.harnessconfig.dev/specifications/v1/)
-[![CI](https://github.com/reachjalil/harness-config/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/reachjalil/harness-config/actions/workflows/ci.yml)
+[![CI](https://github.com/reachjalil/harness-config/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/reachjalil/harness-config/actions/workflows/ci.yml?query=branch%3Amain)
 [![skills.sh](https://skills.sh/b/reachjalil/harness-config)](https://skills.sh/reachjalil/harness-config)
 [![npm harnessc](https://img.shields.io/npm/v/harnessc?label=harnessc)](https://www.npmjs.com/package/harnessc)
 [![npm @harnessconfig/core](https://img.shields.io/npm/v/@harnessconfig/core?label=%40harnessconfig%2Fcore)](https://www.npmjs.com/package/@harnessconfig/core)
@@ -10,7 +10,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](./LICENSE)
 
 **Status:** Specification proposal with an alpha reference implementation.
-The npm package set is currently `1.0.0-alpha.3`. Treat the v1 file shape and
+The npm package set is currently `1.0.0-alpha.6`. Treat the v1 file shape and
 activation model as a public proposal while public releases, conformance
 fixtures, adopter repositories, and external issue traffic mature.
 
@@ -42,13 +42,13 @@ and custom targets.
 The central model is explicit ownership. Reviewed source roots are
 repo-owned: they hold the canonical prompts, skills, rules, hooks, and
 instruction parts. Live harness surfaces are generated outputs. Files declared
-under `[mutable]` cross the boundary once as seed data, then become
+in `.harnessMutable` cross the boundary once as seed data, then become
 runtime-owned state that activation reports but does not overwrite by default.
 
-The alpha reference CLI is intentionally boring: initialize, validate, preview,
-and activate file projections with explicit targets and reviewable diffs. Both
-the manifest path and resources source path can be explicit when a repository
-needs a different layout.
+The alpha reference CLI is intentionally boring: initialize, validate, explain,
+preview, and activate file projections with explicit targets and reviewable
+diffs. Both the manifest path and resources source path can be explicit when a
+repository needs a different layout.
 
 Harness config does not collect telemetry. The `harnessc` CLI does not send
 analytics, usage events, file paths, repository names, command history, machine
@@ -75,7 +75,7 @@ harness surface target.
 
 That matters most when a harness both reads and writes its surface. Settings,
 permission grants, allow-lists, learned commands, and local scratch state need
-a place to live without pretending to be canonical source. The `[mutable]`
+a place to live without pretending to be canonical source. The `.harnessMutable`
 model lets a repository provide an initial template while making the live
 target file runtime-owned after first activation.
 
@@ -113,9 +113,9 @@ source  ->  validate  ->  plan  ->  activate  ->  runtime-owned state
 ```
 
 Projection is customizable without making live folders canonical: declare
-targets, select profile overlays, filter with `.harnessIgnore`, and mark local
-settings or permission files as `[mutable]` when the runtime should own them
-after the first projection.
+targets, select profile overlays, filter exclusions with `.harnessIgnore`, and
+declare local settings or permission files in `.harnessMutable` when the
+runtime should own them after the first projection.
 
 ## Why now
 
@@ -138,18 +138,19 @@ teams keep tool-native surfaces while reviewing shared configuration once.
 - **Copy projection.** Targets are materialized as ordinary files, not
   symlinks. The plan (`create` / `update` / `remove` / `keep` / `preserve`
   / `mutable`) is shown before any write.
-- **Runtime-owned mutable files.** `[mutable]` is an ownership boundary, not
-  just an exclusion. Source can seed a target file once; after that, the live
+- **Runtime-owned mutable files.** `.harnessMutable` is an ownership boundary,
+  not an exclusion. Source can seed a target file once; after that, the live
   runtime owns the target bytes until mutable re-projection is explicitly
   forced.
 - **Idempotent under fixed inputs.** Given the same source tree, manifest,
-  ignore rules, cleanup policy, and mutable policy, repeat activation
+  ignore rules, mutable rules, cleanup policy, and mutable policy, repeat activation
   converges to a `keep`-only plan for managed files and a `mutable`-only
   plan for runtime-owned files. See
   [STANDARD.md § Copy Projection](./docs/STANDARD.md#copy-projection) for
   the formal statement.
-- **One projection filter** (`.harnessIgnore`) covers global,
-  target-output-local, and runtime-owned (`[mutable]`) exclusions.
+- **Separate projection filters** keep ownership clear: `.harnessIgnore`
+  excludes files from projection, while `.harnessMutable` marks projected
+  source files as create-once runtime-owned targets.
 
 ## Filesystem Semantics
 
@@ -160,9 +161,9 @@ Harness config is conservative by default because activation mutates live files:
 - **Managed files are overwritten from source.** If target bytes differ from
   the computed projection, activation reports `update` and writes source bytes
   when applied.
-- **Mutable files become runtime-owned after first projection.** `[mutable]`
-  files are created once from source, then treated as runtime-owned target
-  state unless mutable re-projection is explicitly forced.
+- **Mutable files become runtime-owned after first projection.** Files matched
+  by `.harnessMutable` are created once from source, then treated as
+  runtime-owned target state unless mutable re-projection is explicitly forced.
 - **Unmanaged files are preserved by default.** Cleanup requires an explicit
   choice.
 - **Target-output controls are protected local state.** Existing target-side
@@ -215,6 +216,7 @@ source maintainers.
 npx harnessc
 npx harnessc init
 npx harnessc validate
+npx harnessc explain .agents/skills/review/SKILL.md
 npx harnessc activate
 npx harnessc activate --yes
 ```
@@ -237,6 +239,7 @@ Default resources source:
 
 ```text
 .harnessIgnore
+.harnessMutable
 .harness/
   harness.toml
   resources/
@@ -294,9 +297,6 @@ repo-local manifest path explicitly:
 ```toml
 version = 1
 
-[standard]
-name = "harness-config"
-
 [[resources]]
 path = "./.harness/resources"
 
@@ -348,6 +348,18 @@ Use the selected manifest to declare targets, ordered `[[dir]]` output sources, 
 extensions. Use `.harnessIgnore` to control which files or whole subtrees are
 excluded from projection.
 
+Use `.harnessMutable` for files that should be seeded from source only when
+missing, then left to the runtime:
+
+```text
+# .harnessMutable
+.harness/**/settings.local.json
+```
+
+Mutable is different from ignore. A file matched by `.harnessIgnore` is not
+projected. A file matched by `.harnessMutable` is projected when absent, then
+reported as `mutable` and left untouched unless `--force-mutable` is used.
+
 Local `.harnessIgnore` files may also live next to source subtrees or
 existing target-output subtrees:
 
@@ -394,6 +406,11 @@ resource or dir source trees overlay their parent folder, which lets a skill
 carry its own portable profile override. Profile-local `.harnessIgnore` files
 match the logical overlay path, so a profile can suppress base files or
 composable parts while adding its own files.
+Ignore precedence follows logical path depth: repo-root rules run first,
+source/profile-local rules run shallow-to-deep at their logical locations, and
+target-output rules are the final boundary. Target-derived override ignores
+are evaluated at their logical source and target locations rather than at the
+physical dot-folder storage path.
 
 ## CLI
 
@@ -406,19 +423,19 @@ pnpm --filter @harnessconfig/cli exec harnessc init
 pnpm --filter @harnessconfig/cli exec harnessc activate
 pnpm --filter @harnessconfig/cli exec harnessc activate --yes
 pnpm --filter @harnessconfig/cli exec harnessc init --resource prompts --target ./.claude
-pnpm --filter @harnessconfig/cli exec harnessc plan
 ```
 
-After publishing, run the CLI through npm. During alpha, use the alpha tag:
+After publishing, run the CLI through npm. During v1 alpha, release automation
+publishes the current alpha as the npm `latest` dist-tag, so the default
+`npx harnessc` command resolves to the current alpha:
 
 ```bash
-npx harnessc@alpha validate
-npx harnessc@alpha explain .agents/skills/review/SKILL.md
-npx harnessc@alpha init
-npx harnessc@alpha activate
-npx harnessc@alpha activate --yes
-npx harnessc@alpha init --yes --resource prompts --target ./runtime/agent
-npx harnessc@alpha plan
+npx harnessc validate
+npx harnessc explain .agents/skills/review/SKILL.md
+npx harnessc init
+npx harnessc activate
+npx harnessc activate --yes
+npx harnessc init --yes --resource prompts --target ./runtime/agent
 ```
 
 The public CLI package is `harnessc`.
@@ -430,18 +447,19 @@ flags are supplied. Use `--resources-path <path>` to write an explicit
 `--config <path>` when the manifest should be somewhere other than
 `./.harness/harness.toml`. Passing one or more `--resource <kind>` flags
 writes only those resource folders. Passing `--target <path>` declares
-explicit projection targets. Init is a dry run
-unless `--yes` is supplied.
+explicit projection targets.
 
-`harnessc plan` is a read-only initialization/adoption plan. It is not a
-projection preview, and it does not infer targets from existing folders.
-Folders receive projection only after they are declared in the selected
-manifest.
-Run `harnessc activate` without `--yes` to preview the projection.
+Without `--yes`, `harnessc init` shows the adoption plan: the manifest, the
+ignore and mutable files, and the resource folders that would be created. It
+does not infer targets from existing folders — folders receive projection only
+after they are declared in the selected manifest. Run `harnessc activate`
+without `--yes` to preview the projection that will be applied to those
+declared targets.
 
 `harnessc explain <path>` is read-only introspection for a source or output
 path. It shows the matching target or repo-relative output, configured source
-root, source-use entries, dir actions, and blocking diagnostics.
+root, source-use entries, dir actions, blocking diagnostics, and the winning
+`.harnessIgnore` decision for source and target-output paths.
 
 `harnessc activate` is also a dry run unless `--yes` is supplied. The dry run
 prints the target strategy and the filesystem actions that would be taken.
@@ -452,8 +470,8 @@ preservation choice explicit.
 
 Managed files are compared directly with the current projection. If target
 bytes differ, activation reports `update` and applying activation overwrites
-the target with the current source bytes. Files marked under `[mutable]` in
-`.harnessIgnore` are created once and then reported as runtime-owned
+the target with the current source bytes. Files marked in `.harnessMutable`
+are created once and then reported as runtime-owned
 `mutable` entries until `--force-mutable` is used. This keeps canonical
 repo-owned content and runtime-owned state visible in the same plan without
 collapsing them into the same ownership category.
@@ -575,9 +593,10 @@ and package dry-runs for every publishable package.
 - Targets are path-only and copy-only in v1.
 - Live target folders are derived projection outputs, not source repositories.
 - Activation is idempotent for the same configured sources, manifest, ignore
-  rules, cleanup policy, and mutable policy.
-- `.harnessIgnore` is the single projection filter, with target-specific
-  exclusions expressed by target-output-local files.
+  rules, mutable rules, cleanup policy, and mutable policy.
+- `.harnessIgnore` excludes files from projection; `.harnessMutable` declares
+  create-once runtime-owned seed files. Target-specific exclusions are
+  expressed by target-output-local `.harnessIgnore` files.
 - `.harnessProfile` selects optional `.harnessProfileRoot` overlays without
   making live target folders source roots.
 - Target override folders are derived from target paths.
@@ -589,5 +608,6 @@ See [the rationale](./docs/RATIONALE.md),
 [the standard](./docs/STANDARD.md),
 [the adoption guide](./docs/ADOPTION.md),
 [tooling](./docs/TOOLING.md),
-[conformance](./docs/CONFORMANCE.md), and
+[conformance](./docs/CONFORMANCE.md),
+[diagnostic catalog](./docs/DIAGNOSTICS.md), and
 [test matrix](./docs/TESTING.md) for details.

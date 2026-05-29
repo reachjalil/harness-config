@@ -14,8 +14,8 @@ source tree, then projecting them into explicit runtime folders such as
 `.agents`, `.claude`, `.cursor`, and `.gemini`.
 
 Run `harnessc` from anywhere inside a repository. It searches upward for
-`./.harness/harness.toml`, validates the selected config, and prints the next
-useful command.
+`./.harness/harness.toml`, validates the selected config, explains source or
+output paths, and prints the next useful command.
 
 ## Privacy And Telemetry
 
@@ -31,6 +31,7 @@ during normal operation.
 npx harnessc
 npx harnessc init
 npx harnessc validate
+npx harnessc explain .agents/skills/review/SKILL.md
 npx harnessc activate
 npx harnessc activate --yes
 ```
@@ -41,16 +42,27 @@ npx harnessc activate --yes
 harnessc
 harnessc init
 harnessc validate
+harnessc explain .agents/skills/review/SKILL.md
 harnessc activate
 harnessc activate --yes
 harnessc plan
 ```
 
+`harnessc explain <path>` is read-only introspection. It can explain a
+projected output such as `.agents/skills/review/SKILL.md`, a repo-relative dir
+output such as `AGENTS.md`, or a configured source path such as
+`.harness/local/resources/skills/review/SKILL.md`. With `--json`, it includes
+source and target-output `.harnessIgnore` traces so automation can see the
+winning rule.
+
 ## Filesystem Semantics
 
 - Symlinks are treated as leaf entries and are not followed.
+- Target symlinks that occupy projected paths are conflicts unless replacement
+  is explicitly selected.
 - Managed target files update from the current source projection.
-- `[mutable]` files are created once, then left to the runtime.
+- Files declared in `.harnessMutable` are created once, then left to the
+  runtime.
 - Unmanaged target files are preserved unless cleanup is explicit.
 - Target-output `.harnessIgnore` and `.harnessProfile` files are protected
   local controls.
