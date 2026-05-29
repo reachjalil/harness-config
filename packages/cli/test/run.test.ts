@@ -795,7 +795,9 @@ version = 1
 
 [[targets]]
 path = "./.claude"
-mode = "copy"
+
+[activation]
+targetSymlinks = "sometimes"
 `
     );
     await write(root, ".harnessIgnore", "");

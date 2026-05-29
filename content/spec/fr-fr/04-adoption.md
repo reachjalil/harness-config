@@ -14,7 +14,7 @@ llmSummary: Couvre les workflows de création d'un catalogue Harness config, de 
 audience: Développeurs introduisant Harness config dans des dépôts nouveaux ou existants.
 contentKind: spec
 status: draft
-updated: 2026-05-29
+updated: 2026-05-28
 ---
 
 # Adoption de Harness config
@@ -145,7 +145,7 @@ Ne pas ignorer tout `.harness/` ; cela cacherait le manifeste et la source révi
 
 - **Traiter un dossier vivant comme à la fois source et cible.** Ne pas pointer une entrée `[[targets]]` vers un dossier que vous éditez aussi directement. La prochaine activation rapportera une dérive ou écrasera les éditions vivantes. Si un dossier doit rester la source pour le moment, le laisser hors de `[[targets]]`.
 - **Oublier de déclarer une cible.** Les ressources ne se projettent que vers les cibles déclarées. Un dépôt peut avoir `./.harness/resources/skills/foo/` et `.claude/` sur disque et toujours voir « aucune création » — parce que `./.claude` n'est pas dans `[[targets]]`.
-- **Mettre l'état produit ou runtime sous `.harness/`.** `./.harness/` est pour la source durable et révisable. Les enregistrements d'activation, les hashs de dérive et les caches produit appartiennent aux dossiers possédés par le produit tels que `.harnex/` et à `.harnessIgnore`.
+- **Mettre l'état produit ou runtime sous `.harness/`.** `./.harness/` est pour la source durable et révisable. Les enregistrements d'activation, les hashs de dérive et les caches produit appartiennent aux dossiers possédés par le produit tels que `.harness-cache/` et à `.harnessIgnore`.
 - **Mettre des fichiers à la racine cible dans un kit par accident.** Un fichier à la racine cible tel que `.claude/settings.json` devrait être représenté à `.harness/resources/.claude/settings.json`, pas à l'intérieur d'un dossier de skill ou d'un groupe de ressources non lié. Le marquer mutable lorsqu'il devrait initialiser une seule fois puis devenir possédé par le runtime.
 - **Utiliser les surcharges pour forker du contenu largement.** Les dossiers de surcharge remplacent des chemins relatifs exacts ou en ajoutent de nouveaux. Ce sont volontairement un petit marteau ; si une cible a besoin d'une version très différente d'un skill, préférer un élément de ressource séparé plutôt qu'un arbre de surcharge profond.
 - **Commiter des fichiers écrits par le runtime comme s'ils étaient source.** Les fichiers comme `.claude/settings.local.json` devraient typiquement être copiés dans `.harness` comme graine et déclarés dans `.harnessMutable` pour que la projection les initialise une seule fois puis les laisse tranquilles. Si le fichier devient plus tard une politique partagée, promouvoir les octets désirés en racine source configurée et forcer la re-projection mutable délibérément.

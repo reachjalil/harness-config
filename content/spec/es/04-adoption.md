@@ -14,7 +14,7 @@ llmSummary: Cubre los flujos de creación de un catálogo Harness config, declar
 audience: Desarrolladores que introducen Harness config en repositorios nuevos o existentes.
 contentKind: spec
 status: draft
-updated: 2026-05-29
+updated: 2026-05-28
 ---
 
 # Adopción de Harness config
@@ -145,7 +145,7 @@ No ignorar todo `.harness/`; eso ocultaría el manifiesto y la fuente revisada r
 
 - **Tratar una carpeta viva como tanto fuente como objetivo.** No apuntar una entrada `[[targets]]` a una carpeta que también edites directamente. La próxima activación reportará deriva o sobrescribirá las ediciones vivas. Si una carpeta debe permanecer como la fuente por ahora, dejarla fuera de `[[targets]]`.
 - **Olvidar declarar un objetivo.** Los recursos solo se proyectan a objetivos declarados. Un repositorio puede tener `./.harness/resources/skills/foo/` y `.claude/` en disco y aún ver "ninguna creación" — porque `./.claude` no está en `[[targets]]`.
-- **Poner estado de producto o runtime bajo `.harness/`.** `./.harness/` es para fuente persistente y revisable. Los registros de activación, hashes de deriva y cachés de producto pertenecen a carpetas propiedad de producto como `.harnex/` y a `.harnessIgnore`.
+- **Poner estado de producto o runtime bajo `.harness/`.** `./.harness/` es para fuente persistente y revisable. Los registros de activación, hashes de deriva y cachés de producto pertenecen a carpetas propiedad de producto como `.harness-cache/` y a `.harnessIgnore`.
 - **Poner archivos de raíz objetivo en un kit por accidente.** Un archivo de raíz objetivo como `.claude/settings.json` debería ser representado en `.harness/resources/.claude/settings.json`, no dentro de una carpeta de skill o un grupo de recursos no relacionado. Marcarlo mutable cuando debería ser inicializado una vez y luego volverse propiedad del runtime.
 - **Usar overrides para hacer fork de contenido ampliamente.** Las carpetas de override reemplazan caminos relativos exactos o añaden archivos nuevos. Son intencionalmente un martillo pequeño; si un objetivo necesita una versión muy diferente de un skill, preferir un elemento de recurso separado sobre un árbol de override profundo.
 - **Commitear archivos escritos por el runtime como si fueran fuente.** Los archivos como `.claude/settings.local.json` deberían típicamente ser copiados a `.harness` como una semilla y declarados en `.harnessMutable` para que la proyección los inicialice una vez y luego los deje en paz. Si el archivo luego se convierte en política compartida, promover los bytes deseados de vuelta a la raíz fuente configurada y forzar la reproyección mutable deliberadamente.

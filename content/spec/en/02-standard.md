@@ -130,7 +130,7 @@ authoritative.
 - **Mutable file** — a projected target file declared by `.harnessMutable`;
   source provides the initial template, and the runtime owns the target bytes
   after first projection.
-- **Conforming repository / tool** — see [Conformance](./CONFORMANCE.md).
+- **Conforming repository / tool** — see [Conformance](/specifications/v1/conformance/).
 
 ## Versioning
 
@@ -150,7 +150,7 @@ version = 1
 Version `1` standardizes:
 
 - the `./.harness` convention root,
-- the selected TOML manifest schema for path-only targets,
+- the selected TOML manifest schema for targets with required repo-local paths,
   ordered `[[resources]]` source roots, ordered `[[dir]]` source roots, and
   top-level extension declarations,
 - the configured resources source trees,
@@ -159,7 +159,7 @@ Version `1` standardizes:
 - dir composition (`.harnessComposable` leaves) and copy contract
   for files that project to repo-relative paths,
 - `.harnessIgnore` projection ignore files, including repo-root rules,
-  source-local rules, and target-output-local rules.
+  source-local rules, profile-local rules, and target-output-local rules.
 - `.harnessMutable` projection mutable files, including repo-root rules,
   source-local rules, and profile-local rules.
 
@@ -175,7 +175,7 @@ Harness config standardizes:
 - the selected manifest file and its schema,
 - the resource layout under configured resources sources,
 - per-resource target overrides as immediate dot-prefixed folders,
-- explicit, path-only target declarations,
+- explicit target declarations with required repo-local paths,
 - top-level activation policy with defined defaults,
 - ordered dir source roots, with composable (`.harnessComposable`)
   leaves and copy-mode directories that project to repo-relative paths,
@@ -272,7 +272,9 @@ Any directory under a resources source MAY be a composable file source
 when it contains an empty `.harnessComposable` marker. The directory name is
 the projected file path, and its numeric-prefix parts compose with the same
 `.harnessRef` and `.harnessIgnore` semantics defined for dir composable
-leaves. For example,
+leaves. A `.harnessMutable` rule that matches the composable leaf's logical
+output path marks the composed output file as runtime-owned; the marker,
+parts, and `.harnessRef` file are never projected individually. For example,
 `./.harness/resources/skills/review/SKILL.md/.harnessComposable` projects one
 target file at `skills/review/SKILL.md`; the numbered files inside that
 directory are not projected individually. Resource composable leaves are still
@@ -326,9 +328,11 @@ activation = "explicit"
 Resource projection uses only declared `[[resources]]` source roots. If no
 `[[resources]]` entries are declared, resource projection is disabled.
 
-Each `[[resources]]` table MUST contain only `path`. The path MUST be
-repo-local, MUST resolve inside the repository, and MUST NOT contain `..`
-segments. A manifest MUST NOT contain a single `[resources]` table or any
+Each `[[resources]]` entry MUST contain `path`. Tools MUST NOT fail validation
+solely because a `[[resources]]` entry carries an unrecognized key reserved for
+future v1 revisions; they SHOULD report unrecognized keys as informational.
+The path MUST be repo-local, MUST resolve inside the repository, and MUST NOT
+contain `..` segments. A manifest MUST NOT contain a single `[resources]` table or any
 `[resources.<kind>]` tables; resource kinds remain source-tree names, not
 manifest schema entries.
 
@@ -342,7 +346,10 @@ projected output paths MUST remain inside their declared target.
 
 Every target is explicit. Harness config does not reserve, prefer, or imply any
 runtime target folder name. Each `[[targets]]` entry in the selected manifest
-declares one repo-local target path and MUST contain only `path`.
+declares one repo-local target path and MUST contain `path`. Tools MUST NOT
+fail validation solely because a `[[targets]]` entry carries an unrecognized
+key reserved for future v1 revisions; they SHOULD report unrecognized keys as
+informational.
 
 Target paths MUST resolve inside the repository, MUST point at a folder below
 the repository root, MUST NOT contain `..` segments after normalization, MUST
@@ -363,13 +370,25 @@ normalization (collapsing duplicate separators and removing leading `./`):
 Two `[[targets]]` entries whose normalized paths are equal are duplicates and
 MUST be rejected with a diagnostic.
 
+Two `[[targets]]` entries whose normalized paths overlap as ancestor and
+descendant paths, such as `./.agents` and `./.agents/skills`, MUST be rejected
+with a diagnostic. Targets must be independent projection roots.
+
+Targets that share a first path segment intentionally share one v1
+target-derived override namespace. For example, `./runtime/agent` and
+`./runtime/tools` both use `.runtime` overrides. Prefer distinct first segments
+when two targets need distinct override namespaces.
+
 Targets are configuration, not hidden mutation. Tools SHOULD show the target
 plan before creating, replacing, copying, or removing files.
 
 ### Activation Policy
 
 The optional top-level `[activation]` table contains standard activation
-policy. When omitted, all fields use their defaults.
+policy. When omitted, all fields use their defaults. Tools MUST NOT fail
+validation solely because `[activation]` carries an unrecognized key reserved
+for future v1 revisions; they SHOULD report unrecognized keys as
+informational.
 
 `targetSymlinks` controls symlinks in declared target trees that occupy a path
 required by projection:
@@ -416,6 +435,12 @@ whether to install support.
 
 A tool that does implement an extension MUST validate the extension-owned
 fields before applying that extension's behavior.
+
+A tool that encounters an unrecognized top-level table or key under a supported
+`version` MUST NOT fail validation solely because of it, and SHOULD report it
+as informational so authors can decide whether newer tooling is needed. This
+does not change the manifest rules that make singular `[resources]`,
+`[resources.<kind>]`, and `[dir]` tables invalid in v1.
 
 ## Encoding, Paths, and Case Sensitivity
 
@@ -487,9 +512,10 @@ This is the v1 boundary:
   then become runtime-owned.
 
 Tools SHOULD NOT introduce per-target resource mappings in the selected
-manifest for v1. Keeping target declarations path-only and source roots
-ordered at the top level preserves one place for projection filtering and
-makes dry-run output easier to reason about.
+manifest for v1. Keeping target declarations limited to required repo-local
+paths plus ignored future-compatible fields, while source roots stay ordered at
+the top level, preserves one place for projection filtering and makes dry-run
+output easier to reason about.
 
 ## Copy Projection
 
@@ -499,20 +525,24 @@ targets. The inputs are:
 1. the participating files, composable leaves, and folders under
    configured resources sources, including their override folders,
 2. the selected versioned manifest,
-3. the repo-root `.harnessIgnore`,
-4. the repo-root `.harnessMutable`,
-5. the cleanup policy (preserve unmanaged entries vs. remove them),
-6. the mutable policy (skip mutable files vs. force re-projection),
-7. the target symlink policy (conflict vs. replace).
+3. `.harnessProfile` selectors and active `.harnessProfileRoot` overlays,
+4. all participating `.harnessIgnore` files, including repo-root,
+   source-local, profile-local, and target-output-local rules,
+5. all participating `.harnessMutable` files, including repo-root,
+   source-local, and profile-local rules,
+6. the cleanup policy (preserve unmanaged entries vs. remove them),
+7. the mutable policy (skip mutable files vs. force re-projection),
+8. the target symlink policy (conflict vs. replace).
 
-**Idempotence (testable property).** Let `T_n` be the on-disk tree of a
-declared target after the `n`-th activation against an unchanged set of
-inputs (1)–(7). For every `n ≥ 2`:
+**Idempotence (testable property).** Let `M_n` be the managed projection subset
+of a declared target after the `n`-th activation against the unchanged inputs
+defined above and unchanged target state except for mutable-file byte changes.
+For every `n ≥ 2`:
 
-- the set of files in `T_n` MUST equal the set in `T_1`,
-- every managed (non-mutable) file in `T_n` MUST be byte-identical to its
-  counterpart in `T_1`,
-- every mutable file present in `T_1` MUST remain present in `T_n` with the
+- the set of files in `M_n` MUST equal the set in `M_1`,
+- every managed (non-mutable) file in `M_n` MUST be byte-identical to its
+  counterpart in `M_1`,
+- every mutable file present in `M_1` MUST remain present in `M_n` with the
   same bytes it had at the end of activation `n − 1` (i.e., the runtime owns
   it; activation does not write to it), and
 - no extra filesystem writes to managed files SHOULD occur beyond what
@@ -629,9 +659,8 @@ These rules are normative for v1 activation:
 - Unmanaged target entries are preserved unless explicit cleanup is selected.
 - Target-output `.harnessIgnore` and `.harnessProfile` files are protected
   local state and MUST NOT be projected over or removed by unmanaged cleanup.
-- Activation is deterministic for fixed source trees, selected manifest,
-  profile selectors, ignore rules, mutable rules, cleanup policy, and mutable
-  policy.
+- Activation is deterministic for the inputs defined in
+  [Copy Projection](#copy-projection).
 - Targets MUST NOT point at `./.harness`, overlap configured source roots, or
   overlap each other.
 
@@ -651,15 +680,28 @@ override.
 For target `./.claude`, the override folder is `.claude`; for target
 `./runtime/agent`, the override folder is `.runtime`.
 
-Projection MUST process the resources tree in this order:
+Projection MUST process resource files in this ascending precedence order,
+where later matching files replace earlier files at the exact same projected
+path:
 
-1. Copy canonical resource files, excluding target-root override folders and
-   item-level override folders.
-2. Merge the matching target-root override folder, if present.
-3. Merge the matching item-level target override folder, if present.
-4. Strip the override folder segment from output paths.
-5. Apply `.harnessIgnore` rules to every source file before it enters the
-   projection.
+1. Canonical base resource files across `[[resources]]` sources in manifest
+   order, excluding target-root override folders and item-level override
+   folders.
+2. Generic active-profile overlay files.
+3. Target-derived override files across `[[resources]]` sources in manifest
+   order, including matching target-root override folders and matching
+   item-level override folders. The override folder segment is stripped from
+   output paths.
+4. Profile-specific target override files inside active profile roots.
+
+Ignore rules apply to every source file before it enters projection and remain
+an orthogonal final filter.
+
+When two files in the same precedence phase project to the exact same output
+path, later configured resources sources win over earlier sources. Within one
+resources source and phase, lexicographic source path order provides the
+deterministic last-wins tie-break. File/directory shape conflicts remain
+errors, as described below.
 
 Overrides are merged at the file level, not as whole-directory replacements.
 Override files replace canonical files only when they project to the exact same
@@ -722,9 +764,12 @@ path = "./.harness/dir"
 path = "./.harness/local/dir"
 ```
 
-Each `[[dir]]` table MUST contain only `path`. A manifest MUST NOT contain a
-single `[dir]` table. If no `[[dir]]` entries are declared, no dir composition
-or copy happens. A missing dir source is a valid empty layer.
+Each `[[dir]]` entry MUST contain `path`. Tools MUST NOT fail validation solely
+because a `[[dir]]` entry carries an unrecognized key reserved for future v1
+revisions; they SHOULD report unrecognized keys as informational. A manifest
+MUST NOT contain a single `[dir]` table. If no `[[dir]]` entries are declared,
+no dir composition or copy happens. A missing dir source is a valid empty
+layer.
 
 ### Composable Leaves
 
@@ -901,10 +946,15 @@ re-projection.
 
 Patterns use the same syntax, locality, negation, anchors, directory-only
 suffix, and last-match-wins precedence as `.harnessIgnore`. The repo-root file
-is repo-relative and may match source paths or target output paths. Source
-local and profile-local files are interpreted relative to their logical source
-directory. Target-output `.harnessMutable` files are not part of v1; mutable
-declarations belong to source, not to live targets.
+is repo-relative and matches source paths. Source-local and profile-local files
+are interpreted relative to their logical source directory. Target-output
+`.harnessMutable` files are not part of v1; mutable declarations belong to
+source, not to live targets.
+
+A `.harnessMutable` rule that matches a resource composable leaf's logical
+output path marks the composed output file as mutable. The source parts still
+compose the initial seed, and the marker, part files, and `.harnessRef` file
+remain declaration inputs rather than projected payload.
 
 Mutable evaluation is ordered independently from ignore evaluation:
 
@@ -918,9 +968,13 @@ Section headers are optional in `.harnessMutable`:
 
 - `[*]`, `[global]`, and `[mutable]` apply subsequent mutable rules globally.
 - `[ignore]` is unsupported in `.harnessMutable`; ignore rules belong in
-  `.harnessIgnore`.
+  `.harnessIgnore`. Tools MUST report
+  `harness.mutable_ignore_section_unsupported` and MUST NOT apply rules below
+  that unsupported header until another supported section header appears.
 - Target-specific headers are unsupported for the same reason they are
-  unsupported in `.harnessIgnore`.
+  unsupported in `.harnessIgnore`. Tools MUST report
+  `harness.ignore_unsupported_scope` and MUST NOT apply rules below that
+  unsupported header until another supported section header appears.
 
 Mutable files MUST still flow through the projection ignore step. If a file is
 both ignored and marked mutable, the ignore decision wins because the file
@@ -1021,12 +1075,14 @@ contents of a file that has not been created yet.
 
 Profile overrides are optional source overlays selected by `.harnessProfile`
 files. A `.harnessProfile` file is UTF-8 text. After trimming whitespace from
-each line and ignoring blank lines, it SHOULD contain zero or one profile
-name. Zero profile names selects no profile for that output subtree. More
-than one non-empty line SHOULD produce a warning, and tools MAY use the first
-profile name for compatibility. The repo-root `.harnessProfile` applies
-globally; a target/output-local `.harnessProfile` applies to its directory
-and descendants, and the nearest selector wins for any output path.
+each line and ignoring blank lines, it MUST contain zero or one profile name.
+Zero profile names selects no profile for that output subtree. More than one
+non-empty line MUST produce an error, and that selector MUST NOT participate
+in projection. The repo-root `.harnessProfile` applies globally; a
+target/output-local `.harnessProfile` applies to its directory and descendants,
+and the nearest selector wins for any output path. Each output path has at most
+one active profile at a time, although different target or dir output subtrees
+may select different profiles with nearer target/output-local selectors.
 
 Profile content is declared with `.harnessProfileRoot`, which MUST live under
 `./.harness`, under a configured resources source, or under a configured dir
@@ -1061,15 +1117,14 @@ Profile roots overlay source paths by where the marker is placed:
   `.harness/kits/deploy-kit/.harnessProfileRoot` with children like
   `resources/` and `dir/`.
 
-During projection, generic base source files are considered first across
-resources sources in manifest order, then generic active profile files, then
-target-derived override files across resources sources in manifest order, then
-active profile files inside the matching target override. A generic profile
-overlay therefore cannot replace a target-specific override such as `.codex`;
-a profile-specific `.codex` override can. If multiple active profile roots
-project the same logical file, a tool SHOULD warn and MAY use deterministic
-last-wins ordering. Profile-local `.harnessIgnore` and `.harnessMutable` files
-match the logical overlay path, not the storage path.
+During projection, profile overlays participate in the resource precedence
+order defined in [Overrides](#overrides). A generic profile overlay therefore
+cannot replace a target-specific override such as `.codex`; a
+profile-specific `.codex` override can. If multiple active profile roots for
+the selected profile project the same logical file, tools MUST use
+deterministic last-wins ordering by profile root path and SHOULD report a
+warning. Profile-local `.harnessIgnore` and `.harnessMutable` files match the
+logical overlay path, not the storage path.
 For example, an ignore file at
 `.harness/profiles/personal/dir/AGENTS.md/.harnessIgnore` applies as if it
 were located at `.harness/dir/AGENTS.md/.harnessIgnore`, so it can suppress
@@ -1077,8 +1132,8 @@ base composable parts before adding profile parts.
 
 Source-local `.harnessIgnore` files that are physical ancestors of a profile
 root also apply before the profile root is mapped onto its logical overlay
-path. For example, `.harness/kits/.harnessIgnore` can exclude
-`.harness/kits/deploy/**/.harnex/` metadata from the active `deploy` profile
+  path. For example, `.harness/kits/.harnessIgnore` can exclude
+  `.harness/kits/deploy/**/.harness-cache/` metadata from the active `deploy` profile
 even when files under that profile root overlay logical paths such as
 `.harness/resources` or `.harness/dir`.
 
@@ -1123,9 +1178,7 @@ The source/projection boundary makes cross-surface differences reviewable:
   removals, keeps, unmanaged preserved entries, and mutable skips before
   mutation.
 - Read-only path introspection, when provided by a tool, MUST be derived from
-  the same selected manifest, configured source roots, profile selectors,
-  ignore rules, mutable rules, mutable policy, and projection model as
-  activation.
+  the same inputs defined in [Copy Projection](#copy-projection) as activation.
 - Live harness surfaces MUST be treated as projection targets, not source
   repositories.
 - Teams MAY gitignore live harness surfaces because they are generated outputs;
@@ -1135,9 +1188,8 @@ The source/projection boundary makes cross-surface differences reviewable:
   source roots required to regenerate those surfaces. Developer-local source
   roots MAY be gitignored when they are intentionally outside the shared
   source of truth.
-- Activation MUST be idempotent for the same selected manifest, configured
-  source roots, `.harnessIgnore`, `.harnessMutable`, participating resources,
-  cleanup policy, and mutable policy.
+- Activation MUST be idempotent for the same inputs defined in
+  [Copy Projection](#copy-projection).
 - Projection MUST honor `.harnessIgnore` so logs, metadata, caches, and
   implementation state stay out of live harness surfaces.
 - Tools MUST merge target-derived overrides when present and fall back to the
@@ -1196,6 +1248,10 @@ new standard version:
 - New optional fields with defined defaults that preserve the meaning of
   v1 documents that omit them.
 - New extension declarations (which are opt-in by definition).
+- New optional fields in `[[resources]]`, `[[targets]]`, or `[[dir]]` entries
+  under the unknown-key rule.
+- New unrecognized top-level tables or keys under the unknown-field rule when
+  older tools can safely ignore them.
 - Additional diagnostics or non-blocking warnings.
 
 The following changes are reserved for v2:

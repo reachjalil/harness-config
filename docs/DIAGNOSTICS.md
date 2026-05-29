@@ -27,6 +27,7 @@ optional recommendation. Severity is one of:
 | --- | --- | --- |
 | `harness.config_missing` | warning | The selected manifest file is missing. |
 | `harness.config_invalid` | error | The selected manifest could not be parsed or failed schema validation. |
+| `harness.manifest_unknown_field` | info | The selected manifest contains an unrecognized key or table reserved for future v1 revisions. |
 | `harness.root_not_directory` | error | `./.harness` exists but is not a directory. |
 | `harness.ignore_not_file` | error | `.harnessIgnore` exists but is not a regular file. |
 | `harness.ignore_missing` | warning | `./.harness/` exists but the repo-root `.harnessIgnore` is missing. |

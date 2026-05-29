@@ -1,6 +1,8 @@
 import { lstat, readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
+import { parse } from "smol-toml";
+
 import { planHarnessDir } from "./dir";
 import { loadHarnessIgnoreRuleSets } from "./ignore";
 import {
@@ -243,6 +245,95 @@ function validateConfigSemantics(
   }
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function pushUnknownManifestFieldDiagnostic(
+  diagnostics: HarnessDiagnostic[],
+  fieldPath: string
+): void {
+  diagnostics.push({
+    severity: "info",
+    code: "harness.manifest_unknown_field",
+    message: `Manifest field "${fieldPath}" is not defined by Harness config v1 and will be ignored by this tool.`,
+    path: fieldPath,
+    recommendation:
+      "Keep the field only if it is intended for newer tooling or an extension.",
+  });
+}
+
+function reportUnknownKeys(
+  diagnostics: HarnessDiagnostic[],
+  record: Record<string, unknown>,
+  knownKeys: Set<string>,
+  pathPrefix = ""
+): void {
+  for (const key of Object.keys(record)) {
+    if (knownKeys.has(key)) {
+      continue;
+    }
+    pushUnknownManifestFieldDiagnostic(
+      diagnostics,
+      pathPrefix ? `${pathPrefix}.${key}` : key
+    );
+  }
+}
+
+function reportUnknownEntryKeys(
+  diagnostics: HarnessDiagnostic[],
+  parsed: Record<string, unknown>,
+  key: "resources" | "targets" | "dir"
+): void {
+  const entries = parsed[key];
+  if (!Array.isArray(entries)) {
+    return;
+  }
+  for (const [index, entry] of entries.entries()) {
+    if (!isRecord(entry)) {
+      continue;
+    }
+    reportUnknownKeys(
+      diagnostics,
+      entry,
+      new Set(["path"]),
+      `${key}[${index}]`
+    );
+  }
+}
+
+function reportUnknownManifestFields(
+  diagnostics: HarnessDiagnostic[],
+  parsed: unknown
+): void {
+  if (!isRecord(parsed)) {
+    return;
+  }
+  reportUnknownKeys(
+    diagnostics,
+    parsed,
+    new Set([
+      "version",
+      "activation",
+      "resources",
+      "targets",
+      "dir",
+      "extensions",
+    ])
+  );
+  reportUnknownEntryKeys(diagnostics, parsed, "resources");
+  reportUnknownEntryKeys(diagnostics, parsed, "targets");
+  reportUnknownEntryKeys(diagnostics, parsed, "dir");
+  if (isRecord(parsed.activation)) {
+    reportUnknownKeys(
+      diagnostics,
+      parsed.activation,
+      new Set(["targetSymlinks"]),
+      "activation"
+    );
+  }
+}
+
 function diagnosticKey(diagnostic: HarnessDiagnostic): string {
   return [
     diagnostic.severity,
@@ -346,6 +437,7 @@ export async function validateHarnessConfig(
       const result = safeParseHarnessConfigToml(raw);
       if (result.success) {
         config = result.data;
+        reportUnknownManifestFields(diagnostics, parse(raw));
       } else {
         diagnostics.push({
           severity: "error",

@@ -56,7 +56,7 @@ Estos términos tienen significados específicos a lo largo de este documento. C
 - **Proyección** — el mapeo calculado desde `(raíz fuente, manifiesto, fuentes configuradas, overrides, reglas de ignore, reglas de mutables)` a un árbol de archivos por objetivo.
 - **Activación** — el acto de materializar una proyección en una o más carpetas objetivo en disco.
 - **Archivo mutable** — un archivo objetivo proyectado declarado por `.harnessMutable`; la fuente proporciona la plantilla inicial, y el runtime posee los bytes objetivo después de la primera proyección.
-- **Repositorio / herramienta conforme** — ver [Conformidad](./CONFORMANCE.md).
+- **Repositorio / herramienta conforme** — ver [Conformidad](/specifications/v1/conformance/).
 
 ## Versionado
 
@@ -71,12 +71,12 @@ version = 1
 La versión `1` estandariza:
 
 - la raíz de convención `./.harness`,
-- el esquema de manifiesto TOML seleccionado para objetivos solo-camino, raíces fuente `[[resources]]` ordenadas, raíces fuente `[[dir]]` ordenadas y declaraciones de extensión de nivel superior,
+- el esquema de manifiesto TOML seleccionado para objetivos con caminos locales al repositorio requeridos, raíces fuente `[[resources]]` ordenadas, raíces fuente `[[dir]]` ordenadas y declaraciones de extensión de nivel superior,
 - los árboles de fuentes de recursos configuradas,
 - las carpetas de override derivadas del objetivo,
 - la proyección de copia (idempotente bajo entradas fijas),
 - la composición dir (hojas `.harnessComposable`) y el contrato de copia para archivos que se proyectan a caminos relativos al repositorio,
-- los archivos de ignore de proyección `.harnessIgnore`, incluidas las reglas raíz, fuente-locales y locales a la salida objetivo,
+- los archivos de ignore de proyección `.harnessIgnore`, incluidas las reglas raíz, fuente-locales, perfil-locales y locales a la salida objetivo,
 - los archivos mutables de proyección `.harnessMutable`, incluidas las reglas raíz, fuente-locales y perfil-locales.
 
 Dentro de v1, este documento MAY recibir clarificaciones editoriales y refinamientos normativos retro-compatibles (por ejemplo, campos opcionales con valores por defecto definidos). Los cambios que invalidarían un repositorio v1 o una implementación v1 se reservan para v2.
@@ -88,7 +88,7 @@ Harness config estandariza:
 - el archivo de manifiesto seleccionado y su esquema,
 - el layout de recursos bajo las fuentes de recursos configuradas,
 - los overrides objetivo por recurso como carpetas inmediatas con prefijo de punto,
-- las declaraciones de objetivos explícitas solo-camino,
+- las declaraciones de objetivos explícitas con caminos locales al repositorio requeridos,
 - la política de activación de nivel superior con valores por defecto definidos,
 - las raíces fuente dir ordenadas, con hojas componibles (`.harnessComposable`) y directorios en modo copia que se proyectan a caminos relativos al repositorio,
 - las declaraciones de extensión de nivel superior (solo política de descubrimiento y activación),
@@ -151,7 +151,7 @@ Cada fuente de recursos es un directorio local al repositorio seleccionado por u
 
 `skills`, `rules` y `plugins` son tipos de recursos convencionales. Sus nombres de archivo markdown comunes son convenciones, no requisitos del esquema. Otros tipos de recursos MAY existir bajo cualquier fuente de recursos sin declaración de manifiesto por tipo.
 
-Cualquier directorio bajo una fuente de recursos MAY ser una fuente de archivo componible cuando contiene un marcador vacío `.harnessComposable`. El nombre del directorio es el camino del archivo proyectado, y sus partes con prefijo numérico se componen con la misma semántica `.harnessRef` y `.harnessIgnore` definida para las hojas componibles dir. Por ejemplo, `./.harness/resources/skills/review/SKILL.md/.harnessComposable` proyecta un archivo objetivo en `skills/review/SKILL.md`; los archivos numerados dentro de ese directorio no se proyectan individualmente. Las hojas componibles de recursos siguen siendo recursos: se proyectan dentro de las carpetas objetivo declaradas y participan en los overrides de recursos, perfiles y reglas de ignore de recursos.
+Cualquier directorio bajo una fuente de recursos MAY ser una fuente de archivo componible cuando contiene un marcador vacío `.harnessComposable`. El nombre del directorio es el camino del archivo proyectado, y sus partes con prefijo numérico se componen con la misma semántica `.harnessRef` y `.harnessIgnore` definida para las hojas componibles dir. Una regla `.harnessMutable` que coincide con el camino lógico de salida de una hoja componible marca el archivo compuesto de salida como propiedad del runtime; el marcador, las partes y el archivo `.harnessRef` nunca se proyectan individualmente. Por ejemplo, `./.harness/resources/skills/review/SKILL.md/.harnessComposable` proyecta un archivo objetivo en `skills/review/SKILL.md`; los archivos numerados dentro de ese directorio no se proyectan individualmente. Las hojas componibles de recursos siguen siendo recursos: se proyectan dentro de las carpetas objetivo declaradas y participan en los overrides de recursos, perfiles y reglas de ignore de recursos.
 
 Un directorio inmediato con prefijo de punto directamente bajo una fuente de recursos es un override de raíz objetivo. Para el objetivo `./.gemini`, los archivos bajo el convencional `./.harness/resources/.gemini/` superponen esa fuente de recursos y el segmento `.gemini` se elimina del camino de salida. Así se representan los archivos específicos de la raíz objetivo como `.gemini/hooks.json`.
 
@@ -192,13 +192,13 @@ activation = "explicit"
 
 La proyección de recursos usa solo raíces fuente `[[resources]]` declaradas. Si no se declaran entradas `[[resources]]`, la proyección de recursos está deshabilitada.
 
-Cada tabla `[[resources]]` MUST contener solo `path`. El camino MUST ser local al repositorio, MUST resolver dentro del repositorio y MUST NOT contener segmentos `..`. Un manifiesto MUST NOT contener una tabla `[resources]` única ni ninguna tabla `[resources.<kind>]`; los tipos de recursos permanecen como nombres del árbol fuente, no como entradas del esquema del manifiesto.
+Cada entrada `[[resources]]` MUST contener `path`. Las herramientas MUST NOT fallar la validación únicamente porque una entrada `[[resources]]` lleve una clave no reconocida reservada para futuras revisiones v1; SHOULD reportar las claves no reconocidas como informacionales. El camino MUST ser local al repositorio, MUST resolver dentro del repositorio y MUST NOT contener segmentos `..`. Un manifiesto MUST NOT contener una tabla `[resources]` única ni ninguna tabla `[resources.<kind>]`; los tipos de recursos permanecen como nombres del árbol fuente, no como entradas del esquema del manifiesto.
 
 Los nombres de directorio de recursos de nivel superior SHOULD usar letras minúsculas, números, guiones bajos o guiones. Los nombres con prefijo de punto directamente bajo una fuente de recursos son overrides de raíz objetivo, no carpetas de salida canónicas compartidas. Los archivos y directorios de recursos MUST NOT depender de la traversal de caminos; todos los caminos de salida proyectados MUST permanecer dentro de su objetivo declarado.
 
 ### Objetivos
 
-Cada objetivo es explícito. Harness config no reserva, prefiere ni implica ningún nombre de carpeta objetivo de runtime. Cada entrada `[[targets]]` en el manifiesto seleccionado declara un camino objetivo local al repositorio y MUST contener solo `path`.
+Cada objetivo es explícito. Harness config no reserva, prefiere ni implica ningún nombre de carpeta objetivo de runtime. Cada entrada `[[targets]]` en el manifiesto seleccionado declara un camino objetivo local al repositorio y MUST contener `path`. Las herramientas MUST NOT fallar la validación únicamente porque una entrada `[[targets]]` lleve una clave no reconocida reservada para futuras revisiones v1; SHOULD reportar las claves no reconocidas como informacionales.
 
 Los caminos objetivo MUST resolver dentro del repositorio, MUST apuntar a una carpeta bajo la raíz del repositorio, MUST NOT contener segmentos `..` después de normalización, MUST NOT apuntar a `./.harness` mismo ni a ningún descendiente de este, y MUST NOT superponerse con raíces fuente configuradas como `[[resources]]` o `[[dir]]`.
 
@@ -211,11 +211,15 @@ La carpeta de override para un objetivo es el primer segmento de camino después
 
 Dos entradas `[[targets]]` cuyos caminos normalizados son iguales son duplicados y MUST ser rechazadas con un diagnóstico.
 
+Dos entradas `[[targets]]` cuyos caminos normalizados se superponen como ancestro y descendiente, como `./.agents` y `./.agents/skills`, MUST ser rechazadas con un diagnóstico. Los objetivos deben ser raíces de proyección independientes.
+
+Los objetivos que comparten un primer segmento de camino comparten intencionalmente un único namespace de override derivado del objetivo en v1. Por ejemplo, `./runtime/agent` y `./runtime/tools` usan ambos overrides `.runtime`. Preferir primeros segmentos distintos cuando dos objetivos necesitan namespaces de override distintos.
+
 Los objetivos son configuración, no mutación oculta. Las herramientas SHOULD mostrar el plan objetivo antes de crear, reemplazar, copiar o eliminar archivos.
 
 ### Política de activación
 
-La tabla opcional de nivel superior `[activation]` contiene la política de activación del estándar. Cuando se omite, todos los campos usan sus valores por defecto.
+La tabla opcional de nivel superior `[activation]` contiene la política de activación del estándar. Cuando se omite, todos los campos usan sus valores por defecto. Las herramientas MUST NOT fallar la validación únicamente porque `[activation]` lleve una clave no reconocida reservada para futuras revisiones v1; SHOULD reportar las claves no reconocidas como informacionales.
 
 `targetSymlinks` controla los enlaces simbólicos en árboles objetivo declarados que ocupan un camino requerido por la proyección:
 
@@ -242,6 +246,8 @@ Los campos distintos de `version` y `activation` son propiedad de la extensión.
 Una herramienta que encuentra una tabla `[extensions.<id>]` para una extensión que no implementa MUST NOT aplicar el comportamiento de esa extensión, MUST NOT fallar la validación del manifiesto únicamente debido a la extensión desconocida, y SHOULD reportar la extensión desconocida como informacional para que los usuarios decidan si instalar soporte.
 
 Una herramienta que sí implementa una extensión MUST validar los campos propios de la extensión antes de aplicar el comportamiento de esa extensión.
+
+Una herramienta que encuentra una tabla o clave de nivel superior no reconocida bajo una `version` soportada MUST NOT fallar la validación únicamente por eso, y SHOULD reportarla como informacional para que los autores decidan si necesitan herramientas más nuevas. Esto no cambia las reglas de manifiesto que hacen inválidas en v1 las tablas singulares `[resources]`, `[resources.<kind>]` y `[dir]`.
 
 ## Codificación, caminos y sensibilidad a mayúsculas
 
@@ -277,7 +283,7 @@ Este es el límite v1:
 - `.harnessIgnore` filtra archivos fuente y subárboles de salida objetivo.
 - `.harnessMutable` marca los archivos fuente que deberían inicializar los archivos objetivo una vez y luego volverse propiedad del runtime.
 
-Las herramientas SHOULD NOT introducir mapeos de recursos por objetivo en el manifiesto seleccionado para v1. Mantener las declaraciones de objetivos solo-camino y las raíces fuente ordenadas en el nivel superior preserva un solo lugar para el filtrado de proyección y facilita razonar sobre la salida en dry-run.
+Las herramientas SHOULD NOT introducir mapeos de recursos por objetivo en el manifiesto seleccionado para v1. Mantener las declaraciones de objetivos limitadas a caminos locales al repositorio requeridos más campos futuro-compatibles ignorados, mientras las raíces fuente siguen ordenadas en el nivel superior, preserva un solo lugar para el filtrado de proyección y facilita razonar sobre la salida en dry-run.
 
 ## Proyección de copia
 
@@ -285,17 +291,18 @@ La activación es una proyección de copia repetible desde entradas fuente hasta
 
 1. los archivos, hojas componibles y carpetas participantes bajo las fuentes de recursos configuradas, incluidas sus carpetas de override,
 2. el manifiesto versionado seleccionado,
-3. el `.harnessIgnore` raíz,
-4. el `.harnessMutable` raíz,
-5. la política de limpieza (preservar entradas no gestionadas vs. eliminarlas),
-6. la política de mutables (saltar archivos mutables vs. forzar reproyección),
-7. la política de enlace simbólico objetivo (conflicto vs. reemplazo).
+3. selectores `.harnessProfile` y superposiciones `.harnessProfileRoot` activas,
+4. todos los archivos `.harnessIgnore` participantes, incluidas reglas de raíz de repositorio, fuente-locales, perfil-locales y locales de salida objetivo,
+5. todos los archivos `.harnessMutable` participantes, incluidas reglas de raíz de repositorio, fuente-locales y perfil-locales,
+6. la política de limpieza (preservar entradas no gestionadas vs. eliminarlas),
+7. la política de mutables (saltar archivos mutables vs. forzar reproyección),
+8. la política de enlace simbólico objetivo (conflicto vs. reemplazo).
 
-**Idempotencia (propiedad testable).** Sea `T_n` el árbol en disco de un objetivo declarado después de la `n`-ésima activación contra un conjunto de entradas sin cambios (1)–(7). Para cada `n ≥ 2`:
+**Idempotencia (propiedad testable).** Sea `M_n` el subconjunto de proyección gestionada de un objetivo declarado después de la `n`-ésima activación contra las entradas sin cambios definidas arriba y estado objetivo sin cambios excepto por cambios de bytes en archivos mutables. Para cada `n ≥ 2`:
 
-- el conjunto de archivos en `T_n` MUST igualar el conjunto en `T_1`,
-- cada archivo gestionado (no mutable) en `T_n` MUST ser idéntico byte a byte a su contraparte en `T_1`,
-- cada archivo mutable presente en `T_1` MUST permanecer presente en `T_n` con los mismos bytes que tenía al final de la activación `n − 1` (es decir, el runtime lo posee; la activación no le escribe), y
+- el conjunto de archivos en `M_n` MUST igualar el conjunto en `M_1`,
+- cada archivo gestionado (no mutable) en `M_n` MUST ser idéntico byte a byte a su contraparte en `M_1`,
+- cada archivo mutable presente en `M_1` MUST permanecer presente en `M_n` con los mismos bytes que tenía al final de la activación `n − 1` (es decir, el runtime lo posee; la activación no le escribe), y
 - no SHOULD ocurrir ninguna escritura de archivo adicional en archivos gestionados más allá de lo requerido para converger.
 
 Esta propiedad es lo que hace que la activación sea revisable: una re-ejecución limpia contra entradas sin cambios es observable como un plan solo-`keep` para archivos gestionados y un plan solo-`mutable` para archivos mutables.
@@ -349,7 +356,7 @@ Estas reglas son normativas para la activación v1:
 - Los archivos objetivo mutables se crean desde la fuente una vez y luego se vuelven propiedad del runtime hasta una decisión explícita de forzado que los vuelva a proyectar.
 - Las entradas objetivo no gestionadas se preservan a menos que se seleccione una limpieza explícita.
 - Los archivos `.harnessIgnore` y `.harnessProfile` de salida objetivo son estado local protegido y MUST NOT ser sobrescritos ni eliminados por la limpieza de no gestionados.
-- La activación es determinista para árboles fuente fijos, manifiesto seleccionado, selectores de perfil, reglas de ignore, reglas de mutables, política de limpieza y política de mutables.
+- La activación es determinista para las entradas definidas en [Proyección de copia](#proyección-de-copia).
 - Los objetivos MUST NOT apuntar a `./.harness`, superponerse con raíces fuente configuradas ni superponerse entre sí.
 
 Por ejemplo, `.harness/resources/hooks.json` puede actualizar `.agents/hooks.json` cuando los bytes fuente cambien, mientras `.agents/skills/review/settings.local.json` coincidido por `.harnessMutable` se inicializa una vez y luego se deja intacto como estado propiedad del runtime. Un archivo de salida objetivo como `.claude/skills/review/.harnessIgnore` puede filtrar ese subárbol `.claude` y permanece como estado objetivo local.
@@ -358,13 +365,16 @@ Por ejemplo, `.harness/resources/hooks.json` puede actualizar `.agents/hooks.jso
 
 Una carpeta con prefijo de punto directamente dentro de una fuente de recursos configurada es un override de raíz objetivo. Una carpeta con prefijo de punto directamente dentro de un elemento de recurso convencional bajo una fuente de recursos configurada es un override objetivo a nivel de elemento. Para el objetivo `./.claude`, la carpeta de override es `.claude`; para el objetivo `./runtime/agent`, la carpeta de override es `.runtime`.
 
-La proyección MUST procesar el árbol de recursos en este orden:
+La proyección MUST procesar archivos de recursos en este orden de precedencia ascendente, donde archivos coincidentes posteriores reemplazan archivos anteriores en el mismo camino proyectado exacto:
 
-1. Copiar archivos de recursos canónicos, excluyendo las carpetas de override de raíz objetivo y las carpetas de override a nivel de elemento.
-2. Fusionar la carpeta de override de raíz objetivo coincidente, si está presente.
-3. Fusionar la carpeta de override objetivo a nivel de elemento coincidente, si está presente.
-4. Eliminar el segmento de carpeta de override de los caminos de salida.
-5. Aplicar reglas `.harnessIgnore` a cada archivo fuente antes de que entre en la proyección.
+1. Archivos de recursos base canónicos a través de las fuentes `[[resources]]` en orden de manifiesto, excluyendo carpetas de override de raíz objetivo y carpetas de override a nivel de elemento.
+2. Archivos de superposición de perfil activo genérico.
+3. Archivos de override derivados del objetivo a través de las fuentes `[[resources]]` en orden de manifiesto, incluidas carpetas de override de raíz objetivo coincidentes y carpetas de override a nivel de elemento coincidentes. El segmento de carpeta de override se elimina de los caminos de salida.
+4. Archivos de override objetivo específicos de perfil dentro de raíces de perfil activas.
+
+Las reglas de ignore se aplican a cada archivo fuente antes de que entre en la proyección y permanecen como filtro final ortogonal.
+
+Cuando dos archivos en la misma fase de precedencia se proyectan al mismo camino de salida exacto, las fuentes de recursos configuradas posteriores ganan sobre las anteriores. Dentro de una fuente de recursos y fase, el orden lexicográfico de camino fuente proporciona el desempate determinista de última-gana. Los conflictos de forma archivo/directorio siguen siendo errores, como se describe abajo.
 
 Los overrides se fusionan a nivel de archivo, no como reemplazos de directorio completos. Los archivos de override reemplazan archivos canónicos solo cuando se proyectan al mismo camino de archivo relativo exacto. Los archivos canónicos hermanos continúan proyectándose como de costumbre. Los archivos de override MAY añadir archivos nuevos. Las carpetas anidadas con prefijo de punto dentro de un override, como `.codex-plugin`, son carpetas de salida ordinarias a menos que sean la carpeta de override inmediata de raíz objetivo o a nivel de elemento.
 
@@ -411,7 +421,7 @@ path = "./.harness/dir"
 path = "./.harness/local/dir"
 ```
 
-Cada tabla `[[dir]]` MUST contener solo `path`. Un manifiesto MUST NOT contener una tabla `[dir]` única. Si no se declaran entradas `[[dir]]`, no ocurre composición o copia dir. Una fuente dir faltante es una capa vacía válida.
+Cada entrada `[[dir]]` MUST contener `path`. Las herramientas MUST NOT fallar la validación únicamente porque una entrada `[[dir]]` lleve una clave no reconocida reservada para futuras revisiones v1; SHOULD reportar las claves no reconocidas como informacionales. Un manifiesto MUST NOT contener una tabla `[dir]` única. Si no se declaran entradas `[[dir]]`, no ocurre composición o copia dir. Una fuente dir faltante es una capa vacía válida.
 
 ### Hojas componibles
 
@@ -513,7 +523,9 @@ Un patrón final `/` es solo-directorio. Para reglas de ignore no-negadas, coinc
 .harness/resources/skills/*/permissions.json
 ```
 
-Los patrones usan la misma sintaxis, localidad, negación, anclas, sufijo solo-directorio y precedencia última-coincidencia-gana que `.harnessIgnore`. El archivo raíz es relativo al repositorio y puede coincidir con caminos fuente o caminos de salida objetivo. Los archivos fuente-locales y perfil-locales se interpretan relativos a su directorio fuente lógico. Los archivos `.harnessMutable` de salida objetivo no son parte de v1; las declaraciones de mutables pertenecen a la fuente, no a los objetivos vivos.
+Los patrones usan la misma sintaxis, localidad, negación, anclas, sufijo solo-directorio y precedencia última-coincidencia-gana que `.harnessIgnore`. El archivo raíz es relativo al repositorio y coincide con caminos fuente. Los archivos fuente-locales y perfil-locales se interpretan relativos a su directorio fuente lógico. Los archivos `.harnessMutable` de salida objetivo no son parte de v1; las declaraciones de mutables pertenecen a la fuente, no a los objetivos vivos.
+
+Una regla `.harnessMutable` que coincide con el camino lógico de salida de una hoja componible de recurso marca el archivo compuesto de salida como mutable. Las partes fuente aún componen la semilla inicial, y el marcador, archivos de partes y `.harnessRef` siguen siendo entradas de declaración, no payload proyectado.
 
 La evaluación de mutables se ordena independientemente de la evaluación de ignore:
 
@@ -525,8 +537,8 @@ La evaluación de mutables se ordena independientemente de la evaluación de ign
 Los encabezados de sección son opcionales en `.harnessMutable`:
 
 - `[*]`, `[global]` y `[mutable]` aplican las reglas mutables subsiguientes globalmente.
-- `[ignore]` no está soportado en `.harnessMutable`; las reglas de ignore pertenecen a `.harnessIgnore`.
-- Los encabezados específicos de objetivo no están soportados por la misma razón por la que no están soportados en `.harnessIgnore`.
+- `[ignore]` no está soportado en `.harnessMutable`; las reglas de ignore pertenecen a `.harnessIgnore`. Las herramientas MUST reportar `harness.mutable_ignore_section_unsupported` y MUST NOT aplicar las reglas bajo ese encabezado no soportado hasta que aparezca otro encabezado de sección soportado.
+- Los encabezados específicos de objetivo no están soportados por la misma razón por la que no están soportados en `.harnessIgnore`. Las herramientas MUST reportar `harness.ignore_unsupported_scope` y MUST NOT aplicar las reglas bajo ese encabezado no soportado hasta que aparezca otro encabezado de sección soportado.
 
 Los archivos mutables MUST aún pasar por el paso de ignore de proyección. Si un archivo es tanto ignorado como marcado mutable, la decisión de ignore gana porque el archivo nunca entra en la proyección en primer lugar.
 
@@ -566,7 +578,7 @@ Los archivos locales son entradas de límite opcionales con alcance; un reposito
 
 ## Superposiciones de perfil
 
-Las superposiciones de perfil son superposiciones fuente opcionales seleccionadas por archivos `.harnessProfile`. Un archivo `.harnessProfile` es texto UTF-8. Después de recortar espacios de cada línea e ignorar las líneas en blanco, SHOULD contener cero o un nombre de perfil. Cero nombres de perfil selecciona ningún perfil para ese subárbol de salida. Más de una línea no vacía SHOULD producir una advertencia, y las herramientas MAY usar el primer nombre de perfil para compatibilidad. El `.harnessProfile` raíz se aplica globalmente; un `.harnessProfile` local de salida objetivo se aplica a su directorio y descendientes, y el selector más cercano gana para cualquier camino de salida.
+Las superposiciones de perfil son superposiciones fuente opcionales seleccionadas por archivos `.harnessProfile`. Un archivo `.harnessProfile` es texto UTF-8. Después de recortar espacios de cada línea e ignorar las líneas en blanco, MUST contener cero o un nombre de perfil. Cero nombres de perfil selecciona ningún perfil para ese subárbol de salida. Más de una línea no vacía MUST producir un error, y ese selector MUST NOT participar en la proyección. El `.harnessProfile` raíz se aplica globalmente; un `.harnessProfile` local de salida objetivo se aplica a su directorio y descendientes, y el selector más cercano gana para cualquier camino de salida. Cada camino de salida tiene como máximo un perfil activo a la vez, aunque distintos subárboles de target o dir pueden seleccionar perfiles distintos con selectores objetivo/salida más cercanos.
 
 El contenido del perfil se declara con `.harnessProfileRoot`, que MUST vivir bajo `./.harness`, bajo una fuente de recursos configurada o bajo una fuente dir configurada. Un archivo `.harnessProfileRoot` es texto UTF-8. Después de recortar espacios de cada línea e ignorar las líneas en blanco, MUST contener exactamente un nombre de perfil. Cero nombres de perfil o más de una línea no vacía MUST producir un error, y esa raíz de perfil MUST NOT participar en la proyección. Un `.harnessProfileRoot` MUST NOT anidarse dentro de otra raíz de perfil. El directorio que contiene `.harnessProfileRoot` es una raíz de perfil. Es almacenamiento fuente, no un elemento de recurso, y MUST NOT ser proyectado como skill, regla, plugin, salida dir o archivo de declaración copiado.
 
@@ -576,9 +588,9 @@ Las raíces de perfil superponen los caminos fuente según donde se coloca el ma
 - Si el directorio marcador está anidado más profundo dentro de una fuente de recursos configurada o una fuente dir configurada, ese directorio marcador superpone su directorio padre. Esto permite a los elementos de recursos llevar perfiles locales portables. Por ejemplo, bajo un camino de recursos convencional, `.harness/resources/skills/example/aggressiveProfile/.harnessProfileRoot` superpone `.harness/resources/skills/example`, por lo que `.harness/resources/skills/example/aggressiveProfile/SKILL.md` reemplaza el lógico `.harness/resources/skills/example/SKILL.md` cuando ese perfil está activo.
 - De lo contrario, un directorio marcador bajo `./.harness` superpone `./.harness`. Esto soporta layouts de kit como `.harness/kits/deploy-kit/.harnessProfileRoot` con hijos como `resources/` y `dir/`.
 
-Durante la proyección, los archivos fuente base genéricos se consideran primero a través de las fuentes de recursos en orden de manifiesto, luego los archivos de perfil activos genéricos, luego los archivos de override derivados del objetivo a través de las fuentes de recursos en orden de manifiesto, luego los archivos de perfil activos dentro del override objetivo coincidente. Una superposición de perfil genérica por lo tanto no puede reemplazar un override específico de objetivo como `.codex`; un override `.codex` específico de perfil sí puede. Si múltiples raíces de perfil activas proyectan el mismo archivo lógico, una herramienta SHOULD advertir y MAY usar un orden determinista de última-gana. Los archivos `.harnessIgnore` y `.harnessMutable` perfil-locales coinciden con el camino de superposición lógica, no con el camino de almacenamiento. Por ejemplo, un archivo de ignore en `.harness/profiles/personal/dir/AGENTS.md/.harnessIgnore` se aplica como si estuviera ubicado en `.harness/dir/AGENTS.md/.harnessIgnore`, por lo que puede suprimir partes componibles base antes de añadir partes de perfil.
+Durante la proyección, las superposiciones de perfil participan en el orden de precedencia de recursos definido en [Overrides](#overrides). Una superposición de perfil genérica por lo tanto no puede reemplazar un override específico de objetivo como `.codex`; un override `.codex` específico de perfil sí puede. Si múltiples raíces de perfil activas para el perfil seleccionado proyectan el mismo archivo lógico, las herramientas MUST usar un orden determinista de última-gana por camino de raíz de perfil y SHOULD reportar una advertencia. Los archivos `.harnessIgnore` y `.harnessMutable` perfil-locales coinciden con el camino de superposición lógica, no con el camino de almacenamiento. Por ejemplo, un archivo de ignore en `.harness/profiles/personal/dir/AGENTS.md/.harnessIgnore` se aplica como si estuviera ubicado en `.harness/dir/AGENTS.md/.harnessIgnore`, por lo que puede suprimir partes componibles base antes de añadir partes de perfil.
 
-Los archivos `.harnessIgnore` fuente-locales que son ancestros físicos de una raíz de perfil también se aplican antes de que la raíz de perfil sea mapeada a su camino de superposición lógica. Por ejemplo, `.harness/kits/.harnessIgnore` puede excluir los metadatos `.harness/kits/deploy/**/.harnex/` del perfil `deploy` activo incluso cuando los archivos bajo esa raíz de perfil superponen caminos lógicos como `.harness/resources` o `.harness/dir`.
+Los archivos `.harnessIgnore` fuente-locales que son ancestros físicos de una raíz de perfil también se aplican antes de que la raíz de perfil sea mapeada a su camino de superposición lógica. Por ejemplo, `.harness/kits/.harnessIgnore` puede excluir los metadatos `.harness/kits/deploy/**/.harness-cache/` del perfil `deploy` activo incluso cuando los archivos bajo esa raíz de perfil superponen caminos lógicos como `.harness/resources` o `.harness/dir`.
 
 Para fuentes dir, las implementaciones MUST usar un flujo bootstrap/final: recolectar salidas candidatas con reglas del lado fuente y cualquier selector de perfil conocido, descubrir archivos `.harnessIgnore` y `.harnessProfile` de salida objetivo en ancestros de salida candidatos, luego recalcular las salidas finales. Los directorios de perfil activos MUST también participar en el descubrimiento de candidatos, para que un `.harnessProfile` de salida objetivo pueda activar una salida dir solo-perfil incluso cuando ninguna fuente dir base habría producido esa salida. Los directorios de perfil activos pueden contribuir a una hoja `.harnessComposable` existente incluso cuando el directorio de perfil no repite el marcador `.harnessComposable`.
 
@@ -600,11 +612,11 @@ El límite fuente/proyección hace revisables las diferencias entre superficies:
 - Los caminos MUST permanecer dentro del repositorio.
 - Los comandos de inicialización MUST explicar los cambios planificados del sistema de archivos antes de la mutación.
 - Los comandos de activación SHOULD ofrecer una dry run y explicar las creaciones, actualizaciones, eliminaciones, conservaciones, entradas no gestionadas preservadas y saltos de mutables antes de la mutación.
-- La introspección de camino de solo lectura, cuando es proporcionada por una herramienta, MUST derivarse del mismo manifiesto seleccionado, raíces fuente configuradas, selectores de perfil, reglas de ignore, reglas de mutables, política de mutables y modelo de proyección que la activación.
+- La introspección de camino de solo lectura, cuando es proporcionada por una herramienta, MUST derivarse de las mismas entradas definidas en [Proyección de copia](#proyección-de-copia) que la activación.
 - Las superficies de harness vivas MUST ser tratadas como objetivos de proyección, no como repositorios fuente.
 - Los equipos MAY gitignorear las superficies de harness vivas porque son salidas generadas; hacerlo no cambia la fuente de verdad ni el contrato de declaración de objetivo.
 - Los repositorios que gitignorean las superficies de harness vivas SHOULD mantener instrucciones de activación rastreadas y SHOULD NOT gitignorear las raíces fuente configuradas compartidas requeridas para regenerar esas superficies. Las raíces fuente locales al desarrollador MAY ser gitignored cuando están intencionalmente fuera de la fuente de verdad compartida.
-- La activación MUST ser idempotente para el mismo manifiesto seleccionado, raíces fuente configuradas, `.harnessIgnore`, `.harnessMutable`, recursos participantes, política de limpieza y política de mutables.
+- La activación MUST ser idempotente para las mismas entradas definidas en [Proyección de copia](#proyección-de-copia).
 - La proyección MUST honrar `.harnessIgnore` para que los logs, metadatos, cachés y estado de implementación permanezcan fuera de las superficies de harness vivas.
 - Las herramientas MUST fusionar los overrides derivados del objetivo cuando están presentes y volver a los archivos canónicos cuando no existe ningún override.
 - Los tipos de recursos desconocidos MAY ser usados como directorios bajo la fuente de recursos configurada.
@@ -631,6 +643,8 @@ Dentro de v1, los siguientes tipos de cambio están permitidos y no requieren un
 - Clarificaciones editoriales que no cambian el significado normativo.
 - Nuevos campos opcionales con valores por defecto definidos que preservan el significado de documentos v1 que los omiten.
 - Nuevas declaraciones de extensión (que son opt-in por definición).
+- Nuevos campos opcionales en entradas `[[resources]]`, `[[targets]]` o `[[dir]]` bajo la regla de claves desconocidas.
+- Nuevas tablas o claves de nivel superior no reconocidas bajo la regla de campos desconocidos cuando herramientas antiguas pueden ignorarlas de forma segura.
 - Diagnósticos adicionales o advertencias no bloqueantes.
 
 Los siguientes cambios están reservados para v2:

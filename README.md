@@ -10,7 +10,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](./LICENSE)
 
 **Status:** Specification proposal with an alpha reference implementation.
-The npm package set is currently `1.0.0-alpha.5`. Treat the v1 file shape and
+The npm package set is currently `1.0.0-alpha.6`. Treat the v1 file shape and
 activation model as a public proposal while public releases, conformance
 fixtures, adopter repositories, and external issue traffic mature.
 

@@ -36,7 +36,7 @@ Core owns only two fields:
 - `version`: a required positive integer for the extension's own config schema.
 - `activation`: optional; `"explicit"` by default, or `"auto"` when the extension may run in routine activation flows offered by a tool.
 
-Every other field belongs to the extension implementation. Unknown extension declarations should validate as repository shape, but selected unsupported behavior must fail clearly instead of being silently applied.
+Every other field belongs to the extension implementation. Passive validation of a manifest with an unknown extension declaration should not fail solely because support is missing, but selected unsupported behavior must fail clearly instead of being silently applied.
 
 ## Boundary With Core
 
@@ -50,4 +50,4 @@ Configured `[[dir]]` sources are part of core v1 activation, not an extension. T
 - Validate extension-owned fields before planning writes.
 - Keep extension writes repo-local.
 - Run dry-run-first and show create, update, keep, remove, or preserve actions before applying.
-- Refuse selected unknown, undeclared, unsupported, incompatible, or unsupported-version extensions with clear diagnostics.
+- Refuse selected unknown, undeclared, unsupported, incompatible, or unsupported-version extensions with clear diagnostics while treating passive unknown declarations as informational.

@@ -14,7 +14,7 @@ llmSummary: Décrit les attentes d'outillage pour validation, introspection expl
 audience: Auteurs de CLI et développeurs opérant des dépôts Harness config.
 contentKind: spec
 status: draft
-updated: 2026-05-29
+updated: 2026-05-28
 ---
 
 # Outillage Harness config
@@ -80,7 +80,7 @@ Garder la source Harness partagée trackée : `.harness/harness.toml`, le `.harn
 
 Le nettoyage s'applique uniquement aux cibles encore déclarées dans le manifeste sélectionné. Après qu'une déclaration de cible soit retirée, `harnessc activate` de base n'inspecte plus ni ne nettoie ce dossier. Le nettoyer d'abord avec `--remove-unmanaged`, ou utiliser un workflow d'état d'activation de niveau supérieur capable de réconcilier les cibles orphelines.
 
-Le chemin de manifeste par défaut est `./.harness/harness.toml`. Lorsque `--root` et `--config` sont omis, `harnessc` cherche vers le haut depuis le dossier courant ce manifeste. Passer `--config <path>` pour valider, planifier, initialiser, activer ou exécuter des extensions contre un autre fichier TOML local au dépôt. `harnessc init --resources-path <path>` écrit une entrée `[[resources]]` dans le manifeste et crée les dossiers de ressources sous cette racine source configurée. Les chemins de manifeste sont sélectionnés par l'invocation d'outil ; les chemins à l'intérieur du manifeste restent locaux au dépôt, pas relatifs au dossier du fichier manifeste.
+Le chemin de manifeste par défaut est `./.harness/harness.toml`. Lorsque `--root` et `--config` sont omis, `harnessc` cherche vers le haut depuis le dossier courant ce manifeste. Passer `--config <path>` pour valider, initialiser, activer ou exécuter des extensions contre un autre fichier TOML local au dépôt. `harnessc init --resources-path <path>` écrit une entrée `[[resources]]` dans le manifeste et crée les dossiers de ressources sous cette racine source configurée. `harnessc init --resource <kind>` ajoute un dossier de type de ressource sous la racine de ressources configurée et valide le nom avec le patron d'id de ressource. `harnessc init --target <path>` ajoute une entrée `[[targets]]` pour un chemin cible local au dépôt. Les chemins de manifeste sont sélectionnés par l'invocation d'outil ; les chemins à l'intérieur du manifeste restent locaux au dépôt, pas relatifs au dossier du fichier manifeste.
 
 Le plan d'activation est aussi la vue orientée opérateur de la propriété. Les fichiers gérés sont des sorties de projection possédées par le dépôt, les entrées non gérées sont un état cible existant hors de la projection, et les entrées mutables sont des fichiers cibles initialisés par la source mais maintenant possédés par le runtime.
 
@@ -218,7 +218,7 @@ Un validateur conforme devrait :
 - Parser le manifeste sélectionné, par défaut `./.harness/harness.toml`, et rejeter une entrée malformée avec des diagnostics clairs.
 - Refuser les versions de standard futures non supportées.
 - Valider les chemins de sources de ressources configurées et rejeter les déclarations de ressources par type dans le manifeste.
-- Vérifier que chaque entrée `[[targets]]` contient uniquement un chemin local au dépôt, pointe sous la racine du dépôt et ne chevauche pas les racines source configurées.
+- Vérifier que chaque entrée `[[targets]]` contient un chemin local au dépôt requis, pointe sous la racine du dépôt et ne chevauche pas les racines source configurées ; les clés non reconnues sont rapportées comme informationnelles.
 - Parser `.harnessIgnore` avec des règles racine, source-locales, profil-locales et locales en sortie cible en utilisant les phases de précédence standard. Parser `.harnessMutable` séparément pour les fichiers possédés par le runtime à création unique.
 - Résoudre les sélecteurs `.harnessProfile` et les superpositions `.harnessProfileRoot` avant la projection, y compris la passe bootstrap/finale dir pour les sélecteurs de sortie.
 - Montrer les actions create, update, remove, keep, preserve et mutable avant toute écriture.

@@ -14,7 +14,7 @@ llmSummary: Describe las expectativas de herramientas para validación, introspe
 audience: Autores de CLI y desarrolladores que operan repositorios Harness config.
 contentKind: spec
 status: draft
-updated: 2026-05-29
+updated: 2026-05-28
 ---
 
 # Herramientas Harness config
@@ -80,7 +80,7 @@ Mantener rastreada la fuente Harness compartida: `.harness/harness.toml`, `.harn
 
 La limpieza se aplica solo a objetivos aún declarados en el manifiesto seleccionado. Después de que una declaración de objetivo se elimine, `harnessc activate` base ya no inspecciona ni limpia esa carpeta. Limpiarla primero con `--remove-unmanaged`, o usar un flujo de estado de activación de nivel superior que pueda reconciliar objetivos huérfanos.
 
-El camino de manifiesto por defecto es `./.harness/harness.toml`. Cuando `--root` y `--config` se omiten, `harnessc` busca hacia arriba desde el directorio actual ese manifiesto. Pasar `--config <path>` para validar, planificar, inicializar, activar o ejecutar extensiones contra otro archivo TOML local al repositorio. `harnessc init --resources-path <path>` escribe una entrada `[[resources]]` en el manifiesto y crea las carpetas de recursos bajo esa raíz fuente configurada. Los caminos de manifiesto se seleccionan por la invocación de la herramienta; los caminos dentro del manifiesto permanecen locales al repositorio, no relativos al directorio del archivo de manifiesto.
+El camino de manifiesto por defecto es `./.harness/harness.toml`. Cuando `--root` y `--config` se omiten, `harnessc` busca hacia arriba desde el directorio actual ese manifiesto. Pasar `--config <path>` para validar, inicializar, activar o ejecutar extensiones contra otro archivo TOML local al repositorio. `harnessc init --resources-path <path>` escribe una entrada `[[resources]]` en el manifiesto y crea las carpetas de recursos bajo esa raíz fuente configurada. `harnessc init --resource <kind>` añade una carpeta de tipo de recurso bajo la raíz de recursos configurada y valida el nombre con el patrón de id de recurso. `harnessc init --target <path>` añade una entrada `[[targets]]` para un camino target local al repositorio. Los caminos de manifiesto se seleccionan por la invocación de la herramienta; los caminos dentro del manifiesto permanecen locales al repositorio, no relativos al directorio del archivo de manifiesto.
 
 El plan de activación es también la vista orientada al operador de la propiedad. Los archivos gestionados son salidas de proyección propiedad del repositorio, las entradas no gestionadas son estado objetivo existente fuera de la proyección, y las entradas mutables son archivos objetivo inicializados por la fuente pero ahora propiedad del runtime.
 
@@ -218,7 +218,7 @@ Un validador conforme debe:
 - Parsear el manifiesto seleccionado, por defecto `./.harness/harness.toml`, y rechazar entrada malformada con diagnósticos claros.
 - Rechazar versiones futuras no soportadas del estándar.
 - Validar los caminos de fuentes de recursos configuradas y rechazar las declaraciones de recursos por tipo en el manifiesto.
-- Verificar que cada entrada `[[targets]]` contiene solo un camino local al repositorio, apunta debajo de la raíz del repositorio y no se superpone con raíces fuente configuradas.
+- Verificar que cada entrada `[[targets]]` contiene un camino local al repositorio requerido, apunta debajo de la raíz del repositorio y no se superpone con raíces fuente configuradas; las claves no reconocidas se reportan como información.
 - Parsear `.harnessIgnore` con reglas raíz, fuente-locales, perfil-locales y locales de salida objetivo usando las fases de precedencia estándar. Parsear `.harnessMutable` separadamente para archivos propiedad del runtime de creación-única.
 - Resolver los selectores `.harnessProfile` y las superposiciones `.harnessProfileRoot` antes de la proyección, incluido el paso bootstrap/final dir para selectores de salida.
 - Mostrar las acciones create, update, remove, keep, preserve y mutable antes de cualquier escritura.

@@ -56,7 +56,7 @@ Ces termes ont des sens spécifiques dans ce document. Lorsqu'une section ultér
 - **Projection** — la correspondance calculée entre `(racine source, manifeste, sources configurées, surcharges, règles d'ignore, règles de mutables)` et un arbre de fichiers par cible.
 - **Activation** — l'acte de matérialiser une projection dans un ou plusieurs dossiers cibles sur disque.
 - **Fichier mutable** — un fichier cible projeté déclaré par `.harnessMutable` ; la source fournit le modèle initial, et le runtime possède les octets cibles après la première projection.
-- **Dépôt / outil conforme** — voir [Conformité](./CONFORMANCE.md).
+- **Dépôt / outil conforme** — voir [Conformité](/specifications/v1/conformance/).
 
 ## Versionnage
 
@@ -71,12 +71,12 @@ version = 1
 La version `1` standardise :
 
 - la racine de convention `./.harness`,
-- le schéma de manifeste TOML sélectionné pour les cibles uniquement de chemin, les racines source `[[resources]]` ordonnées, les racines source `[[dir]]` ordonnées et les déclarations d'extension de premier niveau,
+- le schéma de manifeste TOML sélectionné pour les cibles avec chemins locaux au dépôt requis, les racines source `[[resources]]` ordonnées, les racines source `[[dir]]` ordonnées et les déclarations d'extension de premier niveau,
 - les arbres de sources de ressources configurées,
 - les dossiers de surcharge dérivés des cibles,
 - la projection de copie (idempotente sous des entrées fixes),
 - la composition dir (feuilles `.harnessComposable`) et le contrat de copie pour les fichiers qui se projettent vers des chemins relatifs au dépôt,
-- les fichiers d'ignore de projection `.harnessIgnore`, incluant les règles racine, source-locales et locales aux sorties cibles,
+- les fichiers d'ignore de projection `.harnessIgnore`, incluant les règles racine, source-locales, profil-locales et locales aux sorties cibles,
 - les fichiers mutables de projection `.harnessMutable`, incluant les règles racine, source-locales et profil-locales.
 
 Dans v1, ce document PEUT (MAY) recevoir des clarifications éditoriales et des raffinements normatifs rétro-compatibles (par exemple, des champs optionnels avec des valeurs par défaut définies). Les changements qui invalideraient un dépôt v1 ou une implémentation v1 sont réservés à v2.
@@ -88,7 +88,7 @@ Harness config standardise :
 - le fichier de manifeste sélectionné et son schéma,
 - le layout de ressources sous les sources de ressources configurées,
 - les surcharges cibles par ressource sous forme de dossiers immédiats préfixés par un point,
-- les déclarations de cibles explicites uniquement par chemin,
+- les déclarations de cibles explicites avec chemins locaux au dépôt requis,
 - la politique d'activation de premier niveau avec des valeurs par défaut définies,
 - les racines source dir ordonnées, avec des feuilles composables (`.harnessComposable`) et des dossiers en mode copie qui se projettent vers des chemins relatifs au dépôt,
 - les déclarations d'extension de premier niveau (politique de découverte et d'activation uniquement),
@@ -151,7 +151,7 @@ Chaque source de ressources est un dossier local au dépôt sélectionné par un
 
 `skills`, `rules` et `plugins` sont des types de ressources conventionnels. Leurs noms de fichier markdown courants sont des conventions, pas des exigences de schéma. D'autres types de ressources PEUVENT (MAY) exister sous toute source de ressources sans déclaration de manifeste par type.
 
-Tout dossier sous une source de ressources PEUT (MAY) être une source de fichiers composables lorsqu'il contient un marqueur vide `.harnessComposable`. Le nom du dossier est le chemin du fichier projeté, et ses parties à préfixe numérique se composent avec la même sémantique `.harnessRef` et `.harnessIgnore` définie pour les feuilles composables dir. Par exemple, `./.harness/resources/skills/review/SKILL.md/.harnessComposable` projette un fichier cible à `skills/review/SKILL.md` ; les fichiers numérotés à l'intérieur de ce dossier ne sont pas projetés individuellement. Les feuilles composables de ressources restent des ressources : elles se projettent à l'intérieur des dossiers cibles déclarés et participent aux surcharges de ressources, profils et règles d'ignore de ressources.
+Tout dossier sous une source de ressources PEUT (MAY) être une source de fichiers composables lorsqu'il contient un marqueur vide `.harnessComposable`. Le nom du dossier est le chemin du fichier projeté, et ses parties à préfixe numérique se composent avec la même sémantique `.harnessRef` et `.harnessIgnore` définie pour les feuilles composables dir. Une règle `.harnessMutable` qui matche le chemin de sortie logique de la feuille composable marque le fichier de sortie composé comme possédé par le runtime ; le marqueur, les parties et le fichier `.harnessRef` ne sont jamais projetés individuellement. Par exemple, `./.harness/resources/skills/review/SKILL.md/.harnessComposable` projette un fichier cible à `skills/review/SKILL.md` ; les fichiers numérotés à l'intérieur de ce dossier ne sont pas projetés individuellement. Les feuilles composables de ressources restent des ressources : elles se projettent à l'intérieur des dossiers cibles déclarés et participent aux surcharges de ressources, profils et règles d'ignore de ressources.
 
 Un dossier immédiat préfixé par un point directement sous une source de ressources est une surcharge à la racine cible. Pour la cible `./.gemini`, les fichiers sous le conventionnel `./.harness/resources/.gemini/` superposent cette source de ressources et le segment `.gemini` est retiré du chemin de sortie. C'est ainsi que les fichiers spécifiques à la racine cible tels que `.gemini/hooks.json` sont représentés.
 
@@ -192,13 +192,13 @@ activation = "explicit"
 
 La projection de ressources utilise uniquement les racines source `[[resources]]` déclarées. Si aucune entrée `[[resources]]` n'est déclarée, la projection de ressources est désactivée.
 
-Chaque table `[[resources]]` DOIT (MUST) contenir uniquement `path`. Le chemin DOIT (MUST) être local au dépôt, DOIT (MUST) se résoudre à l'intérieur du dépôt et NE DOIT PAS (MUST NOT) contenir de segments `..`. Un manifeste NE DOIT PAS (MUST NOT) contenir une seule table `[resources]` ni de tables `[resources.<kind>]` ; les types de ressources restent des noms d'arbre source, pas des entrées de schéma de manifeste.
+Chaque entrée `[[resources]]` DOIT (MUST) contenir `path`. Les outils NE DOIVENT PAS (MUST NOT) faire échouer la validation uniquement parce qu'une entrée `[[resources]]` porte une clé non reconnue réservée à de futures révisions v1 ; ils DEVRAIENT (SHOULD) rapporter les clés non reconnues comme informationnelles. Le chemin DOIT (MUST) être local au dépôt, DOIT (MUST) se résoudre à l'intérieur du dépôt et NE DOIT PAS (MUST NOT) contenir de segments `..`. Un manifeste NE DOIT PAS (MUST NOT) contenir une seule table `[resources]` ni de tables `[resources.<kind>]` ; les types de ressources restent des noms d'arbre source, pas des entrées de schéma de manifeste.
 
 Les noms de dossiers de ressources de premier niveau DEVRAIENT (SHOULD) utiliser des lettres minuscules, des chiffres, des soulignés ou des tirets. Les noms préfixés par un point directement sous une source de ressources sont des surcharges à la racine cible, pas des dossiers de sortie canoniques partagés. Les fichiers et dossiers de ressources NE DOIVENT PAS (MUST NOT) s'appuyer sur la traversée de chemin ; tous les chemins de sortie projetés DOIVENT (MUST) rester à l'intérieur de leur cible déclarée.
 
 ### Cibles
 
-Chaque cible est explicite. Harness config ne réserve, ne préfère ni n'implique aucun nom de dossier cible runtime. Chaque entrée `[[targets]]` dans le manifeste sélectionné déclare un chemin cible local au dépôt et DOIT (MUST) contenir uniquement `path`.
+Chaque cible est explicite. Harness config ne réserve, ne préfère ni n'implique aucun nom de dossier cible runtime. Chaque entrée `[[targets]]` dans le manifeste sélectionné déclare un chemin cible local au dépôt et DOIT (MUST) contenir `path`. Les outils NE DOIVENT PAS (MUST NOT) faire échouer la validation uniquement parce qu'une entrée `[[targets]]` porte une clé non reconnue réservée à de futures révisions v1 ; ils DEVRAIENT (SHOULD) rapporter les clés non reconnues comme informationnelles.
 
 Les chemins cibles DOIVENT (MUST) se résoudre à l'intérieur du dépôt, DOIVENT (MUST) pointer vers un dossier sous la racine du dépôt, NE DOIVENT PAS (MUST NOT) contenir de segments `..` après normalisation, NE DOIVENT PAS (MUST NOT) pointer vers `./.harness` lui-même ni vers un descendant de celui-ci, et NE DOIVENT PAS (MUST NOT) chevaucher les racines source configurées telles que `[[resources]]` ou `[[dir]]`.
 
@@ -211,11 +211,15 @@ Le dossier de surcharge pour une cible est le premier segment de chemin après l
 
 Deux entrées `[[targets]]` dont les chemins normalisés sont égaux sont des doublons et DOIVENT (MUST) être rejetées avec un diagnostic.
 
+Deux entrées `[[targets]]` dont les chemins normalisés se chevauchent comme ancêtre et descendant, par exemple `./.agents` et `./.agents/skills`, DOIVENT (MUST) être rejetées avec un diagnostic. Les cibles doivent être des racines de projection indépendantes.
+
+Les cibles qui partagent un premier segment de chemin partagent intentionnellement un seul espace de noms de surcharge dérivé de la cible en v1. Par exemple, `./runtime/agent` et `./runtime/tools` utilisent toutes deux les surcharges `.runtime`. Préférer des premiers segments distincts lorsque deux cibles ont besoin d'espaces de noms de surcharge distincts.
+
 Les cibles sont une configuration, pas une mutation cachée. Les outils DEVRAIENT (SHOULD) montrer le plan cible avant de créer, remplacer, copier ou supprimer des fichiers.
 
 ### Politique d'activation
 
-La table optionnelle de premier niveau `[activation]` contient la politique d'activation du standard. Lorsqu'elle est omise, tous les champs utilisent leurs valeurs par défaut.
+La table optionnelle de premier niveau `[activation]` contient la politique d'activation du standard. Lorsqu'elle est omise, tous les champs utilisent leurs valeurs par défaut. Les outils NE DOIVENT PAS (MUST NOT) faire échouer la validation uniquement parce que `[activation]` porte une clé non reconnue réservée à de futures révisions v1 ; ils DEVRAIENT (SHOULD) rapporter les clés non reconnues comme informationnelles.
 
 `targetSymlinks` contrôle les liens symboliques dans les arbres cibles déclarés qui occupent un chemin requis par la projection :
 
@@ -242,6 +246,8 @@ Les champs autres que `version` et `activation` appartiennent à l'extension. Le
 Un outil qui rencontre une table `[extensions.<id>]` pour une extension qu'il n'implémente pas NE DOIT PAS (MUST NOT) appliquer le comportement de cette extension, NE DOIT PAS (MUST NOT) faire échouer la validation du manifeste uniquement à cause de l'extension inconnue et DEVRAIT (SHOULD) rapporter l'extension inconnue comme information pour que les utilisateurs décident s'il faut installer le support.
 
 Un outil qui implémente effectivement une extension DOIT (MUST) valider les champs possédés par l'extension avant d'appliquer le comportement de cette extension.
+
+Un outil qui rencontre une table ou clé de premier niveau non reconnue sous une `version` supportée NE DOIT PAS (MUST NOT) faire échouer la validation uniquement pour cette raison, et DEVRAIT (SHOULD) la rapporter comme informationnelle pour que les auteurs décident si un outillage plus récent est nécessaire. Cela ne change pas les règles de manifeste qui rendent les tables singulières `[resources]`, `[resources.<kind>]` et `[dir]` invalides en v1.
 
 ## Encodage, chemins et sensibilité à la casse
 
@@ -277,7 +283,7 @@ C'est la limite v1 :
 - `.harnessIgnore` filtre les fichiers source et les sous-arbres de sortie cible.
 - `.harnessMutable` marque les fichiers source qui devraient initialiser des fichiers cibles une seule fois puis devenir possédés par le runtime.
 
-Les outils NE DEVRAIENT PAS (SHOULD NOT) introduire de mappings de ressources par cible dans le manifeste sélectionné pour v1. Garder les déclarations de cibles uniquement par chemin et les racines source ordonnées au niveau supérieur préserve un seul endroit pour le filtrage de projection et facilite le raisonnement sur la sortie en dry-run.
+Les outils NE DEVRAIENT PAS (SHOULD NOT) introduire de mappings de ressources par cible dans le manifeste sélectionné pour v1. Garder les déclarations de cibles limitées aux chemins locaux au dépôt requis plus des champs futur-compatibles ignorés, pendant que les racines source restent ordonnées au niveau supérieur, préserve un seul endroit pour le filtrage de projection et facilite le raisonnement sur la sortie en dry-run.
 
 ## Projection de copie
 
@@ -285,17 +291,18 @@ L'activation est une projection de copie répétable depuis les entrées source 
 
 1. les fichiers, feuilles composables et dossiers participants sous les sources de ressources configurées, y compris leurs dossiers de surcharge,
 2. le manifeste versionné sélectionné,
-3. le `.harnessIgnore` racine,
-4. le `.harnessMutable` racine,
-5. la politique de nettoyage (préserver les entrées non gérées vs. les supprimer),
-6. la politique de mutable (sauter les fichiers mutables vs. forcer la re-projection),
-7. la politique de lien symbolique cible (conflit vs. remplacement).
+3. les sélecteurs `.harnessProfile` et superpositions `.harnessProfileRoot` actives,
+4. tous les fichiers `.harnessIgnore` participants, y compris règles racine, source-locales, profil-locales et locales en sortie cible,
+5. tous les fichiers `.harnessMutable` participants, y compris règles racine, source-locales et profil-locales,
+6. la politique de nettoyage (préserver les entrées non gérées vs. les supprimer),
+7. la politique de mutable (sauter les fichiers mutables vs. forcer la re-projection),
+8. la politique de lien symbolique cible (conflit vs. remplacement).
 
-**Idempotence (propriété testable).** Soit `T_n` l'arbre sur disque d'une cible déclarée après la `n`-ème activation contre un ensemble d'entrées inchangé (1)–(7). Pour chaque `n ≥ 2` :
+**Idempotence (propriété testable).** Soit `M_n` le sous-ensemble de projection gérée d'une cible déclarée après la `n`-ème activation contre les entrées inchangées définies ci-dessus et un état cible inchangé sauf pour les changements d'octets de fichiers mutables. Pour chaque `n ≥ 2` :
 
-- l'ensemble de fichiers dans `T_n` DOIT (MUST) égaler l'ensemble dans `T_1`,
-- chaque fichier géré (non mutable) dans `T_n` DOIT (MUST) être identique octet pour octet à son homologue dans `T_1`,
-- chaque fichier mutable présent dans `T_1` DOIT (MUST) rester présent dans `T_n` avec les mêmes octets qu'il avait à la fin de l'activation `n − 1` (c.-à-d. que le runtime le possède ; l'activation n'y écrit pas), et
+- l'ensemble de fichiers dans `M_n` DOIT (MUST) égaler l'ensemble dans `M_1`,
+- chaque fichier géré (non mutable) dans `M_n` DOIT (MUST) être identique octet pour octet à son homologue dans `M_1`,
+- chaque fichier mutable présent dans `M_1` DOIT (MUST) rester présent dans `M_n` avec les mêmes octets qu'il avait à la fin de l'activation `n − 1` (c.-à-d. que le runtime le possède ; l'activation n'y écrit pas), et
 - aucune écriture de fichier supplémentaire dans des fichiers gérés NE DEVRAIT (SHOULD) avoir lieu au-delà de ce qui est requis pour converger.
 
 Cette propriété est ce qui rend l'activation révisable : une nouvelle exécution propre contre des entrées inchangées est observable comme un plan `keep`-seulement pour les fichiers gérés et un plan `mutable`-seulement pour les fichiers mutables.
@@ -349,7 +356,7 @@ Ces règles sont normatives pour l'activation v1 :
 - Les fichiers cibles mutables sont créés depuis la source une seule fois puis deviennent possédés par le runtime jusqu'à une décision de forçage explicite qui les re-projette.
 - Les entrées cibles non gérées sont préservées sauf si un nettoyage explicite est sélectionné.
 - Les fichiers `.harnessIgnore` et `.harnessProfile` en sortie cible sont un état local protégé et NE DOIVENT PAS (MUST NOT) être surpassés ou supprimés par le nettoyage des non gérés.
-- L'activation est déterministe pour des arbres source fixes, un manifeste sélectionné, des sélecteurs de profil, des règles d'ignore, des règles de mutables, une politique de nettoyage et une politique de mutable.
+- L'activation est déterministe pour les entrées définies dans [Projection de copie](#projection-de-copie).
 - Les cibles NE DOIVENT PAS (MUST NOT) pointer vers `./.harness`, chevaucher les racines source configurées ni se chevaucher entre elles.
 
 Par exemple, `.harness/resources/hooks.json` peut mettre à jour `.agents/hooks.json` lorsque les octets source changent, tandis que `.agents/skills/review/settings.local.json` matché par `.harnessMutable` est initialisé une seule fois puis laissé intact comme état possédé par le runtime. Un fichier en sortie cible tel que `.claude/skills/review/.harnessIgnore` peut filtrer ce sous-arbre `.claude` et reste un état cible local.
@@ -358,13 +365,16 @@ Par exemple, `.harness/resources/hooks.json` peut mettre à jour `.agents/hooks.
 
 Un dossier préfixé par un point directement à l'intérieur d'une source de ressources configurée est une surcharge à la racine cible. Un dossier préfixé par un point directement à l'intérieur d'un élément de ressource conventionnel sous une source de ressources configurée est une surcharge cible au niveau élément. Pour la cible `./.claude`, le dossier de surcharge est `.claude` ; pour la cible `./runtime/agent`, le dossier de surcharge est `.runtime`.
 
-La projection DOIT (MUST) traiter l'arbre de ressources dans cet ordre :
+La projection DOIT (MUST) traiter les fichiers de ressources dans cet ordre de précédence ascendant, où les fichiers correspondants ultérieurs remplacent les fichiers antérieurs au même chemin projeté exact :
 
-1. Copier les fichiers de ressources canoniques, en excluant les dossiers de surcharge à la racine cible et les dossiers de surcharge au niveau élément.
-2. Fusionner le dossier de surcharge à la racine cible correspondant, s'il est présent.
-3. Fusionner le dossier de surcharge cible au niveau élément correspondant, s'il est présent.
-4. Retirer le segment de dossier de surcharge des chemins de sortie.
-5. Appliquer les règles `.harnessIgnore` à chaque fichier source avant qu'il entre dans la projection.
+1. Fichiers de ressources de base canoniques à travers les sources `[[resources]]` dans l'ordre du manifeste, en excluant les dossiers de surcharge à la racine cible et les dossiers de surcharge au niveau élément.
+2. Fichiers de superposition de profil actif générique.
+3. Fichiers de surcharge dérivés des cibles à travers les sources `[[resources]]` dans l'ordre du manifeste, y compris les dossiers de surcharge à la racine cible correspondants et les dossiers de surcharge au niveau élément correspondants. Le segment de dossier de surcharge est retiré des chemins de sortie.
+4. Fichiers de surcharge cible spécifiques au profil à l'intérieur des racines de profil actives.
+
+Les règles d'ignore s'appliquent à chaque fichier source avant qu'il entre dans la projection et restent un filtre final orthogonal.
+
+Lorsque deux fichiers dans la même phase de précédence se projettent vers le même chemin de sortie exact, les sources de ressources configurées ultérieures gagnent sur les précédentes. Dans une source de ressources et une phase, l'ordre lexicographique des chemins source fournit le départage déterministe dernière-correspondance-gagne. Les conflits de forme fichier/dossier restent des erreurs, comme décrit ci-dessous.
 
 Les surcharges sont fusionnées au niveau fichier, pas comme des remplacements de dossier entier. Les fichiers de surcharge remplacent les fichiers canoniques uniquement lorsqu'ils se projettent vers exactement le même chemin de fichier relatif. Les fichiers canoniques voisins continuent à se projeter normalement. Les fichiers de surcharge PEUVENT (MAY) ajouter de nouveaux fichiers. Les dossiers imbriqués préfixés par un point à l'intérieur d'une surcharge, tels que `.codex-plugin`, sont des dossiers de sortie ordinaires sauf s'ils sont le dossier de surcharge immédiat à la racine cible ou au niveau élément.
 
@@ -411,7 +421,7 @@ path = "./.harness/dir"
 path = "./.harness/local/dir"
 ```
 
-Chaque table `[[dir]]` DOIT (MUST) contenir uniquement `path`. Un manifeste NE DOIT PAS (MUST NOT) contenir une seule table `[dir]`. Si aucune entrée `[[dir]]` n'est déclarée, aucune composition ou copie dir n'a lieu. Une source dir manquante est une couche vide valide.
+Chaque entrée `[[dir]]` DOIT (MUST) contenir `path`. Les outils NE DOIVENT PAS (MUST NOT) faire échouer la validation uniquement parce qu'une entrée `[[dir]]` porte une clé non reconnue réservée à de futures révisions v1 ; ils DEVRAIENT (SHOULD) rapporter les clés non reconnues comme informationnelles. Un manifeste NE DOIT PAS (MUST NOT) contenir une seule table `[dir]`. Si aucune entrée `[[dir]]` n'est déclarée, aucune composition ou copie dir n'a lieu. Une source dir manquante est une couche vide valide.
 
 ### Feuilles composables
 
@@ -513,7 +523,9 @@ Un patron se terminant par `/` est uniquement-dossier. Pour les règles d'ignore
 .harness/resources/skills/*/permissions.json
 ```
 
-Les patrons utilisent la même syntaxe, localité, négation, ancres, suffixe uniquement-dossier et précédence dernière-correspondance-gagne que `.harnessIgnore`. Le fichier racine est relatif au dépôt et peut matcher des chemins source ou des chemins de sortie cible. Les fichiers source-locaux et profil-locaux sont interprétés relativement à leur dossier source logique. Les fichiers `.harnessMutable` en sortie cible ne font pas partie de v1 ; les déclarations de mutables appartiennent à la source, pas aux cibles vivantes.
+Les patrons utilisent la même syntaxe, localité, négation, ancres, suffixe uniquement-dossier et précédence dernière-correspondance-gagne que `.harnessIgnore`. Le fichier racine est relatif au dépôt et matche les chemins source. Les fichiers source-locaux et profil-locaux sont interprétés relativement à leur dossier source logique. Les fichiers `.harnessMutable` en sortie cible ne font pas partie de v1 ; les déclarations de mutables appartiennent à la source, pas aux cibles vivantes.
+
+Une règle `.harnessMutable` qui matche le chemin de sortie logique d'une feuille composable de ressource marque le fichier de sortie composé comme mutable. Les parties source composent toujours la graine initiale, et le marqueur, les fichiers de parties et le fichier `.harnessRef` restent des entrées de déclaration plutôt qu'un payload projeté.
 
 L'évaluation des mutables est ordonnée indépendamment de l'évaluation des ignores :
 
@@ -525,8 +537,8 @@ L'évaluation des mutables est ordonnée indépendamment de l'évaluation des ig
 Les en-têtes de section sont optionnels dans `.harnessMutable` :
 
 - `[*]`, `[global]` et `[mutable]` appliquent les règles mutables suivantes globalement.
-- `[ignore]` n'est pas supporté dans `.harnessMutable` ; les règles d'ignore appartiennent à `.harnessIgnore`.
-- Les en-têtes spécifiques à la cible ne sont pas supportés pour la même raison qu'ils ne sont pas supportés dans `.harnessIgnore`.
+- `[ignore]` n'est pas supporté dans `.harnessMutable` ; les règles d'ignore appartiennent à `.harnessIgnore`. Les outils DOIVENT (MUST) rapporter `harness.mutable_ignore_section_unsupported` et NE DOIVENT PAS (MUST NOT) appliquer les règles sous cet en-tête non supporté jusqu'à ce qu'un autre en-tête de section supporté apparaisse.
+- Les en-têtes spécifiques à la cible ne sont pas supportés pour la même raison qu'ils ne sont pas supportés dans `.harnessIgnore`. Les outils DOIVENT (MUST) rapporter `harness.ignore_unsupported_scope` et NE DOIVENT PAS (MUST NOT) appliquer les règles sous cet en-tête non supporté jusqu'à ce qu'un autre en-tête de section supporté apparaisse.
 
 Les fichiers mutables DOIVENT (MUST) quand même passer par l'étape d'ignore de projection. Si un fichier est à la fois ignoré et marqué mutable, la décision d'ignore gagne parce que le fichier n'entre jamais dans la projection en premier lieu.
 
@@ -566,7 +578,7 @@ Les fichiers locaux sont des entrées de limite optionnelles à portée ; un dé
 
 ## Superpositions de profil
 
-Les superpositions de profil sont des superpositions source optionnelles sélectionnées par des fichiers `.harnessProfile`. Un fichier `.harnessProfile` est du texte UTF-8. Après avoir coupé les espaces de chaque ligne et ignoré les lignes blanches, il DEVRAIT (SHOULD) contenir zéro ou un nom de profil. Zéro nom de profil sélectionne aucun profil pour ce sous-arbre de sortie. Plus d'une ligne non vide DEVRAIT (SHOULD) produire un avertissement, et les outils PEUVENT (MAY) utiliser le premier nom de profil pour la compatibilité. Le `.harnessProfile` racine s'applique globalement ; un `.harnessProfile` local en sortie cible s'applique à son dossier et descendants, et le sélecteur le plus proche gagne pour tout chemin de sortie.
+Les superpositions de profil sont des superpositions source optionnelles sélectionnées par des fichiers `.harnessProfile`. Un fichier `.harnessProfile` est du texte UTF-8. Après avoir coupé les espaces de chaque ligne et ignoré les lignes blanches, il DOIT (MUST) contenir zéro ou un nom de profil. Zéro nom de profil sélectionne aucun profil pour ce sous-arbre de sortie. Plus d'une ligne non vide DOIT (MUST) produire une erreur, et ce sélecteur NE DOIT PAS (MUST NOT) participer à la projection. Le `.harnessProfile` racine s'applique globalement ; un `.harnessProfile` local en sortie cible s'applique à son dossier et descendants, et le sélecteur le plus proche gagne pour tout chemin de sortie. Chaque chemin de sortie a au plus un profil actif à la fois, même si différents sous-arbres de cible ou dir peuvent sélectionner différents profils avec des sélecteurs cible/sortie plus proches.
 
 Le contenu de profil est déclaré avec `.harnessProfileRoot`, qui DOIT (MUST) vivre sous `./.harness`, sous une source de ressources configurée ou sous une source dir configurée. Un fichier `.harnessProfileRoot` est du texte UTF-8. Après avoir coupé les espaces de chaque ligne et ignoré les lignes blanches, il DOIT (MUST) contenir exactement un nom de profil. Zéro nom de profil ou plus d'une ligne non vide DOIT (MUST) produire une erreur, et cette racine de profil NE DOIT PAS (MUST NOT) participer à la projection. Un `.harnessProfileRoot` NE DOIT PAS (MUST NOT) être imbriqué dans une autre racine de profil. Le dossier contenant `.harnessProfileRoot` est une racine de profil. C'est du stockage source, pas un élément de ressource, et NE DOIT PAS (MUST NOT) être projeté comme skill, règle, plugin, sortie dir ou fichier de déclaration copié.
 
@@ -578,7 +590,7 @@ Les racines de profil superposent les chemins source selon l'endroit où le marq
 
 Pendant la projection, les fichiers source de base génériques sont considérés en premier à travers les sources de ressources dans l'ordre du manifeste, puis les fichiers de profil actifs génériques, puis les fichiers de surcharge dérivés des cibles à travers les sources de ressources dans l'ordre du manifeste, puis les fichiers de profil actifs à l'intérieur de la surcharge cible correspondante. Une superposition de profil générique ne peut donc pas remplacer une surcharge spécifique à la cible telle que `.codex` ; une surcharge `.codex` spécifique au profil le peut. Si plusieurs racines de profil actives projettent le même fichier logique, un outil DEVRAIT (SHOULD) avertir et PEUT (MAY) utiliser un ordre déterministe dernière-correspondance-gagne. Les fichiers `.harnessIgnore` et `.harnessMutable` profil-locaux matchent le chemin de superposition logique, pas le chemin de stockage. Par exemple, un fichier d'ignore à `.harness/profiles/personal/dir/AGENTS.md/.harnessIgnore` s'applique comme s'il était situé à `.harness/dir/AGENTS.md/.harnessIgnore`, donc il peut supprimer les parties composables de base avant d'ajouter les parties de profil.
 
-Les fichiers `.harnessIgnore` source-locaux qui sont ancêtres physiques d'une racine de profil s'appliquent aussi avant que la racine de profil soit mappée sur son chemin de superposition logique. Par exemple, `.harness/kits/.harnessIgnore` peut exclure les métadonnées `.harness/kits/deploy/**/.harnex/` du profil `deploy` actif même lorsque les fichiers sous cette racine de profil superposent des chemins logiques tels que `.harness/resources` ou `.harness/dir`.
+Les fichiers `.harnessIgnore` source-locaux qui sont ancêtres physiques d'une racine de profil s'appliquent aussi avant que la racine de profil soit mappée sur son chemin de superposition logique. Par exemple, `.harness/kits/.harnessIgnore` peut exclure les métadonnées `.harness/kits/deploy/**/.harness-cache/` du profil `deploy` actif même lorsque les fichiers sous cette racine de profil superposent des chemins logiques tels que `.harness/resources` ou `.harness/dir`.
 
 Pour les sources dir, les implémentations DOIVENT (MUST) utiliser un flux bootstrap/final : collecter les sorties candidates avec les règles côté source et tout sélecteur de profil connu, découvrir les fichiers `.harnessIgnore` et `.harnessProfile` en sortie cible dans les ancêtres de sortie candidats, puis recalculer les sorties finales. Les dossiers de profil actifs DOIVENT (MUST) aussi participer à la découverte des candidats, pour qu'un `.harnessProfile` en sortie cible puisse activer une sortie dir uniquement-profil même lorsque aucune source dir de base n'aurait produit cette sortie. Les dossiers de profil actifs peuvent contribuer à une feuille `.harnessComposable` existante même lorsque le dossier de profil ne répète pas le marqueur `.harnessComposable`.
 
@@ -600,11 +612,11 @@ La frontière source/projection rend les différences entre surfaces révisables
 - Les chemins DOIVENT (MUST) rester à l'intérieur du dépôt.
 - Les commandes d'initialisation DOIVENT (MUST) expliquer les changements de système de fichiers planifiés avant la mutation.
 - Les commandes d'activation DEVRAIENT (SHOULD) offrir un dry run et expliquer les créations, mises à jour, suppressions, conservations, entrées non gérées préservées et sauts de mutables avant la mutation.
-- L'introspection de chemin en lecture seule, lorsqu'elle est fournie par un outil, DOIT (MUST) être dérivée du même manifeste sélectionné, des mêmes racines source configurées, sélecteurs de profil, règles d'ignore, règles de mutables, politique de mutables et modèle de projection que l'activation.
+- L'introspection de chemin en lecture seule, lorsqu'elle est fournie par un outil, DOIT (MUST) être dérivée des mêmes entrées définies dans [Projection de copie](#projection-de-copie) que l'activation.
 - Les surfaces de harness vivantes DOIVENT (MUST) être traitées comme des cibles de projection, pas comme des dépôts source.
 - Les équipes PEUVENT (MAY) gitignored les surfaces de harness vivantes parce qu'elles sont des sorties générées ; le faire ne change pas la source de vérité ni le contrat de déclaration cible.
 - Les dépôts qui gitignored les surfaces de harness vivantes DEVRAIENT (SHOULD) garder les instructions d'activation trackées et NE DEVRAIENT PAS (SHOULD NOT) gitignored les racines source configurées partagées requises pour régénérer ces surfaces. Les racines source locales au développeur PEUVENT (MAY) être gitignored lorsqu'elles sont intentionnellement en dehors de la source de vérité partagée.
-- L'activation DOIT (MUST) être idempotente pour le même manifeste sélectionné, les racines source configurées, `.harnessIgnore`, `.harnessMutable`, les ressources participantes, la politique de nettoyage et la politique de mutables.
+- L'activation DOIT (MUST) être idempotente pour les mêmes entrées définies dans [Projection de copie](#projection-de-copie).
 - La projection DOIT (MUST) honorer `.harnessIgnore` pour que les logs, métadonnées, caches et état d'implémentation restent hors des surfaces de harness vivantes.
 - Les outils DOIVENT (MUST) fusionner les surcharges dérivées des cibles lorsqu'elles sont présentes et revenir aux fichiers canoniques lorsque aucune surcharge n'existe.
 - Les types de ressources inconnus PEUVENT (MAY) être utilisés comme dossiers sous la source de ressources configurée.
@@ -631,6 +643,8 @@ Dans v1, les types de changements suivants sont permis et n'exigent pas une nouv
 - Clarifications éditoriales qui ne changent pas la signification normative.
 - Nouveaux champs optionnels avec des valeurs par défaut définies qui préservent la signification des documents v1 qui les omettent.
 - Nouvelles déclarations d'extension (qui sont opt-in par définition).
+- Nouveaux champs optionnels dans les entrées `[[resources]]`, `[[targets]]` ou `[[dir]]` sous la règle des clés inconnues.
+- Nouvelles tables ou clés de premier niveau non reconnues sous la règle des champs inconnus lorsque des outils plus anciens peuvent les ignorer sans risque.
 - Diagnostics supplémentaires ou avertissements non bloquants.
 
 Les changements suivants sont réservés à v2 :

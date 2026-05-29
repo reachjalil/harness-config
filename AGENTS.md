@@ -263,7 +263,8 @@ clear non-zero diagnostics for:
 - duplicate target paths,
 - absolute paths or paths containing `..`,
 - targets under `./.harness`,
-- target entries with fields other than `path`,
+- target entries with unknown fields report informational diagnostics instead
+  of errors,
 - malformed `.harnessIgnore` files, legacy `[mutable]` sections, or
   malformed `.harnessMutable` files,
 - `.harnessProfileRoot` outside `.harness` and the configured source roots,

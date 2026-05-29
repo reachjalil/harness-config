@@ -14,7 +14,7 @@ llmSummary: 覆盖创建 Harness config 目录、声明 target、预览激活、
 audience: 在新仓库或现有仓库中引入 Harness config 的开发者。
 contentKind: spec
 status: draft
-updated: 2026-05-29
+updated: 2026-05-28
 ---
 
 # 采用 Harness config
@@ -145,7 +145,7 @@ harnessc activate --yes
 
 - **把活动文件夹既当作源又当作 target。** 不要把 `[[targets]]` 条目指向你也直接编辑的文件夹。下次激活会报告漂移或覆盖活动编辑。如果文件夹目前必须保持为源，把它留在 `[[targets]]` 之外。
 - **忘记声明 target。** 资源仅投影到声明的 target。仓库可以在磁盘上有 `./.harness/resources/skills/foo/` 和 `.claude/`，仍然看到"没有创建" — 因为 `./.claude` 不在 `[[targets]]` 中。
-- **把产品或 runtime 状态放在 `.harness/` 下。** `./.harness/` 是为持久、可审阅源的。激活记录、漂移哈希和产品缓存属于产品所有的文件夹（如 `.harnex/`）和 `.harnessIgnore`。
+- **把产品或 runtime 状态放在 `.harness/` 下。** `./.harness/` 是为持久、可审阅源的。激活记录、漂移哈希和产品缓存属于产品所有的文件夹（如 `.harness-cache/`）和 `.harnessIgnore`。
 - **意外把 target 根文件放在工具包中。** Target 根文件（如 `.claude/settings.json`）应该在 `.harness/resources/.claude/settings.json` 处表示，而不是在 skill 文件夹或不相关的资源组内。当它应该初始化一次然后变为 runtime 所有时把它标记为 mutable。
 - **用 override 广泛 fork 内容。** Override 文件夹替换精确相对路径或添加新文件。它们故意是个小锤子；如果 target 需要 skill 的非常不同的版本，优先选用单独的资源项而不是深 override 树。
 - **把 runtime 写入的文件作为源提交。** 像 `.claude/settings.local.json` 这样的文件通常应该作为种子拷贝到 `.harness`，并在 `.harnessMutable` 中声明，让投影初始化它们一次然后让它们独自存在。如果该文件后来变为共享策略，把期望的字节提升回配置过的源根并有意地强制 mutable 重新投影。
