@@ -1,0 +1,6 @@
+---
+description: Shared Harness config workflow
+alwaysApply: true
+---
+
+Use generated agent resources as runtime surfaces. Edit `.harness` source.
