@@ -43,9 +43,9 @@ harnessc extension activate
 ```
 
 - `harnessc` 不带命令时校验最近的仓库配置，并打印检测到的 manifest 路径以及建议的后续步骤。
-- `harnessc init` 在不带 `--yes` 运行时显示采用计划。带 `--yes` 时，它创建所选 manifest（默认 `./.harness/harness.toml`）、配置过的 resources 源根下的约定或自定义资源文件夹、`.harnessIgnore` 和 `.harnessMutable`。生成的起始 manifest 显式声明 `[[resources]] path = "./.harness/resources"`。
+- `harnessc init` 在不带 `--yes` 运行时显示采用计划。带 `--yes` 时，它创建所选 manifest（默认 `./.harness/harness.toml`）、配置过的 resources 源根下的约定或自定义资源文件夹、`.harnessIgnore` 和 `.harnessMutable`。生成的起始 manifest 显式声明 `[[resources]] path = "./.harness/resources"`。使用 `--resources-path <path>` 选择该源根，使用 `--resource <kind>` 在其下创建一个或多个资源类型文件夹，并使用 `--target <path>` 添加显式 `[[targets]]` 条目。
 - `harnessc validate` 检查版本支持、仓库本地路径、target 映射、投影 ignore 语法、mutable 声明语法、资源可组合叶、符号链接叶处理和 dir 组合/拷贝问题。
-- `harnessc explain <path>` 解释源或输出路径如何参与当前投影计划，包括获胜的源路径、配置过的源根、dir 输出、阻塞诊断、`.harnessIgnore` 决定和 `.harnessMutable` 所有权决定。JSON 输出包括源和目标输出 ignore 跟踪，使调用者可以区分仓库根排除、更深的源本地重新包含、profile 本地逻辑重新包含和目标输出最终边界。
+- `harnessc explain <path>` 解释源或输出路径如何参与当前投影计划，包括获胜的源路径、配置过的源根、dir 输出、阻塞诊断以及激活使用的相同投影输入所产生的决定。JSON 输出包括源和目标输出 ignore 跟踪，使调用者可以区分仓库根排除、更深的源本地重新包含、profile 本地逻辑重新包含和目标输出最终边界。
 - `harnessc activate` 在不带 `--yes` 运行时显示投影预览，并报告创建、更新、请求的删除、保留的文件、mutable 跳过的文件和保留的未管理项。默认情况下，它把占据投影路径的 target 符号链接报告为冲突；传递 `--replace-target-symlinks` 或设置 `[activation].targetSymlinks = "replace"` 以替换链接本身。
 - `harnessc extension activate` 运行已注册的扩展。使用 `--extension <id>` 运行一个声明的扩展，或使用 `--all` 运行每个声明的支持扩展。
 

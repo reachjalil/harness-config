@@ -58,5 +58,8 @@ inside a section can mislead adopters who skim for normative requirements.
 
 `packages/core/test/docs.test.ts` verifies that every `en/<section>.md` body
 equals the matching `docs/<SECTION>.md` text. There is no automated equality
-check for non-English locales; reviewers SHOULD compare structure, examples,
-and code samples manually when accepting translation pull requests.
+check for non-English locales because translated prose intentionally differs
+from English. `packages/core/test/locales.test.ts` verifies that translated
+sections keep the same `updated:` date, heading count, fenced-code delimiter
+count, protected identifiers, diagnostic codes, documented flags, and uppercase
+RFC 2119 keyword counts as the matching English section.
