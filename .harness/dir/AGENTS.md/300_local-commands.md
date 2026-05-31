@@ -13,6 +13,7 @@ Focused checks:
 ```bash
 pnpm --filter @harnessconfig/core test
 pnpm --filter @harnessconfig/cli test
+pnpm run harness:check
 pnpm run check
 pnpm run lint
 ```
@@ -27,7 +28,12 @@ Use the built CLI from this repo for manual verification:
 
 ```bash
 node packages/cli/dist/bin.js validate --root <fixture>
-node packages/cli/dist/bin.js plan --root <fixture>
 node packages/cli/dist/bin.js activate --root <fixture>
 node packages/cli/dist/bin.js activate --root <fixture> --yes
+```
+
+Regenerate this repo's own generated harness outputs:
+
+```bash
+pnpm run harness:activate
 ```

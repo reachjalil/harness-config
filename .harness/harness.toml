@@ -3,6 +3,9 @@ version = 1
 [[resources]]
 path = "./.harness/resources"
 
+[[resources]]
+path = "./library"
+
 [[targets]]
 path = "./.agents"
 

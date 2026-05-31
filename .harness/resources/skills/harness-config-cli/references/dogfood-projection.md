@@ -10,7 +10,8 @@ agent instructions and skills.
 - Manifest: `./.harness/harness.toml` by default, or the repo-local path passed
   with `--config`.
 - Resource sources: declared with ordered `[[resources]]` entries. This repo
-  uses `.harness/resources`.
+  uses `.harness/resources` for dogfood development skills and `library` for
+  the public product skill.
 - Declared targets: `.agents` and `.claude`.
 - Generated outputs: `.agents`, `.claude`, root `AGENTS.md`, and root
   `CLAUDE.md`.
@@ -23,6 +24,9 @@ directories.
 
 - Dogfood skills use plain files such as
   `.harness/resources/skills/harness-config-cli/SKILL.md`.
+- The public product skill lives under `library/skills/harness-config` and is
+  projected through the manifest instead of being copied into target folders by
+  hand.
 - Plain skill files project to the same relative path in every declared target.
 - Keep dogfood skills useful and direct. Use dedicated tests, not this repo's
   day-to-day skill sources, to exercise resource composables, `.harnessRef`,
