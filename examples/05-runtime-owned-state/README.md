@@ -1,9 +1,16 @@
 # Runtime-owned state
 
-Seed local settings once, then let the machine own them without committed drift.
+This example shows one basic Harness config idea:
 
-For when a runtime needs an initial settings file but will edit that file as it
-learns local preferences, permissions, or caches.
+```text
+copy a settings file once -> let the runtime own it after that
+```
+
+`.harnessMutable` marks files that should be created from source for fresh
+users, then preserved after the generated target file exists.
+
+Use this pattern when a runtime needs an initial settings file but will edit
+that file as it learns local preferences, permissions, or caches.
 
 Concepts: [mutable files](../../docs/STANDARD.md#mutable-files),
 [`.harnessMutable`](../../docs/STANDARD.md#harnessmutable), and
@@ -14,13 +21,14 @@ Prerequisite: Node >= 22.12 with `npx harnessc` available.
 ## Source and generated tree
 
 ```text
-.harnessMutable                 # declares settings.local.json mutable
+.harnessMutable                 # marks settings.local.json as seed-once
 .harness/
   resources/
-    settings.local.json         # default seed for all targets
-    .claude/settings.local.json # Claude-specific seed
+    settings.local.json         # default starter settings
+    .claude/settings.local.json # Claude-specific starter settings
     skills/runtime-state/
-.agents/ .claude/               # generated and gitignored
+
+.agents/ .claude/               # generated output
 ```
 
 ## Run it
@@ -39,14 +47,19 @@ npx harnessc activate --yes --force-mutable
 cat .agents/settings.local.json
 ```
 
-The normal re-run reports the changed file as `mutable` and leaves the runtime
-edit alone. `--force-mutable` intentionally restores the reviewed seed.
+Expected result:
+
+- `validate` reports no Harness config issues.
+- The first apply creates starter settings in the targets.
+- After editing `.agents/settings.local.json`, normal activation reports it as
+  `mutable` and preserves the edit.
+- `--force-mutable` intentionally restores the reviewed source seed.
 
 ## What just happened
 
-`.harnessMutable` marked the source settings files as seed-once files. They are
-created for fresh users, then activation preserves target bytes after the file
-exists.
+Harness treated the settings files as mutable. That means source creates the
+target file once, then the live target file belongs to the runtime. Normal
+activation does not overwrite it after it exists.
 
 Try next: change the Claude seed and compare a normal apply with
 `--force-mutable`.
