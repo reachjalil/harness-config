@@ -53,6 +53,8 @@ re-projection is the only path back to source bytes.
 | Projection | Activation planning reports profile diagnostics once despite shared dir/resource phases | `packages/core/test/projection.test.ts` |
 | Projection | Profile switching reports outputs from the prior non-active profile as orphaned managed outputs, preserves them by default, removes unedited orphans only under explicit orphan cleanup, and preserves edited orphans plus genuinely unmanaged entries | `packages/core/test/projection.test.ts` |
 | Projection | Paths produced by both the active and non-active profile remain managed `keep` or `update` actions rather than orphaned managed outputs | `packages/core/test/projection.test.ts` |
+| Projection | Orphan cleanup respects target-output `.harnessIgnore` boundaries so ignored prior-profile outputs are not removed as orphaned managed outputs | `packages/core/test/projection.test.ts` |
+| Projection | Orphan cleanup compares current bytes with the final non-active target override projection, including dotfile outputs such as `.gitignore` | `packages/core/test/projection.test.ts` |
 | TOML | Target paths determine override folders from the first path segment | `packages/core/test/standard.test.ts` |
 | TOML | Target paths are explicit repo-local paths and are not constrained to named harness surfaces | `packages/core/test/standard.test.ts`, `packages/cli/test/run.test.ts` |
 | Projection | Identical declared targets are still materialized as copy projections | `packages/core/test/projection.test.ts` |
