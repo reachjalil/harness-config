@@ -56,11 +56,13 @@ Harness config répond à quatre questions pratiques :
 
 ## Ce que définit le standard
 
-- Le manifeste sélectionné, par défaut `./.harness/harness.toml`, déclare la version du standard, les sources `[[resources]]` ordonnées, les sources `[[dir]]` ordonnées et les `[[targets]]` explicites.
-- Les dossiers de ressources vivent sous les sources de ressources configurées, avec des chemins courants tels que `.harness/resources/skills/<name>` ou tout dossier personnalisé qu'un dépôt y porte. Une feuille `.harnessComposable` dans une source de ressources compose un fichier de ressource projeté pour chaque cible déclarée.
+- Le manifeste sélectionné, par défaut `./.harness/harness.toml`, déclare la version du standard, les sources `[[resources]]` ordonnées, les sources `[[dir]]` ordonnées, les `[[targets]]` explicites et les déclarations d'extension optionnelles de premier niveau.
+- Les dossiers de ressources vivent sous les sources de ressources configurées, avec des chemins courants tels que `.harness/resources/skills/<name>` ou tout dossier personnalisé qu'un dépôt y porte. Leurs fichiers sont copiés tels quels dans chaque cible projetée.
+- Une feuille `.harnessComposable` dans une source de ressources fait passer cette ressource du mode copie au mode composition, en assemblant un fichier de ressource projeté pour chaque cible déclarée à partir de ses parties ordonnées.
 - Les dossiers de surcharge dérivés des cibles tels que `.claude` ou `.agents` vivent à l'intérieur d'une ressource et ne fusionnent que lorsque la cible correspondante est projetée.
+- Les fichiers `.harnessMutable` sont initialisés une fois depuis la source, puis deviennent possédés par le runtime : les activations suivantes les rapportent, mais préservent les octets cibles vivants sauf si un forçage explicite reprojette le modèle source.
 - Les fichiers `.harnessIgnore` définissent la limite de projection. Le fichier racine du dépôt peut matcher les chemins source et de sortie. Les fichiers source-locaux suivent les chemins source. Les fichiers locaux aux sorties cibles suivent les chemins de sortie finaux et sont préservés pendant le nettoyage.
-- Les sources `[[dir]]` sont séparées des ressources ; elles composent les feuilles `.harnessComposable` en sorties relatives au dépôt telles que `AGENTS.md`, ou copient les fichiers vers des chemins de sortie relatifs au dépôt.
+- Les sources `[[dir]]` sont séparées des ressources ; elles composent les feuilles `.harnessComposable`, en partageant optionnellement des parties entre feuilles avec `.harnessRef`, en sorties relatives au dépôt telles que `AGENTS.md`, ou copient les fichiers vers des chemins de sortie relatifs au dépôt.
 - `.harnessProfile` sélectionne un profil actif. `.harnessProfileRoot` déclare une racine de superposition de profil sous `.harness` ou une racine source configurée. Les superpositions actives peuvent ajouter ou surcharger des ressources et des fragments composables de dir sans transformer le dossier de profil en un élément projeté ordinaire.
 
 ## Pourquoi cela aide
