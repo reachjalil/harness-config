@@ -150,6 +150,13 @@ teams keep tool-native surfaces while reviewing shared configuration once.
 - **Copy projection.** Targets are materialized as ordinary files, not
   symlinks. The plan (`create` / `update` / `remove` / `keep` / `preserve`
   / `mutable`) is shown before any write.
+- **Composed instruction files.** `.harnessComposable` leaves assemble ordered
+  parts into resource files or repo-relative `[[dir]]` outputs while copy mode
+  remains the default for ordinary files and folders.
+- **Profile overlays.** `.harnessProfile` selectors activate
+  `.harnessProfileRoot` source overlays, so teams and local target subtrees can
+  vary resources and composed dir parts without making profile folders ordinary
+  projected payload.
 - **Runtime-owned mutable files.** `.harnessMutable` is an ownership boundary,
   not an exclusion. Source can seed a target file once; after that, the live
   runtime owns the target bytes until mutable re-projection is explicitly

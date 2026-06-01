@@ -56,11 +56,13 @@ Harness config 回答四个实际问题：
 
 ## 该标准定义了什么
 
-- 所选 manifest（默认 `./.harness/harness.toml`）声明标准版本、有序 `[[resources]]` 源、有序 `[[dir]]` 源和显式 `[[targets]]`。
-- 资源文件夹住在配置过的 resources 源下，常见路径如 `.harness/resources/skills/<name>` 或仓库在那里携带的任何自定义目录。一个 resources 源中的 `.harnessComposable` 叶为每个声明的 target 组合出一个被投影的资源文件。
+- 所选 manifest（默认 `./.harness/harness.toml`）声明标准版本、有序 `[[resources]]` 源、有序 `[[dir]]` 源、显式 `[[targets]]` 和可选的顶层 extension declarations。
+- 资源文件夹住在配置过的 resources 源下，常见路径如 `.harness/resources/skills/<name>` 或仓库在那里携带的任何自定义目录。它们的文件会原样复制到每个被投影的 target。
+- resources 源中的 `.harnessComposable` 叶会把该资源从复制切换为组合，从有序部分为每个声明的 target 组装一个被投影的资源文件。
 - 由 target 派生的 override 文件夹（如 `.claude` 或 `.agents`）住在资源内部，只在匹配的 target 被投影时合并。
+- `.harnessMutable` 文件从源初始化一次，然后成为 runtime 所有：后续激活会报告它们，但保留活动 target 字节，除非显式强制重新投影源模板。
 - `.harnessIgnore` 文件定义投影边界。仓库根文件可以匹配源路径和输出路径。源本地文件跟随源路径。目标输出本地文件跟随最终输出路径并在清理期间被保留。
-- `[[dir]]` 源与 resources 分离；它们把 `.harnessComposable` 叶组合成相对仓库的输出（如 `AGENTS.md`），或把文件复制到相对仓库的输出路径。
+- `[[dir]]` 源与 resources 分离；它们组合 `.harnessComposable` 叶，可选择用 `.harnessRef` 在叶之间共享部分，生成相对仓库的输出（如 `AGENTS.md`），或把文件复制到相对仓库的输出路径。
 - `.harnessProfile` 选择活动 profile。`.harnessProfileRoot` 声明在 `.harness` 或配置过的源根下的 profile 覆盖根。活动覆盖可以添加或重写资源和 dir 可组合部分，而不把 profile 文件夹变成普通投影项。
 
 ## 为什么它有帮助

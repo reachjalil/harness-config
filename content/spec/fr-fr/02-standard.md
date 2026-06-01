@@ -76,6 +76,7 @@ La version `1` standardise :
 - les dossiers de surcharge dérivés des cibles,
 - la projection de copie (idempotente sous des entrées fixes),
 - la composition dir (feuilles `.harnessComposable`) et le contrat de copie pour les fichiers qui se projettent vers des chemins relatifs au dépôt,
+- la sélection de profil (`.harnessProfile`) et les racines de superposition de profil (`.harnessProfileRoot`) qui peuvent ajouter ou surcharger des ressources et des fragments composables de dir,
 - les fichiers d'ignore de projection `.harnessIgnore`, incluant les règles racine, source-locales, profil-locales et locales aux sorties cibles,
 - les fichiers mutables de projection `.harnessMutable`, incluant les règles racine, source-locales et profil-locales.
 
@@ -91,6 +92,7 @@ Harness config standardise :
 - les déclarations de cibles explicites avec chemins locaux au dépôt requis,
 - la politique d'activation de premier niveau avec des valeurs par défaut définies,
 - les racines source dir ordonnées, avec des feuilles composables (`.harnessComposable`) et des dossiers en mode copie qui se projettent vers des chemins relatifs au dépôt,
+- le modèle de sélection de profil et de superposition, incluant les sélecteurs `.harnessProfile` et les racines `.harnessProfileRoot` qui peuvent ajouter ou surcharger des ressources et des fragments composables de dir,
 - les déclarations d'extension de premier niveau (politique de découverte et d'activation uniquement),
 - la projection de copie des sources de ressources configurées vers les cibles déclarées,
 - `.harnessIgnore` comme filtre d'exclusion de projection, y compris les exclusions en sortie cible,

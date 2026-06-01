@@ -76,6 +76,7 @@ version = 1
 - 由 target 派生的 override 文件夹，
 - 拷贝投影（在固定输入下幂等），
 - dir 组合（`.harnessComposable` 叶）和投影到相对仓库路径的文件的拷贝契约，
+- profile 选择（`.harnessProfile`）和 profile 覆盖根（`.harnessProfileRoot`），它们可以添加或覆盖资源和 dir 可组合部分，
 - `.harnessIgnore` 投影 ignore 文件，包括仓库根规则、源本地规则、profile 本地规则和目标输出本地规则，
 - `.harnessMutable` 投影 mutable 文件，包括仓库根规则、源本地规则和 profile 本地规则。
 
@@ -91,6 +92,7 @@ Harness config 标准化：
 - 带必需仓库本地路径的显式 target 声明，
 - 带定义默认值的顶级激活策略，
 - 有序的 dir 源根，带可组合（`.harnessComposable`）叶和投影到相对仓库路径的拷贝模式目录，
+- profile 选择和覆盖模型，包括 `.harnessProfile` 选择器和 `.harnessProfileRoot` 根，它们可以添加或覆盖资源和 dir 可组合部分，
 - 顶级扩展声明（仅发现和激活策略），
 - 从配置过的 resources 源到声明的 target 的拷贝投影，
 - `.harnessIgnore` 作为投影排除过滤器，包括目标输出排除，

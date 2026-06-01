@@ -56,11 +56,13 @@ Harness config responde cuatro preguntas prácticas:
 
 ## Qué define el estándar
 
-- El manifiesto seleccionado, por defecto `./.harness/harness.toml`, declara la versión del estándar, las fuentes `[[resources]]` ordenadas, las fuentes `[[dir]]` ordenadas y los `[[targets]]` explícitos.
-- Las carpetas de recursos viven bajo las fuentes de recursos configuradas, con caminos comunes como `.harness/resources/skills/<name>` o cualquier directorio personalizado que el repositorio porte allí. Una hoja `.harnessComposable` en una fuente de recursos compone un archivo de recurso proyectado para cada objetivo declarado.
+- El manifiesto seleccionado, por defecto `./.harness/harness.toml`, declara la versión del estándar, las fuentes `[[resources]]` ordenadas, las fuentes `[[dir]]` ordenadas, los `[[targets]]` explícitos y declaraciones opcionales de extensión de nivel superior.
+- Las carpetas de recursos viven bajo las fuentes de recursos configuradas, con caminos comunes como `.harness/resources/skills/<name>` o cualquier directorio personalizado que el repositorio porte allí. Sus archivos se copian tal cual en cada objetivo proyectado.
+- Una hoja `.harnessComposable` en una fuente de recursos cambia ese recurso de copia a composición, ensamblando un archivo de recurso proyectado para cada objetivo declarado a partir de sus partes ordenadas.
 - Las carpetas de override derivadas del objetivo como `.claude` o `.agents` viven dentro de un recurso y se fusionan solo cuando el objetivo correspondiente es proyectado.
+- Los archivos `.harnessMutable` se inicializan una vez desde la fuente y luego pasan a ser propiedad del runtime: las activaciones posteriores los reportan, pero preservan los bytes objetivo vivos salvo que una fuerza explícita reproyecte la plantilla fuente.
 - Los archivos `.harnessIgnore` definen el límite de proyección. El archivo raíz del repositorio puede coincidir con caminos fuente y caminos de salida. Los archivos fuente-locales siguen caminos fuente. Los archivos locales a la salida objetivo siguen caminos de salida finales y se preservan durante la limpieza.
-- Las fuentes `[[dir]]` son separadas de los recursos; componen hojas `.harnessComposable` en salidas relativas al repositorio como `AGENTS.md`, o copian archivos a caminos de salida relativos al repositorio.
+- Las fuentes `[[dir]]` son separadas de los recursos; componen hojas `.harnessComposable`, opcionalmente compartiendo partes entre hojas con `.harnessRef`, en salidas relativas al repositorio como `AGENTS.md`, o copian archivos a caminos de salida relativos al repositorio.
 - `.harnessProfile` selecciona un perfil activo. `.harnessProfileRoot` declara una raíz de superposición de perfil bajo `.harness` o una raíz fuente configurada. Las superposiciones activas pueden añadir o reescribir recursos y partes componibles de dir sin convertir la carpeta de perfil en un elemento proyectado ordinario.
 
 ## Por qué ayuda
