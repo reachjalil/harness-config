@@ -1,10 +1,16 @@
 # Composable instructions
 
-`CLAUDE.md = AGENTS.md + Claude extras`. Edit shared sections once, then compose
-runtime-specific instruction files from the same parts.
+This example shows one basic Harness config idea:
 
-For when root instruction files have overlapping content and drift every time a
-team updates one runtime.
+```text
+small instruction parts -> generated instruction files
+```
+
+`AGENTS.md` is built from numbered parts. `CLAUDE.md` and Copilot's instruction
+file reuse `AGENTS.md` with `.harnessRef`, then add their own extra section.
+
+Use this pattern when root instruction files share most content and would drift
+if each file were edited by hand.
 
 Concepts: [dir source](../../docs/STANDARD.md#dir-source),
 [composable leaves](../../docs/STANDARD.md#composable-leaves), and
@@ -17,33 +23,39 @@ Prerequisite: Node >= 22.12 with `npx harnessc` available.
 ```text
 .harness/
   dir/
-    AGENTS.md/                  # shared composed guide
-    CLAUDE.md/                  # imports AGENTS.md, adds Claude extras
+    AGENTS.md/                  # shared guide built from numbered parts
+    CLAUDE.md/                  # reuses AGENTS.md, adds Claude notes
     .github/copilot-instructions.md/
-                                # imports AGENTS.md, adds Copilot extras
-AGENTS.md CLAUDE.md .github/copilot-instructions.md  # generated and gitignored
+                                # reuses AGENTS.md, adds Copilot notes
+
+AGENTS.md CLAUDE.md .github/copilot-instructions.md  # generated output
 ```
 
 ## Run it
 
 ```bash
-npx harnessc validate
-npx harnessc activate
-npx harnessc activate --yes
-npx harnessc activate
-cat AGENTS.md
-cat CLAUDE.md
-cat .github/copilot-instructions.md
+npx harnessc validate                                  # check the manifest and composable dir source
+npx harnessc activate                                  # dry run: preview the composed instruction files
+npx harnessc activate --yes                            # apply: write the generated instruction files
+npx harnessc activate                                  # check that nothing new needs to change
+cat AGENTS.md                                          # inspect the shared composed guide
+cat CLAUDE.md                                          # inspect AGENTS.md plus Claude extras
+cat .github/copilot-instructions.md                    # inspect AGENTS.md plus Copilot extras
 ```
 
-The first dry run previews three generated instruction files. The apply writes
-them. The second dry run converges to `keep`.
+Expected result:
+
+- `validate` reports no Harness config issues.
+- The first `activate` previews three generated instruction files.
+- `activate --yes` writes `AGENTS.md`, `CLAUDE.md`, and Copilot instructions.
+- The second `activate` should converge to `keep`.
+- The `cat` commands show the composed file contents.
 
 ## What just happened
 
-`AGENTS.md` is composed from numbered parts. `CLAUDE.md` and Copilot's
-instruction file import that shared guide with `.harnessRef`, then append their
-own runtime-specific tail.
+Harness composed `AGENTS.md` from numbered source parts. `CLAUDE.md` and
+Copilot's instruction file imported that shared guide with `.harnessRef`, then
+appended their own runtime-specific tail.
 
 Try next: edit `100_identity.md`, dry-run, and see every composed output update
 from the same source change.
