@@ -122,6 +122,7 @@ export type HarnessActivationActionKind =
   | "remove"
   | "keep"
   | "preserve"
+  | "orphan"
   | "mutable";
 
 export type HarnessActivationAction = {
@@ -178,6 +179,7 @@ export type ApplyHarnessActivationOptions = {
   yes?: boolean;
   configPath?: string;
   cleanupUnmanaged?: "keep" | "remove";
+  cleanupOrphans?: "keep" | "remove";
   mutablePolicy?: "skip" | "force";
   targetSymlinkPolicy?: HarnessTargetSymlinkPolicy;
 };

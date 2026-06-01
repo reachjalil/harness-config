@@ -14,7 +14,7 @@ llmSummary: 描述 Harness config 周围的校验、explain 自省、dry-run、�
 audience: CLI 作者和操作 Harness config 仓库的开发者。
 contentKind: spec
 status: draft
-updated: 2026-05-28
+updated: 2026-06-01
 ---
 
 # Harness config 工具
@@ -46,7 +46,7 @@ harnessc extension activate
 - `harnessc init` 在不带 `--yes` 运行时显示采用计划。带 `--yes` 时，它创建所选 manifest（默认 `./.harness/harness.toml`）、配置过的 resources 源根下的约定或自定义资源文件夹、`.harnessIgnore` 和 `.harnessMutable`。生成的起始 manifest 显式声明 `[[resources]] path = "./.harness/resources"`。使用 `--resources-path <path>` 选择该源根，使用 `--resource <kind>` 在其下创建一个或多个资源类型文件夹，并使用 `--target <path>` 添加显式 `[[targets]]` 条目。
 - `harnessc validate` 检查版本支持、仓库本地路径、target 映射、投影 ignore 语法、mutable 声明语法、资源可组合叶、符号链接叶处理和 dir 组合/拷贝问题。
 - `harnessc explain <path>` 解释源或输出路径如何参与当前投影计划，包括获胜的源路径、配置过的源根、dir 输出、阻塞诊断以及激活使用的相同投影输入所产生的决定。JSON 输出包括源和目标输出 ignore 跟踪，使调用者可以区分仓库根排除、更深的源本地重新包含、profile 本地逻辑重新包含和目标输出最终边界。
-- `harnessc activate` 在不带 `--yes` 运行时显示投影预览，并报告创建、更新、请求的删除、保留的文件、mutable 跳过的文件和保留的未管理项。默认情况下，它把占据投影路径的 target 符号链接报告为冲突；传递 `--replace-target-symlinks` 或设置 `[activation].targetSymlinks = "replace"` 以替换链接本身。
+- `harnessc activate` 在不带 `--yes` 运行时显示投影预览，并报告创建、更新、请求的删除、保留的文件、mutable 跳过的文件、孤立的受管理输出和保留的未管理项。默认情况下，它把占据投影路径的 target 符号链接报告为冲突；传递 `--replace-target-symlinks` 或设置 `[activation].targetSymlinks = "replace"` 以替换链接本身。
 - `harnessc extension activate` 运行已注册的扩展。使用 `--extension <id>` 运行一个声明的扩展，或使用 `--all` 运行每个声明的支持扩展。
 
 `init`、`activate` 和 `extension activate` 是 dry run，除非提供 `--yes`。`init` 的 dry-run 形式替代了之前的 `harnessc plan` 命令，因此单个心智模型 — "无标志预览，`--yes` 写入" — 适用于每个变更命令。
@@ -60,6 +60,8 @@ harnessc explain .harness/local/resources/skills/review/SKILL.md
 ```
 
 未管理的 target 条目默认保留。当 target 应被清理以匹配配置过的源时使用 `--remove-unmanaged`；使用 `--keep-unmanaged` 使默认显式。
+
+孤立的受管理输出也默认保留。它们是当前 manifest 的配置源仍可产生的 target 条目，但活动 profile 或 target 选择不再为该输出路径产生它们。使用 `--remove-orphans` 只删除当前字节仍匹配非活动源投影的孤立输出；已编辑的孤立输出保持原位。使用 `--keep-orphans` 使默认显式。
 
 生成的 harness surface（如 `.agents`、`.claude`、`.cursor` 和 `.gemini`）当它们可从 `.harness` 重现时可被 gitignored。这样做的项目应保留已跟踪的激活说明，如根指令笔记、README 设置步骤或告诉用户和 agent 在新检出时运行校验和激活的包脚本。
 
@@ -78,11 +80,11 @@ harnessc explain .harness/local/resources/skills/review/SKILL.md
 
 保持共享 Harness 源已跟踪：`.harness/harness.toml`、共享 `.harness/resources/**`、使用时的 `.harness/dir/**`、`.harnessIgnore` 和 `.harnessMutable` 声明。不要把 `.harness/` 添加为宽泛 ignore，除非仓库有意选择不共享源目录。
 
-清理仅适用于在所选 manifest 中仍声明的 target。在 target 声明移除后，基础 `harnessc activate` 不再检查或清理该文件夹。先用 `--remove-unmanaged` 清理它，或使用更高层激活状态工作流来调和孤立 target。
+清理仅适用于在所选 manifest 中仍声明的 target。在 target 声明移除后，基础 `harnessc activate` 不再检查或清理该文件夹。视情况先用 `--remove-unmanaged` 或 `--remove-orphans` 清理它，或使用更高层激活状态工作流来调和孤立 target。
 
 默认 manifest 路径是 `./.harness/harness.toml`。当 `--root` 和 `--config` 被省略时，`harnessc` 从当前目录向上搜索该 manifest。传递 `--config <path>` 以针对另一个仓库本地 TOML 文件进行校验、初始化、激活或运行扩展。`harnessc init --resources-path <path>` 把一个 `[[resources]]` 条目写入 manifest，并在该配置过的源根下创建资源文件夹。`harnessc init --resource <kind>` 在配置过的资源根下添加一个资源类型文件夹，并用资源 id 模式校验名称。`harnessc init --target <path>` 为仓库本地 target 路径添加一个 `[[targets]]` 条目。Manifest 路径由工具调用选择；manifest 内的路径保持仓库本地，不相对于 manifest 文件的目录。
 
-激活计划也是面向操作员的所有权视图。受管理文件是仓库所有的投影输出，未管理条目是投影之外的现有 target 状态，mutable 条目是由源初始化但现在由 runtime 所有的 target 文件。
+激活计划也是面向操作员的所有权视图。受管理文件是仓库所有的投影输出，孤立的受管理输出是来自非活动源选择的仓库产生的过期输出，未管理条目是配置源之外的现有 target 状态，mutable 条目是由源初始化但现在由 runtime 所有的 target 文件。
 
 受管理文件直接与当前源投影比较：如果 target 不同，`harnessc activate` 报告 `update`，应用激活用当前源字节覆盖 target。`.harnessMutable` 中声明的 mutable 文件从源创建一次，并在后续激活中被跳过，因为活动 target 字节由 runtime 所有。使用 `--force-mutable` 从源重新投影它们。
 
@@ -104,6 +106,7 @@ harnessc activate --yes --replace-target-symlinks
 - 符号链接被视为叶条目，不被跟随；
 - 占据投影路径的 target 符号链接是冲突，除非通过 manifest 策略或 `--replace-target-symlinks` 选择替换；
 - 未管理的 target 条目被保留，除非选择 `--remove-unmanaged`；
+- 孤立的受管理输出被保留，除非选择 `--remove-orphans`，并且已编辑的孤立输出仍由字节匹配保护保留；
 - 目标输出 `.harnessIgnore` 和 `.harnessProfile` 文件作为本地控件被保留；
 - 用相同输入重复激活对受管理文件收敛到 `keep`，对 runtime 所有的文件收敛到 `mutable`；
 - 重叠的 target 或与配置过的源根冲突的 target 是诊断。

@@ -14,7 +14,7 @@ llmSummary: Définit la forme du dépôt .harness, le contrat TOML, la projectio
 audience: Auteurs d'outils, réviseurs du standard et implémenteurs techniques.
 contentKind: spec
 status: draft
-updated: 2026-05-28
+updated: 2026-06-01
 ---
 
 # Standard Harness config
@@ -296,9 +296,10 @@ L'activation est une projection de copie répétable depuis les entrées source 
 3. les sélecteurs `.harnessProfile` et superpositions `.harnessProfileRoot` actives,
 4. tous les fichiers `.harnessIgnore` participants, y compris règles racine, source-locales, profil-locales et locales en sortie cible,
 5. tous les fichiers `.harnessMutable` participants, y compris règles racine, source-locales et profil-locales,
-6. la politique de nettoyage (préserver les entrées non gérées vs. les supprimer),
-7. la politique de mutable (sauter les fichiers mutables vs. forcer la re-projection),
-8. la politique de lien symbolique cible (conflit vs. remplacement).
+6. la politique de nettoyage des non gérés (préserver les entrées non gérées vs. les supprimer),
+7. la politique de nettoyage des sorties orphelines (préserver les sorties gérées orphelines vs. supprimer celles non éditées),
+8. la politique de mutable (sauter les fichiers mutables vs. forcer la re-projection),
+9. la politique de lien symbolique cible (conflit vs. remplacement).
 
 **Idempotence (propriété testable).** Soit `M_n` le sous-ensemble de projection gérée d'une cible déclarée après la `n`-ème activation contre les entrées inchangées définies ci-dessus et un état cible inchangé sauf pour les changements d'octets de fichiers mutables. Pour chaque `n ≥ 2` :
 
@@ -316,6 +317,7 @@ Un outil conforme SHOULD supporter un dry run qui rapporte les actions qu'il pre
 - `remove` : une entrée cible est sélectionnée pour suppression parce qu'elle n'est pas présente dans la projection calculée.
 - `keep` : le fichier cible correspond déjà à la projection.
 - `preserve` : une entrée existante à l'intérieur d'une cible déclarée n'est pas dans la projection calculée et restera intacte.
+- `orphan` : une entrée existante à l'intérieur d'une cible déclarée n'est pas dans la projection active mais peut encore être produite par une source configurée qui n'est pas sélectionnée pour ce chemin de sortie.
 - `mutable` : un fichier déclaré mutable dans `.harnessMutable` existe déjà dans la cible, même si ses octets correspondent encore à la source. Le runtime le possède ; l'activation MUST NOT l'écraser ni le supprimer sans une décision de forçage explicite.
 
 Ces actions décrivent les fichiers et dossiers à l'intérieur des cibles déclarées. Les fichiers source sous les racines source configurées sont des entrées de projection ; l'activation ne les classe pas comme `keep`, `preserve` ou `remove`.
@@ -348,6 +350,18 @@ Si le nettoyage est sélectionné, le plan MUST montrer ces entrées comme `remo
 
 Si une déclaration de cible est retirée du manifeste sélectionné, la projection v1 du noyau n'a plus cette cible dans son ensemble d'écriture autorisé et donc ne nettoie pas ce dossier lors de l'activation normale. Pour nettoyer une cible uniquement avec le contrat de projection de base, exécuter le nettoyage pendant que la cible est encore déclarée, puis retirer la déclaration. Les outils de niveau supérieur MAY garder l'état d'activation et offrir un flux de réconciliation de cible orpheline qui prévisualise suppression, ignore ou capture vers la source.
 
+### Sorties gérées orphelines
+
+Une sortie gérée orpheline est une entrée cible dont le chemin de sortie logique est produit par une source configurée sous le manifeste courant, mais n'est pas produit par la sélection active pour ce chemin de sortie. Les cas courants incluent un fichier produit par une racine de profil désélectionnée ou une surcharge cible après le changement d'un sélecteur de profil. Une sortie gérée orpheline est distincte d'une entrée gérée dans la projection active et d'une entrée non gérée produite par aucune source configurée.
+
+La politique de nettoyage des sorties orphelines par défaut SHOULD être la préservation. Un outil conforme SHOULD rapporter les sorties gérées orphelines comme leur propre catégorie de plan afin qu'un opérateur puisse distinguer une sortie de profil périmée produite par l'outil de fichiers cibles réellement étrangers.
+
+Si un nettoyage explicite des sorties orphelines est sélectionné, un outil MUST supprimer une sortie gérée orpheline seulement lorsque les octets cibles courants égalent les octets que la source non active projetterait. Si les octets cibles ont divergé, l'outil MUST préserver la sortie orpheline. Les protections des fichiers mutables et des fichiers de déclaration en sortie cible gardent la priorité sur le nettoyage des sorties orphelines.
+
+Cette catégorie n'est dérivable que tant que la source productrice existe encore sur disque. Si la source qui a produit une entrée cible périmée a été supprimée, l'entrée ne peut pas être distinguée d'un état cible non géré par le contrat de projection v1 de base et MUST être préservée sauf si un registre d'activation ou un flux de réconciliation de niveau supérieur prouve une décision plus étroite.
+
+Les sorties dir ne gagnent pas de mécanisme indépendant de suppression d'orphelines depuis cette catégorie. Jusqu'à l'existence d'un contrat de nettoyage dir, les sorties dir restent gouvernées par l'activation dir normale, le nettoyage de cible déclarée et les mêmes protections pour les fichiers mutables et les fichiers de déclaration en sortie cible.
+
 ### Résumé de la sémantique du système de fichiers
 
 Ces règles sont normatives pour l'activation v1 :
@@ -357,6 +371,7 @@ Ces règles sont normatives pour l'activation v1 :
 - Les fichiers cibles gérés sont écrasés depuis la projection source courante lorsque leurs octets diffèrent.
 - Les fichiers cibles mutables sont créés depuis la source une seule fois puis deviennent possédés par le runtime jusqu'à une décision de forçage explicite qui les re-projette.
 - Les entrées cibles non gérées sont préservées sauf si un nettoyage explicite est sélectionné.
+- Les sorties gérées orphelines sont préservées par défaut et supprimées seulement par nettoyage explicite des sorties orphelines lorsque leurs octets correspondent encore à la projection source non active.
 - Les fichiers `.harnessIgnore` et `.harnessProfile` en sortie cible sont un état local protégé et MUST NOT être surpassés ou supprimés par le nettoyage des non gérés.
 - L'activation est déterministe pour les entrées définies dans [Projection de copie](#projection-de-copie).
 - Les cibles MUST NOT pointer vers `./.harness`, chevaucher les racines source configurées ni se chevaucher entre elles.
@@ -580,7 +595,7 @@ Les fichiers locaux sont des entrées de limite optionnelles à portée ; un dé
 
 ## Superpositions de profil
 
-Les superpositions de profil sont des superpositions source optionnelles sélectionnées par des fichiers `.harnessProfile`. Un fichier `.harnessProfile` est du texte UTF-8. Après avoir coupé les espaces de chaque ligne et ignoré les lignes blanches, il MUST contenir zéro ou un nom de profil. Zéro nom de profil sélectionne aucun profil pour ce sous-arbre de sortie. Plus d'une ligne non vide MUST produire une erreur, et ce sélecteur MUST NOT participer à la projection. Le `.harnessProfile` racine s'applique globalement ; un `.harnessProfile` local en sortie cible s'applique à son dossier et descendants, et le sélecteur le plus proche gagne pour tout chemin de sortie. Chaque chemin de sortie a au plus un profil actif à la fois, même si différents sous-arbres de cible ou dir peuvent sélectionner différents profils avec des sélecteurs cible/sortie plus proches.
+Les superpositions de profil sont des superpositions source optionnelles sélectionnées par des fichiers `.harnessProfile`. Un fichier `.harnessProfile` est du texte UTF-8. Après avoir coupé les espaces de chaque ligne et ignoré les lignes blanches, il MUST contenir zéro ou un nom de profil. Zéro nom de profil sélectionne aucun profil pour ce sous-arbre de sortie. Plus d'une ligne non vide MUST produire une erreur, et ce sélecteur MUST NOT participer à la projection. Le `.harnessProfile` racine s'applique globalement ; un `.harnessProfile` local en sortie cible s'applique à son dossier et descendants, et le sélecteur le plus proche gagne pour tout chemin de sortie. Chaque chemin de sortie a au plus un profil actif à la fois, même si différents sous-arbres de cible ou dir peuvent sélectionner différents profils avec des sélecteurs cible/sortie plus proches. Quand un sélecteur de profil change, les sorties que le profil désélectionné produirait encore sont classées par les règles des sorties gérées orphelines dans [Sorties gérées orphelines](#sorties-gérées-orphelines).
 
 Le contenu de profil est déclaré avec `.harnessProfileRoot`, qui MUST vivre sous `./.harness`, sous une source de ressources configurée ou sous une source dir configurée. Un fichier `.harnessProfileRoot` est du texte UTF-8. Après avoir coupé les espaces de chaque ligne et ignoré les lignes blanches, il MUST contenir exactement un nom de profil. Zéro nom de profil ou plus d'une ligne non vide MUST produire une erreur, et cette racine de profil MUST NOT participer à la projection. Un `.harnessProfileRoot` MUST NOT être imbriqué dans une autre racine de profil. Le dossier contenant `.harnessProfileRoot` est une racine de profil. C'est du stockage source, pas un élément de ressource, et MUST NOT être projeté comme skill, règle, plugin, sortie dir ou fichier de déclaration copié.
 
@@ -613,7 +628,7 @@ La frontière source/projection rend les différences entre surfaces révisables
 - La validation MUST être en lecture seule.
 - Les chemins MUST rester à l'intérieur du dépôt.
 - Les commandes d'initialisation MUST expliquer les changements de système de fichiers planifiés avant la mutation.
-- Les commandes d'activation SHOULD offrir un dry run et expliquer les créations, mises à jour, suppressions, conservations, entrées non gérées préservées et sauts de mutables avant la mutation.
+- Les commandes d'activation SHOULD offrir un dry run et expliquer les créations, mises à jour, suppressions, conservations, sorties gérées orphelines, entrées non gérées préservées et sauts de mutables avant la mutation.
 - L'introspection de chemin en lecture seule, lorsqu'elle est fournie par un outil, MUST être dérivée des mêmes entrées définies dans [Projection de copie](#projection-de-copie) que l'activation.
 - Les surfaces de harness vivantes MUST être traitées comme des cibles de projection, pas comme des dépôts source.
 - Les équipes MAY gitignored les surfaces de harness vivantes parce qu'elles sont des sorties générées ; le faire ne change pas la source de vérité ni le contrat de déclaration cible.
@@ -632,6 +647,7 @@ Harness config décrit un système qui copie des fichiers depuis le contrôle de
 - **Redirection de lien symbolique.** Les liens symboliques dans l'arbre source ou dans les arbres cibles déclarés peuvent rediriger les lectures ou écritures hors du dépôt s'ils sont suivis. Les implémentations v1 MUST traiter les liens symboliques comme des entrées feuilles et MUST NOT les suivre silencieusement. Remplacer un lien symbolique cible qui occupe un chemin projeté MUST exiger une politique de lien symbolique cible explicite, soit depuis le manifeste sélectionné soit depuis une option d'activation équivalente sélectionnée par l'opérateur.
 - **TOCTOU à l'application.** Une cible peut être modifiée entre la planification et l'application. Les implémentations SHOULD revérifier l'existence et la classification gérée/non gérée des fichiers au moment de l'application, pas seulement au moment du plan.
 - **Suppression d'entrées non gérées.** Le nettoyage supprime les fichiers utilisateur. La politique par défaut MUST être la préservation, et toute suppression MUST être visible dans le plan avant qu'elle ne se produise.
+- **Suppression de sorties orphelines.** Le nettoyage de sorties périmées ne peut être sûr que lorsque les octets cibles courants correspondent encore à la projection source non active. La politique par défaut MUST être la préservation, et une sortie orpheline éditée MUST NOT être supprimée par le nettoyage des sorties orphelines.
 - **Contournement de mutable.** Les règles `.harnessMutable` sont une déclaration explicite « le runtime possède ceci après la première projection ». Les implémentations MUST NOT écraser un mutable cible sans une décision de forçage explicite et visible par l'utilisateur.
 - **Surcharges non fiables.** Un dépôt peut importer des éléments de ressources de tiers. Comme les dossiers de surcharge peuvent réécrire des fichiers cibles arbitraires, les implémentations et les produits en aval SHOULD fournir un outillage pour comparer les dossiers de surcharge aux fichiers canoniques et pour limiter les cibles qu'une surcharge donnée peut affecter.
 - **Activation qui lit sa sortie.** Les dossiers cibles vivants MUST NOT être utilisés comme entrées de la projection suivante. Traiter une cible comme à la fois source et puits peut amplifier silencieusement les éditions runtime en changements de source de vérité.
@@ -652,7 +668,7 @@ Dans v1, les types de changements suivants sont permis et n'exigent pas une nouv
 Les changements suivants sont réservés à v2 :
 
 - Tout changement au schéma du manifeste pour les cibles ou le champ `version` de premier niveau qui invaliderait un manifeste v1.
-- Tout changement à la sémantique de projection (`create`, `update`, `remove`, `keep`, `preserve`, `mutable`) qui altérerait le résultat sur disque d'une entrée v1 inchangée.
+- Tout changement à la sémantique de projection (`create`, `update`, `remove`, `keep`, `preserve`, `orphan`, `mutable`) qui altérerait le résultat sur disque d'une entrée v1 inchangée.
 - Tout changement à la grammaire ou à la précédence de `.harnessIgnore` qui altérerait quels fichiers un ensemble de règles v1 existant inclut, exclut ou marque mutables.
 - Réservation de types de ressources ou de noms de cibles précédemment disponibles aux dépôts utilisateurs.
 

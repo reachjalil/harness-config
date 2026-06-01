@@ -14,7 +14,7 @@ llmSummary: Defines the .harness repository shape, TOML contract, activation pro
 audience: Tool authors, standard reviewers, and technical implementers.
 contentKind: spec
 status: draft
-updated: 2026-05-28
+updated: 2026-06-01
 ---
 
 # Harness config standard
@@ -536,9 +536,11 @@ targets. The inputs are:
    source-local, profile-local, and target-output-local rules,
 5. all participating `.harnessMutable` files, including repo-root,
    source-local, and profile-local rules,
-6. the cleanup policy (preserve unmanaged entries vs. remove them),
-7. the mutable policy (skip mutable files vs. force re-projection),
-8. the target symlink policy (conflict vs. replace).
+6. the unmanaged cleanup policy (preserve unmanaged entries vs. remove them),
+7. the orphaned-output cleanup policy (preserve orphaned managed outputs vs.
+   remove unedited ones),
+8. the mutable policy (skip mutable files vs. force re-projection),
+9. the target symlink policy (conflict vs. replace).
 
 **Idempotence (testable property).** Let `M_n` be the managed projection subset
 of a declared target after the `n`-th activation against the unchanged inputs
@@ -569,6 +571,9 @@ take before writing:
 - `keep`: the target file already matches the projection.
 - `preserve`: an existing entry inside a declared target is not in the
   computed projection and will stay untouched.
+- `orphan`: an existing entry inside a declared target is not in the active
+  projection but can still be produced by a configured source that is not
+  selected for that output path.
 - `mutable`: a file declared mutable in `.harnessMutable` already exists in the
   target, even if its bytes still match the source. The runtime owns it;
   activation MUST NOT overwrite or remove it without an explicit force
@@ -648,6 +653,39 @@ the declaration. Higher-level tools MAY keep activation state and offer an
 orphaned-target reconciliation workflow that previews removal, ignore, or
 capture back to source.
 
+### Orphaned Managed Outputs
+
+An orphaned managed output is a target entry whose logical output path is
+produced by some configured source under the current manifest, but is not
+produced by the active selection for that output path. Common cases include a
+file produced by a deselected profile root or target override after a profile
+selector changes. An orphaned managed output is distinct from a managed entry
+in the active projection and from an unmanaged entry produced by no configured
+source.
+
+The default orphaned-output cleanup policy SHOULD be preserve. A conforming
+tool SHOULD report orphaned managed outputs as their own plan category so an
+operator can distinguish tool-produced stale profile output from genuinely
+foreign target files.
+
+If explicit orphaned-output cleanup is selected, a tool MUST remove an orphaned
+managed output only when the current target bytes equal the bytes that the
+non-active source would project. If the target bytes have diverged, the tool
+MUST preserve the orphaned output. Mutable-file protections and target-output
+declaration-file protections still take precedence over orphaned-output
+cleanup.
+
+This category is derivable only while the producing source still exists on
+disk. If the source that produced a stale target entry has been deleted, the
+entry cannot be distinguished from unmanaged target state by the base v1
+projection contract and MUST be preserved unless a higher-level activation
+ledger or reconciliation workflow proves a narrower decision.
+
+Dir outputs do not gain an independent orphan-removal mechanism from this
+category. Until a dir cleanup contract exists, dir outputs remain governed by
+normal dir activation, declared-target cleanup, and the same protections for
+mutable files and target-output declaration files.
+
 ### Filesystem Semantics Summary
 
 These rules are normative for v1 activation:
@@ -663,6 +701,9 @@ These rules are normative for v1 activation:
 - Mutable target files are created from source once and then become
   runtime-owned until an explicit force decision re-projects them.
 - Unmanaged target entries are preserved unless explicit cleanup is selected.
+- Orphaned managed outputs are preserved by default and removed only by
+  explicit orphaned-output cleanup when their bytes still match the
+  non-active source projection.
 - Target-output `.harnessIgnore` and `.harnessProfile` files are protected
   local state and MUST NOT be projected over or removed by unmanaged cleanup.
 - Activation is deterministic for the inputs defined in
@@ -1089,6 +1130,9 @@ target/output-local `.harnessProfile` applies to its directory and descendants,
 and the nearest selector wins for any output path. Each output path has at most
 one active profile at a time, although different target or dir output subtrees
 may select different profiles with nearer target/output-local selectors.
+When a profile selector changes, outputs that the deselected profile would
+still produce are classified by the orphaned managed output rules in
+[Orphaned Managed Outputs](#orphaned-managed-outputs).
 
 Profile content is declared with `.harnessProfileRoot`, which MUST live under
 `./.harness`, under a configured resources source, or under a configured dir
@@ -1181,8 +1225,8 @@ The source/projection boundary makes cross-surface differences reviewable:
 - Paths MUST stay inside the repository.
 - Initialization commands MUST explain planned filesystem changes before mutation.
 - Activation commands SHOULD offer a dry run and explain creates, updates,
-  removals, keeps, unmanaged preserved entries, and mutable skips before
-  mutation.
+  removals, keeps, orphaned managed outputs, unmanaged preserved entries, and
+  mutable skips before mutation.
 - Read-only path introspection, when provided by a tool, MUST be derived from
   the same inputs defined in [Copy Projection](#copy-projection) as activation.
 - Live harness surfaces MUST be treated as projection targets, not source
@@ -1229,6 +1273,10 @@ SHOULD consider the following threats explicitly:
 - **Unmanaged-entry deletion.** Cleanup deletes user files. The default
   policy MUST be preserve, and any deletion MUST be visible in the plan
   before it happens.
+- **Orphaned-output deletion.** Stale output cleanup can only be safe when the
+  current target bytes still match the non-active source projection. The
+  default policy MUST be preserve, and an edited orphaned output MUST NOT be
+  removed by orphaned-output cleanup.
 - **Mutable bypass.** `.harnessMutable` rules are an explicit "the runtime
   owns this after first projection" declaration. Implementations MUST NOT
   overwrite a mutable target without an explicit, user-visible force decision.
@@ -1265,7 +1313,7 @@ The following changes are reserved for v2:
 - Any change to the manifest schema for targets or the top-level `version`
   field that would invalidate a v1 manifest.
 - Any change to projection semantics (`create`, `update`, `remove`,
-  `keep`, `preserve`, `mutable`) that would alter the on-disk outcome of
+  `keep`, `preserve`, `orphan`, `mutable`) that would alter the on-disk outcome of
   an unchanged v1 input.
 - Any change to `.harnessIgnore` grammar or precedence that would alter
   which files an existing v1 ruleset includes, excludes, or marks

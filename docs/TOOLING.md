@@ -51,9 +51,10 @@ harnessc extension activate
   logical re-include, and a target-output final boundary.
 - `harnessc activate` shows the projection preview when run without `--yes` and
   reports creates, updates, requested removals, kept files, mutable-skipped
-  files, and preserved unmanaged entries. By default it reports target symlinks
-  that occupy projected paths as conflicts; pass `--replace-target-symlinks` or
-  set `[activation].targetSymlinks = "replace"` to replace the link itself.
+  files, orphaned managed outputs, and preserved unmanaged entries. By default
+  it reports target symlinks that occupy projected paths as conflicts; pass
+  `--replace-target-symlinks` or set `[activation].targetSymlinks = "replace"`
+  to replace the link itself.
 - `harnessc extension activate` runs registered extensions. Use
   `--extension <id>` to run one declared extension or `--all` to run every
   declared supported extension.
@@ -73,6 +74,13 @@ harnessc explain .harness/local/resources/skills/review/SKILL.md
 Unmanaged target entries are kept by default. Use `--remove-unmanaged` when a
 target should be cleaned to match configured sources; use `--keep-unmanaged`
 to make the default explicit.
+
+Orphaned managed outputs are also kept by default. They are target entries that
+the current manifest's configured sources can still produce, but the active
+profile or target selection no longer produces for that output path. Use
+`--remove-orphans` to remove only orphaned outputs whose current bytes still
+match the non-active source projection; edited orphaned outputs stay in place.
+Use `--keep-orphans` to make the default explicit.
 
 Generated harness surfaces such as `.agents`, `.claude`, `.cursor`, and
 `.gemini` can be gitignored when they are reproducible from `.harness`.
@@ -101,8 +109,8 @@ the repository intentionally opts out of sharing the source catalog.
 Cleanup applies only to targets that are still declared in the selected
 manifest. After a target declaration is removed, base `harnessc activate` no
 longer inspects or cleans that folder. Clean it first with
-`--remove-unmanaged`, or use a higher-level activation-state workflow that can
-reconcile orphaned targets.
+`--remove-unmanaged` or `--remove-orphans`, as appropriate, or use a
+higher-level activation-state workflow that can reconcile orphaned targets.
 
 The default manifest path is `./.harness/harness.toml`. When `--root` and
 `--config` are omitted, `harnessc` searches upward from the current directory
@@ -117,9 +125,10 @@ Manifest paths are selected by the tool invocation; paths inside the manifest
 remain repo-local, not relative to the manifest file's directory.
 
 The activation plan is also the operator-facing view of ownership. Managed
-files are repo-owned projection outputs, unmanaged entries are existing target
-state outside the projection, and mutable entries are target files seeded by
-source but now owned by the runtime.
+files are repo-owned projection outputs, orphaned managed outputs are stale
+repo-produced outputs from a non-active source selection, unmanaged entries are
+existing target state outside configured sources, and mutable entries are target
+files seeded by source but now owned by the runtime.
 
 Managed files are compared directly with the current source projection: if the
 target differs, `harnessc activate` reports `update` and applying activation
@@ -151,6 +160,8 @@ Filesystem behavior follows the v1 release freeze:
   is selected by manifest policy or `--replace-target-symlinks`;
 - unmanaged target entries are preserved unless `--remove-unmanaged` is
   selected;
+- orphaned managed outputs are preserved unless `--remove-orphans` is selected,
+  and edited orphans are still preserved by the byte-match guard;
 - target-output `.harnessIgnore` and `.harnessProfile` files are preserved as
   local controls;
 - repeated activation with the same inputs converges to `keep` for managed

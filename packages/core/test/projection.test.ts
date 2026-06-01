@@ -2281,6 +2281,322 @@ describe("HarnessConfig activation projection", () => {
     ).resolves.toBe("projected");
   });
 
+  it("classifies profile-switch stale files as orphaned managed outputs", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root);
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harnessMutable", ".harness/**/settings.local.json\n");
+    await write(root, ".harnessProfile", "frontend\n");
+    await write(
+      root,
+      ".harness/profiles/frontend/.harnessProfileRoot",
+      "frontend\n"
+    );
+    await write(
+      root,
+      ".harness/profiles/frontend/resources/skills/frontend/SKILL.md",
+      "frontend"
+    );
+    await write(
+      root,
+      ".harness/profiles/frontend/resources/skills/edited/SKILL.md",
+      "frontend edited"
+    );
+    await write(
+      root,
+      ".harness/profiles/frontend/resources/skills/shared/SKILL.md",
+      "frontend shared"
+    );
+    await write(
+      root,
+      ".harness/profiles/frontend/resources/skills/mutable/settings.local.json",
+      "seed local"
+    );
+    await write(
+      root,
+      ".harness/profiles/backend/.harnessProfileRoot",
+      "backend\n"
+    );
+    await write(
+      root,
+      ".harness/profiles/backend/resources/skills/backend/SKILL.md",
+      "backend"
+    );
+    await write(
+      root,
+      ".harness/profiles/backend/resources/skills/shared/SKILL.md",
+      "backend shared"
+    );
+
+    await applyHarnessActivation(root, { dryRun: false, yes: true });
+    await write(root, ".harnessProfile", "backend\n");
+    await write(root, ".agents/skills/edited/SKILL.md", "runtime edit");
+    await write(root, ".agents/skills/manual/SKILL.md", "manual");
+
+    const defaultPlan = await planHarnessActivation(root);
+    const defaultActions = defaultPlan.targets.find(
+      (target) => target.path === "./.agents"
+    )?.actions;
+    expect(defaultActions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "create",
+          relativePath: "skills/backend/SKILL.md",
+        }),
+        expect.objectContaining({
+          kind: "update",
+          relativePath: "skills/shared/SKILL.md",
+        }),
+        expect.objectContaining({
+          kind: "orphan",
+          relativePath: "skills/frontend/SKILL.md",
+        }),
+        expect.objectContaining({
+          kind: "orphan",
+          relativePath: "skills/edited/SKILL.md",
+        }),
+        expect.objectContaining({
+          kind: "orphan",
+          relativePath: "skills/mutable/settings.local.json",
+        }),
+        expect.objectContaining({
+          kind: "preserve",
+          relativePath: "skills/manual",
+        }),
+      ])
+    );
+    expect(
+      defaultActions?.filter(
+        (action) =>
+          action.kind === "orphan" &&
+          action.relativePath === "skills/shared/SKILL.md"
+      )
+    ).toEqual([]);
+
+    const cleanupPlan = await planHarnessActivation(root, {
+      cleanupOrphans: "remove",
+    });
+    const cleanupActions = cleanupPlan.targets.find(
+      (target) => target.path === "./.agents"
+    )?.actions;
+    expect(cleanupActions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "remove",
+          relativePath: "skills/frontend/SKILL.md",
+        }),
+        expect.objectContaining({
+          kind: "orphan",
+          relativePath: "skills/edited/SKILL.md",
+        }),
+        expect.objectContaining({
+          kind: "orphan",
+          relativePath: "skills/mutable/settings.local.json",
+        }),
+        expect.objectContaining({
+          kind: "preserve",
+          relativePath: "skills/manual",
+        }),
+      ])
+    );
+
+    await applyHarnessActivation(root, {
+      dryRun: false,
+      yes: true,
+      cleanupOrphans: "remove",
+    });
+    await expect(
+      readFile(path.join(root, ".agents/skills/frontend/SKILL.md"), "utf8")
+    ).rejects.toThrow();
+    await expect(
+      readFile(path.join(root, ".agents/skills/edited/SKILL.md"), "utf8")
+    ).resolves.toBe("runtime edit");
+    await expect(
+      readFile(
+        path.join(root, ".agents/skills/mutable/settings.local.json"),
+        "utf8"
+      )
+    ).resolves.toBe("seed local");
+    await expect(
+      readFile(path.join(root, ".agents/skills/manual/SKILL.md"), "utf8")
+    ).resolves.toBe("manual");
+    await expect(
+      readFile(path.join(root, ".agents/skills/backend/SKILL.md"), "utf8")
+    ).resolves.toBe("backend");
+    await expect(
+      readFile(path.join(root, ".agents/skills/shared/SKILL.md"), "utf8")
+    ).resolves.toBe("backend shared");
+  });
+
+  it("does not remove profile-switch stale files filtered by target-output ignores as orphans", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root);
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harnessProfile", "frontend\n");
+    await write(
+      root,
+      ".harness/profiles/frontend/.harnessProfileRoot",
+      "frontend\n"
+    );
+    await write(
+      root,
+      ".harness/profiles/frontend/resources/skills/ignored/SKILL.md",
+      "frontend ignored"
+    );
+    await write(
+      root,
+      ".harness/profiles/backend/.harnessProfileRoot",
+      "backend\n"
+    );
+    await write(
+      root,
+      ".harness/profiles/backend/resources/skills/backend/SKILL.md",
+      "backend"
+    );
+
+    await applyHarnessActivation(root, { dryRun: false, yes: true });
+    await write(root, ".harnessProfile", "backend\n");
+    await write(root, ".agents/skills/ignored/.harnessIgnore", "SKILL.md\n");
+
+    const cleanupPlan = await planHarnessActivation(root, {
+      cleanupOrphans: "remove",
+    });
+    const cleanupActions = cleanupPlan.targets.find(
+      (target) => target.path === "./.agents"
+    )?.actions;
+
+    expect(cleanupActions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "preserve",
+          relativePath: "skills/ignored/SKILL.md",
+        }),
+      ])
+    );
+    expect(
+      cleanupActions?.filter(
+        (action) =>
+          ["orphan", "remove"].includes(action.kind) &&
+          action.relativePath === "skills/ignored/SKILL.md"
+      )
+    ).toEqual([]);
+
+    await applyHarnessActivation(root, {
+      dryRun: false,
+      yes: true,
+      cleanupOrphans: "remove",
+    });
+    await expect(
+      readFile(path.join(root, ".agents/skills/ignored/SKILL.md"), "utf8")
+    ).resolves.toBe("frontend ignored");
+    await expect(
+      readFile(path.join(root, ".agents/skills/ignored/.harnessIgnore"), "utf8")
+    ).resolves.toBe("SKILL.md\n");
+    await expect(
+      readFile(path.join(root, ".agents/skills/backend/SKILL.md"), "utf8")
+    ).resolves.toBe("backend");
+  });
+
+  it("compares orphan cleanup against final target override bytes including dotfiles", async () => {
+    const root = await rootFixture();
+    await writeHarnessConfig(root, {
+      targets: ["./.agents", "./.claude"],
+    });
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harnessProfile", "frontend\n");
+    await write(
+      root,
+      ".harness/profiles/frontend/.harnessProfileRoot",
+      "frontend\n"
+    );
+    await write(
+      root,
+      ".harness/profiles/frontend/resources/skills/review/SKILL.md",
+      "frontend generic"
+    );
+    await write(
+      root,
+      ".harness/profiles/frontend/resources/skills/review/.agents/SKILL.md",
+      "frontend agents override"
+    );
+    await write(
+      root,
+      ".harness/profiles/frontend/resources/skills/review/.claude/SKILL.md",
+      "frontend claude override"
+    );
+    await write(
+      root,
+      ".harness/profiles/frontend/resources/.agents/.gitignore",
+      "node_modules\n"
+    );
+    await write(
+      root,
+      ".harness/profiles/backend/.harnessProfileRoot",
+      "backend\n"
+    );
+    await write(
+      root,
+      ".harness/profiles/backend/resources/skills/backend/SKILL.md",
+      "backend"
+    );
+
+    await applyHarnessActivation(root, { dryRun: false, yes: true });
+    await write(root, ".harnessProfile", "backend\n");
+    await write(root, ".claude/skills/review/SKILL.md", "frontend generic");
+
+    const cleanupPlan = await planHarnessActivation(root, {
+      cleanupOrphans: "remove",
+    });
+    const agentsActions = cleanupPlan.targets.find(
+      (target) => target.path === "./.agents"
+    )?.actions;
+    const claudeActions = cleanupPlan.targets.find(
+      (target) => target.path === "./.claude"
+    )?.actions;
+
+    expect(agentsActions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "remove",
+          relativePath: ".gitignore",
+        }),
+        expect.objectContaining({
+          kind: "remove",
+          relativePath: "skills/review/SKILL.md",
+        }),
+      ])
+    );
+    expect(claudeActions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "orphan",
+          relativePath: "skills/review/SKILL.md",
+        }),
+      ])
+    );
+
+    await applyHarnessActivation(root, {
+      dryRun: false,
+      yes: true,
+      cleanupOrphans: "remove",
+    });
+    await expect(
+      readFile(path.join(root, ".agents/.gitignore"), "utf8")
+    ).rejects.toThrow();
+    await expect(
+      readFile(path.join(root, ".agents/skills/review/SKILL.md"), "utf8")
+    ).rejects.toThrow();
+    await expect(
+      readFile(path.join(root, ".claude/skills/review/SKILL.md"), "utf8")
+    ).resolves.toBe("frontend generic");
+    await expect(
+      readFile(path.join(root, ".agents/skills/backend/SKILL.md"), "utf8")
+    ).resolves.toBe("backend");
+    await expect(
+      readFile(path.join(root, ".claude/skills/backend/SKILL.md"), "utf8")
+    ).resolves.toBe("backend");
+  });
+
   it("reports updates and requested removals before converging after apply", async () => {
     const root = await rootFixture();
     await writeHarnessConfig(root);

@@ -14,7 +14,7 @@ llmSummary: Define la forma del repositorio .harness, el contrato TOML, la proye
 audience: Autores de herramientas, revisores del estándar e implementadores técnicos.
 contentKind: spec
 status: draft
-updated: 2026-05-28
+updated: 2026-06-01
 ---
 
 # Estándar Harness config
@@ -296,9 +296,10 @@ La activación es una proyección de copia repetible desde entradas fuente hasta
 3. selectores `.harnessProfile` y superposiciones `.harnessProfileRoot` activas,
 4. todos los archivos `.harnessIgnore` participantes, incluidas reglas de raíz de repositorio, fuente-locales, perfil-locales y locales de salida objetivo,
 5. todos los archivos `.harnessMutable` participantes, incluidas reglas de raíz de repositorio, fuente-locales y perfil-locales,
-6. la política de limpieza (preservar entradas no gestionadas vs. eliminarlas),
-7. la política de mutables (saltar archivos mutables vs. forzar reproyección),
-8. la política de enlace simbólico objetivo (conflicto vs. reemplazo).
+6. la política de limpieza de no gestionados (preservar entradas no gestionadas vs. eliminarlas),
+7. la política de limpieza de salidas huérfanas (preservar salidas gestionadas huérfanas vs. eliminar las no editadas),
+8. la política de mutables (saltar archivos mutables vs. forzar reproyección),
+9. la política de enlace simbólico objetivo (conflicto vs. reemplazo).
 
 **Idempotencia (propiedad testable).** Sea `M_n` el subconjunto de proyección gestionada de un objetivo declarado después de la `n`-ésima activación contra las entradas sin cambios definidas arriba y estado objetivo sin cambios excepto por cambios de bytes en archivos mutables. Para cada `n ≥ 2`:
 
@@ -316,6 +317,7 @@ Una herramienta conforme SHOULD soportar una dry run que reporte las acciones qu
 - `remove`: una entrada objetivo es seleccionada para eliminación porque no está presente en la proyección calculada.
 - `keep`: el archivo objetivo ya coincide con la proyección.
 - `preserve`: una entrada existente dentro de un objetivo declarado no está en la proyección calculada y permanecerá intacta.
+- `orphan`: una entrada existente dentro de un objetivo declarado no está en la proyección activa pero aún puede ser producida por una fuente configurada que no está seleccionada para ese camino de salida.
 - `mutable`: un archivo declarado mutable en `.harnessMutable` ya existe en el objetivo, incluso si sus bytes aún coinciden con la fuente. El runtime lo posee; la activación MUST NOT sobrescribirlo ni eliminarlo sin una decisión explícita de forzado.
 
 Estas acciones describen archivos y directorios dentro de los objetivos declarados. Los archivos fuente bajo las raíces fuente configuradas son entradas de proyección; la activación no los clasifica como `keep`, `preserve` o `remove`.
@@ -348,6 +350,18 @@ Si se selecciona la limpieza, el plan MUST mostrar esas entradas como `remove` a
 
 Si una declaración de objetivo se elimina del manifiesto seleccionado, la proyección v1 del núcleo ya no tiene ese objetivo en su conjunto autorizado de escritura y por lo tanto no limpia esa carpeta durante la activación normal. Para limpiar un objetivo solo con el contrato de proyección base, ejecutar la limpieza mientras el objetivo aún está declarado, luego eliminar la declaración. Las herramientas de nivel superior MAY mantener el estado de activación y ofrecer un flujo de reconciliación de objetivo huérfano que previsualice eliminación, ignore o captura de vuelta a la fuente.
 
+### Salidas gestionadas huérfanas
+
+Una salida gestionada huérfana es una entrada objetivo cuyo camino lógico de salida es producido por alguna fuente configurada bajo el manifiesto actual, pero no es producido por la selección activa para ese camino de salida. Los casos comunes incluyen un archivo producido por una raíz de perfil deseleccionada o un override objetivo después de que cambia un selector de perfil. Una salida gestionada huérfana es distinta de una entrada gestionada en la proyección activa y de una entrada no gestionada producida por ninguna fuente configurada.
+
+La política de limpieza de salidas huérfanas por defecto SHOULD ser preservar. Una herramienta conforme SHOULD reportar las salidas gestionadas huérfanas como su propia categoría de plan para que un operador pueda distinguir una salida de perfil obsoleta producida por la herramienta de archivos objetivo genuinamente externos.
+
+Si se selecciona limpieza explícita de salidas huérfanas, una herramienta MUST eliminar una salida gestionada huérfana solo cuando los bytes objetivo actuales igualan los bytes que proyectaría la fuente no activa. Si los bytes objetivo han divergido, la herramienta MUST preservar la salida huérfana. Las protecciones de archivos mutables y de archivos de declaración en salida objetivo aún tienen precedencia sobre la limpieza de salidas huérfanas.
+
+Esta categoría solo es derivable mientras la fuente productora todavía existe en disco. Si la fuente que produjo una entrada objetivo obsoleta fue eliminada, la entrada no puede distinguirse del estado objetivo no gestionado por el contrato base de proyección v1 y MUST ser preservada salvo que un ledger de activación o flujo de reconciliación de nivel superior pruebe una decisión más estrecha.
+
+Las salidas dir no obtienen un mecanismo independiente de eliminación de huérfanos a partir de esta categoría. Hasta que exista un contrato de limpieza dir, las salidas dir permanecen gobernadas por la activación dir normal, la limpieza de objetivos declarados y las mismas protecciones para archivos mutables y archivos de declaración en salida objetivo.
+
 ### Resumen de la semántica del sistema de archivos
 
 Estas reglas son normativas para la activación v1:
@@ -357,6 +371,7 @@ Estas reglas son normativas para la activación v1:
 - Los archivos objetivo gestionados se sobrescriben desde la proyección fuente actual cuando sus bytes difieren.
 - Los archivos objetivo mutables se crean desde la fuente una vez y luego se vuelven propiedad del runtime hasta una decisión explícita de forzado que los vuelva a proyectar.
 - Las entradas objetivo no gestionadas se preservan a menos que se seleccione una limpieza explícita.
+- Las salidas gestionadas huérfanas se preservan por defecto y se eliminan solo mediante limpieza explícita de salidas huérfanas cuando sus bytes aún coinciden con la proyección fuente no activa.
 - Los archivos `.harnessIgnore` y `.harnessProfile` de salida objetivo son estado local protegido y MUST NOT ser sobrescritos ni eliminados por la limpieza de no gestionados.
 - La activación es determinista para las entradas definidas en [Proyección de copia](#proyección-de-copia).
 - Los objetivos MUST NOT apuntar a `./.harness`, superponerse con raíces fuente configuradas ni superponerse entre sí.
@@ -580,7 +595,7 @@ Los archivos locales son entradas de límite opcionales con alcance; un reposito
 
 ## Superposiciones de perfil
 
-Las superposiciones de perfil son superposiciones fuente opcionales seleccionadas por archivos `.harnessProfile`. Un archivo `.harnessProfile` es texto UTF-8. Después de recortar espacios de cada línea e ignorar las líneas en blanco, MUST contener cero o un nombre de perfil. Cero nombres de perfil selecciona ningún perfil para ese subárbol de salida. Más de una línea no vacía MUST producir un error, y ese selector MUST NOT participar en la proyección. El `.harnessProfile` raíz se aplica globalmente; un `.harnessProfile` local de salida objetivo se aplica a su directorio y descendientes, y el selector más cercano gana para cualquier camino de salida. Cada camino de salida tiene como máximo un perfil activo a la vez, aunque distintos subárboles de target o dir pueden seleccionar perfiles distintos con selectores objetivo/salida más cercanos.
+Las superposiciones de perfil son superposiciones fuente opcionales seleccionadas por archivos `.harnessProfile`. Un archivo `.harnessProfile` es texto UTF-8. Después de recortar espacios de cada línea e ignorar las líneas en blanco, MUST contener cero o un nombre de perfil. Cero nombres de perfil selecciona ningún perfil para ese subárbol de salida. Más de una línea no vacía MUST producir un error, y ese selector MUST NOT participar en la proyección. El `.harnessProfile` raíz se aplica globalmente; un `.harnessProfile` local de salida objetivo se aplica a su directorio y descendientes, y el selector más cercano gana para cualquier camino de salida. Cada camino de salida tiene como máximo un perfil activo a la vez, aunque distintos subárboles de target o dir pueden seleccionar perfiles distintos con selectores objetivo/salida más cercanos. Cuando cambia un selector de perfil, las salidas que el perfil deseleccionado aún produciría se clasifican por las reglas de salidas gestionadas huérfanas en [Salidas gestionadas huérfanas](#salidas-gestionadas-huérfanas).
 
 El contenido del perfil se declara con `.harnessProfileRoot`, que MUST vivir bajo `./.harness`, bajo una fuente de recursos configurada o bajo una fuente dir configurada. Un archivo `.harnessProfileRoot` es texto UTF-8. Después de recortar espacios de cada línea e ignorar las líneas en blanco, MUST contener exactamente un nombre de perfil. Cero nombres de perfil o más de una línea no vacía MUST producir un error, y esa raíz de perfil MUST NOT participar en la proyección. Un `.harnessProfileRoot` MUST NOT anidarse dentro de otra raíz de perfil. El directorio que contiene `.harnessProfileRoot` es una raíz de perfil. Es almacenamiento fuente, no un elemento de recurso, y MUST NOT ser proyectado como skill, regla, plugin, salida dir o archivo de declaración copiado.
 
@@ -613,7 +628,7 @@ El límite fuente/proyección hace revisables las diferencias entre superficies:
 - La validación MUST ser de solo lectura.
 - Los caminos MUST permanecer dentro del repositorio.
 - Los comandos de inicialización MUST explicar los cambios planificados del sistema de archivos antes de la mutación.
-- Los comandos de activación SHOULD ofrecer una dry run y explicar las creaciones, actualizaciones, eliminaciones, conservaciones, entradas no gestionadas preservadas y saltos de mutables antes de la mutación.
+- Los comandos de activación SHOULD ofrecer una dry run y explicar las creaciones, actualizaciones, eliminaciones, conservaciones, salidas gestionadas huérfanas, entradas no gestionadas preservadas y saltos de mutables antes de la mutación.
 - La introspección de camino de solo lectura, cuando es proporcionada por una herramienta, MUST derivarse de las mismas entradas definidas en [Proyección de copia](#proyección-de-copia) que la activación.
 - Las superficies de harness vivas MUST ser tratadas como objetivos de proyección, no como repositorios fuente.
 - Los equipos MAY gitignorear las superficies de harness vivas porque son salidas generadas; hacerlo no cambia la fuente de verdad ni el contrato de declaración de objetivo.
@@ -632,6 +647,7 @@ Harness config describe un sistema que copia archivos del control de versión en
 - **Redirección de enlace simbólico.** Los enlaces simbólicos en el árbol fuente o en árboles objetivo declarados pueden redirigir lecturas o escrituras fuera del repositorio si se siguen. Las implementaciones v1 MUST tratar los enlaces simbólicos como entradas hoja y MUST NOT seguirlos silenciosamente. Reemplazar un enlace simbólico objetivo que ocupa un camino proyectado MUST requerir una política explícita de enlace simbólico objetivo, ya sea del manifiesto seleccionado o de una opción de activación equivalente seleccionada por el operador.
 - **TOCTOU al aplicar.** Un objetivo puede modificarse entre la planificación y la aplicación. Las implementaciones SHOULD verificar de nuevo la existencia y la clasificación gestionado/no gestionado de los archivos en el momento de la aplicación, no solo en el momento del plan.
 - **Eliminación de entradas no gestionadas.** La limpieza elimina archivos del usuario. La política por defecto MUST ser preservar, y cualquier eliminación MUST ser visible en el plan antes de que ocurra.
+- **Eliminación de salidas huérfanas.** La limpieza de salidas obsoletas solo puede ser segura cuando los bytes objetivo actuales aún coinciden con la proyección fuente no activa. La política por defecto MUST ser preservar, y una salida huérfana editada MUST NOT ser eliminada por la limpieza de salidas huérfanas.
 - **Bypass de mutable.** Las reglas `.harnessMutable` son una declaración explícita de "el runtime posee esto después de la primera proyección". Las implementaciones MUST NOT sobrescribir un mutable objetivo sin una decisión explícita y visible al usuario de forzado.
 - **Overrides no confiables.** Un repositorio puede importar elementos de recursos de terceros. Como las carpetas de override pueden reescribir archivos objetivo arbitrarios, las implementaciones y los productos downstream SHOULD proporcionar herramientas para hacer diff de carpetas de override contra archivos canónicos y para limitar los objetivos que un override dado puede afectar.
 - **Activación que lee su salida.** Las carpetas objetivo vivas MUST NOT ser usadas como entradas de la próxima proyección. Tratar un objetivo como tanto fuente como sumidero puede amplificar silenciosamente las ediciones runtime en cambios de fuente de verdad.
@@ -652,7 +668,7 @@ Dentro de v1, los siguientes tipos de cambio están permitidos y no requieren un
 Los siguientes cambios están reservados para v2:
 
 - Cualquier cambio al esquema del manifiesto para objetivos o al campo `version` de nivel superior que invalidaría un manifiesto v1.
-- Cualquier cambio a la semántica de proyección (`create`, `update`, `remove`, `keep`, `preserve`, `mutable`) que alteraría el resultado en disco de una entrada v1 sin cambios.
+- Cualquier cambio a la semántica de proyección (`create`, `update`, `remove`, `keep`, `preserve`, `orphan`, `mutable`) que alteraría el resultado en disco de una entrada v1 sin cambios.
 - Cualquier cambio a la gramática o precedencia de `.harnessIgnore` que alteraría qué archivos un conjunto de reglas v1 existente incluye, excluye o marca como mutables.
 - Reserva de tipos de recursos o nombres de objetivos previamente disponibles para repositorios de usuario.
 

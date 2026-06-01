@@ -14,7 +14,7 @@ llmSummary: Describe las expectativas de herramientas para validación, introspe
 audience: Autores de CLI y desarrolladores que operan repositorios Harness config.
 contentKind: spec
 status: draft
-updated: 2026-05-28
+updated: 2026-06-01
 ---
 
 # Herramientas Harness config
@@ -46,7 +46,7 @@ harnessc extension activate
 - `harnessc init` muestra un plan de adopción cuando se ejecuta sin `--yes`. Con `--yes` crea el manifiesto seleccionado (por defecto `./.harness/harness.toml`), las carpetas de recursos convencionales o personalizadas bajo la raíz de fuente de recursos configurada, `.harnessIgnore` y `.harnessMutable`. El manifiesto de inicio generado declara explícitamente `[[resources]] path = "./.harness/resources"`. Usar `--resources-path <path>` para elegir esa raíz fuente, `--resource <kind>` para crear una o más carpetas de tipo de recurso debajo de ella, y `--target <path>` para añadir entradas `[[targets]]` explícitas.
 - `harnessc validate` verifica el soporte de versión, los caminos locales al repositorio, los mapeos de objetivos, la sintaxis de ignore de proyección, la sintaxis de declaración de mutables, las hojas componibles de recursos, el manejo de hojas de enlace simbólico y los problemas de composición/copia dir.
 - `harnessc explain <path>` explica cómo un camino fuente o de salida participa en el plan de proyección actual, incluidos los caminos fuente ganadores, las raíces fuente configuradas, las salidas dir, los diagnósticos bloqueantes y las decisiones de las mismas entradas de proyección usadas por la activación. La salida JSON incluye trazas de ignore fuente y de salida objetivo para que un caller pueda distinguir una exclusión raíz, una re-inclusión fuente-local más profunda, una re-inclusión lógica perfil-local y un límite final de salida objetivo.
-- `harnessc activate` muestra la previsualización de proyección cuando se ejecuta sin `--yes` y reporta creaciones, actualizaciones, eliminaciones solicitadas, archivos mantenidos, archivos mutables saltados y entradas no gestionadas preservadas. Por defecto, reporta los enlaces simbólicos objetivo que ocupan caminos proyectados como conflictos; pasar `--replace-target-symlinks` o establecer `[activation].targetSymlinks = "replace"` para reemplazar el enlace mismo.
+- `harnessc activate` muestra la previsualización de proyección cuando se ejecuta sin `--yes` y reporta creaciones, actualizaciones, eliminaciones solicitadas, archivos mantenidos, archivos mutables saltados, salidas gestionadas huérfanas y entradas no gestionadas preservadas. Por defecto, reporta los enlaces simbólicos objetivo que ocupan caminos proyectados como conflictos; pasar `--replace-target-symlinks` o establecer `[activation].targetSymlinks = "replace"` para reemplazar el enlace mismo.
 - `harnessc extension activate` ejecuta extensiones registradas. Usar `--extension <id>` para ejecutar una extensión declarada o `--all` para ejecutar cada extensión soportada declarada.
 
 `init`, `activate` y `extension activate` son dry runs a menos que se proporcione `--yes`. La forma dry-run de `init` reemplaza el comando `harnessc plan` anterior, por lo que un único modelo mental — "sin bandera previsualiza, `--yes` escribe" — se aplica a cada comando mutante.
@@ -60,6 +60,8 @@ harnessc explain .harness/local/resources/skills/review/SKILL.md
 ```
 
 Las entradas objetivo no gestionadas se mantienen por defecto. Usar `--remove-unmanaged` cuando un objetivo debe ser limpiado para coincidir con las fuentes configuradas; usar `--keep-unmanaged` para hacer el default explícito.
+
+Las salidas gestionadas huérfanas también se mantienen por defecto. Son entradas objetivo que las fuentes configuradas del manifiesto actual aún pueden producir, pero que la selección activa de perfil u objetivo ya no produce para ese camino de salida. Usar `--remove-orphans` para eliminar solo las salidas huérfanas cuyos bytes actuales aún coinciden con la proyección fuente no activa; las salidas huérfanas editadas permanecen. Usar `--keep-orphans` para hacer el default explícito.
 
 Las superficies de harness generadas como `.agents`, `.claude`, `.cursor` y `.gemini` pueden ser gitignored cuando son reproducibles desde `.harness`. Los proyectos que hacen esto deben mantener las instrucciones de activación rastreadas como una nota de instrucciones raíz, paso README o script de paquete que diga a usuarios y agentes ejecutar validación y activación en un nuevo checkout.
 
@@ -78,11 +80,11 @@ Las entradas `.gitignore` recomendadas después de una migración completa son:
 
 Mantener rastreada la fuente Harness compartida: `.harness/harness.toml`, `.harness/resources/**` compartido, `.harness/dir/**` cuando se use, `.harnessIgnore` y las declaraciones `.harnessMutable`. No añadir `.harness/` como ignore amplio a menos que el repositorio opte intencionalmente por no compartir el catálogo fuente.
 
-La limpieza se aplica solo a objetivos aún declarados en el manifiesto seleccionado. Después de que una declaración de objetivo se elimine, `harnessc activate` base ya no inspecciona ni limpia esa carpeta. Limpiarla primero con `--remove-unmanaged`, o usar un flujo de estado de activación de nivel superior que pueda reconciliar objetivos huérfanos.
+La limpieza se aplica solo a objetivos aún declarados en el manifiesto seleccionado. Después de que una declaración de objetivo se elimine, `harnessc activate` base ya no inspecciona ni limpia esa carpeta. Limpiarla primero con `--remove-unmanaged` o `--remove-orphans`, según corresponda, o usar un flujo de estado de activación de nivel superior que pueda reconciliar objetivos huérfanos.
 
 El camino de manifiesto por defecto es `./.harness/harness.toml`. Cuando `--root` y `--config` se omiten, `harnessc` busca hacia arriba desde el directorio actual ese manifiesto. Pasar `--config <path>` para validar, inicializar, activar o ejecutar extensiones contra otro archivo TOML local al repositorio. `harnessc init --resources-path <path>` escribe una entrada `[[resources]]` en el manifiesto y crea las carpetas de recursos bajo esa raíz fuente configurada. `harnessc init --resource <kind>` añade una carpeta de tipo de recurso bajo la raíz de recursos configurada y valida el nombre con el patrón de id de recurso. `harnessc init --target <path>` añade una entrada `[[targets]]` para un camino target local al repositorio. Los caminos de manifiesto se seleccionan por la invocación de la herramienta; los caminos dentro del manifiesto permanecen locales al repositorio, no relativos al directorio del archivo de manifiesto.
 
-El plan de activación es también la vista orientada al operador de la propiedad. Los archivos gestionados son salidas de proyección propiedad del repositorio, las entradas no gestionadas son estado objetivo existente fuera de la proyección, y las entradas mutables son archivos objetivo inicializados por la fuente pero ahora propiedad del runtime.
+El plan de activación es también la vista orientada al operador de la propiedad. Los archivos gestionados son salidas de proyección propiedad del repositorio, las salidas gestionadas huérfanas son salidas obsoletas producidas por el repositorio desde una selección fuente no activa, las entradas no gestionadas son estado objetivo existente fuera de las fuentes configuradas, y las entradas mutables son archivos objetivo inicializados por la fuente pero ahora propiedad del runtime.
 
 Los archivos gestionados se comparan directamente con la proyección fuente actual: si el objetivo difiere, `harnessc activate` reporta `update` y aplicar la activación sobrescribe el objetivo con los bytes fuente actuales. Los archivos mutables declarados en `.harnessMutable` se crean una vez desde la fuente y se saltan en activaciones subsiguientes porque los bytes objetivo vivos son propiedad del runtime. Usar `--force-mutable` para volver a proyectarlos desde la fuente.
 
@@ -104,6 +106,7 @@ El comportamiento del sistema de archivos sigue el congelamiento de release v1:
 - los enlaces simbólicos se tratan como entradas hoja y no se siguen;
 - los enlaces simbólicos objetivo que ocupan caminos proyectados son conflictos a menos que el reemplazo se seleccione por política de manifiesto o `--replace-target-symlinks`;
 - las entradas objetivo no gestionadas se preservan a menos que se seleccione `--remove-unmanaged`;
+- las salidas gestionadas huérfanas se preservan a menos que se seleccione `--remove-orphans`, y las huérfanas editadas aún se preservan por la guarda de comparación de bytes;
 - los archivos `.harnessIgnore` y `.harnessProfile` de salida objetivo se preservan como controles locales;
 - la activación repetida con las mismas entradas converge a `keep` para archivos gestionados y `mutable` para archivos propiedad del runtime;
 - los objetivos superpuestos o los objetivos que colisionan con raíces fuente configuradas son diagnósticos.
