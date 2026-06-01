@@ -418,23 +418,23 @@ Profiles can add personal instruction parts and remove base parts by logical
 source path.
 
 ```text
-.harnessProfile          # contains: my-profile
+.harnessProfile          # contains: local-profile
 
 .harness/
   profiles/
-    my-profile/
-      .harnessProfileRoot # contains: my-profile
+    local-profile/
+      .harnessProfileRoot # contains: local-profile
       dir/
         AGENTS.md/
           .harnessIgnore  # contains: 100_intro.md
-          100_my_intro.md
+          100_local_intro.md
 ```
 
 If base `AGENTS.md` has `100_intro.md` and `300_rules.md`, the active profile
 can replace the intro while keeping the shared rules. The profile-local
 `.harnessIgnore` is evaluated against the logical path
 `.harness/dir/AGENTS.md/100_intro.md`, not the physical storage path under
-`.harness/profiles/my-profile`.
+`.harness/profiles/local-profile`.
 
 Track `.harnessProfile` when the team should share the same choice. Gitignore
 it when each developer should choose their own profile locally.
@@ -449,10 +449,10 @@ different profile overlays.
   skills/
     .harnessProfile      # contains: deploy
   rules/
-    .harnessProfile      # contains: no-rules
+    .harnessProfile      # contains: rules-minimal
 ```
 
-The `deploy` profile applies under `.agents/skills/`. The `no-rules` profile
+The `deploy` profile applies under `.agents/skills/`. The `rules-minimal` profile
 applies under `.agents/rules/`. Neither selector changes `.claude/`, repo-root
 outputs, or sibling `.agents` subtrees.
 

@@ -354,19 +354,19 @@ package.json                      # 可选 setup:harness 脚本
 Profile 可以按逻辑源路径添加个人指令部分并移除基础部分。
 
 ```text
-.harnessProfile          # 包含：my-profile
+.harnessProfile          # 包含：local-profile
 
 .harness/
   profiles/
-    my-profile/
-      .harnessProfileRoot # 包含：my-profile
+    local-profile/
+      .harnessProfileRoot # 包含：local-profile
       dir/
         AGENTS.md/
           .harnessIgnore  # 包含：100_intro.md
-          100_my_intro.md
+          100_local_intro.md
 ```
 
-如果基础 `AGENTS.md` 有 `100_intro.md` 和 `300_rules.md`，活动 profile 可以替换 intro 同时保留共享规则。Profile 本地 `.harnessIgnore` 针对逻辑路径 `.harness/dir/AGENTS.md/100_intro.md` 评估，不是 `.harness/profiles/my-profile` 下的物理存储路径。
+如果基础 `AGENTS.md` 有 `100_intro.md` 和 `300_rules.md`，活动 profile 可以替换 intro 同时保留共享规则。Profile 本地 `.harnessIgnore` 针对逻辑路径 `.harness/dir/AGENTS.md/100_intro.md` 评估，不是 `.harness/profiles/local-profile` 下的物理存储路径。
 
 当团队应共享相同选择时跟踪 `.harnessProfile`。当每个开发者应在本地选择自己的 profile 时 gitignore 它。
 
@@ -379,10 +379,10 @@ Profile 可以按逻辑源路径添加个人指令部分并移除基础部分。
   skills/
     .harnessProfile      # 包含：deploy
   rules/
-    .harnessProfile      # 包含：no-rules
+    .harnessProfile      # 包含：rules-minimal
 ```
 
-`deploy` profile 适用于 `.agents/skills/` 下。`no-rules` profile 适用于 `.agents/rules/` 下。没有选择器更改 `.claude/`、仓库根输出或同级 `.agents` 子树。
+`deploy` profile 适用于 `.agents/skills/` 下。`rules-minimal` profile 适用于 `.agents/rules/` 下。没有选择器更改 `.claude/`、仓库根输出或同级 `.agents` 子树。
 
 目标输出 `.harnessProfile` 文件在清理期间被保留，原因与目标输出 `.harnessIgnore` 文件被保留相同：它们是活动子树控件，不是投影 payload。
 

@@ -354,19 +354,19 @@ Les instructions d'activation devraient dire aux utilisateurs et agents de lance
 Les profils peuvent ajouter des parties d'instructions personnelles et retirer des parties de base par chemin source logique.
 
 ```text
-.harnessProfile          # contient : my-profile
+.harnessProfile          # contient : local-profile
 
 .harness/
   profiles/
-    my-profile/
-      .harnessProfileRoot # contient : my-profile
+    local-profile/
+      .harnessProfileRoot # contient : local-profile
       dir/
         AGENTS.md/
           .harnessIgnore  # contient : 100_intro.md
-          100_my_intro.md
+          100_local_intro.md
 ```
 
-Si `AGENTS.md` de base a `100_intro.md` et `300_rules.md`, le profil actif peut remplacer l'intro tout en gardant les règles partagées. Le `.harnessIgnore` profil-local est évalué contre le chemin logique `.harness/dir/AGENTS.md/100_intro.md`, pas le chemin de stockage physique sous `.harness/profiles/my-profile`.
+Si `AGENTS.md` de base a `100_intro.md` et `300_rules.md`, le profil actif peut remplacer l'intro tout en gardant les règles partagées. Le `.harnessIgnore` profil-local est évalué contre le chemin logique `.harness/dir/AGENTS.md/100_intro.md`, pas le chemin de stockage physique sous `.harness/profiles/local-profile`.
 
 Tracker `.harnessProfile` lorsque l'équipe devrait partager le même choix. Le gitignored lorsque chaque développeur devrait choisir son propre profil localement.
 
@@ -379,10 +379,10 @@ Les fichiers `.harnessProfile` en sortie cible permettent à différents sous-ar
   skills/
     .harnessProfile      # contient : deploy
   rules/
-    .harnessProfile      # contient : no-rules
+    .harnessProfile      # contient : rules-minimal
 ```
 
-Le profil `deploy` s'applique sous `.agents/skills/`. Le profil `no-rules` s'applique sous `.agents/rules/`. Aucun sélecteur ne change `.claude/`, les sorties à la racine du dépôt ou les sous-arbres `.agents` frères.
+Le profil `deploy` s'applique sous `.agents/skills/`. Le profil `rules-minimal` s'applique sous `.agents/rules/`. Aucun sélecteur ne change `.claude/`, les sorties à la racine du dépôt ou les sous-arbres `.agents` frères.
 
 Les fichiers `.harnessProfile` en sortie cible sont préservés pendant le nettoyage pour la même raison que les fichiers `.harnessIgnore` en sortie cible sont préservés : ce sont des contrôles de sous-arbre vivants, pas un payload projeté.
 

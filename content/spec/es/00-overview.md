@@ -19,7 +19,7 @@ updated: 2026-05-26
 
 # Una capa fuente neutral para superficies de harness
 
-Los harnesses exponen archivos y carpetas vivos como `AGENTS.md`, `.agents`, `.claude`, `.gemini` y `.cursor`. Esos archivos y carpetas son superficies de harness útiles, pero son una fuente de verdad débil cuando varias herramientas necesitan los mismos skills, reglas, plugins y archivos de instrucciones.
+Los harnesses exponen superficies vivas basadas en archivos, y consumen archivos y carpetas como `AGENTS.md`, `.agents`, `.claude`, `.gemini` y `.cursor`. Esos archivos y carpetas son superficies de harness útiles, pero son una fuente de verdad débil cuando varias herramientas necesitan los mismos skills, reglas, plugins y archivos de instrucciones.
 
 Harness config mantiene los recursos reutilizables de agente en raíces fuente propiedad del repositorio, por convención bajo `.harness`, declara cada salida de superficie de harness como un objetivo explícito, y materializa cada objetivo mediante una proyección de copia con dry-run previo. Las raíces fuente ordenadas permiten a un proyecto superponer configuración compartida con personalización local opcional mientras mantiene estable la fuente revisada.
 

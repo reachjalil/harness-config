@@ -396,8 +396,8 @@ activate them with a small selector file:
   resources/
     skills/
       review/SKILL.md                # normal source
-      review/aggressiveProfile/
-        .harnessProfileRoot          # contains: aggressive
+      review/focusedProfile/
+        .harnessProfileRoot          # contains: focused
         SKILL.md                     # overlays .harness/resources/skills/review
     deploy/                          # profile root, not a skill
       .harnessProfileRoot            # contains: deploy
