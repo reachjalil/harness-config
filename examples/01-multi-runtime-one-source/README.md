@@ -44,7 +44,7 @@ Prerequisite: Node >= 22.12 with `npx harnessc` available.
 npx harnessc validate                                  # check the manifest, paths, targets, and ignore rules
 npx harnessc activate                                  # dry run: preview the generated runtime folders
 npx harnessc activate --yes                            # apply: write the generated files
-npx harnessc activate                                  # convergence check: the next run should report keep
+npx harnessc activate                                  # check that nothing new needs to change
 npx harnessc explain .claude/skills/code-review/SKILL.md --json  # inspect why Claude uses its override
 ```
 

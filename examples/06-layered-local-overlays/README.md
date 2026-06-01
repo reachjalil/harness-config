@@ -38,7 +38,7 @@ Prerequisite: Node >= 22.12 with `npx harnessc` available.
 npx harnessc validate                                  # check the manifest, shared source, and local overlay paths
 npx harnessc activate                                  # dry run: preview the shared team configuration
 npx harnessc activate --yes                            # apply: write the shared generated files
-npx harnessc activate                                  # convergence check: the next run should report keep
+npx harnessc activate                                  # check that nothing new needs to change
 
 mkdir -p .harness/local                                # create the private overlay folder
 cp -R .harness/local-template/. .harness/local/        # copy the tracked template into the private overlay

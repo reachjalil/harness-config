@@ -40,7 +40,7 @@ Prerequisite: Node >= 22.12 with `npx harnessc` available.
 npx harnessc validate                                  # check the manifest, profile roots, resources, and dir source
 npx harnessc activate                                  # dry run: preview the default frontend mode
 npx harnessc activate --yes                            # apply: write the frontend generated files
-npx harnessc activate                                  # convergence check: the next run should report keep
+npx harnessc activate                                  # check that nothing new needs to change
 
 printf 'security-audit\n' > .harnessProfile            # switch the selected profile
 npx harnessc activate                                  # dry run: preview the mode swap before writing

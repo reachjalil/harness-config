@@ -40,7 +40,7 @@ Prerequisite: Node >= 22.12 with `npx harnessc` available.
 npx harnessc validate                                  # check the manifest, kit profile roots, resources, and dir source
 npx harnessc activate                                  # dry run: preview the default deploy kit
 npx harnessc activate --yes                            # apply: write the deploy-kit generated files
-npx harnessc activate                                  # convergence check: the next run should report keep
+npx harnessc activate                                  # check that nothing new needs to change
 
 printf 'security-kit\n' > .harnessProfile              # switch the selected kit
 npx harnessc activate                                  # dry run: preview the kit swap before writing

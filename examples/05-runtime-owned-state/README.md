@@ -34,7 +34,7 @@ Prerequisite: Node >= 22.12 with `npx harnessc` available.
 ## Run it
 
 ```bash
-npx harnessc validate                                  # check the manifest, targets, and mutable declarations
+npx harnessc validate                                  # check the manifest, targets, and mutable file rules
 npx harnessc activate                                  # dry run: preview starter settings and skill files
 npx harnessc activate --yes                            # apply: seed the mutable settings files once
 
@@ -43,7 +43,7 @@ npx harnessc activate                                  # dry run: report the edi
 npx harnessc activate --yes                            # apply: preserve the runtime-owned edit
 cat .agents/settings.local.json                        # confirm the runtime edit survived
 
-npx harnessc activate --yes --force-mutable            # intentionally re-project mutable files from source
+npx harnessc activate --yes --force-mutable            # reset mutable files from the source template
 cat .agents/settings.local.json                        # confirm the reviewed seed was restored
 ```
 
