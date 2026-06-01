@@ -785,6 +785,126 @@ describe("harnessc", () => {
     );
   });
 
+  it("removes only unedited orphaned managed outputs with --remove-orphans", async () => {
+    const root = await rootFixture();
+    await writeConfig(root);
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harnessMutable", ".harness/**/settings.local.json\n");
+    await write(root, ".harnessProfile", "frontend\n");
+    await write(
+      root,
+      ".harness/profiles/frontend/.harnessProfileRoot",
+      "frontend\n"
+    );
+    await write(
+      root,
+      ".harness/profiles/frontend/resources/skills/frontend/SKILL.md",
+      "frontend"
+    );
+    await write(
+      root,
+      ".harness/profiles/frontend/resources/skills/edited/SKILL.md",
+      "frontend edited"
+    );
+    await write(
+      root,
+      ".harness/profiles/frontend/resources/skills/mutable/settings.local.json",
+      "seed local"
+    );
+    await write(
+      root,
+      ".harness/profiles/backend/.harnessProfileRoot",
+      "backend\n"
+    );
+    await write(
+      root,
+      ".harness/profiles/backend/resources/skills/backend/SKILL.md",
+      "backend"
+    );
+
+    const initialApply = captureIo();
+    expect(
+      await runHarnessConfigCli(
+        ["activate", "--root", root, "--yes"],
+        initialApply.io
+      )
+    ).toBe(0);
+    await write(root, ".harnessProfile", "backend\n");
+    await write(root, ".agents/skills/edited/SKILL.md", "runtime edit");
+    await write(root, ".agents/skills/manual/SKILL.md", "manual");
+
+    const defaultCapture = captureIo();
+    const defaultExitCode = await runHarnessConfigCli(
+      ["activate", "--root", root],
+      defaultCapture.io
+    );
+    const defaultOutput = defaultCapture.stdout.join("\n");
+
+    expect(defaultExitCode).toBe(0);
+    expect(defaultOutput).toContain("orphan 3");
+    expect(defaultOutput).toContain("Orphan policy");
+    expect(defaultOutput).toContain("Orphaned managed outputs kept");
+    expect(defaultOutput).toContain("skills/frontend/SKILL.md");
+    expect(defaultOutput).toContain("skills/edited/SKILL.md");
+    expect(defaultOutput).toContain("skills/mutable/settings.local.json");
+    await expect(
+      readFile(path.join(root, ".agents/skills/frontend/SKILL.md"), "utf8")
+    ).resolves.toBe("frontend");
+
+    const keepCapture = captureIo();
+    const keepExitCode = await runHarnessConfigCli(
+      ["activate", "--root", root, "--keep-orphans"],
+      keepCapture.io
+    );
+    const keepOutput = keepCapture.stdout.join("\n");
+
+    expect(keepExitCode).toBe(0);
+    expect(keepOutput).toContain("orphan 3");
+    await expect(
+      readFile(path.join(root, ".agents/skills/frontend/SKILL.md"), "utf8")
+    ).resolves.toBe("frontend");
+
+    const cleanupCapture = captureIo();
+    const cleanupExitCode = await runHarnessConfigCli(
+      ["activate", "--root", root, "--yes", "--remove-orphans"],
+      cleanupCapture.io
+    );
+    const cleanupOutput = cleanupCapture.stdout.join("\n");
+
+    expect(cleanupExitCode).toBe(0);
+    expect(cleanupOutput).toContain("remove 1");
+    expect(cleanupOutput).toContain("orphan 2");
+    await expect(
+      readFile(path.join(root, ".agents/skills/frontend/SKILL.md"), "utf8")
+    ).rejects.toThrow();
+    await expect(
+      readFile(path.join(root, ".agents/skills/edited/SKILL.md"), "utf8")
+    ).resolves.toBe("runtime edit");
+    await expect(
+      readFile(
+        path.join(root, ".agents/skills/mutable/settings.local.json"),
+        "utf8"
+      )
+    ).resolves.toBe("seed local");
+    await expect(
+      readFile(path.join(root, ".agents/skills/manual/SKILL.md"), "utf8")
+    ).resolves.toBe("manual");
+  });
+
+  it("rejects conflicting orphan cleanup flags", async () => {
+    const root = await rootFixture();
+    const capture = captureIo();
+    const exitCode = await runHarnessConfigCli(
+      ["activate", "--root", root, "--keep-orphans", "--remove-orphans"],
+      capture.io
+    );
+
+    expect(exitCode).toBe(1);
+    expect(capture.stderr.join("\n")).toContain(
+      "Use either --keep-orphans or --remove-orphans"
+    );
+  });
+
   it("returns validation errors for invalid activation TOML", async () => {
     const root = await rootFixture();
     await write(

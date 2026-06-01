@@ -69,8 +69,14 @@ type DesiredFile = {
 
 type DesiredProjection = Map<string, DesiredFile>;
 
+type ProducibleProjection = Map<string, DesiredFile[]>;
+
 type CleanupUnmanagedMode = NonNullable<
   ApplyHarnessActivationOptions["cleanupUnmanaged"]
+>;
+
+type CleanupOrphansMode = NonNullable<
+  ApplyHarnessActivationOptions["cleanupOrphans"]
 >;
 
 type MutablePolicy = NonNullable<
@@ -87,6 +93,10 @@ type ExistingEntry = {
 };
 
 type ProjectionPhase = "canonical" | "override";
+
+type ProfileSelection =
+  | { kind: "active" }
+  | { kind: "fixed"; profile?: string };
 
 type ResourceComposablePart = {
   bytes: Buffer;
@@ -348,6 +358,50 @@ function setProjectedFile(
     mutable: file.mutable,
     profileRootDir: file.profileRootDir,
   });
+}
+
+function selectedProfileForOutput(
+  profileContext: HarnessProfileContext,
+  selection: ProfileSelection,
+  targetOutputPath: string
+): string | undefined {
+  return selection.kind === "fixed"
+    ? selection.profile
+    : profileContext.profileForOutput(targetOutputPath);
+}
+
+function profileParticipates(
+  requiredProfile: string | undefined,
+  selectedProfile: string | undefined
+): boolean {
+  return requiredProfile === undefined || selectedProfile === requiredProfile;
+}
+
+function recordProducibleProjection(
+  producibleProjection: ProducibleProjection,
+  projection: DesiredProjection
+): void {
+  for (const [relativePath, file] of projection) {
+    const files = producibleProjection.get(relativePath) ?? [];
+    if (!files.some((existing) => existing.bytes.equals(file.bytes))) {
+      files.push(file);
+    }
+    producibleProjection.set(relativePath, files);
+  }
+}
+
+function fixedProfileSelections(
+  profileContext: HarnessProfileContext
+): ProfileSelection[] {
+  const profiles = [
+    ...new Set(
+      profileContext.profileRoots.map((profileRoot) => profileRoot.profile)
+    ),
+  ].toSorted((left, right) => left.localeCompare(right));
+  return [
+    { kind: "fixed", profile: undefined },
+    ...profiles.map((profile) => ({ kind: "fixed" as const, profile })),
+  ];
 }
 
 async function hasProfileRootMarker(directory: string): Promise<boolean> {
@@ -715,6 +769,7 @@ async function projectResourcesTree(options: {
   phase: ProjectionPhase;
   profileContext: HarnessProfileContext;
   profileRootDir?: string;
+  profileSelection: ProfileSelection;
   projection: DesiredProjection;
   requiredProfile?: string;
   root: string;
@@ -754,9 +809,12 @@ async function projectResourcesTree(options: {
       options.targetPath,
       fallbackOutputRelativePath
     );
-    const activeProfile =
-      options.profileContext.profileForOutput(targetOutputPath);
-    if (options.requiredProfile && activeProfile !== options.requiredProfile) {
+    const activeProfile = selectedProfileForOutput(
+      options.profileContext,
+      options.profileSelection,
+      targetOutputPath
+    );
+    if (!profileParticipates(options.requiredProfile, activeProfile)) {
       continue;
     }
     const leaf = await readResourceComposableLeaf({
@@ -801,6 +859,7 @@ async function projectResourcesTree(options: {
     emittedComposableLeafPaths: options.emittedComposableLeafPaths,
     matcher: options.matcher,
     profileContext: options.profileContext,
+    profileSelection: options.profileSelection,
     projection: options.projection,
     root: options.root,
     suppressedComposableOutputPaths: options.suppressedComposableOutputPaths,
@@ -840,9 +899,12 @@ async function projectResourcesTree(options: {
       options.targetPath,
       outputRelativePath
     );
-    const activeProfile =
-      options.profileContext.profileForOutput(targetOutputPath);
-    if (options.requiredProfile && activeProfile !== options.requiredProfile) {
+    const activeProfile = selectedProfileForOutput(
+      options.profileContext,
+      options.profileSelection,
+      targetOutputPath
+    );
+    if (!profileParticipates(options.requiredProfile, activeProfile)) {
       continue;
     }
 
@@ -874,6 +936,7 @@ function emitResourceComposableLeaves(options: {
   emittedComposableLeafPaths: Set<string>;
   matcher: HarnessIgnoreMatcher;
   profileContext: HarnessProfileContext;
+  profileSelection: ProfileSelection;
   profileRootDir?: string;
   projection: DesiredProjection;
   root: string;
@@ -892,7 +955,9 @@ function emitResourceComposableLeaves(options: {
     if (options.suppressedComposableOutputPaths.has(leaf.outputRelativePath)) {
       continue;
     }
-    const activeProfile = options.profileContext.profileForOutput(
+    const activeProfile = selectedProfileForOutput(
+      options.profileContext,
+      options.profileSelection,
       leaf.targetOutputPath
     );
     const parts = expandResourceComposableParts(
@@ -941,6 +1006,7 @@ async function projectCanonicalResourcesTree(options: {
   overrideDir: string | undefined;
   phase: ProjectionPhase;
   profileContext: HarnessProfileContext;
+  profileSelection: ProfileSelection;
   projection: DesiredProjection;
   root: string;
   targetPath: string;
@@ -1017,6 +1083,7 @@ async function buildProjection(
   options?: {
     matcher?: HarnessIgnoreMatcher;
     profileContext?: HarnessProfileContext;
+    profileSelection?: ProfileSelection;
   }
 ): Promise<DesiredProjection> {
   const projection: DesiredProjection = new Map();
@@ -1054,6 +1121,7 @@ async function buildProjection(
     throw new Error("Ignore matcher is required to build projection.");
   }
   const overrideDir = inferHarnessOverrideDirectory(targetPath);
+  const profileSelection = options?.profileSelection ?? { kind: "active" };
 
   for (const phase of ["canonical", "override"] as const) {
     await projectCanonicalResourcesTree({
@@ -1063,6 +1131,7 @@ async function buildProjection(
       overrideDir,
       phase,
       profileContext,
+      profileSelection,
       projection,
       root,
       targetPath,
@@ -1070,6 +1139,36 @@ async function buildProjection(
   }
 
   return projection;
+}
+
+async function buildProducibleProjection(
+  root: string,
+  config: HarnessConfig,
+  targetPath: string,
+  options: {
+    matcher: HarnessIgnoreMatcher;
+    profileContext: HarnessProfileContext;
+  }
+): Promise<ProducibleProjection> {
+  const producibleProjection: ProducibleProjection = new Map();
+  for (const profileSelection of fixedProfileSelections(
+    options.profileContext
+  )) {
+    const diagnostics: HarnessDiagnostic[] = [];
+    const projection = await buildProjection(
+      root,
+      config,
+      targetPath,
+      diagnostics,
+      {
+        matcher: options.matcher,
+        profileContext: options.profileContext,
+        profileSelection,
+      }
+    );
+    recordProducibleProjection(producibleProjection, projection);
+  }
+  return producibleProjection;
 }
 
 function resolveProjectionPath(
@@ -1265,12 +1364,36 @@ function isProjectionAncestor(
 function projectedItemRoots(projection: DesiredProjection): Set<string> {
   const roots = new Set<string>();
   for (const relativePath of projection.keys()) {
-    const segments = relativePath.split("/");
-    if (segments.length >= 2) {
-      roots.add(`${segments[0]}/${segments[1]}`);
-    }
+    addProjectedItemRoot(roots, relativePath);
   }
   return roots;
+}
+
+function projectedAndProducibleItemRoots(
+  projection: DesiredProjection,
+  producibleProjection: ProducibleProjection
+): Set<string> {
+  const roots = projectedItemRoots(projection);
+  for (const relativePath of producibleProjection.keys()) {
+    addProjectedItemRoot(roots, relativePath);
+  }
+  return roots;
+}
+
+function addProjectedItemRoot(roots: Set<string>, relativePath: string): void {
+  const segments = relativePath.split("/");
+  if (segments.length >= 2) {
+    roots.add(`${segments[0]}/${segments[1]}`);
+  }
+}
+
+function isProducibleProjectionAncestor(
+  relativePath: string,
+  producibleProjection: ProducibleProjection
+): boolean {
+  return [...producibleProjection.keys()].some((projectedPath) =>
+    projectedPath.startsWith(`${relativePath}/`)
+  );
 }
 
 function unmanagedEntryRoot(
@@ -1293,7 +1416,9 @@ function unmanagedEntryRoot(
 async function planCopyActions(
   targetRoot: string,
   projection: DesiredProjection,
+  producibleProjection: ProducibleProjection,
   cleanupUnmanaged: CleanupUnmanagedMode,
+  cleanupOrphans: CleanupOrphansMode,
   mutablePolicy: MutablePolicy,
   targetSymlinkPolicy: TargetSymlinkPolicy,
   diagnostics: HarnessDiagnostic[],
@@ -1302,7 +1427,10 @@ async function planCopyActions(
   const targetState = await lstat(targetRoot).catch(() => undefined);
   const existing = await readExistingTree(targetRoot);
   const actions: HarnessActivationAction[] = [];
-  const managedItemRoots = projectedItemRoots(projection);
+  const managedItemRoots = projectedAndProducibleItemRoots(
+    projection,
+    producibleProjection
+  );
 
   if (
     targetState?.isSymbolicLink() &&
@@ -1412,7 +1540,8 @@ async function planCopyActions(
     }
     if (
       entry.type === "directory" &&
-      isProjectionAncestor(relativePath, projection)
+      (isProjectionAncestor(relativePath, projection) ||
+        isProducibleProjectionAncestor(relativePath, producibleProjection))
     ) {
       continue;
     }
@@ -1429,6 +1558,26 @@ async function planCopyActions(
         existingPath.startsWith(`${relativePath}/`)
       )
     ) {
+      continue;
+    }
+    const producibleFiles = producibleProjection.get(relativePath);
+    if (producibleFiles && producibleFiles.length > 0) {
+      const byteMatched =
+        entry.type === "file" &&
+        producibleFiles.some((file) => entry.bytes?.equals(file.bytes));
+      const mutable = producibleFiles.some((file) => file.mutable);
+      const remove = cleanupOrphans === "remove" && byteMatched && !mutable;
+      actions.push({
+        kind: remove ? "remove" : "orphan",
+        targetPath: path.join(targetRoot, relativePath),
+        relativePath,
+        sourcePath: producibleFiles[0]?.sourcePath,
+        reason: remove
+          ? "orphaned managed output matches non-active source projection"
+          : mutable
+            ? "orphaned managed output kept because mutable protections apply"
+            : "orphaned managed output kept unless --remove-orphans is selected and bytes still match source",
+      });
       continue;
     }
     const root = protectedUnmanagedEntryRoot(
@@ -1512,6 +1661,7 @@ function sortActivationActions(
     remove: 3,
     keep: 4,
     preserve: 5,
+    orphan: 6,
   };
 
   return actions.toSorted((left, right) => {
@@ -1804,11 +1954,16 @@ async function prepareHarnessActivation(
   root = process.cwd(),
   options: Pick<
     ApplyHarnessActivationOptions,
-    "cleanupUnmanaged" | "configPath" | "mutablePolicy" | "targetSymlinkPolicy"
+    | "cleanupUnmanaged"
+    | "cleanupOrphans"
+    | "configPath"
+    | "mutablePolicy"
+    | "targetSymlinkPolicy"
   > = {}
 ): Promise<ActivationPreparation> {
   const absoluteRoot = path.resolve(root);
   const cleanupUnmanaged = options.cleanupUnmanaged ?? "keep";
+  const cleanupOrphans = options.cleanupOrphans ?? "keep";
   const mutablePolicy = options.mutablePolicy ?? "skip";
   const config = await loadConfig(absoluteRoot, options.configPath).catch(
     (error: unknown) => {
@@ -1906,6 +2061,15 @@ async function prepareHarnessActivation(
         profileContext,
       }
     );
+    const producibleProjection = await buildProducibleProjection(
+      absoluteRoot,
+      config,
+      targetPath,
+      {
+        matcher,
+        profileContext,
+      }
+    );
     mergeDirOutputsIntoProjection(
       absoluteRoot,
       targetProjection,
@@ -1917,7 +2081,9 @@ async function prepareHarnessActivation(
     const actions = await planCopyActions(
       targetRoot,
       targetProjection,
+      producibleProjection,
       cleanupUnmanaged,
+      cleanupOrphans,
       mutablePolicy,
       targetSymlinkPolicy,
       diagnostics,
@@ -1965,7 +2131,11 @@ export async function planHarnessActivation(
   root = process.cwd(),
   options: Pick<
     ApplyHarnessActivationOptions,
-    "cleanupUnmanaged" | "configPath" | "mutablePolicy" | "targetSymlinkPolicy"
+    | "cleanupUnmanaged"
+    | "cleanupOrphans"
+    | "configPath"
+    | "mutablePolicy"
+    | "targetSymlinkPolicy"
   > = {}
 ): Promise<HarnessActivationPlan> {
   return (await prepareHarnessActivation(root, options)).plan;
@@ -2046,6 +2216,7 @@ export async function applyHarnessActivation(
 ): Promise<HarnessActivationResult> {
   const state = await prepareHarnessActivation(root, {
     cleanupUnmanaged: options.cleanupUnmanaged,
+    cleanupOrphans: options.cleanupOrphans,
     configPath: options.configPath,
     mutablePolicy: options.mutablePolicy,
     targetSymlinkPolicy: options.targetSymlinkPolicy,
@@ -2087,6 +2258,7 @@ export async function applyHarnessActivation(
         (action) =>
           action.kind !== "keep" &&
           action.kind !== "preserve" &&
+          action.kind !== "orphan" &&
           action.kind !== "mutable"
       )
     );

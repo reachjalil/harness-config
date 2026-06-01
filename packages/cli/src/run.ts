@@ -55,6 +55,7 @@ type CliOptions = {
   dryRun: boolean;
   help: boolean;
   cleanupUnmanaged?: "keep" | "remove";
+  cleanupOrphans?: "keep" | "remove";
   mutablePolicy?: "skip" | "force";
   targetSymlinkPolicy?: "conflict" | "replace";
   allExtensions: boolean;
@@ -87,6 +88,7 @@ Usage:
   harnessc activate [--root <path>] [--dry-run] [--yes]
                     [--config <path>]
                     [--keep-unmanaged|--remove-unmanaged]
+                    [--keep-orphans|--remove-orphans]
                     [--force-mutable] [--replace-target-symlinks] [--json]
   harnessc extension activate [--root <path>] [--config <path>]
                               [--dry-run] [--yes]
@@ -113,7 +115,9 @@ file, and copy any other files to their matching repo-relative paths.
 
 Activation without --yes is the projection preview. Activation keeps unmanaged
 target entries by default. Use --remove-unmanaged to delete target entries that
-are not present in the computed Harness config projection. Managed target edits are
+are not present in the computed Harness config projection. Orphaned managed
+outputs from non-active profile selections are also kept by default; use
+--remove-orphans to delete only unedited ones. Managed target edits are
 overwritten from configured sources on update. Mutable target files declared in
 .harnessMutable are created once and then left alone; use
 --force-mutable to re-project them from source. Target symlinks that occupy
@@ -140,6 +144,8 @@ function parseArgs(argv: string[]): CliOptions {
   };
   let sawKeepUnmanaged = false;
   let sawRemoveUnmanaged = false;
+  let sawKeepOrphans = false;
+  let sawRemoveOrphans = false;
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -167,6 +173,16 @@ function parseArgs(argv: string[]): CliOptions {
     if (arg === "--remove-unmanaged") {
       sawRemoveUnmanaged = true;
       options.cleanupUnmanaged = "remove";
+      continue;
+    }
+    if (arg === "--keep-orphans") {
+      sawKeepOrphans = true;
+      options.cleanupOrphans = "keep";
+      continue;
+    }
+    if (arg === "--remove-orphans") {
+      sawRemoveOrphans = true;
+      options.cleanupOrphans = "remove";
       continue;
     }
     if (arg === "--force-mutable") {
@@ -265,6 +281,9 @@ function parseArgs(argv: string[]): CliOptions {
     throw new Error(
       "Use either --keep-unmanaged or --remove-unmanaged, not both."
     );
+  }
+  if (sawKeepOrphans && sawRemoveOrphans) {
+    throw new Error("Use either --keep-orphans or --remove-orphans, not both.");
   }
 
   if (
@@ -1116,6 +1135,7 @@ export async function runHarnessConfigCli(
         const promptPlan = await planHarnessActivation(options.root, {
           configPath: options.configPath,
           cleanupUnmanaged: cleanupUnmanaged ?? "keep",
+          cleanupOrphans: options.cleanupOrphans,
           mutablePolicy: options.mutablePolicy,
           targetSymlinkPolicy: options.targetSymlinkPolicy,
         });
@@ -1136,6 +1156,7 @@ export async function runHarnessConfigCli(
         dryRun: options.dryRun || !options.yes,
         yes: options.yes,
         cleanupUnmanaged,
+        cleanupOrphans: options.cleanupOrphans,
         mutablePolicy: options.mutablePolicy,
         targetSymlinkPolicy: options.targetSymlinkPolicy,
       });
@@ -1220,6 +1241,7 @@ export async function runHarnessConfigCli(
       const plan = await planHarnessActivation(options.root, {
         configPath: options.configPath,
         cleanupUnmanaged: options.cleanupUnmanaged,
+        cleanupOrphans: options.cleanupOrphans,
         mutablePolicy: options.mutablePolicy,
         targetSymlinkPolicy: options.targetSymlinkPolicy,
       });

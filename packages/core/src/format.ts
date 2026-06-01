@@ -69,6 +69,8 @@ function actionKind(
       return style(options, ANSI.red, kind);
     case "mutable":
       return style(options, ANSI.magenta, kind);
+    case "orphan":
+      return style(options, ANSI.cyan, kind);
     case "preserve":
       return style(options, ANSI.blue, kind);
     case "keep":
@@ -184,6 +186,9 @@ export function formatActivationPlan(
               target.actions.some((action) => action.kind === "preserve")
                 ? "Unmanaged policy: keeping existing target entries that are not in configured sources. Use --remove-unmanaged to delete them."
                 : "",
+              target.actions.some((action) => action.kind === "orphan")
+                ? "Orphan policy: keeping outputs a non-active profile would produce. Use --remove-orphans to delete unedited ones."
+                : "",
               target.actions.some((action) => action.kind === "mutable")
                 ? "Mutable policy: leaving runtime-owned files in place. Use --force-mutable to re-project from source."
                 : "",
@@ -229,6 +234,7 @@ function summarizeActivationActions(
     remove: 0,
     keep: 0,
     preserve: 0,
+    orphan: 0,
     mutable: 0,
   };
   for (const action of actions) {
@@ -240,6 +246,7 @@ function summarizeActivationActions(
     `update ${counts.update}`,
     `mutable ${counts.mutable}`,
     `remove ${counts.remove}`,
+    `orphan ${counts.orphan}`,
     `keep ${counts.keep}`,
     `preserve unmanaged ${counts.preserve}`,
   ].join(", ");
@@ -269,6 +276,11 @@ function formatActivationActionSections(
     },
     { title: "Removals", kinds: ["remove"], limit: 12 },
     { title: "Projected files already matching", kinds: ["keep"], limit: 8 },
+    {
+      title: "Orphaned managed outputs kept",
+      kinds: ["orphan"],
+      limit: 8,
+    },
     {
       title: "Unmanaged target entries kept",
       kinds: ["preserve"],
