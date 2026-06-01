@@ -1,5 +1,32 @@
 # Harness config release notes
 
+## 1.0.0-alpha.7
+
+`1.0.0-alpha.7` adds the orphaned managed output cleanup workflow for profile
+switching and non-active projections while preserving local runtime edits by
+default.
+
+### Orphaned Managed Outputs
+
+- Adds `orphan` activation plan entries for existing target files that are not
+  in the active projection but could still be produced by a non-active profile
+  or target selection.
+- Keeps orphaned managed outputs by default and adds `--remove-orphans` for
+  explicit cleanup of unedited orphaned files whose bytes still match the
+  non-active source projection.
+- Preserves edited orphaned files, mutable outputs, genuinely unmanaged target
+  entries, and target-output `.harnessIgnore` boundaries during orphan cleanup.
+- Compares cleanup candidates against final target override bytes, including
+  dotfile outputs such as `.gitignore`.
+
+### Docs And Tests
+
+- Documents the standard, conformance, tooling, CLI, and website-ready spec
+  behavior for orphaned managed outputs.
+- Adds regression coverage for profile switching, overlapping active and
+  non-active outputs, mutable orphan preservation, target-output ignore
+  boundaries, and target override byte comparison.
+
 ## 1.0.0-alpha.6
 
 `1.0.0-alpha.6` hardens the v1 manifest and projection contract for forward

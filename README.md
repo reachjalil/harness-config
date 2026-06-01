@@ -16,7 +16,7 @@ The project maintains two independent version lines:
 - **Specification version:** `v1` (proposal). This is the contract — the file
   shape, manifest schema, projection model, and ignore grammar. It changes only
   on a future v2; see [docs/GOVERNANCE.md](./docs/GOVERNANCE.md).
-- **Reference implementation version:** `1.0.0-alpha.6` (semver). This is the
+- **Reference implementation version:** `1.0.0-alpha.7` (semver). This is the
   npm package set. It moves on its own cadence and a new release never implies a
   change to the specification.
 
