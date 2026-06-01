@@ -1,0 +1,5 @@
+{
+  "createdBy": "harness",
+  "runtimeCanEdit": true,
+  "allowedCommands": ["pnpm test"]
+}
