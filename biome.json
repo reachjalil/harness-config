@@ -10,7 +10,8 @@
       "!**/.turbo",
       "!**/coverage",
       "!**/.harness",
-      "!**/.agents"
+      "!**/.agents",
+      "!**/.claude"
     ]
   },
   "formatter": {
@@ -19,7 +20,8 @@
       "*.{js,jsx,ts,tsx,mts,cts,cjs,mjs,json,jsonc,md,mdx,css}",
       "**/*.{js,jsx,ts,tsx,mts,cts,cjs,mjs,json,jsonc,md,mdx,css}",
       "!**/.harness/**",
-      "!**/.agents/**"
+      "!**/.agents/**",
+      "!**/.claude/**"
     ],
     "indentStyle": "space",
     "indentWidth": 2,
@@ -40,7 +42,8 @@
       "*.{js,jsx,ts,tsx,mts,cts,cjs,mjs,json,jsonc,css}",
       "**/*.{js,jsx,ts,tsx,mts,cts,cjs,mjs,json,jsonc,css}",
       "!**/.harness/**",
-      "!**/.agents/**"
+      "!**/.agents/**",
+      "!**/.claude/**"
     ],
     "domains": {
       "project": "none",
