@@ -46,7 +46,12 @@ does not replace maintainer accountability.
 
 ## Release Flow
 
-All publishable packages use the same version:
+This flow versions the **reference implementation**, not the specification. The
+specification version (`v1`) is a separate axis that changes only on a future
+v2; a package release never moves it. See [GOVERNANCE.md](./GOVERNANCE.md) for
+the two version lines and the specification change-control rules.
+
+All publishable packages use the same implementation version:
 
 - root package metadata;
 - `@harnessconfig/core`;
