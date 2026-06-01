@@ -1088,9 +1088,9 @@ Profile roots overlay source paths by where the marker is placed:
   source or configured dir source, that marker directory overlays
   its parent directory. This lets resource items carry portable local
   profiles. For example, under a conventional resources path,
-  `.harness/resources/skills/example/aggressiveProfile/.harnessProfileRoot`
+  `.harness/resources/skills/example/focusedProfile/.harnessProfileRoot`
   overlays `.harness/resources/skills/example`, so
-  `.harness/resources/skills/example/aggressiveProfile/SKILL.md` replaces
+  `.harness/resources/skills/example/focusedProfile/SKILL.md` replaces
   the logical `.harness/resources/skills/example/SKILL.md` when that profile
   is active.
 - Otherwise, a marker directory under `./.harness` overlays `./.harness`.

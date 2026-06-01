@@ -358,32 +358,32 @@ describe("HarnessConfig activation projection", () => {
     await write(root, ".harnessProfile", "team\n");
     await write(
       root,
-      "agent-context/resources/skills/secret-word/.abc/.harnessIgnore",
+      "agent-context/resources/skills/sample-skill/.abc/.harnessIgnore",
       "summary.txt\n"
     );
     await write(
       root,
-      "agent-context/resources/skills/secret-word/SKILL.md",
+      "agent-context/resources/skills/sample-skill/SKILL.md",
       "base"
     );
     await write(
       root,
-      "agent-context/resources/skills/secret-word/summary.txt",
+      "agent-context/resources/skills/sample-skill/summary.txt",
       "summary"
     );
     await write(
       root,
-      "agent-context/resources/skills/secret-word/pass.txt",
+      "agent-context/resources/skills/sample-skill/pass.txt",
       "pass"
     );
     await write(
       root,
-      "agent-context/resources/skills/secret-word/.abc/pass.txt",
+      "agent-context/resources/skills/sample-skill/.abc/pass.txt",
       "abc pass"
     );
     await write(
       root,
-      "agent-context/resources/skills/secret-word/logs/run.log",
+      "agent-context/resources/skills/sample-skill/logs/run.log",
       "ignore"
     );
     await write(
@@ -393,7 +393,7 @@ describe("HarnessConfig activation projection", () => {
     );
     await write(
       root,
-      "agent-context/resources/team/skills/secret-word/PROFILE.md",
+      "agent-context/resources/team/skills/sample-skill/PROFILE.md",
       "profile"
     );
     await write(root, "agent-context/dir/AGENTS.md/.harnessComposable", "");
@@ -408,25 +408,28 @@ describe("HarnessConfig activation projection", () => {
 
     expect(result.plan.diagnostics).toEqual([]);
     await expect(
-      readFile(path.join(root, ".agents/skills/secret-word/SKILL.md"), "utf8")
+      readFile(path.join(root, ".agents/skills/sample-skill/SKILL.md"), "utf8")
     ).resolves.toBe("base");
     await expect(
       readFile(
-        path.join(root, ".agents/skills/secret-word/summary.txt"),
+        path.join(root, ".agents/skills/sample-skill/summary.txt"),
         "utf8"
       )
     ).resolves.toBe("summary");
     await expect(
-      readFile(path.join(root, ".abc/skills/secret-word/summary.txt"))
+      readFile(path.join(root, ".abc/skills/sample-skill/summary.txt"))
     ).rejects.toThrow();
     await expect(
-      readFile(path.join(root, ".abc/skills/secret-word/pass.txt"), "utf8")
+      readFile(path.join(root, ".abc/skills/sample-skill/pass.txt"), "utf8")
     ).resolves.toBe("abc pass");
     await expect(
-      readFile(path.join(root, ".agents/skills/secret-word/logs/run.log"))
+      readFile(path.join(root, ".agents/skills/sample-skill/logs/run.log"))
     ).rejects.toThrow();
     await expect(
-      readFile(path.join(root, ".agents/skills/secret-word/PROFILE.md"), "utf8")
+      readFile(
+        path.join(root, ".agents/skills/sample-skill/PROFILE.md"),
+        "utf8"
+      )
     ).resolves.toBe("profile");
     await expect(readFile(path.join(root, "AGENTS.md"), "utf8")).resolves.toBe(
       "agents\n"
@@ -826,16 +829,16 @@ describe("HarnessConfig activation projection", () => {
       ].join("\n")
     );
     await write(root, ".harnessIgnore", "");
-    await write(root, ".harnessProfile", "aggressive\n");
+    await write(root, ".harnessProfile", "focused\n");
     await write(root, ".harness/resources/skills/review/SKILL.md", "base");
     await write(
       root,
-      ".harness/resources/skills/review/aggressiveProfile/.harnessProfileRoot",
-      "aggressive\n"
+      ".harness/resources/skills/review/focusedProfile/.harnessProfileRoot",
+      "focused\n"
     );
     await write(
       root,
-      ".harness/resources/skills/review/aggressiveProfile/SKILL.md",
+      ".harness/resources/skills/review/focusedProfile/SKILL.md",
       "profile"
     );
 
@@ -846,7 +849,7 @@ describe("HarnessConfig activation projection", () => {
     ).resolves.toBe("profile");
     await expect(
       readFile(
-        path.join(root, ".agents/skills/review/aggressiveProfile/SKILL.md"),
+        path.join(root, ".agents/skills/review/focusedProfile/SKILL.md"),
         "utf8"
       )
     ).rejects.toThrow();
@@ -1255,22 +1258,22 @@ describe("HarnessConfig activation projection", () => {
     await write(root, ".harnessIgnore", "");
     await write(
       root,
-      ".harness/resources/skills/secret-word/.abc/.harnessIgnore",
+      ".harness/resources/skills/sample-skill/.abc/.harnessIgnore",
       "summary.txt\n"
     );
     await write(
       root,
-      ".harness/resources/skills/secret-word/SKILL.md",
+      ".harness/resources/skills/sample-skill/SKILL.md",
       "base skill"
     );
     await write(
       root,
-      ".harness/resources/skills/secret-word/summary.txt",
+      ".harness/resources/skills/sample-skill/summary.txt",
       "base summary"
     );
     await write(
       root,
-      ".harness/resources/skills/secret-word/.abc/pass.txt",
+      ".harness/resources/skills/sample-skill/.abc/pass.txt",
       "abc pass"
     );
 
@@ -1281,16 +1284,16 @@ describe("HarnessConfig activation projection", () => {
 
     expect(result.plan.diagnostics).toEqual([]);
     await expect(
-      readFile(path.join(root, ".abc/skills/secret-word/SKILL.md"), "utf8")
+      readFile(path.join(root, ".abc/skills/sample-skill/SKILL.md"), "utf8")
     ).resolves.toBe("base skill");
     await expect(
-      readFile(path.join(root, ".abc/skills/secret-word/pass.txt"), "utf8")
+      readFile(path.join(root, ".abc/skills/sample-skill/pass.txt"), "utf8")
     ).resolves.toBe("abc pass");
     await expect(
-      readFile(path.join(root, ".abc/skills/secret-word/summary.txt"), "utf8")
+      readFile(path.join(root, ".abc/skills/sample-skill/summary.txt"), "utf8")
     ).rejects.toThrow();
     await expect(
-      readFile(path.join(root, ".xyz/skills/secret-word/summary.txt"), "utf8")
+      readFile(path.join(root, ".xyz/skills/sample-skill/summary.txt"), "utf8")
     ).resolves.toBe("base summary");
   });
 
@@ -1325,22 +1328,22 @@ describe("HarnessConfig activation projection", () => {
     await write(root, ".harnessIgnore", "");
     await write(
       root,
-      ".harness/resources/skills/secret-word/.abc/.harnessIgnore",
+      ".harness/resources/skills/sample-skill/.abc/.harnessIgnore",
       "summary.txt\n"
     );
     await write(
       root,
-      ".abc/skills/secret-word/.harnessIgnore",
+      ".abc/skills/sample-skill/.harnessIgnore",
       "!summary.txt\n"
     );
     await write(
       root,
-      ".harness/resources/skills/secret-word/SKILL.md",
+      ".harness/resources/skills/sample-skill/SKILL.md",
       "base skill"
     );
     await write(
       root,
-      ".harness/resources/skills/secret-word/summary.txt",
+      ".harness/resources/skills/sample-skill/summary.txt",
       "base summary"
     );
 
@@ -1351,11 +1354,11 @@ describe("HarnessConfig activation projection", () => {
 
     expect(result.plan.diagnostics).toEqual([]);
     await expect(
-      readFile(path.join(root, ".abc/skills/secret-word/summary.txt"), "utf8")
+      readFile(path.join(root, ".abc/skills/sample-skill/summary.txt"), "utf8")
     ).resolves.toBe("base summary");
     await expect(
       readFile(
-        path.join(root, ".abc/skills/secret-word/.harnessIgnore"),
+        path.join(root, ".abc/skills/sample-skill/.harnessIgnore"),
         "utf8"
       )
     ).resolves.toBe("!summary.txt\n");
@@ -1373,17 +1376,17 @@ describe("HarnessConfig activation projection", () => {
     );
     await write(
       root,
-      ".harness/profiles/deploy/resources/skills/secret-word/.abc/.harnessIgnore",
+      ".harness/profiles/deploy/resources/skills/sample-skill/.abc/.harnessIgnore",
       "summary.txt\n"
     );
     await write(
       root,
-      ".harness/resources/skills/secret-word/SKILL.md",
+      ".harness/resources/skills/sample-skill/SKILL.md",
       "base skill"
     );
     await write(
       root,
-      ".harness/resources/skills/secret-word/summary.txt",
+      ".harness/resources/skills/sample-skill/summary.txt",
       "base summary"
     );
 
@@ -1394,13 +1397,13 @@ describe("HarnessConfig activation projection", () => {
 
     expect(result.plan.diagnostics).toEqual([]);
     await expect(
-      readFile(path.join(root, ".abc/skills/secret-word/SKILL.md"), "utf8")
+      readFile(path.join(root, ".abc/skills/sample-skill/SKILL.md"), "utf8")
     ).resolves.toBe("base skill");
     await expect(
-      readFile(path.join(root, ".abc/skills/secret-word/summary.txt"), "utf8")
+      readFile(path.join(root, ".abc/skills/sample-skill/summary.txt"), "utf8")
     ).rejects.toThrow();
     await expect(
-      readFile(path.join(root, ".xyz/skills/secret-word/summary.txt"), "utf8")
+      readFile(path.join(root, ".xyz/skills/sample-skill/summary.txt"), "utf8")
     ).resolves.toBe("base summary");
   });
 
@@ -1712,27 +1715,27 @@ describe("HarnessConfig activation projection", () => {
     const root = await rootFixture();
     await writeHarnessConfig(root, { targets: ["./.agents"] });
     await write(root, ".harnessIgnore", "");
-    await write(root, ".harnessProfile", "aggressive\n");
+    await write(root, ".harnessProfile", "focused\n");
     await write(root, ".harness/resources/skills/example/SKILL.md", "base");
     await write(
       root,
-      ".harness/resources/skills/example/aggressiveProfile/.harnessProfileRoot",
-      "aggressive\n"
+      ".harness/resources/skills/example/focusedProfile/.harnessProfileRoot",
+      "focused\n"
     );
     await write(
       root,
-      ".harness/resources/skills/example/aggressiveProfile/SKILL.md",
-      "aggressive"
+      ".harness/resources/skills/example/focusedProfile/SKILL.md",
+      "focused"
     );
 
     await applyHarnessActivation(root, { dryRun: false, yes: true });
 
     await expect(
       readFile(path.join(root, ".agents/skills/example/SKILL.md"), "utf8")
-    ).resolves.toBe("aggressive");
+    ).resolves.toBe("focused");
     await expect(
       readFile(
-        path.join(root, ".agents/skills/example/aggressiveProfile/SKILL.md")
+        path.join(root, ".agents/skills/example/focusedProfile/SKILL.md")
       )
     ).rejects.toThrow();
   });

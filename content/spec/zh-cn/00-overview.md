@@ -19,7 +19,7 @@ updated: 2026-05-26
 
 # 一种为 harness surface 设计的中立源布局
 
-Harnesses 暴露的是活动文件和文件夹，比如 `AGENTS.md`、`.agents`、`.claude`、`.gemini` 和 `.cursor`。这些是有用的 harness surface，但当多个工具需要同样的 skills、rules、plugins 和指令文件时，它们是脆弱的真理源。
+Harnesses 暴露活动的基于文件的 surface，并消费 `AGENTS.md`、`.agents`、`.claude`、`.gemini` 和 `.cursor` 等文件和文件夹。这些是有用的 harness surface，但当多个工具需要同样的 skills、rules、plugins 和指令文件时，它们是脆弱的真理源。
 
 Harness config 把可复用的 agent 资源保留在仓库所有的源根中，按惯例置于 `.harness` 下，把每个 harness surface 的输出声明为显式 target，并通过 dry-run 优先的拷贝投影来物化每个 target。有序的源根让一个项目可以在保持已审阅源稳定的前提下叠加共享配置与可选的本地定制。
 

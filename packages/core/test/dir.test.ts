@@ -264,23 +264,23 @@ describe("core dir (composable + copy)", () => {
     const root = await fixtureRoot();
     await writeConfig(root);
     await write(root, ".harnessIgnore", "");
-    await write(root, ".harnessProfile", "my-profile\n");
+    await write(root, ".harnessProfile", "local-profile\n");
     await write(root, ".harness/dir/AGENTS.md/.harnessComposable", "");
     await write(root, ".harness/dir/AGENTS.md/100_intro.md", "Base\n");
     await write(root, ".harness/dir/AGENTS.md/300_rules.md", "Rules\n");
     await write(
       root,
-      ".harness/profiles/my-profile/.harnessProfileRoot",
-      "my-profile\n"
+      ".harness/profiles/local-profile/.harnessProfileRoot",
+      "local-profile\n"
     );
     await write(
       root,
-      ".harness/profiles/my-profile/dir/AGENTS.md/.harnessIgnore",
+      ".harness/profiles/local-profile/dir/AGENTS.md/.harnessIgnore",
       "100_intro.md\n"
     );
     await write(
       root,
-      ".harness/profiles/my-profile/dir/AGENTS.md/100_my_intro.md",
+      ".harness/profiles/local-profile/dir/AGENTS.md/100_local_intro.md",
       "Mine\n"
     );
 
@@ -295,17 +295,17 @@ describe("core dir (composable + copy)", () => {
     const root = await fixtureRoot();
     await writeConfig(root);
     await write(root, ".harnessIgnore", "");
-    await write(root, ".harnessProfile", "aggressive\n");
+    await write(root, ".harnessProfile", "focused\n");
     await write(root, ".harness/dir/AGENTS.md/.harnessComposable", "");
     await write(root, ".harness/dir/AGENTS.md/100_intro.md", "Base\n");
     await write(
       root,
-      ".harness/dir/AGENTS.md/aggressiveProfile/.harnessProfileRoot",
-      "aggressive\n"
+      ".harness/dir/AGENTS.md/focusedProfile/.harnessProfileRoot",
+      "focused\n"
     );
     await write(
       root,
-      ".harness/dir/AGENTS.md/aggressiveProfile/150_profile.md",
+      ".harness/dir/AGENTS.md/focusedProfile/150_profile.md",
       "Profile\n"
     );
 

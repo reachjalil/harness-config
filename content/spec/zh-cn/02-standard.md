@@ -585,7 +585,7 @@ Profile 内容由 `.harnessProfileRoot` 声明，它 MUST 住在 `./.harness` �
 Profile 根根据放置标记的位置覆盖源路径：
 
 - 如果标记目录是配置过的 resources 源或配置过的 dir 源的紧邻子目录，该标记目录覆盖该源根。例如，在约定 resources 路径下，`.harness/resources/deploy/.harnessProfileRoot` 覆盖 `.harness/resources`；`deploy/` 的子项变为逻辑资源输出。
-- 如果标记目录嵌套在配置过的 resources 源或配置过的 dir 源更深处，该标记目录覆盖它的父目录。这让资源项可以携带可移植本地 profile。例如，在约定 resources 路径下，`.harness/resources/skills/example/aggressiveProfile/.harnessProfileRoot` 覆盖 `.harness/resources/skills/example`，因此在该 profile 活动时 `.harness/resources/skills/example/aggressiveProfile/SKILL.md` 替换逻辑 `.harness/resources/skills/example/SKILL.md`。
+- 如果标记目录嵌套在配置过的 resources 源或配置过的 dir 源更深处，该标记目录覆盖它的父目录。这让资源项可以携带可移植本地 profile。例如，在约定 resources 路径下，`.harness/resources/skills/example/focusedProfile/.harnessProfileRoot` 覆盖 `.harness/resources/skills/example`，因此在该 profile 活动时 `.harness/resources/skills/example/focusedProfile/SKILL.md` 替换逻辑 `.harness/resources/skills/example/SKILL.md`。
 - 否则，`./.harness` 下的标记目录覆盖 `./.harness`。这支持工具包布局，如 `.harness/kits/deploy-kit/.harnessProfileRoot`，其子项如 `resources/` 和 `dir/`。
 
 在投影期间，profile 覆盖参与 [Override](#override) 中定义的资源优先级顺序。因此通用 profile 覆盖不能替换特定 target 的 override（如 `.codex`）；特定 profile 的 `.codex` override 可以。如果所选 profile 的多个活动 profile 根投影同一逻辑文件，工具 MUST 按 profile 根路径使用确定性的最后获胜顺序，并 SHOULD 报告警告。Profile 本地 `.harnessIgnore` 和 `.harnessMutable` 文件匹配逻辑覆盖路径，不是存储路径。例如，在 `.harness/profiles/personal/dir/AGENTS.md/.harnessIgnore` 的 ignore 文件就像它位于 `.harness/dir/AGENTS.md/.harnessIgnore` 一样应用，因此它可以在添加 profile 部分之前抑制基础可组合部分。

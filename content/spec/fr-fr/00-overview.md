@@ -19,7 +19,7 @@ updated: 2026-05-26
 
 # Une couche source neutre pour les surfaces de harness
 
-Les harnesses exposent des fichiers et dossiers vivants tels que `AGENTS.md`, `.agents`, `.claude`, `.gemini` et `.cursor`. Ces fichiers et dossiers sont des surfaces de harness utiles, mais ils sont une source de vérité fragile lorsque plusieurs outils ont besoin des mêmes skills, règles, plugins et fichiers d'instructions.
+Les harnesses exposent des surfaces vivantes basées sur des fichiers, et consomment des fichiers et dossiers tels que `AGENTS.md`, `.agents`, `.claude`, `.gemini` et `.cursor`. Ces fichiers et dossiers sont des surfaces de harness utiles, mais ils sont une source de vérité fragile lorsque plusieurs outils ont besoin des mêmes skills, règles, plugins et fichiers d'instructions.
 
 Harness config garde les ressources agent réutilisables dans des racines source possédées par le dépôt, par convention sous `.harness`, déclare chaque sortie de surface de harness comme une cible explicite et matérialise chaque cible par une projection de copie prévisualisée avant écriture. Des racines source ordonnées permettent à un projet de superposer une configuration partagée avec une personnalisation locale optionnelle tout en gardant la source révisée stable.
 

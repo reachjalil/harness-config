@@ -19,7 +19,7 @@ updated: 2026-05-26
 
 # A neutral source layout for harness surfaces
 
-Harnesses expose live files and folders such as `AGENTS.md`, `.agents`, `.claude`, `.gemini`, and `.cursor`. Those files and folders are useful harness surfaces, but they are a weak source of truth when several tools need the same skills, rules, plugins, and instruction files.
+Harnesses expose live file-based surfaces, and consume files and folders such as `AGENTS.md`, `.agents`, `.claude`, `.gemini`, and `.cursor`. Those files and folders are useful harness surfaces, but they are a weak source of truth when several tools need the same skills, rules, plugins, and instruction files.
 
 Harness config keeps reusable agent resources in configured repository-owned source roots, conventionally under `.harness`, declares every harness surface output as an explicit target, and materializes each target through a dry-run-first copy projection. Ordered source roots let a project layer shared configuration with optional local customization while keeping the reviewed source stable.
 
