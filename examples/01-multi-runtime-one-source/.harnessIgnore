@@ -1,0 +1,2 @@
+# Keep scratch notes out of every generated runtime surface.
+.harness/**/scratch/

@@ -10,9 +10,19 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](./LICENSE)
 
 **Status:** Specification proposal with an alpha reference implementation.
-The npm package set is currently `1.0.0-alpha.6`. Treat the v1 file shape and
-activation model as a public proposal while public releases, conformance
-fixtures, adopter repositories, and external issue traffic mature.
+
+The project maintains two independent version lines:
+
+- **Specification version:** `v1` (proposal). This is the contract — the file
+  shape, manifest schema, projection model, and ignore grammar. It changes only
+  on a future v2; see [docs/GOVERNANCE.md](./docs/GOVERNANCE.md).
+- **Reference implementation version:** `1.0.0-alpha.6` (semver). This is the
+  npm package set. It moves on its own cadence and a new release never implies a
+  change to the specification.
+
+Treat the v1 file shape and activation model as a public proposal while public
+releases, conformance fixtures, adopter repositories, and external issue traffic
+mature.
 
 The alpha TypeScript reference implementation is available as
 [`@harnessconfig/core`](https://www.npmjs.com/package/@harnessconfig/core)
@@ -27,6 +37,8 @@ Release notes: [docs/RELEASE_NOTES.md](./docs/RELEASE_NOTES.md)
 Release checklist: [RELEASE-CHECKLIST.md](./RELEASE-CHECKLIST.md)
 
 Contributing: [CONTRIBUTING.md](./CONTRIBUTING.md)
+
+Governance and versioning: [docs/GOVERNANCE.md](./docs/GOVERNANCE.md)
 
 Development and release process: [docs/DEVELOPMENT.md](./docs/DEVELOPMENT.md)
 

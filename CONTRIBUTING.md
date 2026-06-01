@@ -8,7 +8,10 @@ protected release branch and should only receive release-ready changes.
 1. Branch from `dev`.
 2. Open a pull request back to `dev` for normal work.
 3. Keep specification decisions and CLI implementation in separate pull
-   requests unless the change is intentionally coupled.
+   requests unless the change is intentionally coupled. The specification and
+   the reference implementation are versioned on separate axes; see
+   [docs/GOVERNANCE.md](./docs/GOVERNANCE.md) for the version lines and
+   specification change-control rules.
 4. Use release pull requests from `dev` to `main`.
 5. After a release pull request merges to `main`, create a signed or annotated
    `vX.Y.Z` tag on the merge commit to publish npm packages and create the

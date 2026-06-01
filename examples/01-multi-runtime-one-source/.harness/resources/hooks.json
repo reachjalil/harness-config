@@ -1,0 +1,4 @@
+{
+  "source": "shared",
+  "commands": ["pnpm test"]
+}

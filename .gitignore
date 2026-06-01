@@ -3,6 +3,7 @@ dist
 coverage
 *.tgz
 .DS_Store
-.agents/
-.claude/
-.harnessProfile
+/.agents/
+/.claude/
+/.harnessProfile
+!examples/**/.harness/resources/.claude/settings.local.json
