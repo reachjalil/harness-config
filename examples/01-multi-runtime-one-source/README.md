@@ -1,10 +1,17 @@
 # Multi-runtime, one source
 
-Stop copy-pasting skills across agent folders. One reviewed source projects to
-`.claude`, `.cursor`, `.agents`, and `.gemini`, with small runtime-specific
-overrides where they matter.
+This example shows one basic Harness config idea:
 
-For when a repo supports several agent runtimes and wants one durable catalog.
+```text
+one reviewed source folder -> many generated agent folders
+```
+
+Instead of copy-pasting the same skill into `.agents`, `.claude`, `.cursor`,
+and `.gemini`, the repo keeps the real source under `.harness/resources`.
+Activation then generates each runtime folder from that source.
+
+Use this pattern when one repository supports multiple agent runtimes but wants
+one durable catalog to review.
 
 Concepts: [resources](../../docs/STANDARD.md#resources),
 [targets](../../docs/STANDARD.md#targets),
@@ -16,18 +23,19 @@ Prerequisite: Node >= 22.12 with `npx harnessc` available.
 ## Source and generated tree
 
 ```text
-.harness/                       # reviewed source
-  harness.toml                  # declares four explicit targets
+.harness/                       # source humans edit
+  harness.toml                  # says which folders receive generated files
   resources/
-    hooks.json                  # shared target-root file
-    .claude/hooks.json          # Claude-only target-root override
-    .cursor/rules/...           # Cursor-only target-root file
-    .gemini/GEMINI.md           # Gemini-only target-root file
+    hooks.json                  # shared file for every target
+    .claude/hooks.json          # Claude-specific replacement
+    .cursor/rules/...           # Cursor-specific file
+    .gemini/GEMINI.md           # Gemini-specific file
     skills/code-review/
-      SKILL.md                  # shared skill
-      .claude/SKILL.md          # Claude item override
-      .gemini/SKILL.md          # Gemini item override
-.agents/ .claude/ .cursor/ .gemini/  # generated and gitignored
+      SKILL.md                  # shared skill for every target
+      .claude/SKILL.md          # Claude-specific skill replacement
+      .gemini/SKILL.md          # Gemini-specific skill replacement
+
+.agents/ .claude/ .cursor/ .gemini/  # generated output folders
 ```
 
 ## Run it
@@ -40,14 +48,20 @@ npx harnessc activate
 npx harnessc explain .claude/skills/code-review/SKILL.md --json
 ```
 
-The dry run previews creates. The apply writes all four runtime surfaces. The
-second dry run converges to `keep` for managed files.
+Expected result:
+
+- `validate` reports no Harness config issues.
+- The first `activate` is a dry run and previews generated files.
+- `activate --yes` writes `.agents`, `.claude`, `.cursor`, and `.gemini`.
+- The second `activate` should converge to `keep` for managed files.
+- `explain` shows why the Claude skill came from the Claude override.
 
 ## What just happened
 
-The shared skill was projected to every target. Claude and Gemini received their
-item-level overrides, Cursor received a target-root rule file, and the scratch
-note stayed out of every target.
+Harness projected the shared source into every declared target. Claude and
+Gemini received their own skill overrides. Cursor received its own rule file.
+The scratch note stayed out of every target because `.harnessIgnore` excludes
+it.
 
 Try next: edit `.harness/resources/skills/code-review/SKILL.md`, dry-run again,
 and compare the planned updates across all four targets.
