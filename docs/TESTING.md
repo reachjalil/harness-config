@@ -51,6 +51,8 @@ re-projection is the only path back to source bytes.
 | Projection | Portable profile roots nested inside resource items overlay the containing item | `packages/core/test/projection.test.ts` |
 | Projection | Multiple active profile roots projecting the same file emit a warning and resolve deterministically | `packages/core/test/projection.test.ts` |
 | Projection | Activation planning reports profile diagnostics once despite shared dir/resource phases | `packages/core/test/projection.test.ts` |
+| Projection | Profile switching reports outputs from the prior non-active profile as orphaned managed outputs, preserves them by default, removes unedited orphans only under explicit orphan cleanup, and preserves edited orphans plus genuinely unmanaged entries | `packages/core/test/projection.test.ts` |
+| Projection | Paths produced by both the active and non-active profile remain managed `keep` or `update` actions rather than orphaned managed outputs | `packages/core/test/projection.test.ts` |
 | TOML | Target paths determine override folders from the first path segment | `packages/core/test/standard.test.ts` |
 | TOML | Target paths are explicit repo-local paths and are not constrained to named harness surfaces | `packages/core/test/standard.test.ts`, `packages/cli/test/run.test.ts` |
 | Projection | Identical declared targets are still materialized as copy projections | `packages/core/test/projection.test.ts` |
@@ -93,6 +95,8 @@ re-projection is the only path back to source bytes.
 | CLI | `harnessc activate --yes` writes live targets | `packages/cli/test/run.test.ts` |
 | CLI | `--remove-unmanaged` changes preserved unmanaged entries into removals | `packages/cli/test/run.test.ts` |
 | CLI | `--keep-unmanaged` and `--remove-unmanaged` cannot be used together | `packages/cli/test/run.test.ts` |
+| CLI | `--remove-orphans` removes only unedited orphaned managed outputs after a profile switch, while default activation and `--keep-orphans` preserve them | `packages/cli/test/run.test.ts` |
+| CLI | `--keep-orphans` and `--remove-orphans` cannot be used together | `packages/cli/test/run.test.ts` |
 | CLI | `--force-mutable` re-projects mutable files; default skips them | `packages/cli/test/run.test.ts` |
 | CLI | `--replace-target-symlinks` is required before `harnessc activate --yes` replaces a target symlink conflict | `packages/cli/test/run.test.ts` |
 | CLI | Invalid activation TOML returns diagnostics and a non-zero exit | `packages/cli/test/run.test.ts` |
@@ -106,6 +110,11 @@ re-projection is the only path back to source bytes.
 | CLI E2E | `harnessc activate` applies profile roots across resources and composable dir outputs | `packages/cli/test/run.test.ts` |
 | Examples | Every `examples/*` mini-repo validates, dry-runs, applies, and converges to `keep` or `mutable` on a second dry run | `packages/cli/test/examples.test.ts` |
 | Docs | Translated website specification sections keep heading, fenced-code, identifier, diagnostic-code, flag, and RFC 2119 keyword parity with English | `packages/core/test/locales.test.ts` |
+
+Known gap: orphaned managed output cleanup covers target copy projection. Dir
+composition does not yet have a cleanup action model for orphaned dir outputs;
+add those scenarios only after dir activation gains an explicit cleanup
+mechanism.
 
 ## Manual Smoke Command
 

@@ -14,7 +14,7 @@ llmSummary: 列出仓库形状、资源路径、投影、override、ignore、扩
 audience: 校验 Harness config 兼容性的测试作者和实现者。
 contentKind: spec
 status: draft
-updated: 2026-05-28
+updated: 2026-06-01
 ---
 
 # Harness config 一致性
@@ -28,8 +28,8 @@ Harness config 支持的声明应该从文件形状和激活契约本身可测�
 - Target 一致性：`[[targets]]` 条目包含必需的仓库本地路径，并且可以携带工具作为信息处理的未来兼容未识别字段。匹配的 override 文件夹从第一路径段推断。没有 target 可以指向 `.harness`、与配置过的源根重叠或重新声明资源映射。
 - Dir 一致性：每个 `[[dir]]` 表声明一个有序的仓库本地 dir 源根。该源内标记为空 `.harnessComposable` 文件的目录是可组合叶，其数字前缀部分连接成一个输出文件；所有其他目录和文件按原样拷贝到匹配的相对仓库路径。这些输出与投影到每个 target 的资源项分开。
 - 扩展声明一致性：`[extensions.<id>]` 表包含正整数 `version`，可以将 `activation` 设置为 `explicit` 或 `auto`，并把所有其他字段留给扩展实现。
-- 投影一致性：激活应用 `.harnessIgnore` 排除和 `.harnessMutable` 仅初始化所有权规则，包括适用时的源本地、profile 本地和目标输出本地 ignore 文件，区分忽略文件与 runtime 所有的 mutable 文件，把每个声明的 target 视为拷贝投影，并对相同的输入、清理策略和 mutable 策略产生相同的 target 树。
-- 工具一致性：实现在写入之前报告激活计划，列出创建、更新、请求的删除、保留的文件、保留的未管理项和 mutable 跳过的文件，并从不把活动 target 文件夹作为真理源读取。当工具提供路径自省时，该解释是只读的，并从与激活相同的所选 manifest、配置过的源根、profile 选择器、ignore 规则、mutable 规则、mutable 策略和投影模型派生。
+- 投影一致性：激活应用 `.harnessIgnore` 排除和 `.harnessMutable` 仅初始化所有权规则，包括适用时的源本地、profile 本地和目标输出本地 ignore 文件，区分忽略文件与 runtime 所有的 mutable 文件，把每个声明的 target 视为拷贝投影，在产生源仍存在时区分孤立的受管理输出和未管理 target 条目，并对相同的输入、清理策略和 mutable 策略产生相同的 target 树。
+- 工具一致性：实现在写入之前报告激活计划，列出创建、更新、请求的删除、保留的文件、保留的未管理项、孤立的受管理输出和 mutable 跳过的文件，并从不把活动 target 文件夹作为真理源读取。当工具提供路径自省时，该解释是只读的，并从与激活相同的所选 manifest、配置过的源根、profile 选择器、ignore 规则、mutable 规则、mutable 策略和投影模型派生。
 
 ## 仓库检查清单
 
@@ -61,6 +61,7 @@ Harness config 支持的声明应该从文件形状和激活契约本身可测�
 - 实现 MUST 在符号链接占据投影路径且所选 target 符号链接策略为 `conflict` 时报告 target 符号链接冲突。实现 MAY 仅当所选策略为 `replace` 时替换链接本身。
 - 实现 MUST 在 target 字节与计算的源投影不同时把受管理 target 文件报告为更新，应用激活 MUST 写入当前源投影。
 - 实现 MUST 默认保留未管理的 target 条目，并 MUST 在删除之前要求显式清理选择。
+- 实现 MUST 把孤立的受管理输出报告为不同于未管理 target 条目，只要非活动产生源仍存在。切换活动 profile 并重新激活 MUST 把先前 profile 的现在未选择输出报告为孤立的受管理输出，默认保留它们，仅在显式清理下删除未编辑的输出，并且绝不删除本地编辑的孤立输出或真正未管理的条目。
 - 实现 MUST 支持 `.harnessIgnore` 用于保持在活动投影之外的根、源本地、profile 本地、由 target 派生的 override 和目标输出本地文件。优先级 MUST 使用逻辑位置和逻辑目录深度，最后匹配参与规则获胜。Profile 本地文件 MUST 在 profile 覆盖位置评估，由 target 派生的 override 文件 MUST 在它们的逻辑源和 target 位置评估，已经存在的目标输出 `.harnessIgnore` 文件 MUST 保持为最终边界并在激活和未管理清理期间被保留。
 - 实现 MUST 支持 `.harnessProfile` 选择器和 `.harnessProfileRoot` 覆盖。Profile 根 MUST 住在 `./.harness`、配置过的 resources 源或配置过的 dir 源下，MUST 作为普通资源项被跳过，MUST 为资源和 dir 输出按逻辑源路径合并。
 - 实现 MUST 支持 `.harnessMutable` 并把匹配文件视为一次创建、runtime 所有的 target 文件，即使 target 字节仍然匹配源模板。匹配资源可组合叶逻辑输出路径的 `.harnessMutable` 规则 MUST 把组合输出文件标记为 mutable。这种行为与 ignore 行为分离：被忽略的文件保持在投影之外，而 mutable 文件可以在缺失时被投影并在创建后被保留。
@@ -72,7 +73,7 @@ Harness config 支持的声明应该从文件形状和激活契约本身可测�
 
 仓库证据是版本化 manifest、共享的配置过的源树、`.harnessIgnore` 和声明 mutable 文件时在版本控制中可见的 `.harnessMutable`。当生成的活动 harness surface 被 gitignored 时，仓库证据还应包括解释如何校验和重新生成那些 surface 的已跟踪激活说明。使用时，profile 证据是所选 `.harnessProfile` 文件和配置过的源根下匹配的 `.harnessProfileRoot` 文件夹。
 
-工具证据是在任何写入之前列出创建、更新、请求的删除、保留的文件、mutable 跳过的文件和保留的未管理项的 dry-run 报告。
+工具证据是在任何写入之前列出创建、更新、请求的删除、保留的文件、mutable 跳过的文件、孤立的受管理输出和保留的未管理项的 dry-run 报告。
 
 投影证据是对不变输入的两次连续激活，它们对受管理文件产生字节相同的 target 树，并在第一次应用后让 mutable 文件保持不变。
 

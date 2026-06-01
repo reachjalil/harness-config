@@ -90,10 +90,10 @@ harnessc explain .harness/local/resources/skills/review/SKILL.md
 
 `harnessc activate` is the reference projection command. Without `--yes`, it
 prints a dry run for every declared target, including creates, updates,
-mutable skipped files, requested removals, projected keeps, and unmanaged
-entries preserved outside the projection. With `--yes`, it applies the computed
-copy projection. Target symlinks that occupy projected paths are conflicts by
-default; set `[activation].targetSymlinks = "replace"` or pass
+mutable skipped files, requested removals, projected keeps, orphaned managed
+outputs, and unmanaged entries preserved outside the projection. With `--yes`,
+it applies the computed copy projection. Target symlinks that occupy projected
+paths are conflicts by default; set `[activation].targetSymlinks = "replace"` or pass
 `--replace-target-symlinks` when replacing the link itself is intended.
 
 `harnessc extension activate` runs registered extensions. Extensions default to
@@ -107,6 +107,13 @@ Unmanaged target entries are kept by default. Use `--remove-unmanaged` when a
 target should be cleaned to match configured sources; use `--keep-unmanaged`
 to make the default explicit. Repeating the same activation with unchanged
 inputs and the same unmanaged cleanup choice should converge to the same plan.
+
+Orphaned managed outputs are kept by default. Use `--remove-orphans` when stale
+outputs from a non-active profile or target selection should be removed, and
+use `--keep-orphans` to make the default explicit. `--remove-orphans` removes
+only orphaned outputs whose current bytes still match the non-active source
+projection; edited orphaned outputs and genuinely unmanaged entries stay in
+place.
 
 Managed files are compared directly with the current projection and reported as
 `update` when target bytes differ. Applying an update overwrites the target

@@ -14,7 +14,7 @@ llmSummary: 定义 .harness 仓库形状、TOML 契约、激活投影、runtime 
 audience: 工具作者、标准审阅者和技术实现者。
 contentKind: spec
 status: draft
-updated: 2026-05-28
+updated: 2026-06-01
 ---
 
 # Harness config 标准
@@ -296,9 +296,10 @@ local-only/
 3. `.harnessProfile` 选择器和活动的 `.harnessProfileRoot` 覆盖，
 4. 所有参与的 `.harnessIgnore` 文件，包括仓库根、源本地、profile 本地和目标输出本地规则，
 5. 所有参与的 `.harnessMutable` 文件，包括仓库根、源本地和 profile 本地规则，
-6. 清理策略（保留未管理项 vs 删除它们），
-7. mutable 策略（跳过 mutable 文件 vs 强制重新投影），
-8. target 符号链接策略（冲突 vs 替换）。
+6. 未管理清理策略（保留未管理项 vs 删除它们），
+7. 孤立输出清理策略（保留孤立的受管理输出 vs 删除未编辑的输出），
+8. mutable 策略（跳过 mutable 文件 vs 强制重新投影），
+9. target 符号链接策略（冲突 vs 替换）。
 
 **幂等性（可测试属性）。** 设 `M_n` 是声明的 target 在第 `n` 次激活后、基于上述不变输入且 target 状态除 mutable 文件字节变化外不变时的受管理投影子集。对于每个 `n ≥ 2`：
 
@@ -316,6 +317,7 @@ local-only/
 - `remove`：target 条目被选择删除，因为它不存在于计算的投影中。
 - `keep`：target 文件已经匹配投影。
 - `preserve`：声明的 target 内的现有条目不在计算的投影中，将保持不变。
+- `orphan`：声明的 target 内的现有条目不在活动投影中，但仍可由未为该输出路径选中的配置源产生。
 - `mutable`：在 `.harnessMutable` 中声明为 mutable 的文件已经存在于 target 中，即使它的字节仍然匹配源。Runtime 拥有它；激活 MUST NOT 在没有显式强制决定的情况下覆盖或删除它。
 
 这些动作描述声明的 target 内的文件和目录。配置过的源根下的源文件是投影输入；激活不把它们分类为 `keep`、`preserve` 或 `remove`。
@@ -348,6 +350,18 @@ Target 文件夹可能已经包含不来自配置过的源的资源。符合的�
 
 如果 target 声明从所选 manifest 中移除，核心 v1 投影不再把该 target 放在它的授权写入集中，因此在正常激活期间不清理该文件夹。要仅用基础投影契约清理 target，请在 target 仍被声明时运行清理，然后移除声明。更高层工具 MAY 保留激活状态并提供一个孤立 target 调和工作流，预览移除、忽略或捕获回源。
 
+### 孤立的受管理输出
+
+孤立的受管理输出是 target 条目，其逻辑输出路径由当前 manifest 下的某个配置源产生，但不由该输出路径的活动选择产生。常见情况包括 profile 选择器改变后，由已取消选择的 profile 根或 target override 产生的文件。孤立的受管理输出不同于活动投影中的受管理条目，也不同于不由任何配置源产生的未管理条目。
+
+默认孤立输出清理策略 SHOULD 是保留。符合的工具 SHOULD 把孤立的受管理输出报告为自己的计划类别，以便操作员区分工具产生的过期 profile 输出和真正外来的 target 文件。
+
+如果选择显式孤立输出清理，工具 MUST 只在当前 target 字节等于非活动源会投影的字节时删除孤立的受管理输出。如果 target 字节已经分歧，工具 MUST 保留该孤立输出。Mutable 文件保护和目标输出声明文件保护仍优先于孤立输出清理。
+
+该类别只有在产生源仍存在于磁盘上时才可推导。如果产生过期 target 条目的源已被删除，基础 v1 投影契约无法把该条目与未管理 target 状态区分开，并且它 MUST 被保留，除非更高层的激活 ledger 或调和工作流证明更窄的决定。
+
+Dir 输出不会从该类别获得独立的孤立移除机制。在 dir 清理契约存在之前，dir 输出仍受普通 dir 激活、声明 target 清理以及 mutable 文件和目标输出声明文件的相同保护约束。
+
 ### 文件系统语义总结
 
 这些规则对 v1 激活是规范的：
@@ -357,6 +371,7 @@ Target 文件夹可能已经包含不来自配置过的源的资源。符合的�
 - 受管理 target 文件在字节不同时从当前源投影被覆盖。
 - Mutable target 文件从源被创建一次，然后变为 runtime 所有，直到显式强制决定重新投影它们。
 - 未管理的 target 条目被保留，除非选择了显式清理。
+- 孤立的受管理输出默认保留，并且只有在其字节仍匹配非活动源投影时，才由显式孤立输出清理删除。
 - 目标输出 `.harnessIgnore` 和 `.harnessProfile` 文件是受保护的本地状态，MUST NOT 被未管理清理覆盖或删除。
 - 激活对 [拷贝投影](#拷贝投影) 中定义的输入是确定的。
 - Target MUST NOT 指向 `./.harness`、与配置过的源根重叠或彼此重叠。
@@ -580,7 +595,7 @@ notes/.harnessIgnore                            # dir 输出的目标输出规�
 
 ## Profile 覆盖
 
-Profile 覆盖是由 `.harnessProfile` 文件选择的可选源覆盖。`.harnessProfile` 文件是 UTF-8 文本。在修剪每行的空白并忽略空白行后，它 MUST 包含零或一个 profile 名称。零个 profile 名称为该输出子树选择没有 profile。多于一个非空行 MUST 产生错误，并且该选择器 MUST NOT 参与投影。仓库根 `.harnessProfile` 全局应用；目标/输出本地 `.harnessProfile` 应用于它的目录和后代，对于任何输出路径，最近的选择器获胜。每个输出路径一次最多只有一个活动 profile，虽然不同 target 或 dir 输出子树可以通过更近的目标/输出本地选择器选择不同 profile。
+Profile 覆盖是由 `.harnessProfile` 文件选择的可选源覆盖。`.harnessProfile` 文件是 UTF-8 文本。在修剪每行的空白并忽略空白行后，它 MUST 包含零或一个 profile 名称。零个 profile 名称为该输出子树选择没有 profile。多于一个非空行 MUST 产生错误，并且该选择器 MUST NOT 参与投影。仓库根 `.harnessProfile` 全局应用；目标/输出本地 `.harnessProfile` 应用于它的目录和后代，对于任何输出路径，最近的选择器获胜。每个输出路径一次最多只有一个活动 profile，虽然不同 target 或 dir 输出子树可以通过更近的目标/输出本地选择器选择不同 profile。当 profile 选择器改变时，被取消选择的 profile 仍会产生的输出由 [孤立的受管理输出](#孤立的受管理输出) 中的孤立受管理输出规则分类。
 
 Profile 内容由 `.harnessProfileRoot` 声明，它 MUST 住在 `./.harness` 下、配置过的 resources 源下或配置过的 dir 源下。`.harnessProfileRoot` 文件是 UTF-8 文本。在修剪每行的空白并忽略空白行后，它 MUST 包含正好一个 profile 名称。零个 profile 名称或多于一个非空行 MUST 产生错误，该 profile 根 MUST NOT 参与投影。`.harnessProfileRoot` MUST NOT 嵌套在另一个 profile 根内。包含 `.harnessProfileRoot` 的目录是 profile 根。它是源存储，不是资源项，MUST NOT 作为 skill、rule、plugin、dir 输出或拷贝的声明文件投影。
 
@@ -613,7 +628,7 @@ Profile 根根据放置标记的位置覆盖源路径：
 - 校验 MUST 是只读的。
 - 路径 MUST 保持在仓库内部。
 - 初始化命令 MUST 在变更之前解释计划的文件系统更改。
-- 激活命令 SHOULD 提供 dry run 并在变更之前解释创建、更新、删除、保留、未管理保留项和 mutable 跳过。
+- 激活命令 SHOULD 提供 dry run 并在变更之前解释创建、更新、删除、保留、孤立的受管理输出、未管理保留项和 mutable 跳过。
 - 工具提供的只读路径自省，MUST 从与激活相同的 [拷贝投影](#拷贝投影) 中定义的输入派生。
 - 活动 harness surface MUST 被视为投影 target，不是源仓库。
 - 团队 MAY gitignore 活动 harness surface，因为它们是生成的输出；这样做不改变真理源或 target 声明契约。
@@ -632,6 +647,7 @@ Harness config 描述一个系统，把文件从版本控制拷贝到 AI agent �
 - **符号链接重定向。** 源树中或声明的 target 树中的符号链接如果被跟随可以把读取或写入重定向到仓库外。v1 实现 MUST 把符号链接视为叶条目，MUST NOT 静默跟随它们。替换占据投影路径的 target 符号链接 MUST 要求显式的 target 符号链接策略，无论来自所选 manifest 还是来自等效的操作员选择的激活选项。
 - **应用时的 TOCTOU。** Target 可能在计划和应用之间被修改。实现 SHOULD 在应用时重新检查文件存在和受管理/未管理分类，而不仅在计划时。
 - **未管理项删除。** 清理删除用户文件。默认策略 MUST 是保留，任何删除 MUST 在它发生之前在计划中可见。
+- **孤立输出删除。** 过期输出清理只有在当前 target 字节仍匹配非活动源投影时才安全。默认策略 MUST 是保留，已编辑的孤立输出 MUST NOT 由孤立输出清理删除。
 - **Mutable 绕过。** `.harnessMutable` 规则是显式的"runtime 在第一次投影后拥有此"声明。实现 MUST NOT 在没有显式、用户可见的强制决定的情况下覆盖 mutable target。
 - **不可信 override。** 仓库可能从第三方导入资源项。因为 override 文件夹可以重写任意 target 文件，实现和下游产品 SHOULD 提供工具来对比 override 文件夹与规范文件并限制给定 override 可以影响的 target。
 - **读取自己输出的激活。** 活动 target 文件夹 MUST NOT 被用作下次投影的输入。把 target 同时作为源和槽可以静默地把 runtime 编辑放大为真理源更改。
@@ -652,7 +668,7 @@ Harness config 描述一个系统，把文件从版本控制拷贝到 AI agent �
 以下更改保留给 v2：
 
 - 任何对 target 的 manifest schema 或顶级 `version` 字段的更改，会使 v1 manifest 失效。
-- 任何对投影语义（`create`、`update`、`remove`、`keep`、`preserve`、`mutable`）的更改，会改变不变 v1 输入的磁盘上结果。
+- 任何对投影语义（`create`、`update`、`remove`、`keep`、`preserve`、`orphan`、`mutable`）的更改，会改变不变 v1 输入的磁盘上结果。
 - 任何对 `.harnessIgnore` 语法或优先级的更改，会改变现有 v1 规则集包含、排除或标记为 mutable 的文件。
 - 保留先前对用户仓库可用的资源类型或 target 名称。
 

@@ -14,7 +14,7 @@ llmSummary: Lists testable conformance expectations for repository shape, resour
 audience: Test authors and implementers validating .harness compatibility.
 contentKind: spec
 status: draft
-updated: 2026-05-28
+updated: 2026-06-01
 ---
 
 # Harness config conformance
@@ -54,14 +54,15 @@ specific runtime, CLI, or hosted service.
   `.harnessMutable` seed-only ownership rules, including source-local,
   profile-local, and target-output-local ignore files where applicable,
   distinguishes ignored files from runtime-owned mutable files, treats every
-  declared target as a copy projection, and yields the same managed projection
-  subset for the same canonical inputs.
+  declared target as a copy projection, distinguishes orphaned managed outputs
+  from unmanaged target entries when the producing source still exists, and
+  yields the same managed projection subset for the same canonical inputs.
 - Tool conformance: an implementation reports the activation plan before
   writing, lists creates, updates, requested removals, kept files, preserved
-  unmanaged entries, and mutable-skipped files, and never reads a live target
-  folder as the source of truth. When a tool offers path introspection, that
-  explanation is read-only and is derived from the same canonical inputs as
-  activation.
+  unmanaged entries, orphaned managed outputs, and mutable-skipped files, and
+  never reads a live target folder as the source of truth. When a tool offers
+  path introspection, that explanation is read-only and is derived from the same
+  canonical inputs as activation.
 
 ## Repository Checklist
 
@@ -121,6 +122,12 @@ specific runtime, CLI, or hosted service.
   MUST write the current source projection.
 - Implementations MUST preserve unmanaged target entries by default and MUST
   require an explicit cleanup choice before removal.
+- Implementations MUST report orphaned managed outputs as distinct from
+  unmanaged target entries when the non-active producing source still exists.
+  Switching the active profile and re-activating MUST report the prior
+  profile's now-unselected outputs as orphaned managed outputs, preserve them
+  by default, remove unedited ones only under explicit cleanup, and never
+  remove a locally edited orphan or a genuinely unmanaged entry.
 - Implementations MUST support `.harnessIgnore` for global, source-local,
   profile-local, target-derived override, and target-output-local files that
   stay out of live projections. Precedence MUST use logical location and
@@ -168,8 +175,8 @@ Profile evidence, when used, is the selected `.harnessProfile` file and
 matching `.harnessProfileRoot` folders under configured source roots.
 
 Tool evidence is a dry-run report that lists creates, updates, requested
-removals, kept files, mutable-skipped files, and preserved unmanaged entries
-before any write.
+removals, kept files, mutable-skipped files, orphaned managed outputs, and
+preserved unmanaged entries before any write.
 
 Projection evidence is two consecutive activations against unchanged inputs
 that produce byte-identical target trees for managed files and leave mutable
