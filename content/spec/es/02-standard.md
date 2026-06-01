@@ -76,6 +76,7 @@ La versión `1` estandariza:
 - las carpetas de override derivadas del objetivo,
 - la proyección de copia (idempotente bajo entradas fijas),
 - la composición dir (hojas `.harnessComposable`) y el contrato de copia para archivos que se proyectan a caminos relativos al repositorio,
+- la selección de perfil (`.harnessProfile`) y las raíces de superposición de perfil (`.harnessProfileRoot`) que pueden añadir o sobrescribir recursos y partes componibles de dir,
 - los archivos de ignore de proyección `.harnessIgnore`, incluidas las reglas raíz, fuente-locales, perfil-locales y locales a la salida objetivo,
 - los archivos mutables de proyección `.harnessMutable`, incluidas las reglas raíz, fuente-locales y perfil-locales.
 
@@ -91,6 +92,7 @@ Harness config estandariza:
 - las declaraciones de objetivos explícitas con caminos locales al repositorio requeridos,
 - la política de activación de nivel superior con valores por defecto definidos,
 - las raíces fuente dir ordenadas, con hojas componibles (`.harnessComposable`) y directorios en modo copia que se proyectan a caminos relativos al repositorio,
+- el modelo de selección de perfil y superposición, incluidos los selectores `.harnessProfile` y raíces `.harnessProfileRoot` que pueden añadir o sobrescribir recursos y partes componibles de dir,
 - las declaraciones de extensión de nivel superior (solo política de descubrimiento y activación),
 - la proyección de copia desde las fuentes de recursos configuradas a los objetivos declarados,
 - `.harnessIgnore` como filtro de exclusión de proyección, incluidas las exclusiones de salida objetivo,

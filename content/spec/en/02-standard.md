@@ -158,6 +158,9 @@ Version `1` standardizes:
 - copy projection (idempotent under fixed inputs),
 - dir composition (`.harnessComposable` leaves) and copy contract
   for files that project to repo-relative paths,
+- profile selection (`.harnessProfile`) and profile overlay roots
+  (`.harnessProfileRoot`) that can add or override resources and dir
+  composable parts,
 - `.harnessIgnore` projection ignore files, including repo-root rules,
   source-local rules, profile-local rules, and target-output-local rules.
 - `.harnessMutable` projection mutable files, including repo-root rules,
@@ -179,6 +182,9 @@ Harness config standardizes:
 - top-level activation policy with defined defaults,
 - ordered dir source roots, with composable (`.harnessComposable`)
   leaves and copy-mode directories that project to repo-relative paths,
+- the profile selection and overlay model, including `.harnessProfile`
+  selectors and `.harnessProfileRoot` roots that can add or override resources
+  and dir composable parts,
 - top-level extension declarations (discovery and activation policy only),
 - copy projection from configured resources sources to declared targets,
 - `.harnessIgnore` as the projection exclusion filter, including
