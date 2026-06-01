@@ -41,11 +41,11 @@ Prerequisite: Node >= 22.12 with `npx harnessc` available.
 ## Run it
 
 ```bash
-npx harnessc validate
-npx harnessc activate
-npx harnessc activate --yes
-npx harnessc activate
-npx harnessc explain .claude/skills/code-review/SKILL.md --json
+npx harnessc validate                                  # check the manifest, paths, targets, and ignore rules
+npx harnessc activate                                  # dry run: preview the generated runtime folders
+npx harnessc activate --yes                            # apply: write the generated files
+npx harnessc activate                                  # convergence check: the next run should report keep
+npx harnessc explain .claude/skills/code-review/SKILL.md --json  # inspect why Claude uses its override
 ```
 
 Expected result:

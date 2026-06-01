@@ -37,15 +37,15 @@ Prerequisite: Node >= 22.12 with `npx harnessc` available.
 ## Run it
 
 ```bash
-npx harnessc validate
-npx harnessc activate
-npx harnessc activate --yes
-npx harnessc activate
+npx harnessc validate                                  # check the manifest, kit profile roots, resources, and dir source
+npx harnessc activate                                  # dry run: preview the default deploy kit
+npx harnessc activate --yes                            # apply: write the deploy-kit generated files
+npx harnessc activate                                  # convergence check: the next run should report keep
 
-printf 'security-kit\n' > .harnessProfile
-npx harnessc activate
-npx harnessc explain .agents/skills/security-check/SKILL.md --json
-npx harnessc activate --yes
+printf 'security-kit\n' > .harnessProfile              # switch the selected kit
+npx harnessc activate                                  # dry run: preview the kit swap before writing
+npx harnessc explain .agents/skills/security-check/SKILL.md --json  # inspect the selected kit source
+npx harnessc activate --yes                            # apply: write the security-kit generated files
 ```
 
 Expected result:

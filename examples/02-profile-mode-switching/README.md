@@ -37,15 +37,15 @@ Prerequisite: Node >= 22.12 with `npx harnessc` available.
 ## Run it
 
 ```bash
-npx harnessc validate
-npx harnessc activate
-npx harnessc activate --yes
-npx harnessc activate
+npx harnessc validate                                  # check the manifest, profile roots, resources, and dir source
+npx harnessc activate                                  # dry run: preview the default frontend mode
+npx harnessc activate --yes                            # apply: write the frontend generated files
+npx harnessc activate                                  # convergence check: the next run should report keep
 
-printf 'security-audit\n' > .harnessProfile
-npx harnessc activate
-npx harnessc explain .agents/skills/security-audit/SKILL.md --json
-npx harnessc activate --yes
+printf 'security-audit\n' > .harnessProfile            # switch the selected profile
+npx harnessc activate                                  # dry run: preview the mode swap before writing
+npx harnessc explain .agents/skills/security-audit/SKILL.md --json  # inspect the active profile source
+npx harnessc activate --yes                            # apply: write the security-audit generated files
 ```
 
 Expected result:

@@ -35,18 +35,18 @@ Prerequisite: Node >= 22.12 with `npx harnessc` available.
 ## Run it
 
 ```bash
-npx harnessc validate
-npx harnessc activate
-npx harnessc activate --yes
-npx harnessc activate
+npx harnessc validate                                  # check the manifest, shared source, and local overlay paths
+npx harnessc activate                                  # dry run: preview the shared team configuration
+npx harnessc activate --yes                            # apply: write the shared generated files
+npx harnessc activate                                  # convergence check: the next run should report keep
 
-mkdir -p .harness/local
-cp -R .harness/local-template/. .harness/local/
-printf 'personal-lab\n' > .harness/local/.harnessProfileRoot
-printf 'personal-lab\n' > .harnessProfile
-npx harnessc activate
-npx harnessc explain .agents/skills/repo-review/SKILL.md --json
-npx harnessc activate --yes
+mkdir -p .harness/local                                # create the private overlay folder
+cp -R .harness/local-template/. .harness/local/        # copy the tracked template into the private overlay
+printf 'personal-lab\n' > .harness/local/.harnessProfileRoot  # mark the local folder as a profile root
+printf 'personal-lab\n' > .harnessProfile              # switch to the local profile
+npx harnessc activate                                  # dry run: preview the local override before writing
+npx harnessc explain .agents/skills/repo-review/SKILL.md --json  # inspect why the local skill wins
+npx harnessc activate --yes                            # apply: write the local overlay output
 ```
 
 Expected result:

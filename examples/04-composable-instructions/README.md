@@ -34,13 +34,13 @@ AGENTS.md CLAUDE.md .github/copilot-instructions.md  # generated output
 ## Run it
 
 ```bash
-npx harnessc validate
-npx harnessc activate
-npx harnessc activate --yes
-npx harnessc activate
-cat AGENTS.md
-cat CLAUDE.md
-cat .github/copilot-instructions.md
+npx harnessc validate                                  # check the manifest and composable dir source
+npx harnessc activate                                  # dry run: preview the composed instruction files
+npx harnessc activate --yes                            # apply: write the generated instruction files
+npx harnessc activate                                  # convergence check: the next run should report keep
+cat AGENTS.md                                          # inspect the shared composed guide
+cat CLAUDE.md                                          # inspect AGENTS.md plus Claude extras
+cat .github/copilot-instructions.md                    # inspect AGENTS.md plus Copilot extras
 ```
 
 Expected result:

@@ -34,17 +34,17 @@ Prerequisite: Node >= 22.12 with `npx harnessc` available.
 ## Run it
 
 ```bash
-npx harnessc validate
-npx harnessc activate
-npx harnessc activate --yes
+npx harnessc validate                                  # check the manifest, targets, and mutable declarations
+npx harnessc activate                                  # dry run: preview starter settings and skill files
+npx harnessc activate --yes                            # apply: seed the mutable settings files once
 
-printf '{"createdBy":"runtime","allowedCommands":["pnpm test"]}\n' > .agents/settings.local.json
-npx harnessc activate
-npx harnessc activate --yes
-cat .agents/settings.local.json
+printf '{"createdBy":"runtime","allowedCommands":["pnpm test"]}\n' > .agents/settings.local.json  # simulate a runtime edit
+npx harnessc activate                                  # dry run: report the edited file as mutable
+npx harnessc activate --yes                            # apply: preserve the runtime-owned edit
+cat .agents/settings.local.json                        # confirm the runtime edit survived
 
-npx harnessc activate --yes --force-mutable
-cat .agents/settings.local.json
+npx harnessc activate --yes --force-mutable            # intentionally re-project mutable files from source
+cat .agents/settings.local.json                        # confirm the reviewed seed was restored
 ```
 
 Expected result:
