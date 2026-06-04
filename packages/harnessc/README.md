@@ -45,7 +45,6 @@ harnessc validate
 harnessc explain .agents/skills/review/SKILL.md
 harnessc activate
 harnessc activate --yes
-harnessc plan
 ```
 
 `harnessc explain <path>` is read-only introspection. It can explain a
