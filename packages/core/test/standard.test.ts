@@ -225,7 +225,7 @@ label = "root files"
     ).toBe(false);
   });
 
-  it("rejects legacy single-table and per-kind manifest resource declarations", () => {
+  it("rejects single-table and per-kind manifest resource declarations", () => {
     expect(() =>
       parseHarnessConfigToml(`
 version = 1
@@ -817,6 +817,51 @@ path = "./.cursor"
           severity: "error",
           code: "harness.profile_empty",
           path: ".harness/profiles/bad/.harnessProfileRoot",
+        }),
+      ])
+    );
+  });
+
+  it("reports invalid profile isolation declarations during validation", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
+    await write(root, ".harness/harness.toml", "version = 1\n");
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harness/profiles/team/.harnessProfileRoot", "team\n");
+    await write(
+      root,
+      ".harness/profiles/team/.harnessProfileIsolation",
+      ["version = 1", "", "[isolate]", 'resources = ["skills/**", 1]', ""].join(
+        "\n"
+      )
+    );
+    await write(root, ".harness/profiles/strict/.harnessProfileRoot", "team\n");
+    await write(
+      root,
+      ".harness/profiles/strict/.harnessProfileIsolation",
+      [
+        "version = 1",
+        'owner = "harnex"',
+        "",
+        "[isolate]",
+        'resources = ["skills/**"]',
+        'prompts = ["prompts/**"]',
+        "",
+      ].join("\n")
+    );
+
+    const validation = await validateHarnessConfig(root);
+
+    expect(validation.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          severity: "error",
+          code: "harness.profile_isolation_invalid",
+          path: ".harness/profiles/team/.harnessProfileIsolation",
+        }),
+        expect.objectContaining({
+          severity: "error",
+          code: "harness.profile_isolation_invalid",
+          path: ".harness/profiles/strict/.harnessProfileIsolation",
         }),
       ])
     );
@@ -1843,6 +1888,11 @@ path = "./.agents"
       matcher.ignores(".harness/resources/skills/review/.harnessProfile")
     ).toBe(true);
     expect(
+      matcher.ignores(
+        ".harness/resources/skills/review/.harnessProfileIsolation"
+      )
+    ).toBe(true);
+    expect(
       matcher.ignores(".harness/resources/skills/deploy/.harnessProfileRoot")
     ).toBe(true);
   });
@@ -1851,7 +1901,7 @@ path = "./.agents"
     const matcher = createHarnessIgnoreMatcher([
       {
         rules: parseHarnessIgnoreFile(
-          "!.harnessIgnore\n!.harnessProfile\n!.harnessProfileRoot\n",
+          "!.harnessIgnore\n!.harnessProfile\n!.harnessProfileIsolation\n!.harnessProfileRoot\n",
           {
             isRoot: false,
             sourcePath: ".harness/resources/skills/review/.harnessIgnore",
@@ -1868,6 +1918,11 @@ path = "./.agents"
     ).toBe(true);
     expect(
       matcher.ignores(".harness/resources/skills/review/.harnessProfile")
+    ).toBe(true);
+    expect(
+      matcher.ignores(
+        ".harness/resources/skills/review/.harnessProfileIsolation"
+      )
     ).toBe(true);
     expect(
       matcher.ignores(".harness/resources/skills/review/.harnessProfileRoot")

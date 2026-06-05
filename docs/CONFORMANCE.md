@@ -133,6 +133,11 @@ specific runtime, CLI, or hosted service.
   a configured resources source, or a configured dir source, MUST
   be skipped as normal resource items, and MUST merge by logical source path
   for both resources and dir outputs.
+- Implementations MUST support `.harnessProfileIsolation` when present inside
+  an active profile root, suppressing matching non-profile resource and dir
+  candidates while preserving active same-name profile roots and unrelated
+  paths. Isolation patterns MUST use the same ordered negation and
+  last-match-wins evaluation model as `.harnessIgnore` path rules.
 - Implementations MUST support `.harnessMutable` and treat matching files as
   create-once, runtime-owned target files even when target bytes still match
   the source template. This behavior is separate from ignore behavior:

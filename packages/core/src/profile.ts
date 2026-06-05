@@ -1,7 +1,11 @@
 import { lstat, readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
+import { parse } from "smol-toml";
+import { z } from "zod";
+
 import {
+  createHarnessIgnoreMatcher,
   normalizeIgnorePath,
   parseHarnessIgnoreFile,
   parseHarnessMutableFile,
@@ -11,6 +15,7 @@ import {
   HARNESS_IGNORE_FILE,
   HARNESS_MUTABLE_FILE,
   HARNESS_PROFILE_FILE,
+  HARNESS_PROFILE_ISOLATION_FILE,
   HARNESS_PROFILE_ROOT_FILE,
   harnessTargetRootMappingsForConfig,
   logicalTargetOutputPathForPhysicalPath,
@@ -25,7 +30,14 @@ export type HarnessProfileRoot = {
   profile: string;
   rootDir: string;
   overlayBase: string;
+  isolation?: HarnessProfileIsolation;
   markerPath: string;
+};
+
+export type HarnessProfileIsolation = {
+  dir: string[];
+  resources: string[];
+  sourcePath: string;
 };
 
 type HarnessProfileSelector = {
@@ -40,6 +52,20 @@ export type HarnessProfileContext = {
   ignoreRuleSets: HarnessIgnoreRuleSet[];
   profileRoots: HarnessProfileRoot[];
   protectedTargetPaths: string[];
+  profileIsolatesDir(
+    profile: string | undefined,
+    relativePath: string,
+    options?: { isDirectory?: boolean }
+  ): boolean;
+  profileIsolatesResources(
+    profile: string | undefined,
+    relativePath: string,
+    options?: { isDirectory?: boolean }
+  ): boolean;
+  profileRootContainsPath(
+    profile: string | undefined,
+    absolutePath: string
+  ): boolean;
   profileCanApplyWithin(
     outputPath: string | undefined,
     profile: string
@@ -114,10 +140,57 @@ export async function loadHarnessProfileContext(
     );
   }
 
+  function profileIsolates(
+    kind: "dir" | "resources",
+    profile: string | undefined,
+    relativePath: string,
+    options: { isDirectory?: boolean } = {}
+  ): boolean {
+    if (!profile) {
+      return false;
+    }
+    const normalized = normalizeIgnorePath(relativePath);
+    if (!normalized) {
+      return false;
+    }
+    return profileRoots.some((profileRoot) => {
+      if (profileRoot.profile !== profile || !profileRoot.isolation) {
+        return false;
+      }
+      const patterns = profileRoot.isolation[kind];
+      if (patterns.length === 0) {
+        return false;
+      }
+      return createIsolationMatcher(
+        patterns,
+        profileRoot.isolation.sourcePath
+      ).ignores(normalized, { isDirectory: options.isDirectory });
+    });
+  }
+
+  function profileRootContainsPath(
+    profile: string | undefined,
+    absolutePath: string
+  ): boolean {
+    if (!profile) {
+      return false;
+    }
+    return profileRoots.some(
+      (profileRoot) =>
+        profileRoot.profile === profile &&
+        isInsideOrEqual(profileRoot.rootDir, absolutePath)
+    );
+  }
+
   return {
     diagnostics,
     ignoreRuleSets: ruleSets,
     profileRoots,
+    profileIsolatesDir: (profile, relativePath, options) =>
+      profileIsolates("dir", profile, relativePath, options),
+    profileIsolatesResources: (profile, relativePath, options) =>
+      profileIsolates("resources", profile, relativePath, options),
+    profileRootContainsPath,
     protectedTargetPaths,
     profileCanApplyWithin,
     profileForOutput,
@@ -235,11 +308,13 @@ async function loadHarnessProfileRoots(
         path.resolve(candidate) !== path.resolve(paths.harnessDir) &&
         path.resolve(candidate) === path.resolve(parent)
     );
+    const isolation = await loadProfileIsolation(root, rootDir, diagnostics);
     roots.push({
       profile,
       rootDir,
       overlayBase:
         directSourceRoot ?? (overlaysLocalSource ? parent : paths.harnessDir),
+      isolation,
       markerPath,
     });
   }
@@ -249,6 +324,114 @@ async function loadHarnessProfileRoots(
       toRepoRelative(root, right.rootDir)
     )
   );
+}
+
+const profileIsolationSchema = z
+  .object({
+    version: z.literal(1),
+    isolate: z
+      .object({
+        dir: z.array(z.string().min(1)).default([]),
+        resources: z.array(z.string().min(1)).default([]),
+      })
+      .strict()
+      .default({ dir: [], resources: [] }),
+  })
+  .strict();
+
+async function loadProfileIsolation(
+  root: string,
+  profileRootDir: string,
+  diagnostics: HarnessDiagnostic[]
+): Promise<HarnessProfileIsolation | undefined> {
+  const isolationPath = path.join(
+    profileRootDir,
+    HARNESS_PROFILE_ISOLATION_FILE
+  );
+  const state = await lstat(isolationPath).catch(() => undefined);
+  if (!state) {
+    return undefined;
+  }
+  const sourcePath = toRepoRelative(root, isolationPath);
+  if (!state.isFile()) {
+    diagnostics.push({
+      severity: "error",
+      code: "harness.profile_isolation_not_file",
+      message: ".harnessProfileIsolation must be a regular file.",
+      path: sourcePath,
+      recommendation:
+        "Replace it with a UTF-8 TOML file or remove it from the profile root.",
+    });
+    return undefined;
+  }
+
+  const raw = await readFile(isolationPath, "utf8").catch((error: unknown) => {
+    diagnostics.push({
+      severity: "error",
+      code: "harness.profile_isolation_read_failed",
+      message: error instanceof Error ? error.message : String(error),
+      path: sourcePath,
+    });
+    return undefined;
+  });
+  if (raw === undefined) {
+    return undefined;
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = parse(raw);
+  } catch (error) {
+    diagnostics.push({
+      severity: "error",
+      code: "harness.profile_isolation_invalid",
+      message:
+        error instanceof Error
+          ? error.message
+          : ".harnessProfileIsolation could not be parsed.",
+      path: sourcePath,
+      recommendation:
+        "Use TOML with version = 1 and optional [isolate] resources/dir pattern arrays.",
+    });
+    return undefined;
+  }
+
+  const result = profileIsolationSchema.safeParse(parsed);
+  if (!result.success) {
+    diagnostics.push({
+      severity: "error",
+      code: "harness.profile_isolation_invalid",
+      message: result.error.issues.map((issue) => issue.message).join("; "),
+      path: sourcePath,
+      recommendation:
+        "Use TOML with version = 1 and optional [isolate] resources/dir pattern arrays.",
+    });
+    return undefined;
+  }
+
+  const resourcesRules = parseHarnessIgnoreFile(
+    result.data.isolate.resources.join("\n"),
+    { isRoot: true, sourcePath }
+  );
+  const dirRules = parseHarnessIgnoreFile(result.data.isolate.dir.join("\n"), {
+    isRoot: true,
+    sourcePath,
+  });
+  diagnostics.push(...resourcesRules.diagnostics, ...dirRules.diagnostics);
+
+  return {
+    dir: result.data.isolate.dir,
+    resources: result.data.isolate.resources,
+    sourcePath,
+  };
+}
+
+function createIsolationMatcher(patterns: string[], sourcePath: string) {
+  const parsed = parseHarnessIgnoreFile(patterns.join("\n"), {
+    isRoot: true,
+    sourcePath,
+  });
+  return createHarnessIgnoreMatcher(parsed.rules);
 }
 
 async function findProfileRootMarkers(harnessDir: string): Promise<string[]> {
@@ -608,4 +791,8 @@ function selectorParticipates(directory: string, outputPath: string): boolean {
   );
 }
 
-export { HARNESS_PROFILE_FILE, HARNESS_PROFILE_ROOT_FILE };
+export {
+  HARNESS_PROFILE_FILE,
+  HARNESS_PROFILE_ISOLATION_FILE,
+  HARNESS_PROFILE_ROOT_FILE,
+};

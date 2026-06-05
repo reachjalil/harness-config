@@ -1,6 +1,6 @@
 ---
 name: harness-config-cli
-description: Use when working in the harness-config repository and Codex needs to validate, plan, activate, or explain Harness config dogfooding with the local @harnessconfig/cli package.
+description: Use when working in the harness-config repository and Codex needs to validate, preview, activate, or explain Harness config dogfooding with the local @harnessconfig/cli package.
 ---
 
 # Harness config CLI
@@ -21,7 +21,6 @@ projection outputs.
 
 ```bash
 harnessc validate
-harnessc plan
 harnessc activate
 ```
 

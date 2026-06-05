@@ -49,7 +49,7 @@ harnessc extension activate
 - `harnessc activate` montre la prévisualisation de projection lorsqu'il est lancé sans `--yes` et rapporte créations, mises à jour, suppressions demandées, fichiers conservés, fichiers mutables sautés, sorties gérées orphelines et entrées non gérées préservées. Par défaut, il rapporte les liens symboliques cibles qui occupent des chemins projetés comme des conflits ; passer `--replace-target-symlinks` ou définir `[activation].targetSymlinks = "replace"` pour remplacer le lien lui-même.
 - `harnessc extension activate` exécute les extensions enregistrées. Utiliser `--extension <id>` pour exécuter une extension déclarée ou `--all` pour exécuter chaque extension supportée déclarée.
 
-`init`, `activate` et `extension activate` sont des dry runs sauf si `--yes` est fourni. La forme dry-run d'`init` remplace la commande `harnessc plan` précédente, de sorte qu'un modèle mental unique — « sans drapeau prévisualise, `--yes` écrit » — s'applique à chaque commande mutante.
+`init`, `activate` et `extension activate` sont des dry runs sauf si `--yes` est fourni, de sorte qu'un modèle mental unique — « sans drapeau prévisualise, `--yes` écrit » — s'applique à chaque commande mutante.
 
 Exemples d'introspection courants :
 
@@ -225,7 +225,7 @@ Un validateur conforme devrait :
 - Valider les chemins de sources de ressources configurées et rejeter les déclarations de ressources par type dans le manifeste.
 - Vérifier que chaque entrée `[[targets]]` contient un `path` target-local requis, ne contient aucun motif joker, se résout sous la racine du dépôt ou chaque `parent` explicite résolu, et ne chevauche pas `./.harness`, les racines source configurées ou une autre racine cible résolue ; les champs futur-compatibles inconnus devraient être informationnels.
 - Parser `.harnessIgnore` avec des règles racine, source-locales, profil-locales et locales en sortie cible en utilisant les phases de précédence standard. Parser `.harnessMutable` séparément pour les fichiers possédés par le runtime à création unique.
-- Résoudre les sélecteurs `.harnessProfile` et les superpositions `.harnessProfileRoot` avant la projection, y compris la passe bootstrap/finale dir pour les sélecteurs de sortie.
+- Résoudre les sélecteurs `.harnessProfile` et les superpositions `.harnessProfileRoot` avant la projection, y compris la passe bootstrap/finale dir pour les sélecteurs de sortie. Analyser les déclarations `.harnessProfileIsolation` dans les racines de profil pour que les profils sélectionnés puissent supprimer les ressources non-profil et les sorties dir correspondantes sans réécrire le manifeste.
 - Montrer les actions create, update, remove, keep, preserve et mutable avant toute écriture.
 - Vérifier que l'activation répétée contre des entrées inchangées converge vers le même arbre cible pour les fichiers gérés et laisse les fichiers mutables intacts.
 - Rapporter les cibles déclarées séparément des dossiers source durables.

@@ -25,6 +25,7 @@ const FIXED_IDENTIFIER_TOKENS = [
   ".harnessMutable",
   ".harnessProfile",
   ".harnessProfileRoot",
+  ".harnessProfileIsolation",
   ".harnessComposable",
   ".harnessRef",
   "[[resources]]",

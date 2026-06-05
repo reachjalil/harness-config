@@ -1,0 +1,22 @@
+version = 1
+
+[[resources]]
+path = "./.harness/resources"
+
+[[resources]]
+path = "./.harness/packs/*/resources"
+
+[[resources]]
+path = "./.harness/local-packs/*/resources"
+
+[[targets]]
+path = "./.agents"
+
+[[dir]]
+path = "./.harness/dir"
+
+[[dir]]
+path = "./.harness/packs/*/dir"
+
+[[dir]]
+path = "./.harness/local-packs/*/dir"

@@ -533,9 +533,9 @@ extension explicitly defines its own.
 - **Hidden files.** Names beginning with `.` are not implicitly ignored.
   They participate in projection like any other file unless excluded by
   `.harnessIgnore`. This does not make Harness config declaration files target
-  payloads: `.harnessIgnore`, `.harnessMutable`, `.harnessProfile`, and
-  `.harnessProfileRoot` are boundary controls and MUST NOT be projected into
-  targets.
+  payloads: `.harnessIgnore`, `.harnessMutable`, `.harnessProfile`,
+  `.harnessProfileRoot`, and `.harnessProfileIsolation` are boundary controls
+  and MUST NOT be projected into targets.
 
 ## Routing Resources To Targets
 
@@ -578,6 +578,7 @@ targets. The inputs are:
    configured resources sources, including their override folders,
 2. the selected versioned manifest,
 3. `.harnessProfile` selectors and active `.harnessProfileRoot` overlays,
+   including any profile-local `.harnessProfileIsolation` declarations,
 4. all participating `.harnessIgnore` files, including repo-root,
    source-local, profile-local, and target-output-local rules,
 5. all participating `.harnessMutable` files, including repo-root,
@@ -691,6 +692,13 @@ the target so a subsequent activation with unchanged inputs converges without
 extra cleanup actions. If cleanup is not selected, the plan MUST show unmanaged
 entries as `preserve`.
 
+Unmanaged classification is based on the current configured source graph, not
+on prior activation history. A target entry whose former source file was
+deleted, whose source root is no longer configured, or whose source path is now
+excluded by `.harnessIgnore` has no current source producer in the base v1
+projection contract and is therefore unmanaged. The same is true for local
+files written directly into a declared target.
+
 If a target declaration is removed from the selected manifest, core v1 projection no
 longer has that target in its authorized write set and therefore does not clean
 that folder during normal activation. To clean a target with only the base
@@ -708,6 +716,14 @@ file produced by a deselected profile root or target override after a profile
 selector changes. An orphaned managed output is distinct from a managed entry
 in the active projection and from an unmanaged entry produced by no configured
 source.
+
+Orphan classification requires a current non-active producer. A normal resource
+or dir source that is active for an output path is part of the active projection;
+if it is removed from the configured source graph, it no longer proves managed
+ownership of any stale target entry. Profile roots and target-specific override
+sources can remain configured while not selected for a particular output path,
+so they can prove an orphaned managed output without requiring activation
+history.
 
 The default orphaned-output cleanup policy SHOULD be preserve. A conforming
 tool SHOULD report orphaned managed outputs as their own plan category so an
@@ -1152,8 +1168,9 @@ The following rules apply:
   output subtree is the target-specific mechanism. Target-specific section
   headers are invalid even inside override folders.
 - **Synthetic ignore.** Every `.harnessIgnore`, `.harnessMutable`,
-  `.harnessProfile`, and `.harnessProfileRoot` file is itself excluded from
-  projection, equivalent to global declaration-file ignore rules.
+  `.harnessProfile`, `.harnessProfileRoot`, and
+  `.harnessProfileIsolation` file is itself excluded from projection,
+  equivalent to global declaration-file ignore rules.
   Implementations MUST NOT copy those declaration files into targets, even
   when no explicit rule excludes them. A target-output declaration file may
   still affect projection from its existing target location; it is read as a
@@ -1214,9 +1231,48 @@ Profile roots overlay source paths by where the marker is placed:
   the logical `.harness/resources/skills/example/SKILL.md` when that profile
   is active.
 - Otherwise, a marker directory under `./.harness` overlays `./.harness`.
-  This supports kit layouts such as
-  `.harness/kits/deploy-kit/.harnessProfileRoot` with children like
+  This supports pack layouts such as
+  `.harness/packs/deploy/.harnessProfileRoot` with children like
   `resources/` and `dir/`.
+
+Profile roots MAY include an optional `.harnessProfileIsolation` file. The
+file is UTF-8 TOML and MUST use `version = 1`. It MAY declare gitignore-style
+patterns under `[isolate]`:
+
+```toml
+version = 1
+
+[isolate]
+resources = ["skills/**"]
+dir = ["AGENTS.md", "AGENTS.md/**"]
+```
+
+Only `version` and the optional `[isolate]` table are defined.
+`resources` and `dir` default to empty arrays; when present they MUST be
+arrays of non-empty strings. Unknown fields or tables in this file, including
+unknown keys under `[isolate]`, MUST produce
+`harness.profile_isolation_invalid`.
+
+Missing `.harnessProfileIsolation` means the profile root uses normal overlay
+behavior and does not isolate any base source paths. `resources` patterns match
+logical resource paths relative to a resources source root. `dir` patterns
+match logical dir output paths relative to the repository root. Target paths
+and physical storage paths are not used for isolation matching.
+Isolation pattern strings use the same path-pattern syntax and ordered
+evaluation as `.harnessIgnore` rule lines: `!` negation, leading `/` anchors,
+trailing `/` directory-only patterns, `*`, `**`, `?`, and last matching
+participating pattern wins. A final negated match means the candidate is not
+isolated.
+
+When a profile with isolation is active for an output path, matching non-profile
+resource or dir candidates are suppressed for that output path. Active profile
+roots with the same selected profile name continue to participate, including
+multiple same-named roots from ordered source roots or wildcard-expanded source
+roots. This allows a selected portable pack and a local same-name override pack
+to apply together while excluding matching base/general files and inactive
+sibling packs. Isolation is path-scoped: patterns that isolate `AGENTS.md` do
+not isolate unrelated dir outputs, and patterns that isolate `skills/**` do not
+isolate unrelated resource kinds.
 
 During projection, profile overlays participate in the resource precedence
 order defined in [Overrides](#overrides). A generic profile overlay therefore
@@ -1233,8 +1289,8 @@ base composable parts before adding profile parts.
 
 Source-local `.harnessIgnore` files that are physical ancestors of a profile
 root also apply before the profile root is mapped onto its logical overlay
-  path. For example, `.harness/kits/.harnessIgnore` can exclude
-  `.harness/kits/deploy/**/.harness-cache/` metadata from the active `deploy` profile
+  path. For example, `.harness/packs/.harnessIgnore` can exclude
+  `.harness/packs/deploy/**/.harness-cache/` metadata from the active `deploy` profile
 even when files under that profile root overlay logical paths such as
 `.harness/resources` or `.harness/dir`.
 

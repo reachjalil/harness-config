@@ -45,7 +45,7 @@ npx harnessc activate                                  # check that nothing new 
 printf 'security-kit\n' > .harnessProfile              # switch the selected kit
 npx harnessc activate                                  # dry run: preview the kit swap before writing
 npx harnessc explain .agents/skills/security-check/SKILL.md --json  # inspect the selected kit source
-npx harnessc activate --yes                            # apply: write the security-kit generated files
+npx harnessc activate --yes --remove-orphans           # apply: write security-kit and remove stale deploy-kit outputs
 ```
 
 Expected result:
@@ -53,7 +53,8 @@ Expected result:
 - `validate` reports no Harness config issues.
 - The first apply writes the default `deploy-kit`.
 - Changing `.harnessProfile` to `security-kit` previews a kit swap.
-- The security-check skill appears after `activate --yes`.
+- The security-check skill appears after `activate --yes --remove-orphans`.
+- Unedited deploy-kit-only outputs are removed as orphaned managed outputs.
 - `explain` shows that the security skill came from the selected kit.
 
 ## What just happened
@@ -64,4 +65,7 @@ profile roots under `.harness`, so they can be reviewed, vendored, or updated
 like normal source.
 
 Try next: switch to `onboarding-kit` and inspect how the same base repo gets a
-different generated agent posture.
+different generated agent posture. Apply profile switches with
+`--remove-orphans` when you want stale outputs from the previous kit removed;
+reserve `--remove-unmanaged` for files that no configured source can produce
+anymore.

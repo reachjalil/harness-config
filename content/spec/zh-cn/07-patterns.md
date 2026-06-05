@@ -307,6 +307,77 @@ path = "./.agents"
 
 这是公司提供的部署、安全、前端、后端或入职工具包的正确模型。工具包是已审阅源。选择器决定它在哪里活动。
 
+## 隔离 profile pack
+
+当选择某个 pack 应让该 pack 对某些逻辑路径保持独占时，使用 profile
+isolation。保持 manifest 稳定，把选择放在 `.harnessProfile` 中。
+
+```toml
+[[resources]]
+path = "./.harness/resources"
+
+[[resources]]
+path = "./.harness/packs/*/resources"
+
+[[resources]]
+path = "./.harness/local-packs/*/resources"
+
+[[dir]]
+path = "./.harness/dir"
+
+[[dir]]
+path = "./.harness/packs/*/dir"
+
+[[dir]]
+path = "./.harness/local-packs/*/dir"
+
+[[targets]]
+path = "./.agents"
+```
+
+```text
+.harnessProfile                         # 包含：frontend
+
+.harness/
+  resources/
+    skills/
+      baseline/
+        SKILL.md
+    prompts/
+      shared.md
+  packs/
+    frontend/
+      .harnessProfileRoot               # 包含：frontend
+      .harnessProfileIsolation
+      resources/
+        skills/frontend/SKILL.md
+      dir/
+        AGENTS.md/100_frontend.md
+  local-packs/
+    frontend/
+      .harnessProfileRoot               # 包含：frontend
+      resources/
+        skills/local-frontend/SKILL.md
+```
+
+```toml
+# .harness/packs/frontend/.harnessProfileIsolation
+version = 1
+
+[isolate]
+resources = ["skills/**"]
+dir = ["AGENTS.md", "AGENTS.md/**"]
+```
+
+当选择 `frontend` 时，Harness config 会为受影响的输出路径抑制匹配的基础
+`skills/**` resources 和基础 `AGENTS.md` dir candidates。活动的同名 profile
+根仍然参与，因此已跟踪 pack 和 gitignored 本地 pack 可以一起应用。像
+`prompts/shared.md` 或 `PROJECT_GUIDE.md` 这样的无关路径继续从通用源投影。
+
+将这种形状用于需要启用或禁用而不重写 manifest、也不使用 repo-root
+`.harnessIgnore` gate 的可移植 bundles。保持 isolation patterns 窄：只隔离
+pack 拥有的逻辑路径，让通用 repo context 继续为其他所有内容投影。
+
 ## Wildcard 源和 target fanout
 
 当所有权或输出位置有规律但不固定到一个文件夹时，manifest wildcard

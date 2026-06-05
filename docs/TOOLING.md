@@ -363,10 +363,12 @@ A conforming validator should:
   `.harnessMutable` separately for create-once runtime-owned files.
 - Resolve `.harnessProfile` selectors and `.harnessProfileRoot` overlays
   before projection, including the dir bootstrap/final pass for output
-  selectors.
+  selectors. Parse `.harnessProfileIsolation` declarations inside profile
+  roots so selected profiles can suppress matching non-profile resources and
+  dir outputs without rewriting the manifest.
 - Derive validation, explanation, and activation from the same projection input
   set defined by the Standard.
-- Show create, update, remove, keep, preserve, and mutable actions before any
+- Show create, update, remove, keep, preserve, orphan, and mutable actions before any
   write.
 - Verify repeated activation against unchanged inputs converges to the same
   target tree for managed files and leaves mutable files untouched.

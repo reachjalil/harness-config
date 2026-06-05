@@ -49,7 +49,7 @@ harnessc extension activate
 - `harnessc activate` 在不带 `--yes` 运行时显示投影预览，并报告创建、更新、请求的删除、保留的文件、mutable 跳过的文件、孤立的受管理输出和保留的未管理项。默认情况下，它把占据投影路径的 target 符号链接报告为冲突；传递 `--replace-target-symlinks` 或设置 `[activation].targetSymlinks = "replace"` 以替换链接本身。
 - `harnessc extension activate` 运行已注册的扩展。使用 `--extension <id>` 运行一个声明的扩展，或使用 `--all` 运行每个声明的支持扩展。
 
-`init`、`activate` 和 `extension activate` 是 dry run，除非提供 `--yes`。`init` 的 dry-run 形式替代了之前的 `harnessc plan` 命令，因此单个心智模型 — "无标志预览，`--yes` 写入" — 适用于每个变更命令。
+`init`、`activate` 和 `extension activate` 是 dry run，除非提供 `--yes`，因此单个心智模型 — "无标志预览，`--yes` 写入" — 适用于每个变更命令。
 
 常见自省示例：
 
@@ -225,7 +225,7 @@ const dryRun = await applyHarnessActivation(paths.root);
 - 校验配置过的 resources 源路径，并拒绝按类型的 manifest 资源声明。
 - 验证每个 `[[targets]]` 条目包含必需的 target-local `path`、不包含通配模式、解析到仓库根或每个解析后的显式 `parent` 之下，并且不与 `./.harness`、配置过的源根或另一个解析后的 target root 重叠；未知的未来兼容字段应作为信息。
 - 使用标准优先级阶段，用仓库根、源本地、profile 本地和目标输出本地规则解析 `.harnessIgnore`。为只创建 runtime 所有的文件单独解析 `.harnessMutable`。
-- 在投影之前解析 `.harnessProfile` 选择器和 `.harnessProfileRoot` 覆盖，包括输出选择器的 dir 引导/最终阶段。
+- 在投影之前解析 `.harnessProfile` 选择器和 `.harnessProfileRoot` 覆盖，包括输出选择器的 dir 引导/最终阶段。解析 profile 根内的 `.harnessProfileIsolation` 声明，使所选 profile 可以抑制匹配的非 profile resources 和 dir 输出，而无需重写 manifest。
 - 在任何写入之前显示 create、update、remove、keep、preserve 和 mutable 动作。
 - 验证对不变输入重复激活对受管理文件收敛到相同 target 树，并让 mutable 文件保持不变。
 - 把声明的 target 与持久源文件夹分开报告。

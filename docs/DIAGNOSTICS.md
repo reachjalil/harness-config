@@ -97,13 +97,16 @@ optional recommendation. Severity is one of:
 | `harness.profile_nested_root` | error | A `.harnessProfileRoot` is nested inside another `.harnessProfileRoot`. |
 | `harness.profile_overlay_conflict` | warning | Multiple active profile roots project the same logical file. Deterministic last-wins ordering is applied. |
 | `harness.profile_root_outside_source_roots` | error | A `.harnessProfileRoot` lives outside `./.harness`, a configured resources source, and a configured dir source. |
+| `harness.profile_isolation_invalid` | error | A `.harnessProfileIsolation` file is not valid TOML, does not use `version = 1`, uses unknown fields, or does not declare string-array isolation patterns. |
+| `harness.profile_isolation_not_file` | error | A `.harnessProfileIsolation` path exists but is not a regular file. |
+| `harness.profile_isolation_read_failed` | error | A `.harnessProfileIsolation` file could not be read. |
 
 ## Ignore and mutable
 
 | Code | Severity | Meaning |
 | --- | --- | --- |
 | `harness.ignore_unsupported_scope` | error | A `.harnessIgnore` or `.harnessMutable` file uses an unsupported target-specific section header (such as `[.claude]` or `[!.cursor]`). |
-| `harness.ignore_mutable_section_unsupported` | error | A `.harnessIgnore` file uses the legacy `[mutable]` section header. Move mutable declarations into `.harnessMutable`. |
+| `harness.ignore_mutable_section_unsupported` | error | A `.harnessIgnore` file uses an unsupported `[mutable]` section header. Move mutable declarations into `.harnessMutable`. |
 | `harness.mutable_ignore_section_unsupported` | error | A `.harnessMutable` file uses an `[ignore]` section header. Move ignore declarations into `.harnessIgnore`. |
 
 ## Extensions

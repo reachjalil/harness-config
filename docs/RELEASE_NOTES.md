@@ -1,5 +1,34 @@
 # Harness config release notes
 
+## 1.0.0-alpha.9
+
+`1.0.0-alpha.9` adds profile-local isolation for pack-style profile roots.
+Selected profiles can now use `.harnessProfileIsolation` to suppress matching
+base resources or dir outputs while keeping every active same-name profile root
+participating, including wildcard-expanded pack roots and local override packs.
+
+### Profile Isolation
+
+- Adds `.harnessProfileIsolation` as an optional profile-root declaration file
+  with gitignore-style isolation patterns for resource and dir logical paths.
+- Uses strict TOML shape for isolation declarations and the same negation plus
+  last-match-wins pattern model as `.harnessIgnore`.
+- Keeps missing isolation files as normal profile overlay behavior, so existing
+  profiles continue to layer over base sources without excluding siblings.
+- Preserves all active same-name profile roots while excluding matching
+  non-profile/base candidates, which lets tools build portable pack selectors
+  without rewriting manifests or root ignore files.
+
+### Projection, Validation, And Docs
+
+- Excludes `.harnessProfileIsolation` from projection as a Harness declaration
+  file and validates malformed declarations with dedicated diagnostics.
+- Applies isolation consistently to resource projection and dir composition,
+  including wildcard-expanded source roots and profile-local overlays.
+- Updates the v1 standard, conformance checklist, diagnostics catalog, testing
+  scenario map, and website-ready specification content with focused core and
+  CLI regression coverage.
+
 ## 1.0.0-alpha.8
 
 `1.0.0-alpha.8` adds external target parents and wildcard path expansion for

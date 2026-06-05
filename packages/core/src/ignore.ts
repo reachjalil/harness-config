@@ -5,6 +5,7 @@ import {
   HARNESS_IGNORE_FILE,
   HARNESS_MUTABLE_FILE,
   HARNESS_PROFILE_FILE,
+  HARNESS_PROFILE_ISOLATION_FILE,
   HARNESS_PROFILE_ROOT_FILE,
   harnessTargetRootMappingsForConfig,
   logicalTargetOutputPathForPhysicalPath,
@@ -134,7 +135,7 @@ function parseHarnessIgnoreLines(
               }. Ignore rules are declared in .harnessIgnore, not .harnessMutable.`
             : `Unsupported ${options.sourcePath.endsWith(HARNESS_MUTABLE_FILE) ? ".harnessMutable" : ".harnessIgnore"} section "${line}" at line ${
                 index + 1
-              }. Target-specific sections are no longer supported; place a nested .harnessIgnore or .harnessMutable in the source folder instead.`,
+              }. Target-specific sections are not supported; place a nested .harnessIgnore or .harnessMutable in the source folder instead.`,
         path: options.sourcePath,
         recommendation: isMutableInIgnore
           ? "Move the following patterns into .harnessMutable and keep .harnessIgnore for projection exclusions only."
@@ -186,6 +187,7 @@ const SYNTHETIC_NESTED_DECLARATION_RULES: HarnessIgnoreRule[] = [
   HARNESS_IGNORE_FILE,
   HARNESS_MUTABLE_FILE,
   HARNESS_PROFILE_FILE,
+  HARNESS_PROFILE_ISOLATION_FILE,
   HARNESS_PROFILE_ROOT_FILE,
 ].map((fileName) => ({
   kind: "ignore",
@@ -511,6 +513,7 @@ function isSyntheticDeclarationPath(normalizedPath: string): boolean {
     HARNESS_IGNORE_FILE,
     HARNESS_MUTABLE_FILE,
     HARNESS_PROFILE_FILE,
+    HARNESS_PROFILE_ISOLATION_FILE,
     HARNESS_PROFILE_ROOT_FILE,
   ].some(
     (fileName) =>
@@ -526,6 +529,7 @@ function syntheticDeclarationRuleForPath(
       HARNESS_IGNORE_FILE,
       HARNESS_MUTABLE_FILE,
       HARNESS_PROFILE_FILE,
+      HARNESS_PROFILE_ISOLATION_FILE,
       HARNESS_PROFILE_ROOT_FILE,
     ].find(
       (candidate) =>

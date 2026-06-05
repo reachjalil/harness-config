@@ -17,7 +17,7 @@ re-projection is the only path back to source bytes.
 | TOML | Unknown top-level tables or keys and unknown `[[targets]]`, `[[resources]]`, `[[dir]]`, and `[activation]` fields are accepted and surfaced as informational diagnostics | `packages/core/test/standard.test.ts` |
 | TOML | Target paths reject absolute paths, `..`, `.harness`, duplicate resolved roots, and overlapping target roots while allowing arbitrary repo-local target folders and explicit external parents | `packages/core/test/standard.test.ts` |
 | TOML | `[[resources]].path`, `[[dir]].path`, and `[[targets]].parent` expand gitignore-style wildcard patterns, including `**`, `?`, character classes, backslash escapes, absolute target parents, file/symlink exclusion, and validation after expansion, while `[[targets]].path` rejects wildcard patterns | `packages/core/test/standard.test.ts` |
-| TOML | Legacy single `[resources]` and `[dir]` tables are rejected; configured source paths reject target overlaps and resolve independently from target roots | `packages/core/test/standard.test.ts` |
+| TOML | Single `[resources]` and `[dir]` tables are rejected; configured source paths reject target overlaps and resolve independently from target roots | `packages/core/test/standard.test.ts` |
 | TOML | Missing configured source roots pass as empty layers | `packages/core/test/standard.test.ts` |
 | TOML | Duplicate targets, including explicit `.agents`, are diagnostics | `packages/core/test/standard.test.ts` |
 | TOML | Extension declarations parse with `version`, default `activation`, and extension-owned fields | `packages/core/test/standard.test.ts` |
@@ -28,11 +28,13 @@ re-projection is the only path back to source bytes.
 | Profiles | Root and target-local `.harnessProfile` selectors discover active profiles and protected target selectors | `packages/core/test/standard.test.ts` |
 | Profiles | `.harnessProfile` and `.harnessProfileRoot` grammar, empty selector behavior, and multi-line severity | `packages/core/test/standard.test.ts` |
 | Profiles | Nested `.harnessProfileRoot` declarations and profile roots outside configured source roots are diagnostics | `packages/core/test/standard.test.ts` |
+| Profiles | Malformed `.harnessProfileIsolation` declarations, including unknown fields, are validation diagnostics | `packages/core/test/standard.test.ts` |
 | Projection | Explicit `.agents` copy projection with `.agents` overrides | `packages/core/test/projection.test.ts` |
 | Projection | Explicit `.harness/resources` tree projects direct files and target-root overrides | `packages/core/test/projection.test.ts`, `packages/cli/test/run.test.ts` |
 | Projection | External target parents project resources and target-scoped dir outputs into sibling worktree-style targets while preserving target-output controls | `packages/core/test/projection.test.ts`, `packages/cli/test/run.test.ts` |
 | Projection | Multiple external parents can declare the same target-local path and project independently, including target-local profile selectors outside the repo | `packages/core/test/projection.test.ts` |
 | Projection | Wildcard resources roots, dir roots, and target parents expand into deterministic source layers and multiple concrete external target projections; target-local profile and ignore controls remain isolated per expanded target; a target parent pattern with no matches does not redirect target-scoped dir outputs to the repo root | `packages/core/test/projection.test.ts`, `packages/cli/test/run.test.ts` |
+| Projection | `.harnessProfileIsolation` can isolate wildcard-expanded pack resources to active same-name profile roots while excluding inactive sibling packs and general matching resources, with negated patterns preserving carved-out resource paths | `packages/core/test/projection.test.ts` |
 | Projection | Repo-root `.harnessIgnore` filters resource projection by configured source paths and target output paths | `packages/core/test/projection.test.ts` |
 | Projection | Ordered `[[resources]]` roots project resources, target overrides, profile roots, source-local ignores, exact replacement, and composable merge behavior | `packages/core/test/projection.test.ts` |
 | Projection | Activation can load a repo-local manifest from an explicit non-default config path | `packages/core/test/projection.test.ts`, `packages/cli/test/run.test.ts` |
@@ -82,6 +84,7 @@ re-projection is the only path back to source bytes.
 | Dir | `[[dir]]` honors source-local `.harnessIgnore` inside `.harnessComposable` leaves, including custom dir sources outside `.harness` | `packages/core/test/dir.test.ts` |
 | Dir | `[[dir]]` honors target-output `.harnessIgnore` for copy and composable outputs | `packages/core/test/dir.test.ts` |
 | Dir | `[[dir]]` active profile roots add composable parts and use logical `.harnessIgnore` files to suppress base parts | `packages/core/test/dir.test.ts` |
+| Dir | `.harnessProfileIsolation` can isolate selected dir output paths to active same-name wildcard pack profile roots while preserving unrelated or negated base dir outputs | `packages/core/test/dir.test.ts` |
 | Dir | `[[dir]]` portable profile roots nested inside composable leaves can add profile parts | `packages/core/test/dir.test.ts` |
 | Dir | `[[dir]]` discovers target-output `.harnessProfile` selectors in the final bootstrap pass, including profile-only dir outputs with no base candidate | `packages/core/test/dir.test.ts` |
 | Dir | `[[dir]]` reports invalid parts, mixed containers, symlinks, `.harnessRef` errors, target overlaps, and source-source overlaps | `packages/core/test/dir.test.ts`, `packages/core/test/standard.test.ts` |
@@ -114,8 +117,10 @@ re-projection is the only path back to source bytes.
 | CLI E2E | `harnessc activate` honors target-output `.harnessIgnore`, custom dir source ignores, and cleanup preservation | `packages/cli/test/run.test.ts` |
 | CLI E2E | `harnessc activate` projects resource composables through target-output `.harnessIgnore`, target-local `.harnessProfile`, and unmanaged cleanup | `packages/cli/test/run.test.ts` |
 | CLI E2E | `harnessc activate` applies profile roots across resources and composable dir outputs | `packages/cli/test/run.test.ts` |
+| CLI E2E | `harnessc validate` and `harnessc activate --yes` apply `.harnessProfileIsolation` across wildcard pack resource and dir roots | `packages/cli/test/run.test.ts` |
 | Examples | Every documented `examples/*` mini-repo validates, dry-runs, applies, asserts its characteristic generated outputs, and converges to `keep` or `mutable` on a second dry run | `packages/cli/test/examples.test.ts` |
 | Examples | Wildcard examples project external target-parent fanout into sibling worktrees and collect monorepo package-owned wildcard `resources` / `dir` roots | `packages/cli/test/examples.test.ts` |
+| Examples | Isolated profile-pack examples suppress matching base resources and dir outputs while preserving same-name local pack overlays and unrelated outputs | `packages/cli/test/examples.test.ts` |
 | Docs | Translated website specification sections keep heading, fenced-code, identifier, diagnostic-code, flag, and RFC 2119 keyword parity with English | `packages/core/test/locales.test.ts` |
 
 Known gap: orphaned managed output cleanup covers target copy projection. Dir

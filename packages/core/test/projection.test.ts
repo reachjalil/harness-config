@@ -3577,6 +3577,157 @@ describe("HarnessConfig activation projection", () => {
     ).rejects.toThrow();
   });
 
+  it("isolates wildcard pack resources to active same-name profile roots", async () => {
+    const root = await rootFixture();
+    await write(
+      root,
+      ".harness/harness.toml",
+      [
+        "version = 1",
+        "",
+        "[[resources]]",
+        'path = "./.harness/resources"',
+        "",
+        "[[resources]]",
+        'path = "./.harness/packs/*/resources"',
+        "",
+        "[[resources]]",
+        'path = "./.harness/local-packs/*/resources"',
+        "",
+        "[[targets]]",
+        'path = "./.agents"',
+        "",
+      ].join("\n")
+    );
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harnessProfile", "frontend\n");
+    await write(
+      root,
+      ".harness/packs/frontend/.harnessProfileRoot",
+      "frontend\n"
+    );
+    await write(
+      root,
+      ".harness/packs/frontend/.harnessProfileIsolation",
+      ["version = 1", "", "[isolate]", 'resources = ["**"]', ""].join("\n")
+    );
+    await write(
+      root,
+      ".harness/local-packs/frontend/.harnessProfileRoot",
+      "frontend\n"
+    );
+    await write(root, ".harness/resources/skills/general/SKILL.md", "general");
+    await write(
+      root,
+      ".harness/packs/frontend/resources/skills/frontend/SKILL.md/.harnessComposable",
+      ""
+    );
+    await write(
+      root,
+      ".harness/packs/frontend/resources/skills/frontend/SKILL.md/100_frontend.md",
+      "frontend\n"
+    );
+    await write(
+      root,
+      ".harness/packs/backend/resources/skills/backend/SKILL.md",
+      "backend"
+    );
+    await write(
+      root,
+      ".harness/local-packs/frontend/resources/skills/local/SKILL.md",
+      "local"
+    );
+
+    const result = await applyHarnessActivation(root, {
+      dryRun: false,
+      yes: true,
+    });
+
+    expect(result.plan.diagnostics).toEqual([]);
+    await expect(
+      readFile(path.join(root, ".agents/skills/frontend/SKILL.md"), "utf8")
+    ).resolves.toBe("frontend\n");
+    await expect(
+      readFile(path.join(root, ".agents/skills/local/SKILL.md"), "utf8")
+    ).resolves.toBe("local");
+    await expect(
+      readFile(path.join(root, ".agents/skills/general/SKILL.md"))
+    ).rejects.toThrow();
+    await expect(
+      readFile(path.join(root, ".agents/skills/backend/SKILL.md"))
+    ).rejects.toThrow();
+  });
+
+  it("honors negated resource patterns in profile isolation", async () => {
+    const root = await rootFixture();
+    await write(
+      root,
+      ".harness/harness.toml",
+      [
+        "version = 1",
+        "",
+        "[[resources]]",
+        'path = "./.harness/resources"',
+        "",
+        "[[resources]]",
+        'path = "./.harness/packs/*/resources"',
+        "",
+        "[[targets]]",
+        'path = "./.agents"',
+        "",
+      ].join("\n")
+    );
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harnessProfile", "frontend\n");
+    await write(
+      root,
+      ".harness/packs/frontend/.harnessProfileRoot",
+      "frontend\n"
+    );
+    await write(
+      root,
+      ".harness/packs/frontend/.harnessProfileIsolation",
+      [
+        "version = 1",
+        "",
+        "[isolate]",
+        'resources = ["skills/**", "!skills/shared/**"]',
+        "",
+      ].join("\n")
+    );
+    await write(root, ".harness/resources/skills/general/SKILL.md", "general");
+    await write(root, ".harness/resources/skills/shared/SKILL.md", "shared");
+    await write(
+      root,
+      ".harness/packs/frontend/resources/skills/frontend/SKILL.md",
+      "frontend"
+    );
+    await write(
+      root,
+      ".harness/packs/backend/resources/skills/backend/SKILL.md",
+      "backend"
+    );
+
+    const result = await applyHarnessActivation(root, {
+      dryRun: false,
+      yes: true,
+    });
+
+    expect(result.plan.diagnostics).toEqual([]);
+    await expect(
+      readFile(path.join(root, ".agents/skills/frontend/SKILL.md"), "utf8")
+    ).resolves.toBe("frontend");
+    await expect(
+      readFile(path.join(root, ".agents/skills/shared/SKILL.md"), "utf8")
+    ).resolves.toBe("shared");
+    await expect(
+      readFile(path.join(root, ".agents/skills/general/SKILL.md"))
+    ).rejects.toThrow();
+    await expect(
+      readFile(path.join(root, ".agents/skills/backend/SKILL.md"))
+    ).rejects.toThrow();
+  });
+
   it("applies target-local profiles and ignores through wildcard-expanded roots", async () => {
     const workspace = await mkdtemp(path.join(tmpdir(), "harness-worktrees-"));
     const root = path.join(workspace, "repo");

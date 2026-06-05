@@ -30,7 +30,7 @@ Harness config has two independent version lines:
 | Line | Current status | Meaning |
 | --- | --- | --- |
 | Specification | `v1` proposal | File shape, manifest schema, projection model, ignore grammar, and conformance contract. |
-| Reference implementation | `1.0.0-alpha.8` | The npm packages and CLI implementation. Package releases do not imply a spec change. |
+| Reference implementation | `1.0.0-alpha.9` | The npm packages and CLI implementation. Package releases do not imply a spec change. |
 
 Treat the v1 file shape and activation model as a public proposal while public
 releases, conformance fixtures, adopter repositories, and external feedback
@@ -235,6 +235,14 @@ The [`examples/`](./examples/README.md) directory contains runnable scenarios:
 - [04 composable instructions](./examples/04-composable-instructions/README.md)
 - [05 runtime-owned state](./examples/05-runtime-owned-state/README.md)
 - [06 layered local overlays](./examples/06-layered-local-overlays/README.md)
+- [07 worktree fleet wildcards](./examples/07-worktree-fleet-wildcards/README.md)
+- [08 monorepo package wildcards](./examples/08-monorepo-package-wildcards/README.md)
+- [09 isolated profile packs](./examples/09-isolated-profile-packs/README.md)
+
+Profile-switching examples use `--remove-orphans` when applying a new profile
+so unedited outputs from the previous profile are cleaned up. Use
+`--remove-unmanaged` for target files that no configured source can produce
+anymore, such as outputs from deleted or newly ignored source files.
 
 ## Documentation
 

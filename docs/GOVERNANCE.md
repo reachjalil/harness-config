@@ -19,13 +19,13 @@ cadences and for different reasons.
 | Version line | Identifier | Where it is declared | Moves when |
 | --- | --- | --- | --- |
 | Specification version | `1` (a whole number) | The on-disk manifest `version = 1`, the `/specifications/v1/` URL space, and the "Versioning" section of [STANDARD.md](./STANDARD.md#versioning) | The normative contract gains an incompatible change (reserved for v2). |
-| Implementation version | `1.0.0-alpha.8` (semver) | `package.json` for the root and for `@harnessconfig/core`, `@harnessconfig/cli`, and `harnessc` | Any reference-implementation release: features, fixes, prereleases. |
+| Implementation version | `1.0.0-alpha.9` (semver) | `package.json` for the root and for `@harnessconfig/core`, `@harnessconfig/cli`, and `harnessc` | Any reference-implementation release: features, fixes, prereleases. |
 
 The single most important rule:
 
 > A change to the implementation version **never** implies a change to the
 > specification version. The reference implementation can publish any number of
-> semver releases — `1.0.0-alpha.8`, `1.0.0`, `1.4.2` — while the specification
+> semver releases — `1.0.0-alpha.9`, `1.0.0`, `1.4.2` — while the specification
 > stays at v1.
 
 This is why `STANDARD.md` is implementation-neutral and the documentation sync
@@ -37,10 +37,10 @@ package version describes one implementation of that contract.
 
 | Specification | Implementation packages | Status |
 | --- | --- | --- |
-| v1 (proposal) | `@harnessconfig/core`, `@harnessconfig/cli`, `harnessc` at `1.0.0-alpha.8` | Alpha reference implementation |
+| v1 (proposal) | `@harnessconfig/core`, `@harnessconfig/cli`, `harnessc` at `1.0.0-alpha.9` | Alpha reference implementation |
 
 When citing the project, cite the axis you mean. "Harness config v1" refers to
-the standard. "`harnessc` 1.0.0-alpha.8" refers to the CLI build.
+the standard. "`harnessc` 1.0.0-alpha.9" refers to the CLI build.
 
 ## Specification Change Control
 
