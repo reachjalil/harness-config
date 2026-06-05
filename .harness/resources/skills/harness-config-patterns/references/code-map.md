@@ -2,15 +2,16 @@
 
 Read this to choose the implementation owner before editing.
 
-- `packages/core/src/standard.ts`: manifest parsing, standard constants,
-  target listing, and target override inference.
+- `packages/core/src/standard.ts`: manifest parsing, standard constants, target
+  listing, wildcard manifest path expansion, target parent handling, and target
+  override inference.
 - `packages/core/src/validation.ts`: manifest and repository-shape validation
   diagnostics.
 - `packages/core/src/ignore.ts`: `.harnessIgnore` and `.harnessMutable`
   parsing, discovery, precedence, and target-output matching.
 - `packages/core/src/profile.ts`: `.harnessProfile` selectors,
-  `.harnessProfileRoot` discovery, protected target selectors, and profile
-  source overlays.
+  `.harnessProfileRoot` discovery, `.harnessProfileIsolation` parsing and
+  matching, protected target selectors, and profile source overlays.
 - `packages/core/src/dir.ts`: `[[dir]]` copy and composable output planning,
   `.harnessRef`, profile layers, and target-output profile bootstrap.
 - `packages/core/src/projection.ts`: resource projection, desired target trees,

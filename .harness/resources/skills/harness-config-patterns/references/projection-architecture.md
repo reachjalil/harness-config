@@ -24,6 +24,8 @@ Keep these path concepts separate:
 - Logical source path: the path a profile overlay represents.
 - Output relative path: path inside one target projection.
 - Target output path: repo-relative path including the target root.
+- Target parent: physical base directory for a target. It may be external, but
+  override selection still comes from the target-local path.
 
 When changing these areas, assert both projected bytes and absence or
 preservation of filtered files.
@@ -31,12 +33,26 @@ preservation of filtered files.
 ## Target Override Precedence
 
 - Canonical resource files project first.
-- Target-derived override folders overlay canonical files for matching targets.
-- Active profile roots overlay canonical layers.
+- Generic active profile roots overlay canonical files.
+- Target-derived override folders overlay canonical and generic profile files
+  for matching targets.
 - Profile target overrides can still specialize the active target after a
   profile generic overlay.
 - Target-output `.harnessIgnore` remains the final boundary for the live target
   subtree.
+
+## Profile Isolation
+
+`.harnessProfileIsolation` is profile-root-local and suppresses matching
+non-profile resource or dir candidates before final file selection. Match
+against logical resource paths or repo-relative dir output paths, not physical
+storage paths and not external target parents.
+
+Same-name active profile roots continue to participate, including roots from
+ordered source layers or wildcard-expanded pack roots. This lets a selected
+portable pack and a local same-name pack compose while inactive sibling packs
+and matching base/general candidates are excluded. Negated isolation patterns
+are carve-outs, using the same ordered last-match model as `.harnessIgnore`.
 
 ## Composables
 

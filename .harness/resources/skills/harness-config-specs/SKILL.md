@@ -33,7 +33,7 @@ Load only the reference needed:
 Useful checks:
 
 ```bash
-rg -n "harnessProfileRoot|harnessIgnore|harnessComposable|\\.harnessRef" docs packages
+rg -n "harnessProfileRoot|harnessProfileIsolation|harnessIgnore|target.*parent|wildcard|harnessComposable|\\.harnessRef" docs packages
 pnpm --filter @harnessconfig/core test
 pnpm --filter @harnessconfig/cli test
 ```

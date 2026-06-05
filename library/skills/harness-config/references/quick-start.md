@@ -166,6 +166,43 @@ Keep source-root wildcards repo-local. `[[targets]].parent` may point outside
 the repo because it is output placement only. `[[targets]].path` must remain
 static and explicit; activation may create it under each resolved parent.
 
+For portable profile packs, use wildcard pack roots plus a profile selector:
+
+```toml
+[[resources]]
+path = "./.harness/resources"
+
+[[resources]]
+path = "./.harness/packs/*/resources"
+
+[[resources]]
+path = "./.harness/local-packs/*/resources"
+
+[[dir]]
+path = "./.harness/dir"
+
+[[dir]]
+path = "./.harness/packs/*/dir"
+
+[[dir]]
+path = "./.harness/local-packs/*/dir"
+```
+
+Inside a selected pack, add `.harnessProfileRoot` and optionally
+`.harnessProfileIsolation`:
+
+```toml
+version = 1
+
+[isolate]
+resources = ["skills/**"]
+dir = ["AGENTS.md", "AGENTS.md/**"]
+```
+
+Use profile isolation when the selected pack should be exclusive for specific
+logical resource or dir paths. Same-name local packs still participate, while
+inactive sibling packs and matching general resources are suppressed.
+
 ## Generated Surfaces
 
 Generated harness surfaces such as `.agents`, `.claude`, `.cursor`, and
