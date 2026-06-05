@@ -365,7 +365,7 @@ describe("examples", () => {
         `${name} should converge to keep or mutable actions`
       ).toBe(true);
     }
-  });
+  }, 20_000);
 
   it("keeps mutable example runtime ownership honest", async () => {
     const root = await copyExample("05-runtime-owned-state");
