@@ -41,6 +41,7 @@ const generatedPaths = [
   ".harness/local",
   "AGENTS.md",
   "CLAUDE.md",
+  "PROJECT_GUIDE.md",
 ];
 
 function captureIo() {
@@ -63,6 +64,21 @@ async function exampleNames(): Promise<string[]> {
     .filter((entry) => /^\d{2}-/.test(entry.name))
     .map((entry) => entry.name)
     .sort();
+}
+
+async function exampleLinksFrom(relativePath: string): Promise<string[]> {
+  const text = await readFile(path.join(repoRoot, relativePath), "utf8");
+  return [
+    ...new Set(
+      [
+        ...text.matchAll(
+          /\]\((?:\.\/)?(?:examples\/)?(\d{2}-[^/)]+)\/README\.md\)/g
+        ),
+      ]
+        .map((match) => match[1])
+        .filter((value): value is string => Boolean(value))
+    ),
+  ].sort();
 }
 
 async function copyExample(name: string): Promise<string> {
@@ -367,8 +383,29 @@ async function assertExampleOutputs(name: string, root: string) {
 }
 
 describe("examples", () => {
-  it("discovers every documented example", async () => {
+  it("keeps example directories and indexes aligned", async () => {
     expect(await exampleNames()).toEqual(documentedExamples);
+    expect(await exampleLinksFrom("README.md")).toEqual(documentedExamples);
+    expect(await exampleLinksFrom("examples/README.md")).toEqual(
+      documentedExamples
+    );
+  });
+
+  it("keeps example-local generated output ignores anchored", async () => {
+    for (const name of documentedExamples) {
+      const ignorePath = path.join(examplesRoot, name, ".gitignore");
+      const text = await readFile(ignorePath, "utf8");
+      for (const [index, rawLine] of text.split(/\r?\n/).entries()) {
+        const line = rawLine.trim();
+        if (!line || line.startsWith("#")) {
+          continue;
+        }
+        expect(
+          line,
+          `${name}/.gitignore line ${index + 1} should be example-root scoped`
+        ).toMatch(/^!?\//);
+      }
+    }
   });
 
   it("keeps every example valid and convergent", async () => {
@@ -565,5 +602,42 @@ describe("examples", () => {
     ]);
     expect(sharedExplain.exitCode).toBe(0);
     expect(sharedExplain.output).toContain(".harness/resources");
+
+    await writeFile(path.join(root, ".harnessProfile"), "backend\n", "utf8");
+    const backendApply = await run(root, [
+      "activate",
+      "--yes",
+      "--remove-orphans",
+    ]);
+    expect(backendApply.exitCode).toBe(0);
+    await expectRepoFileContains(
+      root,
+      ".agents/skills/backend/SKILL.md",
+      "# Backend Pack"
+    );
+    await expectRepoFileMissing(root, ".agents/skills/frontend/SKILL.md");
+    await expectRepoFileMissing(root, ".agents/skills/local-frontend/SKILL.md");
+    await expectRepoFileMissing(root, ".agents/skills/baseline/SKILL.md");
+    await expectRepoFileContains(
+      root,
+      "AGENTS.md",
+      "Backend pack guide is active"
+    );
+    await expect(
+      readFile(path.join(root, "AGENTS.md"), "utf8")
+    ).resolves.not.toContain("Frontend pack guide");
+    await expectRepoFileContains(
+      root,
+      "PROJECT_GUIDE.md",
+      "This unrelated dir output stays active"
+    );
+
+    const backendExplain = await run(root, [
+      "explain",
+      ".agents/skills/backend/SKILL.md",
+      "--json",
+    ]);
+    expect(backendExplain.exitCode).toBe(0);
+    expect(backendExplain.output).toContain(".harness/packs/backend/resources");
   });
 });

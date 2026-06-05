@@ -1,3 +1,3 @@
 # Backend Pack
 
-This sibling pack is not selected, so it does not project.
+This sibling pack projects when the backend profile is selected.
