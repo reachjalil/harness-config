@@ -43,7 +43,7 @@ Harness config 是一个仓库本地标准，用于声明持久的 *harness 资�
 这些术语在本文档中有特定含义。文档后面的章节给出更详细定义时，该章节具有权威性。
 
 - **Harness** — 消费仓库指令、上下文、工具和配置以在项目上操作的 AI agent runtime 或开发者面向工具。
-- **Harness surface** — harness 读取的仓库本地文件和文件夹，如 `AGENTS.md`、`.agents`、`.claude`、`.cursor` 或其他声明的目标输出。
+- **Harness surface** — harness 读取的文件和文件夹，通常是仓库本地文件，如 `AGENTS.md`、`.agents`、`.claude` 或 `.cursor`，也包括任何声明的外部 target 输出。
 - **约定根** — 仓库根的 `./.harness` 目录，通常用于资源、dir 源文件、profile 和其他源存储。它不是必需的 manifest 位置。
 - **Manifest** — 所选仓库本地 TOML 文件（默认 `./.harness/harness.toml`），声明标准版本、有序的 resources 源、有序的 dir 源、target 和扩展。
 - **Resources 源** — 由 `[[resources]]` `path` 声明的仓库本地目录，其文件、文件夹和资源可组合叶被投影到每个声明的 target。多个 resources 源按 manifest 顺序分层。
@@ -71,7 +71,7 @@ version = 1
 版本 `1` 标准化：
 
 - `./.harness` 约定根，
-- 带必需仓库本地路径的 target、有序 `[[resources]]` 源根、有序 `[[dir]]` 源根和顶级扩展声明的所选 TOML manifest schema，
+- 带必需 target-local 路径和可选显式 parent 的 target、有序 `[[resources]]` 源根、有序 `[[dir]]` 源根和顶级扩展声明的所选 TOML manifest schema，
 - 配置过的 resources 源树，
 - 由 target 派生的 override 文件夹，
 - 拷贝投影（在固定输入下幂等），
@@ -89,7 +89,7 @@ Harness config 标准化：
 - 所选 manifest 文件及其 schema，
 - 配置过的 resources 源下的资源布局，
 - 作为紧邻点前缀文件夹的每资源 target override，
-- 带必需仓库本地路径的显式 target 声明，
+- 带必需 target-local 路径和可选显式 parent 的显式 target 声明，
 - 带定义默认值的顶级激活策略，
 - 有序的 dir 源根，带可组合（`.harnessComposable`）叶和投影到相对仓库路径的拷贝模式目录，
 - profile 选择和覆盖模型，包括 `.harnessProfile` 选择器和 `.harnessProfileRoot` 根，它们可以添加或覆盖资源和 dir 可组合部分，
@@ -179,6 +179,10 @@ path = "./.claude"
 [[targets]]
 path = "./runtime/agent"
 
+[[targets]]
+parent = "../worktrees/feature-branch"
+path = "./.codex"
+
 [[dir]]
 path = "./.harness/dir"
 
@@ -190,44 +194,48 @@ version = 1
 activation = "explicit"
 ```
 
+接受路径模式的 manifest 字段使用 gitignore 风格的路径段匹配：`*`、`?`、`**`、字符类和反斜杠转义。模式匹配只扩展为已存在的真实目录；符号链接目录不会被跟随。没有匹配目录的模式不贡献 source 或 target 实例。在单个 manifest 条目内，具体匹配按路径字典序处理；跨条目时保留 manifest 顺序。否定模式和节标题不适用于 manifest 路径字段内部。
+
 ### Resources
 
 资源投影只使用声明的 `[[resources]]` 源根。如果未声明 `[[resources]]` 条目，资源投影被禁用。
 
-每个 `[[resources]]` 条目 MUST 包含 `path`。工具 MUST NOT 仅因为 `[[resources]]` 条目携带为未来 v1 修订保留的未识别键而使校验失败；工具 SHOULD 将未识别键报告为信息。路径 MUST 是仓库本地，MUST 解析为仓库内部，MUST NOT 包含 `..` 段。Manifest MUST NOT 包含单个 `[resources]` 表或任何 `[resources.<kind>]` 表；资源类型保持为源树名称，不是 manifest schema 条目。
+每个 `[[resources]]` 条目 MUST 包含 `path`。工具 MUST NOT 仅因为 `[[resources]]` 条目携带为未来 v1 修订保留的未识别键而使校验失败；工具 SHOULD 将未识别键报告为信息。路径 MUST 是仓库本地，MUST 解析为仓库内部，MUST NOT 包含 `..` 段。它 MAY 包含路径模式。模式扩展为匹配的、已存在的仓库本地 resources 源目录；没有匹配的模式是有效的空层。Manifest MUST NOT 包含单个 `[resources]` 表或任何 `[resources.<kind>]` 表；资源类型保持为源树名称，不是 manifest schema 条目。
 
 顶级资源目录名 SHOULD 使用小写字母、数字、下划线或破折号。直接在 resources 源下的点前缀名称是 target 根 override，不是共享的规范输出文件夹。资源文件和目录 MUST NOT 依赖路径遍历；所有投影输出路径 MUST 保持在它们声明的 target 内。
 
 ### Target
 
-每个 target 都是显式的。Harness config 不保留、偏好或暗示任何 runtime target 文件夹名称。所选 manifest 中的每个 `[[targets]]` 条目声明一个仓库本地 target 路径并 MUST 包含 `path`。工具 MUST NOT 仅因为 `[[targets]]` 条目携带为未来 v1 修订保留的未识别键而使校验失败；工具 SHOULD 将未识别键报告为信息。
+每个 target 都是显式的。Harness config 不保留、偏好或暗示任何 runtime target 文件夹名称。所选 manifest 中的每个 `[[targets]]` 条目声明一个 target 并 MUST 包含 `path`。Target MAY 也包含 `parent`。工具 MUST NOT 仅因为 `[[targets]]` 条目携带为未来 v1 修订保留的未识别键而使校验失败；工具 SHOULD 将未识别键报告为信息。
 
-Target 路径 MUST 解析为仓库内部，MUST 指向仓库根下的文件夹，规范化后 MUST NOT 包含 `..` 段，MUST NOT 指向 `./.harness` 本身或它的任何后代，MUST NOT 与配置过的源根（如 `[[resources]]` 或 `[[dir]]`）重叠。
+`path` 是 target-local：它解析在 target parent 之下，而不是直接作为 source root。它 MUST 是相对路径，MUST 指向其 parent 下的文件夹，规范化后 MUST NOT 包含 `..` 段，MUST NOT 包含路径模式，并且 MUST NOT 指向 `.harness` 本身或 `.harness` 的任何后代。工具 MAY 在激活期间创建 `path`；因此它始终是静态且显式的。
 
-target 的 override 文件夹是前导 `./` 之后的第一个路径段，规范化为点前缀源 override 文件夹。这让 target 路径不受约束的同时保留了源树约定，即资源项内的紧邻点前缀文件夹是 override。在路径规范化（折叠重复分隔符并删除前导 `./`）后：
+`parent` 是可选的。省略时，target parent 是仓库根，并保留现有的仓库本地 target 行为。存在时，`parent` 相对于仓库根解析，除非它是绝对路径。Target parent MAY 包含路径模式，每个匹配的已存在目录都声明一个使用相同静态 `path` 的具体 target。Target parent MAY 解析到仓库之外，例如投影到兄弟 Git worktrees：
+
+```toml
+[[targets]]
+parent = "../worktrees/*"
+path = "./.codex"
+```
+
+如果模式匹配 `../worktrees/feature-branch`，激活会把 target 写入 `../worktrees/feature-branch/.codex`。Manifest、配置过的 resources 源根、配置过的 dir 源根、profile 根、ignore 声明和 mutable 声明保持锚定在仓库中，除非它们是声明的具体 target 内部的 target-output-local 控制。
+
+解析后的 target root MUST NOT 是仓库根，MUST NOT 与 `./.harness` 重叠，MUST NOT 与配置过的源根（如 `[[resources]]` 或 `[[dir]]`）重叠，并且 MUST NOT 与任何其他已声明 target 的解析 target root 重叠。Target 必须按物理输出位置成为独立的投影根。
+
+target 的 override 文件夹是 `path` 中前导 `./` 之后的第一个路径段，规范化为点前缀源 override 文件夹。`parent` 不参与 override 选择。这让 target 路径不受约束的同时保留了源树约定，即资源项内的紧邻点前缀文件夹是 override。在路径规范化（折叠重复分隔符并删除前导 `./`）后：
 
 - `./.agents` → override 文件夹 `.agents`。
 - `./.claude` → override 文件夹 `.claude`。
 - `./runtime/agent` → override 文件夹 `.runtime`。
 - `./.github/copilot/agents` → override 文件夹 `.github`。
 
-两个规范化路径相等的 `[[targets]]` 条目是重复的，MUST 用诊断拒绝。
+两个解析 target root 相等的 `[[targets]]` 条目是重复的，MUST 用诊断拒绝。
 
-两个规范化路径以祖先和后代形式重叠的 `[[targets]]` 条目（如 `./.agents` 和 `./.agents/skills`）MUST 用诊断拒绝。Target 必须是独立的投影根。
+两个解析 target root 以祖先和后代路径形式重叠的 `[[targets]]` 条目（如同一 parent 下的 `./.agents` 和 `./.agents/skills`）MUST 用诊断拒绝。
 
-共享第一个路径段的 target 在 v1 中有意共享一个由 target 派生的 override 命名空间。例如，`./runtime/agent` 和 `./runtime/tools` 都使用 `.runtime` override。当两个 target 需要不同 override 命名空间时，优先使用不同的第一个路径段。
+在 `path` 中共享第一个路径段的 target 在 v1 中有意共享一个由 target 派生的 override 命名空间，即使它们的 parent 不同。例如，`./runtime/agent` 和 `./runtime/tools` 都使用 `.runtime` override，两个带 `path = "./.codex"` 的 worktree target 都使用 `.codex` override。当两个 target 需要不同 override 命名空间时，优先使用不同的第一个路径段。
 
 Target 是配置，不是隐藏的变更。工具 SHOULD 在创建、替换、拷贝或删除文件之前显示 target 计划。
-
-外部 parent 更新：一个 `[[targets]]` 条目 MAY 包含 `parent`；`[[targets]]` MAY 将该 parent 解析到仓库之外；`parent` MAY 是相对或绝对路径。Target `path` MUST 保持在其 parent 之下，并且 MUST NOT 是绝对路径，MUST NOT 包含 `..`，MUST NOT 指向 `.harness`，MUST NOT 与配置过的源根重叠。
-
-通配符更新：resources path MAY 使用模式，dir path MAY 使用模式，target parent MAY 使用模式，激活 MAY 创建 target path；可使用模式的路径 MUST 保持仓库本地，target path MUST 保持静态，源模式 MUST NOT 包含 `..`，target path MUST NOT 包含模式。
-
-```toml
-[[targets]]
-parent = "../worktrees/feature-branch"
-path = "./.codex"
-```
 
 ### 激活策略
 
@@ -295,7 +303,7 @@ local-only/
 - `.harnessIgnore` 过滤源文件和目标输出子树。
 - `.harnessMutable` 标记应一次性初始化 target 文件然后变为 runtime 所有的源文件。
 
-工具 SHOULD NOT 在 v1 的所选 manifest 中引入按 target 的资源映射。把 target 声明限制为必需的仓库本地路径加被忽略的未来兼容字段，同时把源根有序地放在顶级，保留了投影过滤的单一位置，并使 dry-run 输出更易推理。
+工具 SHOULD NOT 在 v1 的所选 manifest 中引入按 target 的资源映射。把 target 声明限制为必需的静态 target-local 路径、可选 parent 和被忽略的未来兼容字段，同时把源根有序地放在顶级，保留了投影过滤的单一位置，并使 dry-run 输出更易推理。
 
 ## 拷贝投影
 
@@ -448,7 +456,7 @@ path = "./.harness/dir"
 path = "./.harness/local/dir"
 ```
 
-每个 `[[dir]]` 条目 MUST 包含 `path`。工具 MUST NOT 仅因为 `[[dir]]` 条目携带为未来 v1 修订保留的未识别键而使校验失败；工具 SHOULD 将未识别键报告为信息。Manifest MUST NOT 包含单个 `[dir]` 表。如果未声明 `[[dir]]` 条目，则不进行 dir 组合或拷贝。缺失的 dir 源是有效的空层。
+每个 `[[dir]]` 条目 MUST 包含 `path`。工具 MUST NOT 仅因为 `[[dir]]` 条目携带为未来 v1 修订保留的未识别键而使校验失败；工具 SHOULD 将未识别键报告为信息。Manifest MUST NOT 包含单个 `[dir]` 表。如果未声明 `[[dir]]` 条目，则不进行 dir 组合或拷贝。缺失的 dir 源是有效的空层。path MUST 是仓库本地，MUST 解析为仓库内部，MUST NOT 包含 `..` 段，并且 MAY 包含路径模式。模式扩展为匹配的、已存在的仓库本地 dir 源目录；没有匹配的模式是有效的空层。
 
 ### 可组合叶
 
@@ -486,9 +494,9 @@ dir 源中不包含 `.harnessComposable` 标记的任何目录是 **拷贝文件
 
 ### 输出路径和 target 重叠
 
-Dir 输出是相对仓库的路径。它们 MUST 解析为仓库内部，并且 MUST NOT 写入 `./.harness` 内部、配置过的 resources 源内部或配置过的 dir 源内部。落在声明的 `[[targets]]` 路径 **下** 的 dir 输出路径（例如当 `./.claude` 是声明的 target 时的 `.claude/settings.json`）在激活期间被合并到该 target 的投影中，因此 target 幂等性和未管理项清理尊重 dir 所有的文件。**替换或包含** 声明的 target 根本身的 dir 输出（例如当 `./.claude` 是声明的 target 时在 `.claude` 的 dir 输出）MUST 作为 `harness.dir_output_target_overlap` 报告。
+Dir 输出是相对仓库的逻辑路径。它们 MUST 解析为仓库内部，除非它们合并到声明的 target 投影中，并且 MUST NOT 写入 `./.harness` 内部、配置过的 resources 源内部或配置过的 dir 源内部。落在声明的 `[[targets]]` `path` **下** 的 dir 输出路径（例如当 `./.claude` 是声明的 target 时的 `.claude/settings.json`）在激活期间被合并到该 target 的投影中，因此 target 幂等性和未管理项清理尊重 dir 所有的文件。如果该 target 声明外部 `parent`，合并的 dir 输出写入解析后的外部 target root 内部。**替换或包含** 声明的 target 根本身的 dir 输出（例如当 `./.claude` 是声明的 target 时在 `.claude` 的 dir 输出）MUST 作为 `harness.dir_output_target_overlap` 报告。
 
-不与任何声明的 target 重叠的 dir 输出路径直接写入该相对仓库路径。
+不与任何声明的 target `path` 重叠的 dir 输出路径直接写入该相对仓库路径。
 
 ### 冲突
 
@@ -653,7 +661,7 @@ Profile 根根据放置标记的位置覆盖源路径：
 
 Harness config 描述一个系统，把文件从版本控制拷贝到 AI agent 或其他工具随后将读取的文件夹。这些拷贝的完整性直接影响 agent 做什么。实现 SHOULD 显式考虑以下威胁：
 
-- **路径遍历。** Manifest 路径、target 路径和 ignore 模式由用户控制。实现 MUST 拒绝在规范化后解析到仓库外的路径（见 [编码、路径和大小写敏感性](#编码-路径和大小写敏感性)）。
+- **路径遍历。** Manifest 路径、target 路径、target parent 和 ignore 模式由用户控制。实现 MUST 拒绝配置过的源根、所选 manifest 路径、profile 根、dir 输出和规范化后解析到仓库外的 ignore 模式（见 [编码、路径和大小写敏感性](#编码-路径和大小写敏感性)）。唯一的标准例外是显式 `[[targets]].parent`，它 MAY 解析到仓库之外；即便如此，target `path` MUST 保持在该 parent 之下，并且 MUST NOT 遍历到它之外。
 - **符号链接重定向。** 源树中或声明的 target 树中的符号链接如果被跟随可以把读取或写入重定向到仓库外。v1 实现 MUST 把符号链接视为叶条目，MUST NOT 静默跟随它们。替换占据投影路径的 target 符号链接 MUST 要求显式的 target 符号链接策略，无论来自所选 manifest 还是来自等效的操作员选择的激活选项。
 - **应用时的 TOCTOU。** Target 可能在计划和应用之间被修改。实现 SHOULD 在应用时重新检查文件存在和受管理/未管理分类，而不仅在计划时。
 - **未管理项删除。** 清理删除用户文件。默认策略 MUST 是保留，任何删除 MUST 在它发生之前在计划中可见。

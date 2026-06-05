@@ -43,7 +43,7 @@ Las palabras clave `MUST`, `MUST NOT`, `REQUIRED`, `SHALL`, `SHALL NOT`, `SHOULD
 Estos términos tienen significados específicos a lo largo de este documento. Cuando una sección posterior del documento da una definición más detallada, esa sección es autoritativa.
 
 - **Harness** — el runtime de agente AI o herramienta orientada al desarrollador que consume instrucciones, contexto, herramientas y configuración del repositorio para operar sobre un proyecto.
-- **Superficie de harness** — los archivos y carpetas locales al repositorio que un harness lee, como `AGENTS.md`, `.agents`, `.claude`, `.cursor` u otra salida objetivo declarada.
+- **Superficie de harness** — los archivos y carpetas que un harness lee, normalmente archivos locales al repositorio como `AGENTS.md`, `.agents`, `.claude` o `.cursor`, y también cualquier salida objetivo externa declarada.
 - **Raíz de convención** — el directorio `./.harness` en la raíz de un repositorio, usado comúnmente para recursos, archivos fuente dir, perfiles y otro almacenamiento fuente. No es la ubicación requerida del manifiesto.
 - **Manifiesto** — el archivo TOML local al repositorio seleccionado, por defecto `./.harness/harness.toml`, que declara la versión del estándar, las fuentes de recursos ordenadas, las fuentes dir ordenadas, los objetivos y las extensiones.
 - **Fuente de recursos** — un directorio local al repositorio declarado por un `path` `[[resources]]`, cuyos archivos, carpetas y hojas componibles de recursos se proyectan en cada objetivo declarado. Múltiples fuentes de recursos se superponen en orden del manifiesto.
@@ -71,7 +71,7 @@ version = 1
 La versión `1` estandariza:
 
 - la raíz de convención `./.harness`,
-- el esquema de manifiesto TOML seleccionado para objetivos con caminos locales al repositorio requeridos, raíces fuente `[[resources]]` ordenadas, raíces fuente `[[dir]]` ordenadas y declaraciones de extensión de nivel superior,
+- el esquema de manifiesto TOML seleccionado para objetivos con caminos target-local requeridos y padres explícitos opcionales, raíces fuente `[[resources]]` ordenadas, raíces fuente `[[dir]]` ordenadas y declaraciones de extensión de nivel superior,
 - los árboles de fuentes de recursos configuradas,
 - las carpetas de override derivadas del objetivo,
 - la proyección de copia (idempotente bajo entradas fijas),
@@ -89,7 +89,7 @@ Harness config estandariza:
 - el archivo de manifiesto seleccionado y su esquema,
 - el layout de recursos bajo las fuentes de recursos configuradas,
 - los overrides objetivo por recurso como carpetas inmediatas con prefijo de punto,
-- las declaraciones de objetivos explícitas con caminos locales al repositorio requeridos,
+- las declaraciones de objetivos explícitas con caminos target-local requeridos y padres explícitos opcionales,
 - la política de activación de nivel superior con valores por defecto definidos,
 - las raíces fuente dir ordenadas, con hojas componibles (`.harnessComposable`) y directorios en modo copia que se proyectan a caminos relativos al repositorio,
 - el modelo de selección de perfil y superposición, incluidos los selectores `.harnessProfile` y raíces `.harnessProfileRoot` que pueden añadir o sobrescribir recursos y partes componibles de dir,
@@ -179,6 +179,10 @@ path = "./.claude"
 [[targets]]
 path = "./runtime/agent"
 
+[[targets]]
+parent = "../worktrees/feature-branch"
+path = "./.codex"
+
 [[dir]]
 path = "./.harness/dir"
 
@@ -190,44 +194,48 @@ version = 1
 activation = "explicit"
 ```
 
+Los campos del manifiesto que aceptan patrones de ruta usan coincidencia de segmentos estilo gitignore: `*`, `?`, `**`, clases de caracteres y escapes con barra invertida. Las coincidencias de patrón se expanden solo a directorios existentes y reales; los directorios simbólicos no se siguen. Un patrón que no coincide con ningún directorio no aporta instancias de fuente ni de objetivo. Dentro de una sola entrada de manifiesto, las coincidencias concretas se procesan en orden lexicográfico de ruta; entre entradas, se preserva el orden del manifiesto. Los patrones negados y los encabezados de sección no aplican dentro de los campos de ruta del manifiesto.
+
 ### Recursos
 
 La proyección de recursos usa solo raíces fuente `[[resources]]` declaradas. Si no se declaran entradas `[[resources]]`, la proyección de recursos está deshabilitada.
 
-Cada entrada `[[resources]]` MUST contener `path`. Las herramientas MUST NOT fallar la validación únicamente porque una entrada `[[resources]]` lleve una clave no reconocida reservada para futuras revisiones v1; SHOULD reportar las claves no reconocidas como informacionales. El camino MUST ser local al repositorio, MUST resolver dentro del repositorio y MUST NOT contener segmentos `..`. Un manifiesto MUST NOT contener una tabla `[resources]` única ni ninguna tabla `[resources.<kind>]`; los tipos de recursos permanecen como nombres del árbol fuente, no como entradas del esquema del manifiesto.
+Cada entrada `[[resources]]` MUST contener `path`. Las herramientas MUST NOT fallar la validación únicamente porque una entrada `[[resources]]` lleve una clave no reconocida reservada para futuras revisiones v1; SHOULD reportar las claves no reconocidas como informacionales. El camino MUST ser local al repositorio, MUST resolver dentro del repositorio y MUST NOT contener segmentos `..`. MAY contener un patrón de ruta. Un patrón se expande a los directorios fuente de recursos locales al repositorio existentes que coinciden; un patrón sin coincidencias es una capa vacía válida. Un manifiesto MUST NOT contener una tabla `[resources]` única ni ninguna tabla `[resources.<kind>]`; los tipos de recursos permanecen como nombres del árbol fuente, no como entradas del esquema del manifiesto.
 
 Los nombres de directorio de recursos de nivel superior SHOULD usar letras minúsculas, números, guiones bajos o guiones. Los nombres con prefijo de punto directamente bajo una fuente de recursos son overrides de raíz objetivo, no carpetas de salida canónicas compartidas. Los archivos y directorios de recursos MUST NOT depender de la traversal de caminos; todos los caminos de salida proyectados MUST permanecer dentro de su objetivo declarado.
 
 ### Objetivos
 
-Cada objetivo es explícito. Harness config no reserva, prefiere ni implica ningún nombre de carpeta objetivo de runtime. Cada entrada `[[targets]]` en el manifiesto seleccionado declara un camino objetivo local al repositorio y MUST contener `path`. Las herramientas MUST NOT fallar la validación únicamente porque una entrada `[[targets]]` lleve una clave no reconocida reservada para futuras revisiones v1; SHOULD reportar las claves no reconocidas como informacionales.
+Cada objetivo es explícito. Harness config no reserva, prefiere ni implica ningún nombre de carpeta objetivo de runtime. Cada entrada `[[targets]]` en el manifiesto seleccionado declara un objetivo y MUST contener `path`. Un objetivo MAY contener también `parent`. Las herramientas MUST NOT fallar la validación únicamente porque una entrada `[[targets]]` lleve una clave no reconocida reservada para futuras revisiones v1; SHOULD reportar las claves no reconocidas como informacionales.
 
-Los caminos objetivo MUST resolver dentro del repositorio, MUST apuntar a una carpeta bajo la raíz del repositorio, MUST NOT contener segmentos `..` después de normalización, MUST NOT apuntar a `./.harness` mismo ni a ningún descendiente de este, y MUST NOT superponerse con raíces fuente configuradas como `[[resources]]` o `[[dir]]`.
+`path` es target-local: se resuelve debajo del padre del objetivo, no directamente como una raíz fuente. MUST ser relativo, MUST apuntar a una carpeta debajo de su padre, MUST NOT contener segmentos `..` después de normalización, MUST NOT contener patrones de ruta y MUST NOT apuntar a `.harness` mismo ni a ningún descendiente de `.harness`. Las herramientas MAY crear `path` durante la activación; por lo tanto siempre es estático y explícito.
 
-La carpeta de override para un objetivo es el primer segmento de camino después del `./` inicial, normalizado a carpeta de override fuente con prefijo de punto. Esto mantiene los caminos objetivo sin restricciones mientras preserva la convención del árbol fuente de que las carpetas inmediatas con prefijo de punto dentro de un elemento de recurso son overrides. Después de la normalización de caminos (colapsar separadores duplicados y eliminar el `./` inicial):
+`parent` es opcional. Cuando se omite, el padre del objetivo es la raíz del repositorio y se preserva el comportamiento existente de objetivos locales al repositorio. Cuando está presente, `parent` se resuelve relativo a la raíz del repositorio salvo que sea absoluto. Un padre de objetivo MAY contener un patrón de ruta, y cada directorio existente que coincide declara un objetivo concreto usando el mismo `path` estático. Un padre de objetivo MAY resolver fuera del repositorio, por ejemplo al proyectar hacia Git worktrees hermanos:
+
+```toml
+[[targets]]
+parent = "../worktrees/*"
+path = "./.codex"
+```
+
+Si el patrón coincide con `../worktrees/feature-branch`, la activación escribe el objetivo en `../worktrees/feature-branch/.codex`. El manifiesto, las raíces fuente de recursos configuradas, las raíces fuente dir configuradas, las raíces de perfil, las declaraciones de ignore y las declaraciones de mutables permanecen ancladas en el repositorio salvo que sean controles locales a la salida objetivo dentro de un objetivo concreto declarado.
+
+La raíz objetivo resuelta MUST NOT ser la raíz del repositorio, MUST NOT superponerse con `./.harness`, MUST NOT superponerse con raíces fuente configuradas como `[[resources]]` o `[[dir]]`, y MUST NOT superponerse con la raíz objetivo resuelta de ningún otro objetivo declarado. Los objetivos deben ser raíces de proyección independientes por ubicación física de salida.
+
+La carpeta de override para un objetivo es el primer segmento de `path` después del `./` inicial, normalizado a carpeta de override fuente con prefijo de punto. `parent` no participa en la selección de override. Esto mantiene los caminos objetivo sin restricciones mientras preserva la convención del árbol fuente de que las carpetas inmediatas con prefijo de punto dentro de un elemento de recurso son overrides. Después de la normalización de caminos (colapsar separadores duplicados y eliminar el `./` inicial):
 
 - `./.agents` → carpeta de override `.agents`.
 - `./.claude` → carpeta de override `.claude`.
 - `./runtime/agent` → carpeta de override `.runtime`.
 - `./.github/copilot/agents` → carpeta de override `.github`.
 
-Dos entradas `[[targets]]` cuyos caminos normalizados son iguales son duplicados y MUST ser rechazadas con un diagnóstico.
+Dos entradas `[[targets]]` cuyas raíces objetivo resueltas son iguales son duplicados y MUST ser rechazadas con un diagnóstico.
 
-Dos entradas `[[targets]]` cuyos caminos normalizados se superponen como ancestro y descendiente, como `./.agents` y `./.agents/skills`, MUST ser rechazadas con un diagnóstico. Los objetivos deben ser raíces de proyección independientes.
+Dos entradas `[[targets]]` cuyas raíces objetivo resueltas se superponen como caminos ancestro y descendiente, como `./.agents` y `./.agents/skills` bajo el mismo padre, MUST ser rechazadas con un diagnóstico.
 
-Los objetivos que comparten un primer segmento de camino comparten intencionalmente un único namespace de override derivado del objetivo en v1. Por ejemplo, `./runtime/agent` y `./runtime/tools` usan ambos overrides `.runtime`. Preferir primeros segmentos distintos cuando dos objetivos necesitan namespaces de override distintos.
+Los objetivos que comparten un primer segmento en `path` comparten intencionalmente un único namespace de override derivado del objetivo en v1, incluso cuando sus padres difieren. Por ejemplo, `./runtime/agent` y `./runtime/tools` usan ambos overrides `.runtime`, y dos objetivos worktree con `path = "./.codex"` usan ambos overrides `.codex`. Preferir primeros segmentos distintos cuando dos objetivos necesitan namespaces de override distintos.
 
 Los objetivos son configuración, no mutación oculta. Las herramientas SHOULD mostrar el plan objetivo antes de crear, reemplazar, copiar o eliminar archivos.
-
-Actualización de ubicación externa: una entrada `[[targets]]` MAY contener `parent`; `[[targets]]` MAY resolver ese padre fuera del repositorio; `parent` MAY ser relativo o absoluto. El `path` del objetivo MUST permanecer debajo de su padre y MUST NOT ser absoluto, MUST NOT contener `..`, MUST NOT apuntar a `.harness`, y MUST NOT superponerse con raíces fuente configuradas.
-
-Actualización de comodines: el path de recursos MAY usar patrones, el path dir MAY usar patrones, el parent de target MAY usar patrones, y la activación MAY crear el target path; los paths con patrones MUST permanecer locales al repositorio, el target path MUST ser estático, los patrones fuente MUST NOT contener `..`, y el target path MUST NOT contener patrones.
-
-```toml
-[[targets]]
-parent = "../worktrees/feature-branch"
-path = "./.codex"
-```
 
 ### Política de activación
 
@@ -295,7 +303,7 @@ Este es el límite v1:
 - `.harnessIgnore` filtra archivos fuente y subárboles de salida objetivo.
 - `.harnessMutable` marca los archivos fuente que deberían inicializar los archivos objetivo una vez y luego volverse propiedad del runtime.
 
-Las herramientas SHOULD NOT introducir mapeos de recursos por objetivo en el manifiesto seleccionado para v1. Mantener las declaraciones de objetivos limitadas a caminos locales al repositorio requeridos más campos futuro-compatibles ignorados, mientras las raíces fuente siguen ordenadas en el nivel superior, preserva un solo lugar para el filtrado de proyección y facilita razonar sobre la salida en dry-run.
+Las herramientas SHOULD NOT introducir mapeos de recursos por objetivo en el manifiesto seleccionado para v1. Mantener las declaraciones de objetivos limitadas a caminos target-local estáticos requeridos, padres opcionales y campos futuro-compatibles ignorados, mientras las raíces fuente siguen ordenadas en el nivel superior, preserva un solo lugar para el filtrado de proyección y facilita razonar sobre la salida en dry-run.
 
 ## Proyección de copia
 
@@ -448,7 +456,7 @@ path = "./.harness/dir"
 path = "./.harness/local/dir"
 ```
 
-Cada entrada `[[dir]]` MUST contener `path`. Las herramientas MUST NOT fallar la validación únicamente porque una entrada `[[dir]]` lleve una clave no reconocida reservada para futuras revisiones v1; SHOULD reportar las claves no reconocidas como informacionales. Un manifiesto MUST NOT contener una tabla `[dir]` única. Si no se declaran entradas `[[dir]]`, no ocurre composición o copia dir. Una fuente dir faltante es una capa vacía válida.
+Cada entrada `[[dir]]` MUST contener `path`. Las herramientas MUST NOT fallar la validación únicamente porque una entrada `[[dir]]` lleve una clave no reconocida reservada para futuras revisiones v1; SHOULD reportar las claves no reconocidas como informacionales. Un manifiesto MUST NOT contener una tabla `[dir]` única. Si no se declaran entradas `[[dir]]`, no ocurre composición o copia dir. Una fuente dir faltante es una capa vacía válida. El path MUST ser local al repositorio, MUST resolver dentro del repositorio, MUST NOT contener segmentos `..` y MAY contener un patrón de ruta. Un patrón se expande a los directorios fuente dir locales al repositorio existentes que coinciden; un patrón sin coincidencias es una capa vacía válida.
 
 ### Hojas componibles
 
@@ -486,9 +494,9 @@ El archivo marcador `.harnessComposable` mismo MUST NOT aparecer en ninguna sali
 
 ### Caminos de salida y superposición con objetivos
 
-Las salidas dir son caminos relativos al repositorio. MUST resolver dentro del repositorio y MUST NOT escribir dentro de `./.harness`, ninguna fuente de recursos configurada o ninguna fuente dir configurada. Un camino de salida dir que cae **bajo** un camino `[[targets]]` declarado (por ejemplo `.claude/settings.json` cuando `./.claude` es un objetivo declarado) se fusiona en la proyección de ese objetivo durante la activación, de modo que la idempotencia del objetivo y la limpieza de entradas no gestionadas respetan los archivos propiedad de dir. Una salida dir que **reemplazaría o contendría** la raíz de un objetivo declarado mismo (por ejemplo una salida dir en `.claude` cuando `./.claude` es un objetivo declarado) MUST ser reportada como `harness.dir_output_target_overlap`.
+Las salidas dir son caminos lógicos relativos al repositorio. MUST resolver dentro del repositorio salvo que se fusionen en una proyección de objetivo declarada, y MUST NOT escribir dentro de `./.harness`, ninguna fuente de recursos configurada o ninguna fuente dir configurada. Un camino de salida dir que cae **bajo** un `path` de `[[targets]]` declarado (por ejemplo `.claude/settings.json` cuando `./.claude` es un objetivo declarado) se fusiona en la proyección de ese objetivo durante la activación, de modo que la idempotencia del objetivo y la limpieza de entradas no gestionadas respetan los archivos propiedad de dir. Si ese objetivo declara un `parent` externo, la salida dir fusionada se escribe dentro de la raíz objetivo externa resuelta. Una salida dir que **reemplazaría o contendría** la raíz de un objetivo declarado mismo (por ejemplo una salida dir en `.claude` cuando `./.claude` es un objetivo declarado) MUST ser reportada como `harness.dir_output_target_overlap`.
 
-Un camino de salida dir que no se superpone con ningún objetivo declarado escribe directamente a ese camino relativo al repositorio.
+Un camino de salida dir que no se superpone con ningún `path` de objetivo declarado escribe directamente a ese camino relativo al repositorio.
 
 ### Conflictos
 
@@ -653,7 +661,7 @@ El límite fuente/proyección hace revisables las diferencias entre superficies:
 
 Harness config describe un sistema que copia archivos del control de versión en carpetas que un agente AI u otra herramienta posteriormente leerá. La integridad de esas copias tiene un efecto directo en lo que el agente hace. Las implementaciones SHOULD considerar las siguientes amenazas explícitamente:
 
-- **Traversal de caminos.** Los caminos de manifiesto, caminos objetivo y patrones de ignore son controlados por el usuario. Las implementaciones MUST rechazar caminos que resuelven fuera del repositorio después de la normalización (ver [Codificación, caminos y sensibilidad a mayúsculas](#codificación-caminos-y-sensibilidad-a-mayúsculas)).
+- **Traversal de caminos.** Los caminos de manifiesto, caminos objetivo, padres objetivo y patrones de ignore son controlados por el usuario. Las implementaciones MUST rechazar raíces fuente configuradas, caminos de manifiesto seleccionados, raíces de perfil, salidas dir y patrones de ignore que resuelven fuera del repositorio después de la normalización (ver [Codificación, caminos y sensibilidad a mayúsculas](#codificación-caminos-y-sensibilidad-a-mayúsculas)). La única excepción estándar es un `[[targets]].parent` explícito, que MAY resolver fuera del repositorio; aun así, el `path` objetivo MUST permanecer debajo de ese padre y MUST NOT atravesar fuera de él.
 - **Redirección de enlace simbólico.** Los enlaces simbólicos en el árbol fuente o en árboles objetivo declarados pueden redirigir lecturas o escrituras fuera del repositorio si se siguen. Las implementaciones v1 MUST tratar los enlaces simbólicos como entradas hoja y MUST NOT seguirlos silenciosamente. Reemplazar un enlace simbólico objetivo que ocupa un camino proyectado MUST requerir una política explícita de enlace simbólico objetivo, ya sea del manifiesto seleccionado o de una opción de activación equivalente seleccionada por el operador.
 - **TOCTOU al aplicar.** Un objetivo puede modificarse entre la planificación y la aplicación. Las implementaciones SHOULD verificar de nuevo la existencia y la clasificación gestionado/no gestionado de los archivos en el momento de la aplicación, no solo en el momento del plan.
 - **Eliminación de entradas no gestionadas.** La limpieza elimina archivos del usuario. La política por defecto MUST ser preservar, y cualquier eliminación MUST ser visible en el plan antes de que ocurra.

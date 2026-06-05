@@ -63,9 +63,9 @@ authoritative.
 - **Harness** — the AI agent or developer-facing tool runtime that consumes
   repository instructions, context, tools, and configuration to operate on a
   project.
-- **Harness surface** — the repository-local files and folders a harness reads,
-  such as `AGENTS.md`, `.agents`, `.claude`, `.cursor`, or another declared
-  target output.
+- **Harness surface** — the files and folders a harness reads, usually
+  repository-local files such as `AGENTS.md`, `.agents`, `.claude`, or
+  `.cursor`, and also any declared external target output.
 - **Convention root** — the directory `./.harness` at the root of a
   repository, commonly used for resources, dir source files, profiles, and
   other source storage. It is not the required manifest location.
@@ -545,10 +545,10 @@ This is the v1 boundary:
   then become runtime-owned.
 
 Tools SHOULD NOT introduce per-target resource mappings in the selected
-manifest for v1. Keeping target declarations limited to required repo-local
-paths plus ignored future-compatible fields, while source roots stay ordered at
-the top level, preserves one place for projection filtering and makes dry-run
-output easier to reason about.
+manifest for v1. Keeping target declarations limited to required static
+target-local paths, optional parents, and ignored future-compatible fields,
+while source roots stay ordered at the top level, preserves one place for
+projection filtering and makes dry-run output easier to reason about.
 
 ## Copy Projection
 
