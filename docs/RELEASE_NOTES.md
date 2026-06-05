@@ -1,5 +1,39 @@
 # Harness config release notes
 
+## 1.0.0-alpha.8
+
+`1.0.0-alpha.8` adds external target parents and wildcard path expansion for
+worktree-oriented projection while keeping configured source roots observable
+inside the repository.
+
+### External And Wildcard Targets
+
+- Adds optional `[[targets]].parent` so a target can be projected under an
+  external output parent such as a sibling Git worktree while resources, dir
+  sources, profiles, ignore rules, and mutable declarations stay anchored in
+  the repository.
+- Allows `[[resources]].path`, `[[dir]].path`, and `[[targets]].parent` to use
+  gitignore-style path patterns, including `*`, `?`, `**`, character classes,
+  and backslash escapes.
+- Keeps `[[targets]].path` static and explicit so activation can create the
+  target folder under each resolved parent; wildcard target paths are rejected.
+- Expands wildcard source roots and target parents only to existing real
+  directories, skips symlinked directories, and treats no-match target parent
+  patterns as producing no concrete targets.
+
+### Projection, CLI, And Docs
+
+- Preserves target-derived override selection from `path`, not `parent`, so
+  multiple worktrees using the same target path share the same logical override
+  namespace while remaining physically isolated.
+- Keeps target-output `.harnessIgnore` and `.harnessProfile` controls isolated
+  per concrete expanded target.
+- Updates `harnessc activate`, `validate`, and `explain` to report and reason
+  over concrete expanded target roots.
+- Documents the new standard, tooling, conformance, diagnostics, README, and
+  website-ready spec behavior, with regression coverage for wildcard matching,
+  overlap diagnostics, profiles, ignores, dir merging, and CLI explain output.
+
 ## 1.0.0-alpha.7
 
 `1.0.0-alpha.7` adds the orphaned managed output cleanup workflow for profile

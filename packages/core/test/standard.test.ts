@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -16,6 +16,8 @@ import {
   parseHarnessMutable,
   parseHarnessMutableFile,
   parseHarnessConfigToml,
+  resolveHarnessTargetRoot,
+  resolveHarnessTargetInstances,
   resolveHarnessPaths,
   safeParseHarnessConfigToml,
   stringifyHarnessConfig,
@@ -26,6 +28,10 @@ async function write(root: string, relativePath: string, content: string) {
   const target = path.join(root, relativePath);
   await mkdir(path.dirname(target), { recursive: true });
   await writeFile(target, content, "utf8");
+}
+
+function toPortablePath(value: string): string {
+  return value.split(path.sep).join("/");
 }
 
 describe("HarnessConfig standard", () => {
@@ -310,12 +316,241 @@ path = "./.claude"
     expect(inferHarnessOverrideDirectory("./runtime/agent")).toBe(".runtime");
   });
 
+  it("allows targets to declare an external parent while keeping path target-local", async () => {
+    const config = parseHarnessConfigToml(`
+version = 1
+
+[[targets]]
+parent = "../worktrees/other-branch"
+path = "./.codex"
+`);
+
+    expect(config.targets[0]).toMatchObject({
+      parent: "../worktrees/other-branch",
+      path: "./.codex",
+    });
+    expect(listHarnessProjectionTargets(config)).toEqual(["./.codex"]);
+    expect(inferHarnessOverrideDirectory(config.targets[0]?.path ?? "")).toBe(
+      ".codex"
+    );
+    expect(stringifyHarnessConfig(config)).toContain(
+      'parent = "../worktrees/other-branch"'
+    );
+
+    const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
+    expect(
+      resolveHarnessTargetRoot(root, config.targets[0] ?? { path: "" })
+    ).toBe(path.resolve(root, "../worktrees/other-branch/.codex"));
+
+    const absoluteParent = path.join(root, "..", "absolute-worktree");
+    const absoluteConfig = parseHarnessConfigToml(`
+version = 1
+
+[[targets]]
+parent = "${absoluteParent}"
+path = "./.codex"
+`);
+    expect(
+      resolveHarnessTargetRoot(root, absoluteConfig.targets[0] ?? { path: "" })
+    ).toBe(path.join(absoluteParent, ".codex"));
+  });
+
+  it("expands wildcard resources, dir, and target parent paths", async () => {
+    const workspace = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
+    const root = path.join(workspace, "repo");
+    await mkdir(path.join(root, ".harness/resources-base"), {
+      recursive: true,
+    });
+    await mkdir(path.join(root, ".harness/resources-team"), {
+      recursive: true,
+    });
+    await mkdir(path.join(root, ".harness/dir-base"), { recursive: true });
+    await mkdir(path.join(root, ".harness/dir-team"), { recursive: true });
+    await mkdir(path.join(workspace, "worktrees/alpha"), { recursive: true });
+    await mkdir(path.join(workspace, "worktrees/beta"), { recursive: true });
+
+    const config = parseHarnessConfigToml(`
+version = 1
+
+[[resources]]
+path = "./.harness/resources-*"
+
+[[dir]]
+path = "./.harness/dir-*"
+
+[[targets]]
+parent = "../worktrees/*"
+path = "./.codex"
+`);
+    const paths = resolveHarnessPaths(root, { config });
+
+    expect(paths.resourcesDirs.map((source) => path.basename(source))).toEqual([
+      "resources-base",
+      "resources-team",
+    ]);
+    expect(paths.dirDirs.map((source) => path.basename(source))).toEqual([
+      "dir-base",
+      "dir-team",
+    ]);
+    expect(
+      resolveHarnessTargetInstances(
+        root,
+        config.targets[0] ?? { path: "" }
+      ).map((target) => target.definition.parent)
+    ).toEqual(["../worktrees/alpha", "../worktrees/beta"]);
+  });
+
+  it("expands gitignore-style path patterns only to real directories", async () => {
+    const workspace = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
+    const root = path.join(workspace, "repo");
+    await mkdir(path.join(root, ".harness/catalog/group-a/resources"), {
+      recursive: true,
+    });
+    await mkdir(path.join(root, ".harness/catalog/group-b/resources"), {
+      recursive: true,
+    });
+    await mkdir(path.join(root, ".harness/catalog/group-c/resources"), {
+      recursive: true,
+    });
+    await mkdir(path.join(root, ".harness/resources-*"), { recursive: true });
+    await mkdir(path.join(root, ".harness/dir-a"), { recursive: true });
+    await mkdir(path.join(root, ".harness/dir-b"), { recursive: true });
+    await mkdir(path.join(root, ".harness/dir-c"), { recursive: true });
+    await write(root, ".harness/dir-e", "not a directory");
+    await symlink(
+      path.join(root, ".harness/dir-a"),
+      path.join(root, ".harness/dir-d")
+    );
+    await mkdir(path.join(workspace, "worktrees/feature-a"), {
+      recursive: true,
+    });
+    await mkdir(path.join(workspace, "worktrees/feature-b"), {
+      recursive: true,
+    });
+    await write(workspace, "worktrees/feature-c", "not a dir");
+
+    const config = parseHarnessConfigToml(`
+version = 1
+
+[[resources]]
+path = "./.harness/catalog/**/resources"
+
+[[dir]]
+path = "./.harness/dir-[!c]"
+
+[[targets]]
+parent = "../worktrees/feature-?"
+path = "./.codex"
+`);
+    const paths = resolveHarnessPaths(root, { config });
+
+    expect(
+      paths.resourcesDirs.map((source) =>
+        toPortablePath(path.relative(root, source))
+      )
+    ).toEqual([
+      ".harness/catalog/group-a/resources",
+      ".harness/catalog/group-b/resources",
+      ".harness/catalog/group-c/resources",
+    ]);
+    expect(paths.dirDirs.map((source) => path.basename(source))).toEqual([
+      "dir-a",
+      "dir-b",
+    ]);
+    expect(
+      resolveHarnessTargetInstances(
+        root,
+        config.targets[0] ?? { path: "" }
+      ).map((target) => target.definition.parent)
+    ).toEqual(["../worktrees/feature-a", "../worktrees/feature-b"]);
+
+    const escapedConfig = parseHarnessConfigToml(`
+version = 1
+
+[[resources]]
+path = './.harness/resources-\\*'
+`);
+    expect(
+      resolveHarnessPaths(root, { config: escapedConfig }).resourcesDirs.map(
+        (source) => toPortablePath(path.relative(root, source))
+      )
+    ).toEqual([".harness/resources-*"]);
+  });
+
+  it("supports absolute wildcard target parents", async () => {
+    const workspace = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
+    const root = path.join(workspace, "repo");
+    const worktrees = path.join(workspace, "absolute-worktrees");
+    await mkdir(path.join(root, ".harness"), { recursive: true });
+    await mkdir(path.join(worktrees, "alpha"), { recursive: true });
+    await mkdir(path.join(worktrees, "beta"), { recursive: true });
+
+    const config = parseHarnessConfigToml(`
+version = 1
+
+[[targets]]
+parent = "${worktrees}/*"
+path = "./.codex"
+`);
+
+    expect(
+      resolveHarnessTargetInstances(
+        root,
+        config.targets[0] ?? { path: "" }
+      ).map((target) => target.definition.parent)
+    ).toEqual([path.join(worktrees, "alpha"), path.join(worktrees, "beta")]);
+  });
+
+  it("reports source and target overlaps after wildcard expansion", async () => {
+    const workspace = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
+    const root = path.join(workspace, "repo");
+    await mkdir(path.join(root, ".harness/source-a"), { recursive: true });
+    await mkdir(path.join(root, ".harness/source-b"), { recursive: true });
+    await mkdir(path.join(workspace, "worktrees/alpha"), { recursive: true });
+    await write(
+      root,
+      ".harness/harness.toml",
+      [
+        "version = 1",
+        "",
+        "[[resources]]",
+        'path = "./.harness/source-*"',
+        "",
+        "[[dir]]",
+        'path = "./.harness/source-a"',
+        "",
+        "[[targets]]",
+        'parent = "../worktrees/*"',
+        'path = "./.codex"',
+        "",
+        "[[targets]]",
+        'parent = "../worktrees/alpha"',
+        'path = "./.codex"',
+        "",
+      ].join("\n")
+    );
+
+    const validation = await validateHarnessConfig(root);
+
+    expect(validation.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "harness.source_path_overlapping",
+        }),
+        expect.objectContaining({
+          code: "harness.target_duplicate_path",
+        }),
+      ])
+    );
+  });
+
   it("rejects target paths outside the repo or under .harness", () => {
     for (const targetPath of [
       "/tmp/.claude",
       "../.claude",
       "./.harness/out",
       ".",
+      "./.codex-*",
     ]) {
       expect(() =>
         parseHarnessConfigToml(`
@@ -414,6 +649,127 @@ path = "./.agents//skills"
         expect.objectContaining({
           severity: "error",
           code: "harness.target_duplicate_path",
+        }),
+      ])
+    );
+  });
+
+  it("reports duplicate and overlapping external target roots after parent resolution", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
+    await write(
+      root,
+      ".harness/harness.toml",
+      `
+version = 1
+
+[[targets]]
+parent = "../worktree"
+path = "./.codex"
+
+[[targets]]
+parent = "../worktree"
+path = "./.codex/"
+
+[[targets]]
+parent = "../worktree/.codex"
+path = "./skills"
+`
+    );
+    await write(root, ".harnessIgnore", "");
+
+    const validation = await validateHarnessConfig(root);
+
+    expect(validation.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          severity: "error",
+          code: "harness.target_duplicate_path",
+        }),
+        expect.objectContaining({
+          severity: "error",
+          code: "harness.target_overlapping_path",
+        }),
+      ])
+    );
+  });
+
+  it("rejects external target parents that resolve the target root to the repository root", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
+    await write(
+      root,
+      ".harness/harness.toml",
+      `
+version = 1
+
+[[targets]]
+parent = ".."
+path = "./${path.basename(root)}"
+`
+    );
+    await write(root, ".harnessIgnore", "");
+
+    const validation = await validateHarnessConfig(root);
+
+    expect(validation.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          severity: "error",
+          code: "harness.target_repo_root",
+        }),
+      ])
+    );
+  });
+
+  it("validates external target parents without relaxing source roots", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
+    await write(
+      root,
+      ".harness/harness.toml",
+      `
+version = 1
+
+[[resources]]
+path = "./.harness/resources"
+
+[[dir]]
+path = "./.harness/dir"
+
+[[targets]]
+parent = "../other-worktree"
+path = "./.codex"
+`
+    );
+    await write(root, ".harnessIgnore", "");
+
+    const validation = await validateHarnessConfig(root);
+
+    expect(
+      validation.diagnostics.filter(
+        (diagnostic) => diagnostic.severity === "error"
+      )
+    ).toEqual([]);
+
+    await write(
+      root,
+      ".harness/harness.toml",
+      `
+version = 1
+
+[[resources]]
+path = "../shared/resources"
+
+[[targets]]
+parent = "../other-worktree"
+path = "./.codex"
+`
+    );
+
+    const invalid = await validateHarnessConfig(root);
+    expect(invalid.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "harness.config_invalid",
+          severity: "error",
         }),
       ])
     );

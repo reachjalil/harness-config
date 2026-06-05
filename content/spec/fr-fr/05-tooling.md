@@ -175,6 +175,8 @@ path = "./.harness/local/dir"
 
 La CLI n'exige pas que ces chemins existent. Les projets peuvent choisir d'ignorer `.harness/local/` dans le contrôle de version, de le commiter, de le générer ou d'utiliser des chemins différents. Les racines ultérieures surchargent les sorties de ressources ou dir exactes antérieures ; utiliser `harnessc explain <path>` pour inspecter pourquoi un chemin source ou de sortie spécifique est présent, ignoré, surchargé ou composé.
 
+Note de patrons : `[[resources]]`, `[[dir]]`, `[[targets]].parent` et `[[targets]].path` gardent la distinction entre champs à jokers et chemins cible statiques.
+
 Lorsque `.harness/local/` est gitignored, les manifestes partagés peuvent quand même le déclarer comme racine ultérieure optionnelle. Les racines locales manquantes ne contribuent simplement à aucun fichier local ; les racines locales présentes peuvent surcharger les sorties de ressources ou dir exactes pour ce développeur.
 
 Les chemins de sortie dir qui tombent sous un chemin `[[targets]]` déclaré fusionnent dans la projection de cette cible — lancer l'activation une deuxième fois converge vers des actions `keep` pour ces fichiers, y compris le nettoyage des entrées non gérées de cible. Une sortie dir qui remplacerait ou contiendrait une racine de cible elle-même (par exemple une sortie dir à `.claude` lorsque `./.claude` est déclarée comme cible) est rapportée comme `harness.dir_output_target_overlap`.

@@ -20,14 +20,17 @@ Specification: https://www.harnessconfig.dev/specifications/v1/
 ## API
 
 - `resolveHarnessPaths(root, options)`: returns selected manifest,
-  conventional `.harness`, and configured resources source paths.
+  conventional `.harness`, and configured resources and dir source paths,
+  expanding supported path patterns to existing directories.
 - `parseHarnessConfigToml(raw)`: parses and validates a Harness config TOML
   manifest.
 - `parseHarnessIgnore(raw)`: parses repo-relative `.harnessIgnore` rules.
 - `parseHarnessMutable(raw)`: parses repo-relative `.harnessMutable` rules.
 - `loadHarnessIgnoreMatcher(root)`: loads ignore rules for projection planning.
 - `listHarnessProjectionTargets(config)`: returns the explicitly declared
-  target paths.
+  target-local paths.
+- `resolveHarnessTargetRoot(root, target)`: resolves a target's optional
+  `parent` plus required static `path` to the physical output root.
 - `inferHarnessOverrideDirectory(path)`: derives the source override folder
   from a target path.
 - `validateHarnessConfig(root)`: returns read-only issues and warnings.
@@ -63,8 +66,9 @@ produce dir outputs:
 directories carrying an empty `.harnessComposable` marker compose their
 numeric-prefix parts into one output file, and any other directory or file
 copies as-is to repo-relative paths. Dir outputs that fall under a declared
-`[[targets]]` are merged into that target's projection; outputs that would
-replace or contain a declared target root are rejected.
+`[[targets]]` path are merged into that target's projection, including targets
+with an external parent; outputs that would replace or contain a declared
+target root are rejected.
 
 The manifest may also declare top-level extensions under
 `[extensions.<id>]`. Core validates the shared `version` and `activation`
@@ -74,8 +78,10 @@ The core standard treats resource kinds as source-tree names under configured
 resources sources. `skills`, `rules`, `hooks`, and `plugins` are
 conventions, not reserved schema concepts, and direct files such as
 `.harness/resources/hooks.json` can project to target roots when using the
-default source path. Targets are explicit repo-local paths; no target folder
-name is created, reserved, or projected by default.
+default source path. Targets are explicit outputs with required static
+target-local paths and optional parents; source paths and target parents may
+use wildcard patterns, but no target folder name is created, reserved, or
+projected by default.
 
 Use the activation helpers when a consuming tool projects resource views into a
 live harness. Source catalogs can contain metadata, logs, or local state, but

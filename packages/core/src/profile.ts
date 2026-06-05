@@ -12,9 +12,11 @@ import {
   HARNESS_MUTABLE_FILE,
   HARNESS_PROFILE_FILE,
   HARNESS_PROFILE_ROOT_FILE,
+  harnessTargetRootMappingsForConfig,
+  logicalTargetOutputPathForPhysicalPath,
   resolveHarnessPaths,
-  resolveRepoLocalPath,
   toRepoRelative,
+  type HarnessTargetRootMapping,
 } from "./paths";
 import type { HarnessConfig } from "./standard";
 import type { HarnessDiagnostic, HarnessIgnoreRuleSet } from "./types";
@@ -48,6 +50,7 @@ export type HarnessProfileContext = {
 export type HarnessProfileContextOptions = {
   config?: HarnessConfig;
   sourceRoots?: string[];
+  targetRootMappings?: HarnessTargetRootMapping[];
   targetRoots?: string[];
   targetOutputPaths?: string[];
 };
@@ -290,14 +293,8 @@ async function loadHarnessProfileSelectors(
     true
   );
 
-  const targetRoots = [
-    ...(options.targetRoots ?? []),
-    ...(options.config
-      ? options.config.targets.map((target) =>
-          resolveRepoLocalPath(root, target.path, `Target "${target.path}"`)
-        )
-      : []),
-  ];
+  const targetRootMappings = targetRootMappingsForOptions(root, options);
+  const targetRoots = targetRootMappings.map((mapping) => mapping.root);
   for (const targetRoot of targetRoots) {
     await addNestedProfileSelectors(selectorPaths, targetRoot);
   }
@@ -316,7 +313,15 @@ async function loadHarnessProfileSelectors(
       required: false,
       type: "selector",
     });
-    const sourcePath = normalizeIgnorePath(toRepoRelative(root, selectorPath));
+    const sourcePath = normalizeIgnorePath(
+      isRoot
+        ? toRepoRelative(root, selectorPath)
+        : logicalTargetOutputPathForPhysicalPath(
+            root,
+            selectorPath,
+            targetRootMappings
+          )
+    );
     selectors.push({
       directory: isRoot
         ? ""
@@ -336,6 +341,39 @@ async function loadHarnessProfileSelectors(
     ),
     selectors,
   };
+}
+
+function targetRootMappingsForOptions(
+  root: string,
+  options: HarnessProfileContextOptions
+): HarnessTargetRootMapping[] {
+  const explicitMappings = [
+    ...(options.targetRootMappings ?? []),
+    ...(options.targetRoots ?? []).map((targetRoot) => ({
+      root: path.resolve(targetRoot),
+      outputPath: toRepoRelative(root, path.resolve(targetRoot)),
+    })),
+  ];
+  const mappings = [
+    ...explicitMappings,
+    ...(explicitMappings.length === 0 && options.config
+      ? harnessTargetRootMappingsForConfig(root, options.config)
+      : []),
+  ];
+  const seen = new Set<string>();
+  const output: HarnessTargetRootMapping[] = [];
+  for (const mapping of mappings) {
+    const key = `${path.resolve(mapping.root)}\0${mapping.outputPath}`;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    output.push({
+      root: path.resolve(mapping.root),
+      outputPath: mapping.outputPath,
+    });
+  }
+  return output;
 }
 
 async function addNestedProfileSelectors(

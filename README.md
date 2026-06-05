@@ -30,7 +30,7 @@ Harness config has two independent version lines:
 | Line | Current status | Meaning |
 | --- | --- | --- |
 | Specification | `v1` proposal | File shape, manifest schema, projection model, ignore grammar, and conformance contract. |
-| Reference implementation | `1.0.0-alpha.7` | The npm packages and CLI implementation. Package releases do not imply a spec change. |
+| Reference implementation | `1.0.0-alpha.8` | The npm packages and CLI implementation. Package releases do not imply a spec change. |
 
 Treat the v1 file shape and activation model as a public proposal while public
 releases, conformance fixtures, adopter repositories, and external feedback
@@ -156,8 +156,13 @@ path = "./.harness/dir"
 In that shape:
 
 - `[[resources]]` projects reusable resources into every declared target.
-- `[[targets]]` declares the live target folders that may receive projection.
+- `[[targets]]` declares static live target folders that may receive
+  projection; an optional `parent` can place those outputs under an external
+  folder such as a sibling worktree.
 - `[[dir]]` produces repo-relative outputs such as `AGENTS.md`.
+- `[[resources]].path`, `[[dir]].path`, and `[[targets]].parent` may use
+  gitignore-style wildcard patterns. `[[targets]].path` is always explicit
+  because activation may need to create it.
 - `.claude/` inside a resource is a target-derived override for the `.claude`
   target.
 - `.harnessComposable` assembles one output file from ordered parts.
@@ -165,7 +170,11 @@ In that shape:
 ## Core Principles
 
 - **Explicit targets only.** A folder receives projection only when declared in
-  the selected manifest. There are no implicit target folders.
+  the selected manifest. There are no implicit target folders, and target paths
+  stay static even when a parent pattern expands to multiple output parents.
+- **Ordered source roots.** `[[resources]]` and `[[dir]]` entries define the
+  source roots that participate in projection; wildcard entries expand only to
+  existing real directories.
 - **Copy projection.** Targets are materialized as ordinary files, not
   symlinks.
 - **Dry-run first.** `harnessc init`, `harnessc activate`, and extension

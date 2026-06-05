@@ -1,6 +1,7 @@
 export type ConventionalHarnessResource = "skills" | "rules" | "plugins";
 
 export type HarnessTargetDefinition = {
+  parent?: string;
   path: string;
 };
 
@@ -134,6 +135,7 @@ export type HarnessActivationAction = {
 };
 
 export type HarnessActivationTargetPlan = {
+  parent?: string;
   path: string;
   override: string;
   strategy: "copy";

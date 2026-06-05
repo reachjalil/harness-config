@@ -3339,6 +3339,373 @@ describe("HarnessConfig activation projection", () => {
     ).resolves.toBe("review skill");
   });
 
+  it("projects resources and target-scoped dir outputs to an external target parent", async () => {
+    const workspace = await mkdtemp(path.join(tmpdir(), "harness-worktrees-"));
+    const root = path.join(workspace, "repo");
+    const worktree = path.join(workspace, "other_branch");
+    await mkdir(root, { recursive: true });
+    await mkdir(path.join(worktree, ".codex/skills/review"), {
+      recursive: true,
+    });
+    await write(
+      root,
+      ".harness/harness.toml",
+      [
+        "version = 1",
+        "",
+        "[[resources]]",
+        'path = "./.harness/resources"',
+        "",
+        "[[targets]]",
+        'parent = "../other_branch"',
+        'path = "./.codex"',
+        "",
+        "[[dir]]",
+        'path = "./.harness/dir"',
+        "",
+      ].join("\n")
+    );
+    await write(root, ".harnessIgnore", "");
+    await write(
+      root,
+      ".harness/resources/skills/review/SKILL.md",
+      "base skill"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/review/.codex/SKILL.md",
+      "codex skill"
+    );
+    await write(
+      root,
+      ".harness/resources/skills/review/target-only.skip",
+      "filtered"
+    );
+    await write(root, ".harness/resources/hooks.json", "hooks");
+    await write(root, ".harness/dir/.codex/dir-note.md", "dir output");
+    await writeFile(
+      path.join(worktree, ".codex/skills/review/.harnessIgnore"),
+      "*.skip\n",
+      "utf8"
+    );
+
+    const result = await applyHarnessActivation(root, {
+      dryRun: false,
+      yes: true,
+    });
+
+    expect(result.plan.diagnostics).toEqual([]);
+    expect(result.plan.targets[0]).toEqual(
+      expect.objectContaining({
+        parent: "../other_branch",
+        path: "./.codex",
+        override: ".codex",
+      })
+    );
+    await expect(
+      readFile(path.join(worktree, ".codex/skills/review/SKILL.md"), "utf8")
+    ).resolves.toBe("codex skill");
+    await expect(
+      readFile(path.join(worktree, ".codex/hooks.json"), "utf8")
+    ).resolves.toBe("hooks");
+    await expect(
+      readFile(path.join(worktree, ".codex/dir-note.md"), "utf8")
+    ).resolves.toBe("dir output");
+    await expect(
+      readFile(
+        path.join(worktree, ".codex/skills/review/target-only.skip"),
+        "utf8"
+      )
+    ).rejects.toThrow();
+    await expect(
+      readFile(path.join(root, ".codex/skills/review/SKILL.md"), "utf8")
+    ).rejects.toThrow();
+
+    await writeFile(path.join(worktree, ".codex/unmanaged.txt"), "local");
+    await applyHarnessActivation(root, {
+      cleanupUnmanaged: "remove",
+      dryRun: false,
+      yes: true,
+    });
+
+    await expect(
+      readFile(path.join(worktree, ".codex/unmanaged.txt"), "utf8")
+    ).rejects.toThrow();
+    await expect(
+      readFile(
+        path.join(worktree, ".codex/skills/review/.harnessIgnore"),
+        "utf8"
+      )
+    ).resolves.toBe("*.skip\n");
+  });
+
+  it("projects the same target path independently into multiple external parents", async () => {
+    const workspace = await mkdtemp(path.join(tmpdir(), "harness-worktrees-"));
+    const root = path.join(workspace, "repo");
+    const leftWorktree = path.join(workspace, "left_branch");
+    const rightWorktree = path.join(workspace, "right_branch");
+    await mkdir(root, { recursive: true });
+    await mkdir(path.join(rightWorktree, ".codex/skills"), {
+      recursive: true,
+    });
+    await write(
+      root,
+      ".harness/harness.toml",
+      [
+        "version = 1",
+        "",
+        "[[resources]]",
+        'path = "./.harness/resources"',
+        "",
+        "[[targets]]",
+        'parent = "../left_branch"',
+        'path = "./.codex"',
+        "",
+        "[[targets]]",
+        'parent = "../right_branch"',
+        'path = "./.codex"',
+        "",
+      ].join("\n")
+    );
+    await write(root, ".harnessIgnore", "");
+    await write(
+      root,
+      ".harness/resources/skills/review/SKILL.md",
+      "base skill"
+    );
+    await write(
+      root,
+      ".harness/profiles/focused/.harnessProfileRoot",
+      "focused\n"
+    );
+    await write(
+      root,
+      ".harness/profiles/focused/resources/skills/review/SKILL.md",
+      "focused skill"
+    );
+    await writeFile(
+      path.join(rightWorktree, ".codex/skills/.harnessProfile"),
+      "focused\n",
+      "utf8"
+    );
+
+    const result = await applyHarnessActivation(root, {
+      dryRun: false,
+      yes: true,
+    });
+
+    expect(result.plan.diagnostics).toEqual([]);
+    expect(result.plan.targets).toHaveLength(2);
+    expect(result.plan.targets.map((target) => target.parent)).toEqual([
+      "../left_branch",
+      "../right_branch",
+    ]);
+    await expect(
+      readFile(path.join(leftWorktree, ".codex/skills/review/SKILL.md"), "utf8")
+    ).resolves.toBe("base skill");
+    await expect(
+      readFile(
+        path.join(rightWorktree, ".codex/skills/review/SKILL.md"),
+        "utf8"
+      )
+    ).resolves.toBe("focused skill");
+    await expect(
+      readFile(path.join(root, ".codex/skills/review/SKILL.md"), "utf8")
+    ).rejects.toThrow();
+  });
+
+  it("expands wildcard resources, dir sources, and target parents during activation", async () => {
+    const workspace = await mkdtemp(path.join(tmpdir(), "harness-worktrees-"));
+    const root = path.join(workspace, "repo");
+    const alphaWorktree = path.join(workspace, "worktrees/alpha");
+    const betaWorktree = path.join(workspace, "worktrees/beta");
+    await mkdir(root, { recursive: true });
+    await mkdir(alphaWorktree, { recursive: true });
+    await mkdir(betaWorktree, { recursive: true });
+    await write(
+      root,
+      ".harness/harness.toml",
+      [
+        "version = 1",
+        "",
+        "[[resources]]",
+        'path = "./.harness/resources-*"',
+        "",
+        "[[targets]]",
+        'parent = "../worktrees/*"',
+        'path = "./.codex"',
+        "",
+        "[[dir]]",
+        'path = "./.harness/dir-*"',
+        "",
+      ].join("\n")
+    );
+    await write(root, ".harnessIgnore", "");
+    await write(
+      root,
+      ".harness/resources-base/skills/review/SKILL.md",
+      "base skill"
+    );
+    await write(
+      root,
+      ".harness/resources-team/skills/review/SKILL.md",
+      "team skill"
+    );
+    await write(root, ".harness/dir-base/.codex/branch-note.md", "base dir");
+    await write(root, ".harness/dir-team/.codex/branch-note.md", "team dir");
+
+    const result = await applyHarnessActivation(root, {
+      dryRun: false,
+      yes: true,
+    });
+
+    expect(result.plan.diagnostics).toEqual([]);
+    expect(result.plan.targets.map((target) => target.parent)).toEqual([
+      "../worktrees/alpha",
+      "../worktrees/beta",
+    ]);
+    for (const worktree of [alphaWorktree, betaWorktree]) {
+      await expect(
+        readFile(path.join(worktree, ".codex/skills/review/SKILL.md"), "utf8")
+      ).resolves.toBe("team skill");
+      await expect(
+        readFile(path.join(worktree, ".codex/branch-note.md"), "utf8")
+      ).resolves.toBe("team dir");
+    }
+    await expect(
+      readFile(path.join(root, ".codex/skills/review/SKILL.md"), "utf8")
+    ).rejects.toThrow();
+  });
+
+  it("applies target-local profiles and ignores through wildcard-expanded roots", async () => {
+    const workspace = await mkdtemp(path.join(tmpdir(), "harness-worktrees-"));
+    const root = path.join(workspace, "repo");
+    const alphaWorktree = path.join(workspace, "worktrees/alpha");
+    const betaWorktree = path.join(workspace, "worktrees/beta");
+    await mkdir(root, { recursive: true });
+    await mkdir(alphaWorktree, { recursive: true });
+    await mkdir(path.join(betaWorktree, ".codex/skills/review"), {
+      recursive: true,
+    });
+    await write(
+      root,
+      ".harness/harness.toml",
+      [
+        "version = 1",
+        "",
+        "[[resources]]",
+        'path = "./.harness/resources-*"',
+        "",
+        "[[targets]]",
+        'parent = "../worktrees/*"',
+        'path = "./.codex"',
+        "",
+      ].join("\n")
+    );
+    await write(root, ".harnessIgnore", "");
+    await write(
+      root,
+      ".harness/resources-base/skills/review/SKILL.md",
+      "base skill"
+    );
+    await write(
+      root,
+      ".harness/resources-team/skills/review/SKILL.md",
+      "team skill"
+    );
+    await write(
+      root,
+      ".harness/resources-team/skills/review/target-only.skip",
+      "skip me"
+    );
+    await write(
+      root,
+      ".harness/resources-team/focused/.harnessProfileRoot",
+      "focused\n"
+    );
+    await write(
+      root,
+      ".harness/resources-team/focused/skills/review/SKILL.md",
+      "focused skill"
+    );
+    await writeFile(
+      path.join(betaWorktree, ".codex/.harnessProfile"),
+      "focused\n",
+      "utf8"
+    );
+    await writeFile(
+      path.join(betaWorktree, ".codex/skills/review/.harnessIgnore"),
+      "*.skip\n",
+      "utf8"
+    );
+
+    const result = await applyHarnessActivation(root, {
+      dryRun: false,
+      yes: true,
+    });
+
+    expect(result.plan.diagnostics).toEqual([]);
+    await expect(
+      readFile(
+        path.join(alphaWorktree, ".codex/skills/review/SKILL.md"),
+        "utf8"
+      )
+    ).resolves.toBe("team skill");
+    await expect(
+      readFile(
+        path.join(alphaWorktree, ".codex/skills/review/target-only.skip"),
+        "utf8"
+      )
+    ).resolves.toBe("skip me");
+    await expect(
+      readFile(path.join(betaWorktree, ".codex/skills/review/SKILL.md"), "utf8")
+    ).resolves.toBe("focused skill");
+    await expect(
+      readFile(
+        path.join(betaWorktree, ".codex/skills/review/target-only.skip"),
+        "utf8"
+      )
+    ).rejects.toThrow();
+    await expect(
+      readFile(path.join(betaWorktree, ".codex/.harnessProfile"), "utf8")
+    ).resolves.toBe("focused\n");
+  });
+
+  it("does not write target-scoped dir outputs when a wildcard parent has no matches", async () => {
+    const workspace = await mkdtemp(path.join(tmpdir(), "harness-worktrees-"));
+    const root = path.join(workspace, "repo");
+    await mkdir(root, { recursive: true });
+    await write(
+      root,
+      ".harness/harness.toml",
+      [
+        "version = 1",
+        "",
+        "[[targets]]",
+        'parent = "../missing-worktrees/*"',
+        'path = "./.codex"',
+        "",
+        "[[dir]]",
+        'path = "./.harness/dir"',
+        "",
+      ].join("\n")
+    );
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harness/dir/.codex/branch-note.md", "target dir");
+
+    const result = await applyHarnessActivation(root, {
+      dryRun: false,
+      yes: true,
+    });
+
+    expect(result.plan.diagnostics).toEqual([]);
+    expect(result.plan.targets).toEqual([]);
+    expect(result.plan.dir.actions).toEqual([]);
+    await expect(
+      readFile(path.join(root, ".codex/branch-note.md"), "utf8")
+    ).rejects.toThrow();
+  });
+
   it("treats source updates as update when target differs from current projection", async () => {
     const root = await rootFixture();
     await writeHarnessConfig(root);

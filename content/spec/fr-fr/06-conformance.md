@@ -39,6 +39,7 @@ Une revendication de support Harness config devrait être testable depuis la for
 - Les feuilles composables de ressources utilisent un dossier nommé pour le fichier projeté, un marqueur `.harnessComposable` vide et des parties à préfixe numérique.
 - Les surcharges dérivées des cibles n'apparaissent qu'en tant que dossiers préfixés par un point directement sous une source de ressources ou directement à l'intérieur d'un élément de ressource conventionnel.
 - Les entrées `[[targets]]` contiennent des chemins locaux au dépôt requis ; les clés non reconnues sont informationnelles, pas des erreurs.
+- Note de patron : `[[targets]].parent` MAY s'étendre à des parents concrets, et `[[targets]].path` MUST rester statique et MUST rester explicite.
 - Aucune cible ne redéfinit les ressources, modes ou noms de surcharge.
 - Aucune cible ne pointe vers `./.harness`.
 - Les identifiants d'extension et les champs de base d'extension valident lorsque des extensions sont déclarées.

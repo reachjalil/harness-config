@@ -103,8 +103,8 @@ authoritative.
   `./.harness/resources/skills/review`. Item folders are conventional units
   of review, but a resources source may also contain direct files such as
   `./.harness/resources/hooks.json`.
-- **Target** — a repository-local directory declared in the selected manifest
-  that receives projections of configured resources sources.
+- **Target** — an output directory declared in the selected manifest that
+  receives projections of configured resources sources.
 - **Override folder** — an immediate dot-prefixed subfolder inside a resource
   item (for example `.claude/` inside
   `./.harness/resources/skills/review/`) or directly inside
@@ -150,9 +150,9 @@ version = 1
 Version `1` standardizes:
 
 - the `./.harness` convention root,
-- the selected TOML manifest schema for targets with required repo-local paths,
-  ordered `[[resources]]` source roots, ordered `[[dir]]` source roots, and
-  top-level extension declarations,
+- the selected TOML manifest schema for targets with required target-local
+  paths and optional explicit parents, ordered `[[resources]]` source roots,
+  ordered `[[dir]]` source roots, and top-level extension declarations,
 - the configured resources source trees,
 - target-derived override folders,
 - copy projection (idempotent under fixed inputs),
@@ -178,7 +178,8 @@ Harness config standardizes:
 - the selected manifest file and its schema,
 - the resource layout under configured resources sources,
 - per-resource target overrides as immediate dot-prefixed folders,
-- explicit target declarations with required repo-local paths,
+- explicit target declarations with required target-local paths and optional
+  explicit parents,
 - top-level activation policy with defined defaults,
 - ordered dir source roots, with composable (`.harnessComposable`)
   leaves and copy-mode directories that project to repo-relative paths,
@@ -318,6 +319,10 @@ path = "./.claude"
 [[targets]]
 path = "./runtime/agent"
 
+[[targets]]
+parent = "../worktrees/feature-branch"
+path = "./.codex"
+
 [[dir]]
 path = "./.harness/dir"
 
@@ -329,6 +334,15 @@ version = 1
 activation = "explicit"
 ```
 
+Manifest fields that accept path patterns use gitignore-style segment
+matching: `*`, `?`, `**`, character classes, and backslash escapes. Pattern
+matches are expanded to existing, real directories only; symlinked directories
+are not followed. A pattern that matches no directories contributes no source
+or target instances. Within a single manifest entry, concrete matches are
+processed in lexicographic path order; across entries, manifest order is
+preserved. Negated patterns and section headers do not apply inside manifest
+path fields.
+
 ### Resources
 
 Resource projection uses only declared `[[resources]]` source roots. If no
@@ -338,9 +352,11 @@ Each `[[resources]]` entry MUST contain `path`. Tools MUST NOT fail validation
 solely because a `[[resources]]` entry carries an unrecognized key reserved for
 future v1 revisions; they SHOULD report unrecognized keys as informational.
 The path MUST be repo-local, MUST resolve inside the repository, and MUST NOT
-contain `..` segments. A manifest MUST NOT contain a single `[resources]` table or any
-`[resources.<kind>]` tables; resource kinds remain source-tree names, not
-manifest schema entries.
+contain `..` segments. It MAY contain a path pattern. A pattern expands to the
+matching existing repo-local resources source directories; a pattern with no
+matches is a valid empty layer. A manifest MUST NOT contain a single
+`[resources]` table or any `[resources.<kind>]` tables; resource kinds remain
+source-tree names, not manifest schema entries.
 
 Top-level resource directory names SHOULD use lowercase letters, numbers,
 underscores, or dashes. Dot-prefixed names directly under
@@ -352,19 +368,48 @@ projected output paths MUST remain inside their declared target.
 
 Every target is explicit. Harness config does not reserve, prefer, or imply any
 runtime target folder name. Each `[[targets]]` entry in the selected manifest
-declares one repo-local target path and MUST contain `path`. Tools MUST NOT
-fail validation solely because a `[[targets]]` entry carries an unrecognized
-key reserved for future v1 revisions; they SHOULD report unrecognized keys as
-informational.
+declares one target and MUST contain `path`. A target MAY also contain
+`parent`. Tools MUST NOT fail validation solely because a `[[targets]]` entry
+carries an unrecognized key reserved for future v1 revisions; they SHOULD
+report unrecognized keys as informational.
 
-Target paths MUST resolve inside the repository, MUST point at a folder below
-the repository root, MUST NOT contain `..` segments after normalization, MUST
-NOT point at `./.harness` itself or any descendant of it, and MUST NOT overlap
-configured source roots such as `[[resources]]` or `[[dir]]`.
+`path` is target-local: it is resolved below the target parent, not directly as
+a source root. It MUST be relative, MUST point at a folder below its parent,
+MUST NOT contain `..` segments after normalization, MUST NOT contain path
+patterns, and MUST NOT point at `.harness` itself or any descendant of
+`.harness`. Tools MAY create `path` during activation; therefore it is always
+static and explicit.
 
-The override folder for a target is the first path segment after the leading
-`./`, normalized to a dot-prefixed source override folder. This keeps target
-paths unconstrained while preserving the source-tree convention that immediate
+`parent` is optional. When omitted, the target parent is the repository root
+and existing repo-local target behavior is preserved. When present, `parent`
+is resolved relative to the repository root unless it is absolute. A target
+parent MAY contain a path pattern, and each matching existing directory
+declares one concrete target using the same static `path`. A target parent MAY
+resolve outside the repository, for example when projecting into sibling Git
+worktrees:
+
+```toml
+[[targets]]
+parent = "../worktrees/*"
+path = "./.codex"
+```
+
+If the pattern matches `../worktrees/feature-branch`, activation writes the
+target at `../worktrees/feature-branch/.codex`. The manifest, configured
+resources source roots, configured dir source roots, profile roots, ignore
+declarations, and mutable declarations remain anchored in the repository unless
+they are target-output-local controls inside a declared concrete target.
+
+The resolved target root MUST NOT be the repository root, MUST NOT overlap
+`./.harness`, MUST NOT overlap configured source roots such as `[[resources]]`
+or `[[dir]]`, and MUST NOT overlap any other declared target's resolved
+target root. Targets must be independent projection roots by physical output
+location.
+
+The override folder for a target is the first path segment of `path` after the
+leading `./`, normalized to a dot-prefixed source override folder. `parent`
+does not participate in override selection. This keeps target paths
+unconstrained while preserving the source-tree convention that immediate
 dot-prefixed folders inside a resource item are overrides. After path
 normalization (collapsing duplicate separators and removing leading `./`):
 
@@ -373,17 +418,18 @@ normalization (collapsing duplicate separators and removing leading `./`):
 - `./runtime/agent` → override folder `.runtime`.
 - `./.github/copilot/agents` → override folder `.github`.
 
-Two `[[targets]]` entries whose normalized paths are equal are duplicates and
-MUST be rejected with a diagnostic.
+Two `[[targets]]` entries whose resolved target roots are equal are duplicates
+and MUST be rejected with a diagnostic.
 
-Two `[[targets]]` entries whose normalized paths overlap as ancestor and
-descendant paths, such as `./.agents` and `./.agents/skills`, MUST be rejected
-with a diagnostic. Targets must be independent projection roots.
+Two `[[targets]]` entries whose resolved target roots overlap as ancestor and
+descendant paths, such as `./.agents` and `./.agents/skills` under the same
+parent, MUST be rejected with a diagnostic.
 
-Targets that share a first path segment intentionally share one v1
-target-derived override namespace. For example, `./runtime/agent` and
-`./runtime/tools` both use `.runtime` overrides. Prefer distinct first segments
-when two targets need distinct override namespaces.
+Targets that share a first path segment in `path` intentionally share one v1
+target-derived override namespace even when their parents differ. For example,
+`./runtime/agent` and `./runtime/tools` both use `.runtime` overrides, and two
+worktree targets with `path = "./.codex"` both use `.codex` overrides. Prefer
+distinct first segments when two targets need distinct override namespaces.
 
 Targets are configuration, not hidden mutation. Tools SHOULD show the target
 plan before creating, replacing, copying, or removing files.
@@ -793,8 +839,8 @@ apply the projection until the conflict is resolved.
 
 ## Dir Source
 
-Each top-level `[[dir]]` table declares one repo-local **dir source** whose
-contents project to repo-relative paths. Unlike resources sources, dir sources
+Each top-level `[[dir]]` table declares one ordered repo-local **dir source**
+path whose contents project to repo-relative paths. Unlike resources sources, dir sources
 are not copied as resource trees into every target. They carry durable,
 per-file outputs that are not modeled as resource items: top-level agent
 instructions (`AGENTS.md`, `CLAUDE.md`), per-target configuration
@@ -816,7 +862,10 @@ because a `[[dir]]` entry carries an unrecognized key reserved for future v1
 revisions; they SHOULD report unrecognized keys as informational. A manifest
 MUST NOT contain a single `[dir]` table. If no `[[dir]]` entries are declared,
 no dir composition or copy happens. A missing dir source is a valid empty
-layer.
+layer. The path MUST be repo-local, MUST resolve inside the repository, MUST
+NOT contain `..` segments, and MAY contain a path pattern. A pattern expands to
+the matching existing repo-local dir source directories; a pattern with no
+matches is a valid empty layer.
 
 ### Composable Leaves
 
@@ -873,18 +922,20 @@ in either mode.
 
 ### Output Paths And Target Overlap
 
-Dir outputs are repo-relative paths. They MUST resolve inside the repository
-and MUST NOT write inside `./.harness`, any configured resources source, or any
+Dir outputs are repo-relative logical paths. They MUST resolve inside the
+repository unless they are merged into a declared target projection, and MUST
+NOT write inside `./.harness`, any configured resources source, or any
 configured dir source. A dir output path that falls **under** a declared
-`[[targets]]` path (for example
-`.claude/settings.json` when `./.claude` is a declared target) is merged
-into that target's projection during activation, so target idempotence and
-unmanaged-entry cleanup respect dir-owned files. A dir output that would
+`[[targets]]` `path` (for example `.claude/settings.json` when `./.claude` is
+a declared target) is merged into that target's projection during activation,
+so target idempotence and unmanaged-entry cleanup respect dir-owned files. If
+that target declares an external `parent`, the merged dir output is written
+inside the resolved external target root. A dir output that would
 **replace or contain** a declared target root itself (for example a dir
 output at `.claude` when `./.claude` is a declared target) MUST be
 reported as `harness.dir_output_target_overlap`.
 
-A dir output path that does not overlap any declared target writes
+A dir output path that does not overlap any declared target `path` writes
 directly to that repo-relative path.
 
 ### Conflicts
@@ -1257,10 +1308,14 @@ folders that an AI agent or other tool will subsequently read. The integrity
 of those copies has a direct effect on what the agent does. Implementations
 SHOULD consider the following threats explicitly:
 
-- **Path traversal.** Manifest paths, target paths, and ignore patterns are
-  user-controlled. Implementations MUST refuse paths that resolve outside
-  the repository after normalization (see [Encoding, Paths, and Case
-  Sensitivity](#encoding-paths-and-case-sensitivity)).
+- **Path traversal.** Manifest paths, target paths, target parents, and ignore
+  patterns are user-controlled. Implementations MUST refuse configured source
+  roots, selected manifest paths, profile roots, dir outputs, and ignore
+  patterns that resolve outside the repository after normalization (see
+  [Encoding, Paths, and Case Sensitivity](#encoding-paths-and-case-sensitivity)).
+  The only standard exception is an explicit `[[targets]].parent`, which MAY
+  resolve outside the repository; even then, the target `path` MUST stay below
+  that parent and MUST NOT traverse outside it.
 - **Symlink redirection.** Symlinks in the source tree or in declared target
   trees can redirect reads or writes outside the repository if followed. v1
   implementations MUST treat symlinks as leaf entries and MUST NOT silently

@@ -94,6 +94,14 @@ function formatActivationAction(
   return `${actionKind(action.kind, options)}: ${target}${sourceDetails}${reason}`;
 }
 
+function formatActivationTargetHeading(
+  target: HarnessActivationPlan["targets"][number]
+): string {
+  return target.parent
+    ? `${target.path} (parent ${target.parent}, ${target.strategy}, override ${target.override})`
+    : `${target.path} (${target.strategy}, override ${target.override})`;
+}
+
 function summarizeDirActions(actions: HarnessActivationDirAction[]): string {
   const counts = { create: 0, update: 0, keep: 0 };
   for (const action of actions) {
@@ -206,7 +214,7 @@ export function formatActivationPlan(
                   );
             return `${heading(
               options,
-              `${target.path} (${target.strategy}, override ${target.override})`
+              formatActivationTargetHeading(target)
             )}\nSummary: ${summary}${policies}\n${actions}`;
           })
           .join("\n\n");

@@ -175,6 +175,8 @@ path = "./.harness/local/dir"
 
 El CLI no requiere que estos caminos existan. Los proyectos pueden elegir ignorar `.harness/local/` en control de versión, commitearlo, generarlo o usar caminos diferentes. Las raíces posteriores sobrescriben las salidas exactas previas de recursos o dir; usar `harnessc explain <path>` para inspeccionar por qué un camino fuente o de salida específico está presente, ignorado, sobrescrito o compuesto.
 
+Nota de patrones: `[[resources]]`, `[[dir]]`, `[[targets]].parent` y `[[targets]].path` mantienen la distinción entre campos con comodines y caminos objetivo estáticos.
+
 Cuando `.harness/local/` está gitignored, los manifiestos compartidos pueden aún declararlo como una raíz posterior opcional. Las raíces locales faltantes simplemente no contribuyen archivos locales; las raíces locales presentes pueden sobrescribir salidas exactas de recursos o dir para ese desarrollador.
 
 Los caminos de salida dir que caen bajo un camino `[[targets]]` declarado se fusionan en la proyección de ese objetivo — ejecutar la activación una segunda vez converge a acciones `keep` para esos archivos, incluida la limpieza de entradas no gestionadas del objetivo. Una salida dir que reemplazaría o contendría la raíz de un objetivo mismo (por ejemplo una salida dir en `.claude` cuando `./.claude` está declarado como objetivo) se reporta como `harness.dir_output_target_overlap`.

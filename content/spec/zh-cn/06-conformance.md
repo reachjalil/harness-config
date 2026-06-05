@@ -39,6 +39,7 @@ Harness config 支持的声明应该从文件形状和激活契约本身可测�
 - 资源可组合叶使用以投影文件命名的目录、空 `.harnessComposable` 标记和数字前缀部分。
 - 由 target 派生的 override 仅作为直接在 resources 源下或直接在约定资源项内的点前缀文件夹出现。
 - `[[targets]]` 条目包含必需的仓库本地路径；未识别键是信息，不是错误。
+- 模式说明：`[[targets]].parent` MAY 扩展为具体父目录，`[[targets]].path` MUST 保持静态并 MUST 保持显式。
 - 没有 target 重新定义资源、模式或 override 名称。
 - 没有 target 指向 `./.harness`。
 - 声明扩展时扩展 id 和核心扩展字段校验通过。

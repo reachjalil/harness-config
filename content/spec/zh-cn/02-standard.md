@@ -219,6 +219,16 @@ target 的 override 文件夹是前导 `./` 之后的第一个路径段，规范
 
 Target 是配置，不是隐藏的变更。工具 SHOULD 在创建、替换、拷贝或删除文件之前显示 target 计划。
 
+外部 parent 更新：一个 `[[targets]]` 条目 MAY 包含 `parent`；`[[targets]]` MAY 将该 parent 解析到仓库之外；`parent` MAY 是相对或绝对路径。Target `path` MUST 保持在其 parent 之下，并且 MUST NOT 是绝对路径，MUST NOT 包含 `..`，MUST NOT 指向 `.harness`，MUST NOT 与配置过的源根重叠。
+
+通配符更新：resources path MAY 使用模式，dir path MAY 使用模式，target parent MAY 使用模式，激活 MAY 创建 target path；可使用模式的路径 MUST 保持仓库本地，target path MUST 保持静态，源模式 MUST NOT 包含 `..`，target path MUST NOT 包含模式。
+
+```toml
+[[targets]]
+parent = "../worktrees/feature-branch"
+path = "./.codex"
+```
+
 ### 激活策略
 
 可选的顶级 `[activation]` 表包含标准激活策略。当省略时，所有字段使用它们的默认值。工具 MUST NOT 仅因为 `[activation]` 携带为未来 v1 修订保留的未识别键而使校验失败；工具 SHOULD 将未识别键报告为信息。

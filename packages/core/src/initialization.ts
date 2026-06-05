@@ -15,8 +15,9 @@ import { validateHarnessConfig } from "./validation";
 import {
   CONVENTIONAL_HARNESS_RESOURCES,
   defaultHarnessResourcesDefinition,
+  formatHarnessTargetReference,
   resolveHarnessPaths,
-  resolveRepoLocalPath,
+  resolveHarnessTargetInstances,
   toRepoRelative,
 } from "./paths";
 import type {
@@ -111,17 +112,18 @@ export async function planHarnessInitialization(
   }
 
   for (const targetDefinition of config.targets) {
-    const target = resolveRepoLocalPath(
+    for (const resolvedTarget of resolveHarnessTargetInstances(
       paths.root,
-      targetDefinition.path,
-      `Target "${targetDefinition.path}" path`
-    );
-    if (await targetHasEntries(target)) {
-      const targetRelative = toRepoRelative(paths.root, target);
+      targetDefinition
+    )) {
+      if (!(await targetHasEntries(resolvedTarget.root))) {
+        continue;
+      }
+      const targetRelative = toRepoRelative(paths.root, resolvedTarget.root);
       diagnostics.push({
         severity: "info",
         code: "harness.init_target_existing_entries",
-        message: `${targetRelative} already contains files. Init declares targets but does not adopt existing runtime files into configured source roots.`,
+        message: `${targetRelative} already contains files for target "${formatHarnessTargetReference(resolvedTarget.definition)}". Init declares targets but does not adopt existing runtime files into configured source roots.`,
         path: targetRelative,
         recommendation: `Move files that should be managed into ${toRepoRelative(
           paths.root,

@@ -21,10 +21,12 @@ import {
   loadHarnessIgnoreMatcherDetailed,
   loadHarnessProfileContext,
   logicalPathForProfilePath,
+  normalizeHarnessTargetOutputPath,
   parseHarnessConfigToml,
   planHarnessActivation,
   planHarnessInitialization,
   resolveHarnessPaths,
+  resolveHarnessTargetInstances,
   toRepoRelative,
   validateHarnessConfig,
 } from "@harnessconfig/core";
@@ -372,6 +374,34 @@ function isInsideOrEqual(parent: string, child: string): boolean {
   );
 }
 
+function targetOutputPath(
+  target: Pick<HarnessConfig["targets"][number], "path">,
+  relativePath?: string
+): string {
+  const base = normalizeHarnessTargetOutputPath(target.path);
+  const relative = relativePath
+    ? normalizeHarnessTargetOutputPath(relativePath)
+    : "";
+  return relative ? `${base}/${relative}` : base;
+}
+
+function logicalTargetPathForInput(
+  root: string,
+  target: HarnessConfig["targets"][number],
+  absoluteInput: string
+): string | undefined {
+  for (const resolvedTarget of resolveHarnessTargetInstances(root, target)) {
+    if (!isInsideOrEqual(resolvedTarget.root, absoluteInput)) {
+      continue;
+    }
+    return targetOutputPath(
+      resolvedTarget.definition,
+      path.relative(resolvedTarget.root, absoluteInput)
+    );
+  }
+  return undefined;
+}
+
 async function countFilesAndComposables(directory: string): Promise<{
   files: number;
   composables: number;
@@ -570,18 +600,27 @@ async function explainHarnessPath(
   const matchingSourceRoot = sourceRoots.find((sourceRoot) =>
     isInsideOrEqual(sourceRoot.path, absoluteInput)
   );
-  const matchingTargetRoot = config.targets.find((target) =>
-    isInsideOrEqual(path.resolve(absoluteRoot, target.path), absoluteInput)
-  );
+  const matchingTargetRoot = config.targets
+    .map((target) => ({
+      logicalPath: logicalTargetPathForInput(
+        absoluteRoot,
+        target,
+        absoluteInput
+      ),
+      target,
+    }))
+    .find((candidate) => candidate.logicalPath !== undefined);
   const plan = await planHarnessActivation(absoluteRoot, { configPath });
   const targetOutputPaths = [
     ...plan.targets.flatMap((target) =>
       target.actions.map((action) =>
-        toRepoRelative(plan.root, action.targetPath)
+        targetOutputPath(target, action.relativePath)
       )
     ),
     ...plan.dir.actions.map((action) => action.relativePath),
-    ...(matchingSourceRoot ? [] : [repoPath]),
+    ...(matchingSourceRoot
+      ? []
+      : [matchingTargetRoot?.logicalPath ?? repoPath]),
   ];
   const profileContext = await loadHarnessProfileContext(absoluteRoot, {
     config,
@@ -596,16 +635,11 @@ async function explainHarnessPath(
     });
   const matchingTargetActions = plan.targets.flatMap((target) =>
     target.actions
-      .filter(
-        (action) =>
-          displayRepoPath(toRepoRelative(plan.root, action.targetPath)) ===
-          repoPath
-      )
+      .filter((action) => path.resolve(action.targetPath) === absoluteInput)
       .map((action) => ({ target: target.path, ...action }))
   );
   const matchingDirActions = plan.dir.actions.filter(
-    (action) =>
-      displayRepoPath(toRepoRelative(plan.root, action.targetPath)) === repoPath
+    (action) => path.resolve(action.targetPath) === absoluteInput
   );
   const matchingSourceActions = [
     ...plan.targets.flatMap((target) =>
@@ -613,8 +647,7 @@ async function explainHarnessPath(
         .filter(
           (action) =>
             action.sourcePath &&
-            displayRepoPath(toRepoRelative(plan.root, action.sourcePath)) ===
-              repoPath
+            path.resolve(action.sourcePath) === absoluteInput
         )
         .map((action) => ({ target: target.path, ...action }))
     ),
@@ -635,9 +668,9 @@ async function explainHarnessPath(
           logicalPathForProfilePath(profileRoot, absoluteInput)
         )
       )
-    : repoPath;
+    : (matchingTargetRoot?.logicalPath ?? repoPath);
   const activeProfile =
-    profileRoot?.profile ?? profileContext.profileForOutput(repoPath);
+    profileRoot?.profile ?? profileContext.profileForOutput(logicalRepoPath);
   const sourceIgnore = matchingSourceRoot
     ? matcher.explain(logicalRepoPath, {
         isDirectory: (
@@ -647,13 +680,13 @@ async function explainHarnessPath(
       })
     : undefined;
   const targetIgnore = matchingTargetRoot
-    ? matcher.explain(repoPath, {
+    ? matcher.explain(logicalRepoPath, {
         isDirectory: (
           await lstat(absoluteInput).catch(() => undefined)
         )?.isDirectory(),
-        outputPath: repoPath,
-        profile: profileContext.profileForOutput(repoPath),
-        targetPath: matchingTargetRoot.path,
+        outputPath: logicalRepoPath,
+        profile: profileContext.profileForOutput(logicalRepoPath),
+        targetPath: matchingTargetRoot.target.path,
       })
     : undefined;
   const ignore = {

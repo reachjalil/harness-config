@@ -38,10 +38,11 @@ harnessc extension activate
   manifest declares `[[resources]] path = "./.harness/resources"` explicitly.
   Use `--resources-path <path>` to choose that source root, `--resource <kind>`
   to create one or more resource-kind folders below it, and `--target <path>`
-  to add explicit `[[targets]]` entries.
-- `harnessc validate` checks version support, repo-local paths, target
-  mappings, projection ignore syntax, mutable declaration syntax, resource
-  composable leaves, symlink leaf handling, and dir composition/copy issues.
+  to add explicit repo-local `[[targets]]` entries.
+- `harnessc validate` checks version support, repo-local source paths,
+  target-local paths and optional target parents, projection ignore syntax,
+  mutable declaration syntax, resource composable leaves, symlink leaf
+  handling, and dir composition/copy issues.
 - `harnessc explain <path>` explains how a source or output path participates
   in the current projection plan, including winning source paths, configured
   source roots, dir outputs, blocking diagnostics, and decisions from the same
@@ -120,9 +121,10 @@ run extensions against a different repo-local TOML file.
 the manifest and creates resource folders below that configured source root.
 `harnessc init --resource <kind>` creates a resource-kind folder whose name must
 match the resource id pattern, and `harnessc init --target <path>` writes one
-explicit `[[targets]]` entry for each requested target path.
+explicit repo-local `[[targets]]` entry for each requested target path.
 Manifest paths are selected by the tool invocation; paths inside the manifest
-remain repo-local, not relative to the manifest file's directory.
+remain repo-local, not relative to the manifest file's directory, except for
+explicit target parents whose only role is output placement.
 
 The activation plan is also the operator-facing view of ownership. Managed
 files are repo-owned projection outputs, orphaned managed outputs are stale
@@ -166,8 +168,8 @@ Filesystem behavior follows the v1 release freeze:
   local controls;
 - repeated activation with the same inputs converges to `keep` for managed
   files and `mutable` for runtime-owned files;
-- overlapping targets or targets that collide with configured source roots are
-  diagnostics.
+- overlapping resolved target roots or targets that collide with configured
+  source roots are diagnostics.
 
 Selection workflows, marketplace behavior, target edit review, capture, and
 other product opinions belong above `harnessc`.
@@ -258,13 +260,13 @@ One practical pattern is:
 
 ```toml
 [[resources]]
-path = "./.harness/resources"
+path = "./.harness/resources-*"
 
 [[resources]]
 path = "./.harness/local/resources"
 
 [[dir]]
-path = "./.harness/dir"
+path = "./.harness/dir-*"
 
 [[dir]]
 path = "./.harness/local/dir"
@@ -276,14 +278,22 @@ paths. Later roots override earlier exact-path resource or dir outputs; use
 `harnessc explain <path>` to inspect why a specific source or output path is
 present, ignored, overridden, or composed.
 
+`[[resources]].path`, `[[dir]].path`, and `[[targets]].parent` may use
+gitignore-style path patterns such as `*`, `?`, `**`, and character classes.
+The CLI expands those patterns to existing real directories in deterministic
+lexicographic order within each manifest entry. `[[targets]].path` never uses
+patterns; it remains the static target-local folder that activation may create
+below each resolved parent.
+
 When `.harness/local/` is gitignored, shared manifests can still declare it as
 an optional later root. Missing local roots simply contribute no local files;
 present local roots can override exact resource or dir outputs for that
 developer.
 
 Dir output paths that fall under a declared `[[targets]]` path merge into
-that target's projection — running activation a second time converges to
-`keep` actions for those files, including target unmanaged-entry cleanup.
+that target's projection, including targets with external parents — running
+activation a second time converges to `keep` actions for those files,
+including target unmanaged-entry cleanup.
 A dir output that would replace or contain a target root itself (for
 example a dir output at `.claude` when `./.claude` is declared as a
 target) is reported as `harness.dir_output_target_overlap`.
@@ -343,9 +353,11 @@ A conforming validator should:
 - Refuse unsupported future standard versions.
 - Validate configured resources source paths and reject per-kind manifest
   resource declarations.
-- Verify each `[[targets]]` entry contains a required repo-local path, points
-  below the repository root, and does not overlap configured source roots or
-  another target root. Unknown future-compatible fields should be informational.
+- Verify each `[[targets]]` entry contains a required target-local `path`,
+  contains no wildcard pattern, resolves below either the repository root or
+  each resolved explicit `parent`, and does not overlap `./.harness`,
+  configured source roots, or another resolved target root. Unknown
+  future-compatible fields should be informational.
 - Parse `.harnessIgnore` with repo-root, source-local, profile-local, and
   target-output-local rules using the standard precedence phases. Parse
   `.harnessMutable` separately for create-once runtime-owned files.

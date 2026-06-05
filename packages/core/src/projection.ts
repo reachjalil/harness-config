@@ -18,13 +18,18 @@ import {
 import { loadHarnessIgnoreMatcherDetailed } from "./ignore";
 import {
   assertRepoLocalPath,
+  formatHarnessTargetReference,
   HARNESS_IGNORE_FILE,
   HARNESS_MUTABLE_FILE,
   HARNESS_PROFILE_FILE,
   HARNESS_PROFILE_ROOT_FILE,
+  harnessTargetKey,
+  normalizeHarnessTargetOutputPath,
   resolveHarnessPaths,
-  resolveRepoLocalPath,
+  resolveHarnessTargetInstances,
+  resolveHarnessTargetRoot,
   toRepoRelative,
+  type HarnessTargetRootMapping,
 } from "./paths";
 import {
   loadHarnessProfileContext,
@@ -34,7 +39,6 @@ import {
 import {
   type HarnessConfig,
   inferHarnessOverrideDirectory,
-  listHarnessProjectionTargets,
   parseHarnessConfigToml,
 } from "./standard";
 import { validateHarnessConfig } from "./validation";
@@ -49,6 +53,7 @@ import type {
   HarnessDiagnostic,
   HarnessIgnoreMatcher,
   HarnessResourceItemProjectionOptions,
+  HarnessTargetDefinition,
 } from "./types";
 
 type ActivationPreparation = {
@@ -57,6 +62,15 @@ type ActivationPreparation = {
   dirOutputs: DirOutput[];
   plan: HarnessActivationPlan;
   projections: Map<string, DesiredProjection>;
+};
+
+type ActivationTargetContext = {
+  definition: HarnessTargetDefinition;
+  key: string;
+  outputPath: string;
+  reference: string;
+  root: string;
+  rootMapping: HarnessTargetRootMapping;
 };
 
 type DesiredFile = {
@@ -70,6 +84,30 @@ type DesiredFile = {
 type DesiredProjection = Map<string, DesiredFile>;
 
 type ProducibleProjection = Map<string, DesiredFile[]>;
+
+function activationTargetContexts(
+  root: string,
+  config: HarnessConfig
+): ActivationTargetContext[] {
+  return config.targets.flatMap((target) =>
+    resolveHarnessTargetInstances(root, target).map((resolvedTarget) => {
+      const outputPath = normalizeHarnessTargetOutputPath(
+        resolvedTarget.definition.path
+      );
+      return {
+        definition: resolvedTarget.definition,
+        key: harnessTargetKey(resolvedTarget.definition),
+        outputPath,
+        reference: formatHarnessTargetReference(resolvedTarget.definition),
+        root: resolvedTarget.root,
+        rootMapping: {
+          root: resolvedTarget.root,
+          outputPath,
+        },
+      };
+    })
+  );
+}
 
 type CleanupUnmanagedMode = NonNullable<
   ApplyHarnessActivationOptions["cleanupUnmanaged"]
@@ -1078,7 +1116,7 @@ async function projectCanonicalResourcesTree(options: {
 async function buildProjection(
   root: string,
   config: HarnessConfig,
-  targetPath: string,
+  targetContext: ActivationTargetContext,
   diagnostics: HarnessDiagnostic[],
   options?: {
     matcher?: HarnessIgnoreMatcher;
@@ -1087,16 +1125,12 @@ async function buildProjection(
   }
 ): Promise<DesiredProjection> {
   const projection: DesiredProjection = new Map();
-  const targetRoot = resolveRepoLocalPath(
-    root,
-    targetPath,
-    `Target "${targetPath}"`
-  );
+  const targetPath = targetContext.definition.path;
   const loadedProfileContext = options?.profileContext
     ? undefined
     : await loadHarnessProfileContext(root, {
         config,
-        targetRoots: [targetRoot],
+        targetRootMappings: [targetContext.rootMapping],
       });
   if (loadedProfileContext) {
     diagnostics.push(...loadedProfileContext.diagnostics);
@@ -1111,7 +1145,7 @@ async function buildProjection(
         config,
         extraRuleSets: profileContext.ignoreRuleSets,
         protectedTargetPaths: profileContext.protectedTargetPaths,
-        targetRoots: [targetRoot],
+        targetRootMappings: [targetContext.rootMapping],
       });
   if (loadedMatcher) {
     diagnostics.push(...loadedMatcher.diagnostics);
@@ -1144,7 +1178,7 @@ async function buildProjection(
 async function buildProducibleProjection(
   root: string,
   config: HarnessConfig,
-  targetPath: string,
+  targetContext: ActivationTargetContext,
   options: {
     matcher: HarnessIgnoreMatcher;
     profileContext: HarnessProfileContext;
@@ -1158,7 +1192,7 @@ async function buildProducibleProjection(
     const projection = await buildProjection(
       root,
       config,
-      targetPath,
+      targetContext,
       diagnostics,
       {
         matcher: options.matcher,
@@ -1293,14 +1327,13 @@ async function readExistingTree(
 }
 
 async function readProtectedTargetFiles(
-  root: string,
   targetRoot: string,
+  targetPath: string,
   protectedTargetPaths: string[]
 ): Promise<Map<string, Buffer>> {
   const protectedFiles = new Map<string, Buffer>();
-  for (const relativePath of protectedTargetPathsForRoot(
-    root,
-    targetRoot,
+  for (const relativePath of protectedTargetPathsForTarget(
+    targetPath,
     protectedTargetPaths
   )) {
     if (!relativePath) {
@@ -1679,6 +1712,10 @@ export async function copyHarnessResourceItemProjection(
   const root = path.resolve(options.root ?? process.cwd());
   const sourceDir = resolveProjectionPath(root, options.sourceDir, "Resource");
   const targetDir = resolveProjectionPath(root, options.targetDir, "Target");
+  const targetDirPath = normalizeTargetPathForProjection(
+    root,
+    options.targetDir
+  );
   const profileContext = await loadHarnessProfileContext(root, {
     sourceRoots: [sourceDir],
     targetRoots: [targetDir],
@@ -1693,8 +1730,8 @@ export async function copyHarnessResourceItemProjection(
     }
   );
   const protectedFiles = await readProtectedTargetFiles(
-    root,
     targetDir,
+    targetDirPath,
     protectedTargetPaths
   );
   const projection = await buildResourceItemProjection({
@@ -1723,6 +1760,10 @@ export async function harnessResourceItemProjectionMatchesTarget(
 ): Promise<boolean> {
   const root = path.resolve(options.root ?? process.cwd());
   const targetDir = resolveProjectionPath(root, options.targetDir, "Target");
+  const targetDirPath = normalizeTargetPathForProjection(
+    root,
+    options.targetDir
+  );
   const targetState = await lstat(targetDir).catch(() => undefined);
   if (!targetState?.isDirectory() || targetState.isSymbolicLink()) {
     return false;
@@ -1742,9 +1783,8 @@ export async function harnessResourceItemProjectionMatchesTarget(
       targetRoots: [targetDir],
     }
   );
-  const protectedRelativePaths = protectedTargetPathsForRoot(
-    root,
-    targetDir,
+  const protectedRelativePaths = protectedTargetPathsForTarget(
+    targetDirPath,
     protectedTargetPaths
   );
   const projection = await buildResourceItemProjection({
@@ -1784,38 +1824,40 @@ export async function harnessResourceItemProjectionMatchesTarget(
 }
 
 function normalizeTargetPathString(value: string): string {
-  return value
-    .replaceAll("\\", "/")
-    .replace(/\/+/g, "/")
-    .replace(/^\.\//, "")
-    .replace(/\/+$/, "");
+  return normalizeHarnessTargetOutputPath(value);
 }
 
 function partitionDirOutputsByTarget(
-  config: HarnessConfig,
-  outputs: DirOutput[]
+  targetContexts: ActivationTargetContext[],
+  outputs: DirOutput[],
+  declaredTargetOutputPaths = targetContexts.map((target) => target.outputPath)
 ): {
   byTarget: Map<string, DirOutput[]>;
   repoRoot: DirOutput[];
 } {
   const byTarget = new Map<string, DirOutput[]>();
   const repoRoot: DirOutput[] = [];
-  const targetPaths = listHarnessProjectionTargets(config).map((target) => ({
-    raw: target,
-    normalized: normalizeTargetPathString(target),
-  }));
-
   for (const output of outputs) {
     const normalizedOutput = normalizeTargetPathString(output.relativePath);
-    const match = targetPaths.find(
+    const matches = targetContexts.filter(
       (target) =>
-        normalizedOutput === target.normalized ||
-        normalizedOutput.startsWith(`${target.normalized}/`)
+        normalizedOutput === target.outputPath ||
+        normalizedOutput.startsWith(`${target.outputPath}/`)
     );
-    if (match) {
-      const list = byTarget.get(match.raw) ?? [];
-      list.push(output);
-      byTarget.set(match.raw, list);
+    if (matches.length > 0) {
+      for (const match of matches) {
+        const list = byTarget.get(match.key) ?? [];
+        list.push(output);
+        byTarget.set(match.key, list);
+      }
+      continue;
+    }
+    const declaredTargetMatch = declaredTargetOutputPaths.some(
+      (targetOutputPath) =>
+        normalizedOutput === targetOutputPath ||
+        normalizedOutput.startsWith(`${targetOutputPath}/`)
+    );
+    if (declaredTargetMatch) {
       continue;
     }
     repoRoot.push(output);
@@ -1827,11 +1869,11 @@ function partitionDirOutputsByTarget(
 function mergeDirOutputsIntoProjection(
   root: string,
   projection: DesiredProjection,
-  targetPath: string,
+  targetContext: ActivationTargetContext,
   dirOutputs: DirOutput[],
   diagnostics: HarnessDiagnostic[]
 ): void {
-  const targetNormalized = normalizeTargetPathString(targetPath);
+  const targetNormalized = targetContext.outputPath;
   for (const output of dirOutputs) {
     const normalizedOutput = normalizeTargetPathString(output.relativePath);
     const relativeKey =
@@ -1846,7 +1888,7 @@ function mergeDirOutputsIntoProjection(
       diagnostics.push({
         severity: "error",
         code: "harness.projection_path_conflict",
-        message: `Dir output "${output.relativePath}" collides with a resource projection already producing "${relativeKey}" inside target "${targetPath}".`,
+        message: `Dir output "${output.relativePath}" collides with a resource projection already producing "${relativeKey}" inside target "${targetContext.reference}".`,
         path: output.sourcePaths[0]
           ? toRepoRelative(root, output.sourcePaths[0])
           : output.relativePath,
@@ -1864,14 +1906,11 @@ function mergeDirOutputsIntoProjection(
   }
 }
 
-function protectedTargetPathsForRoot(
-  root: string,
-  targetRoot: string,
+function protectedTargetPathsForTarget(
+  targetPath: string,
   protectedTargetPaths: string[]
 ): Set<string> {
-  const targetRelative = normalizeTargetPathString(
-    toRepoRelative(root, targetRoot)
-  );
+  const targetRelative = normalizeTargetPathString(targetPath);
   const protectedRelativePaths = new Set<string>();
   for (const protectedPath of protectedTargetPaths) {
     const normalized = normalizeTargetPathString(protectedPath);
@@ -2022,64 +2061,86 @@ async function prepareHarnessActivation(
   }
   const targetSymlinkPolicy =
     options.targetSymlinkPolicy ?? config.activation.targetSymlinks;
+  const targetContexts = activationTargetContexts(absoluteRoot, config);
+  const declaredTargetOutputPaths = config.targets.map((target) =>
+    normalizeHarnessTargetOutputPath(target.path)
+  );
 
   const dirPlanState = await planHarnessDir(absoluteRoot, config, {
     profileContext,
   });
   diagnostics.push(...dirPlanState.diagnostics);
   const dirOutputs = dirPlanState.outputs;
-  const { byTarget: dirByTarget, repoRoot: dirRepoRootOutputs } =
-    partitionDirOutputsByTarget(config, dirOutputs);
-  const {
-    matcher,
-    diagnostics: ignoreDiagnostics,
-    protectedTargetPaths,
-  } = await loadHarnessIgnoreMatcherDetailed(absoluteRoot, {
-    config,
-    extraRuleSets: profileContext.ignoreRuleSets,
-    protectedTargetPaths: profileContext.protectedTargetPaths,
-  });
-  diagnostics.push(...ignoreDiagnostics);
+  const { repoRoot: dirRepoRootOutputs } = partitionDirOutputsByTarget(
+    targetContexts,
+    dirOutputs,
+    declaredTargetOutputPaths
+  );
+  const dirByTarget = new Map<string, DirOutput[]>();
 
-  const targetPaths = listHarnessProjectionTargets(config);
   const plans: HarnessActivationTargetPlan[] = [];
   const projections = new Map<string, DesiredProjection>();
 
-  for (const targetPath of targetPaths) {
-    const targetRoot = assertRepoLocalPath(
-      absoluteRoot,
-      resolveRepoLocalPath(absoluteRoot, targetPath, `Target "${targetPath}"`),
-      `Target "${targetPath}"`
+  for (const targetContext of targetContexts) {
+    const targetProfileContext = await loadHarnessProfileContext(absoluteRoot, {
+      config,
+      targetRootMappings: [targetContext.rootMapping],
+    });
+    diagnostics.push(...targetProfileContext.diagnostics);
+    const targetDirPlanState = await planHarnessDir(absoluteRoot, config, {
+      profileContext: targetProfileContext,
+      targetRootMappings: [targetContext.rootMapping],
+    });
+    diagnostics.push(...targetDirPlanState.diagnostics);
+    const { byTarget: targetDirByTarget } = partitionDirOutputsByTarget(
+      [targetContext],
+      targetDirPlanState.outputs,
+      declaredTargetOutputPaths
     );
+    dirByTarget.set(
+      targetContext.key,
+      targetDirByTarget.get(targetContext.key) ?? []
+    );
+    const {
+      matcher,
+      diagnostics: ignoreDiagnostics,
+      protectedTargetPaths,
+    } = await loadHarnessIgnoreMatcherDetailed(absoluteRoot, {
+      config,
+      extraRuleSets: targetProfileContext.ignoreRuleSets,
+      protectedTargetPaths: targetProfileContext.protectedTargetPaths,
+      targetRootMappings: [targetContext.rootMapping],
+    });
+    diagnostics.push(...ignoreDiagnostics);
     const targetProjection = await buildProjection(
       absoluteRoot,
       config,
-      targetPath,
+      targetContext,
       diagnostics,
       {
         matcher,
-        profileContext,
+        profileContext: targetProfileContext,
       }
     );
     const producibleProjection = await buildProducibleProjection(
       absoluteRoot,
       config,
-      targetPath,
+      targetContext,
       {
         matcher,
-        profileContext,
+        profileContext: targetProfileContext,
       }
     );
     mergeDirOutputsIntoProjection(
       absoluteRoot,
       targetProjection,
-      targetPath,
-      dirByTarget.get(targetPath) ?? [],
+      targetContext,
+      dirByTarget.get(targetContext.key) ?? [],
       diagnostics
     );
-    projections.set(targetPath, targetProjection);
+    projections.set(targetContext.key, targetProjection);
     const actions = await planCopyActions(
-      targetRoot,
+      targetContext.root,
       targetProjection,
       producibleProjection,
       cleanupUnmanaged,
@@ -2087,16 +2148,17 @@ async function prepareHarnessActivation(
       mutablePolicy,
       targetSymlinkPolicy,
       diagnostics,
-      protectedTargetPathsForRoot(
-        absoluteRoot,
-        targetRoot,
+      protectedTargetPathsForTarget(
+        targetContext.definition.path,
         protectedTargetPaths
       )
     );
 
     plans.push({
-      path: targetPath,
-      override: inferHarnessOverrideDirectory(targetPath) ?? "",
+      parent: targetContext.definition.parent,
+      path: targetContext.definition.path,
+      override:
+        inferHarnessOverrideDirectory(targetContext.definition.path) ?? "",
       strategy: "copy",
       actions,
     });
@@ -2246,12 +2308,9 @@ export async function applyHarnessActivation(
   }
 
   for (const target of plan.targets) {
-    const targetRoot = assertRepoLocalPath(
-      plan.root,
-      resolveRepoLocalPath(plan.root, target.path, `Target "${target.path}"`),
-      `Target "${target.path}"`
-    );
-    const projection = state.projections.get(target.path) ?? new Map();
+    const targetRoot = resolveHarnessTargetRoot(plan.root, target);
+    const projection =
+      state.projections.get(harnessTargetKey(target)) ?? new Map();
     await applyCopyProjection(targetRoot, projection, target);
     appliedActions.push(
       ...target.actions.filter(
