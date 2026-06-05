@@ -1,7 +1,7 @@
 ---
 name: harness-config-migration
 description: Use when migrating an existing repository to Harness config from ad hoc agent instructions, runtime folders, skills, plugins, prompts, commands, hooks, or local agent settings.
-version: 2026-05-28.simple-resource-layout
+version: 2026-06-05.profile-isolation-packs
 ---
 
 # Harness config Migration
@@ -31,7 +31,7 @@ user-owned.
    planning and show how each relevant row will be satisfied. Default to one
    `.harness/resources` root with meaningful subfolders; include a multi-root
    option only for optional catalogs, ownership boundaries, profile-selected
-   kits, or local/private work.
+   packs, wildcard package-owned source roots, or local/private work.
 3. Choose explicit targets in `.harness/harness.toml`, including `.claude` when
    `.claude` durable content or settings are present.
 4. Move all durable reviewed skills, plugins, rules, prompts, commands, hooks,
@@ -45,17 +45,21 @@ user-owned.
    files before declaring them in `.harnessMutable`. Show exact file trees in
    the plan, for example `.harness/resources/.claude/settings.json` plus
    `.harness/resources/.claude/.harnessMutable` containing `settings.json`.
-   Do not put target-level settings inside `skills-kit`,
-   `resources-agent-kit`, or another unrelated resource group.
+   Do not put target-level settings inside a skill folder, pack folder, or
+   another unrelated resource group.
 8. Add `.harnessIgnore` rules for caches, secrets, generated files, and
    target-output ignores in generated surfaces such as `.agents` or `.claude`
    when those targets need local-only boundaries. Add `.harnessMutable` only
    for create-once runtime-owned seed files.
-9. Validate, preview, apply, and confirm convergence.
-10. Do not run `--remove-unmanaged` until the exact removal list is reviewed and
+9. Use `.harnessProfileIsolation` for profile-selected packs only when the
+   selected profile should suppress matching base/general resources or inactive
+   sibling packs for specific logical resource or dir paths. Do not rewrite the
+   manifest or use broad root `.harnessIgnore` gates for normal profile toggles.
+10. Validate, preview, apply, and confirm convergence.
+11. Do not run `--remove-unmanaged` until the exact removal list is reviewed and
    every removed durable item is migrated into `.harness`, archived, or
    explicitly approved for deletion.
-11. Re-run the migration checklist during implementation before applying
+12. Re-run the migration checklist during implementation before applying
    activation or claiming completion.
 
 Full transition means durable agent configuration is represented in `.harness`,

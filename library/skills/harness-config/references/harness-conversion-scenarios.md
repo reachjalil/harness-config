@@ -125,7 +125,9 @@ Rules:
 - Add more configured roots only for optional catalogs, ownership boundaries,
   profile-selected specializations, or local/private work.
 - Use profiles and nested `.harnessIgnore` to switch groups or selected
-  resources on and off.
+  resources on and off. Use `.harnessProfileIsolation` when a selected pack
+  should be exclusive for chosen logical paths such as `skills/**` or
+  `AGENTS.md`.
 - Use `.harness/local/resources` for personal experiments and private
   additions.
 
@@ -501,11 +503,20 @@ overrides:
 .harness/resources/plugins/platform-pack/.gemini/gemini-extension.json
 ```
 
+If the pack is selected by profile, store it as a profile root such as
+`.harness/packs/platform/.harnessProfileRoot` with `resources/` and `dir/`
+children, and declare wildcard pack roots in the manifest. Add
+`.harnessProfileIsolation` only for logical paths that should be exclusive to
+the selected pack. Same-name local packs can then extend the selected pack
+without activating inactive sibling packs.
+
 Rules:
 
 - Do not expect one manifest to load in every harness.
 - Keep component directories shared where possible.
 - Keep wrappers thin and explicit.
+- Keep pack exclusivity in `.harnessProfileIsolation`, not in broad root
+  `.harnessIgnore` rules.
 - Validate every target harness separately.
 
 ## Security Review

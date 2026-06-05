@@ -149,6 +149,7 @@ A full transition has all of these properties:
 | Cleanup | Unmanaged live files are preserved until migrated, archived, or explicitly approved for deletion after a dry-run removal list. |
 | Target ignores | Generated surfaces have target-output `.harnessIgnore` files when a target needs local-only output rules. |
 | External target parents | `[[targets]].parent` is used only for output placement such as sibling Git worktrees; `[[targets]].path` remains static and explicit. |
+| Profile-isolated packs | `.harnessProfileIsolation` is used only when a selected profile should be exclusive for chosen logical resource or dir paths; same-name local profile roots remain active, unrelated paths remain shared, and the manifest is not rewritten for normal toggles. |
 | Git ignore and untracking | Root `.gitignore` ignores each root-level generated target surface, generated `[[dir]]` output, or exact generated subtree after convergence unless the user wants generated output tracked; use root-anchored patterns such as `/.claude/` and `/AGENTS.md` so `.harness` source paths are not ignored. Build a repo-specific `git check-ignore -v` matrix from the ledger and prove generated outputs are ignored while `.harness`, profile, local, and target-derived source paths are not. Target-output `.harnessIgnore` is still used separately for Harness projection boundaries. If generated files are already tracked, run `git rm --cached -r` or `git rm --cached` for every tracked generated output, stage the transition with `git add`, verify the staged deletions, and verify no working-tree data was lost. |
 | Regeneration path | A tracked command or setup note tells users and agents how to validate and activate generated surfaces on a fresh checkout. |
 | Local state | Secrets, caches, logs, credentials, trust state, and machine-local settings stay out of `.harness`. |
@@ -241,6 +242,66 @@ Shared skills, prompts, wrappers, and target-level seeds for this repository's
 generated harness surfaces. Personal experiments belong in
 `.harness/local/resources`.
 ```
+
+## Profile-Isolated Packs
+
+Use profile-isolated packs when the user wants profile selection to enable one
+portable bundle and disable matching base/general resources or inactive sibling
+bundles. Do not implement normal pack toggles by rewriting `harness.toml` or by
+adding broad root `.harnessIgnore` rules.
+
+Manifest shape:
+
+```toml
+[[resources]]
+path = "./.harness/resources"
+
+[[resources]]
+path = "./.harness/packs/*/resources"
+
+[[resources]]
+path = "./.harness/local-packs/*/resources"
+
+[[dir]]
+path = "./.harness/dir"
+
+[[dir]]
+path = "./.harness/packs/*/dir"
+
+[[dir]]
+path = "./.harness/local-packs/*/dir"
+```
+
+Pack shape:
+
+```text
+.harnessProfile                         # contains: frontend
+.harness/packs/frontend/
+  .harnessProfileRoot                   # contains: frontend
+  .harnessProfileIsolation
+  resources/skills/frontend/SKILL.md
+  dir/AGENTS.md/.harnessComposable
+  dir/AGENTS.md/100_frontend.md
+.harness/local-packs/frontend/
+  .harnessProfileRoot                   # contains: frontend
+  resources/skills/local-frontend/SKILL.md
+```
+
+Isolation declaration:
+
+```toml
+version = 1
+
+[isolate]
+resources = ["skills/**"]
+dir = ["AGENTS.md", "AGENTS.md/**"]
+```
+
+This makes the selected profile exclusive for `skills/**` and `AGENTS.md`.
+Unrelated outputs continue to project, and same-name local profile roots
+participate after shared roots through normal ordered source precedence. Use
+negated isolation patterns only for deliberate shared carve-outs, such as
+`!skills/shared/**`.
 
 ## Root Instructions
 

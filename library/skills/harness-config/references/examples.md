@@ -277,6 +277,76 @@ Use profile overlays for files the profile adds or replaces. Use profile-local
 `.harnessIgnore` when the profile mainly enables or suppresses existing
 resources.
 
+## Profile-Isolated Packs
+
+Best when a profile should enable one portable bundle and make that bundle
+exclusive for selected logical paths, without rewriting the manifest or using a
+repo-root ignore gate.
+
+```toml
+[[resources]]
+path = "./.harness/resources"
+
+[[resources]]
+path = "./.harness/packs/*/resources"
+
+[[resources]]
+path = "./.harness/local-packs/*/resources"
+
+[[dir]]
+path = "./.harness/dir"
+
+[[dir]]
+path = "./.harness/packs/*/dir"
+
+[[dir]]
+path = "./.harness/local-packs/*/dir"
+```
+
+```text
+.harnessProfile                         # contains: frontend
+.harness/
+  resources/
+    prompts/
+      shared.md                         # unrelated shared output
+    skills/
+      baseline/
+        SKILL.md                        # suppressed by selected pack
+  packs/
+    frontend/
+      .harnessProfileRoot               # contains: frontend
+      .harnessProfileIsolation
+      resources/
+        skills/frontend/SKILL.md
+      dir/
+        AGENTS.md/.harnessComposable
+        AGENTS.md/100_frontend.md
+    backend/
+      .harnessProfileRoot               # contains: backend
+      .harnessProfileIsolation
+  local-packs/
+    frontend/
+      .harnessProfileRoot               # contains: frontend
+      resources/
+        skills/local-frontend/SKILL.md
+```
+
+Example isolation declaration:
+
+```toml
+version = 1
+
+[isolate]
+resources = ["skills/**"]
+dir = ["AGENTS.md", "AGENTS.md/**"]
+```
+
+With `frontend` selected, matching non-profile skills and inactive sibling
+packs are suppressed. The same-name local frontend pack still participates, and
+unrelated paths such as `prompts/shared.md` or `PROJECT_GUIDE.md` continue to
+project. Use negated patterns such as `!skills/shared/**` only when a selected
+pack should leave a specific shared path outside the exclusive area.
+
 ## Nested `.harnessIgnore`
 
 Best when a rule belongs next to the resource it controls.

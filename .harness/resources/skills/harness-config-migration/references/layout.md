@@ -44,18 +44,19 @@ Use this default shape:
       .harnessMutable
     skills/
     prompts/
-    skills-kit/
+    packs/
     plugins/
     rules/
 ```
 
 Use `.harness/dir` for repo-root output such as `AGENTS.md` and `CLAUDE.md`.
 Use one `.harness/resources` root for the first clean full migration unless a
-separate optional catalog, ownership boundary, profile-selected kit, or local
-layer is genuinely needed. Use subfolders inside that root for skills, prompts,
-rules, plugins, kits, and target-derived settings. Target-level files such as
+separate optional catalog, ownership boundary, profile-selected pack, wildcard
+package-owned source root, or local layer is genuinely needed. Use subfolders
+inside that root for skills, prompts, rules, plugins, packs, and target-derived
+settings. Target-level files such as
 `.claude/settings.json` belong at `.harness/resources/.claude/settings.json`,
-not inside `skills-kit` or an unrelated resource group.
+not inside a skill folder, pack folder, or unrelated resource group.
 Prefer direct copied files under `.harness/dir` for simple one-file outputs.
 Use `.harnessComposable` only when composition removes duplication, shares a
 base across root files, or enables profiles/local overlays.
@@ -84,6 +85,93 @@ target path:
 ```
 
 Keep shared content canonical. Add an override only for target-specific bytes.
+
+## Wildcard Roots And External Target Parents
+
+Use wildcard source roots only when the repository already has repeated,
+reviewed, repo-local source ownership:
+
+```toml
+[[resources]]
+path = "./packages/*/.harness/resources"
+
+[[dir]]
+path = "./packages/*/.harness/dir"
+```
+
+Wildcard resources and dir roots must stay inside the repo and expand to
+existing directories. Do not use them to import source from sibling repos, home
+directories, or generated target folders.
+
+Use target `parent` only for output placement, such as sibling worktrees:
+
+```toml
+[[targets]]
+parent = "../worktrees/*"
+path = "./.codex"
+```
+
+The `path` value remains static and explicit because activation may create it
+under each resolved parent. Target-derived overrides are still based on the
+target-local `path`, not on the external parent.
+
+## Profile-Isolated Packs
+
+Use `.harnessProfileIsolation` when a selected profile should make specific
+logical resource or dir paths exclusive to that profile pack:
+
+```text
+.harnessProfile                         # contains: frontend
+.harness/
+  packs/
+    frontend/
+      .harnessProfileRoot               # contains: frontend
+      .harnessProfileIsolation
+      resources/skills/frontend/SKILL.md
+      dir/AGENTS.md/.harnessComposable
+      dir/AGENTS.md/100_frontend.md
+    backend/
+      .harnessProfileRoot               # contains: backend
+      .harnessProfileIsolation
+  local-packs/
+    frontend/
+      .harnessProfileRoot               # contains: frontend
+      resources/skills/local-frontend/SKILL.md
+```
+
+```toml
+[[resources]]
+path = "./.harness/resources"
+
+[[resources]]
+path = "./.harness/packs/*/resources"
+
+[[resources]]
+path = "./.harness/local-packs/*/resources"
+
+[[dir]]
+path = "./.harness/dir"
+
+[[dir]]
+path = "./.harness/packs/*/dir"
+
+[[dir]]
+path = "./.harness/local-packs/*/dir"
+```
+
+```toml
+version = 1
+
+[isolate]
+resources = ["skills/**"]
+dir = ["AGENTS.md", "AGENTS.md/**"]
+```
+
+With `frontend` selected, matching base/general skills and inactive sibling
+packs are suppressed. Unrelated resources and dir outputs continue to project,
+and same-name local profile roots participate through normal source-root
+ordering. Use negated isolation patterns only for intentional carve-outs, such
+as `!skills/shared/**`.
 
 ## Ignores And Mutable Files
 

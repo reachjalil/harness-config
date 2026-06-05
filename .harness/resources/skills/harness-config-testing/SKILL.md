@@ -27,9 +27,11 @@ coverage. Prefer small fixtures with explicit assertions over broad snapshots.
 Common commands:
 
 ```bash
+pnpm --filter @harnessconfig/core test -- standard.test.ts
 pnpm --filter @harnessconfig/core test -- projection.test.ts
 pnpm --filter @harnessconfig/core test -- dir.test.ts
 pnpm --filter @harnessconfig/cli test -- run.test.ts
+pnpm --filter @harnessconfig/cli test -- examples.test.ts
 pnpm run quality
 ```
 

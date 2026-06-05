@@ -29,7 +29,30 @@ For a projection behavior, cover at least the observable result:
   receives the file.
 - A target-local `.harnessProfile` selecting a profile overlay for only one
   output subtree.
+- A `.harnessProfileIsolation` fixture with wildcard pack roots where the
+  selected pack suppresses matching base resources, suppresses inactive sibling
+  packs, preserves same-name local profile roots, and leaves unrelated resource
+  or dir outputs active.
+- A profile-isolation negation fixture where a broad isolated path such as
+  `skills/**` has a deliberate shared carve-out such as `!skills/shared/**`.
+- Wildcard source-root and target-parent fixtures that prove resources and dir
+  roots stay repo-local, target parents may fan out externally, and
+  `[[targets]].path` stays static and explicit.
 - `[[dir]]` outputs that produce root files and also merge files under a
   declared target.
 - Cleanup with unmanaged local files beside preserved `.harnessIgnore` and
   `.harnessProfile` selectors.
+
+## Example Fixtures
+
+For `examples/*`, test through the CLI rather than treating examples as static
+documentation only:
+
+- validate, dry-run, apply, assert characteristic files, and run a second dry
+  activation for convergence;
+- check README links and example indexes so published examples remain
+  discoverable;
+- verify example-local `.gitignore` rules do not hide tracked `.harness`
+  source fixtures from CI;
+- include profile switching when an example demonstrates isolated packs, and
+  assert stale profile outputs are removed only by explicit orphan cleanup.

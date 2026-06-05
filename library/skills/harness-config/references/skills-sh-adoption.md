@@ -74,6 +74,9 @@ set, or reusable concern. Add a short `README.md` when the grouping is not
 self-evident. For many first migrations, one `.harness/resources` root is enough;
 organize inside it and add configured roots only for optional catalogs,
 profile-selected specializations, ownership boundaries, or local/private work.
+When the user wants a profile to enable one exclusive portable bundle, prefer
+`.harness/packs/<profile>` with `.harnessProfileIsolation` over root
+`.harnessIgnore` gates or manifest rewrites.
 
 ## Repository Triage
 

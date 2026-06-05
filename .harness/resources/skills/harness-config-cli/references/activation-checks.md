@@ -39,6 +39,12 @@ node packages/cli/dist/bin.js activate --root .
 node packages/cli/dist/bin.js activate --root . --yes
 ```
 
+When examples or public skill references change, run the examples regression:
+
+```bash
+pnpm --filter @harnessconfig/cli test -- examples.test.ts
+```
+
 ## Evidence
 
 - `harness:check` should report no validation errors for the dogfood source.

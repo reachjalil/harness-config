@@ -39,6 +39,8 @@ Expected result:
 - For full migration/adoption, durable root instruction files such as
   `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and equivalents are sourced from
   `.harness/dir` or explicitly documented as blocked/excepted.
+- Profile-isolated packs, when used, report the selected profile roots and do
+  not require manifest rewrites when switching profiles.
 
 ## Apply and confirm convergence
 
@@ -56,6 +58,9 @@ Expected result:
 - A second dry run converges to `keep` for managed files.
 - Runtime-owned files declared in `.harnessMutable` are reported as `mutable` and
   are not overwritten.
+- Profile-isolated packs project the selected pack plus same-name local
+  profile roots, suppress matching base/general candidates and inactive sibling
+  packs, and preserve unrelated resource or dir paths.
 - Mutable files that should exist for fresh users have an initial seed under
   `.harness`; `.harnessMutable` is not an ignore rule. Existing non-secret
   target-level settings such as `.claude/settings.json` must be copied to the
@@ -141,6 +146,9 @@ Confirm:
   home-directory state, or generated target folders,
 - external target parents, if used, are output fanout only; `[[targets]].path`
   remains static and explicit,
+- profile-isolated packs, if used, isolate only the intended logical paths,
+  leave unrelated resources or dir outputs active, and allow same-name local
+  profile roots to participate,
 - durable root instruction files such as `AGENTS.md`, `CLAUDE.md`,
   `GEMINI.md`, and equivalents are copied into `.harness/dir` as direct
   Markdown files by default, or explicitly documented as blocked/excepted,
@@ -183,8 +191,10 @@ npx harnessc explain .agents/skills/foo/SKILL.md --json
 ```
 
 Confirm ignored resources report the expected winning `.harnessIgnore` rule.
-For profile or local-layer changes, confirm the explanation uses the logical
-source path the user expects.
+For profile, profile-isolation, or local-layer changes, confirm the explanation
+uses the logical source path the user expects and that excluded pack siblings
+are absent because of profile isolation rather than a broad `.harnessIgnore`
+rule.
 
 ## Cleanup Checks
 

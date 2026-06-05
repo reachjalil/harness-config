@@ -6,9 +6,14 @@ Read this when changing normative behavior, conformance claims, or tests.
   outputs.
 - `./.harness/harness.toml` is the default manifest. A tool may select another
   repo-local TOML path explicitly. The manifest declares `version = 1`,
-  ordered `[[resources]]` source roots, explicit path-only `[[targets]]`,
-  ordered `[[dir]]` source roots, top-level activation policy, and extension
-  declarations.
+  ordered `[[resources]]` source roots, explicit target-local `[[targets]].path`
+  entries with optional `[[targets]].parent`, ordered `[[dir]]` source roots,
+  top-level activation policy, and extension declarations.
+- `[[resources]].path`, `[[dir]].path`, and `[[targets]].parent` may use
+  gitignore-style path patterns. Resource and dir roots must remain repo-local
+  after expansion. Target parents may be external because they are output
+  placement only. `[[targets]].path` is static and must not contain wildcard
+  syntax.
 - Resources live under configured resources sources; manifests MUST NOT
   contain `[resources.<kind>]`.
 - Targets are never implicit. Runtime folders such as `./.agents`,
@@ -20,6 +25,7 @@ Read this when changing normative behavior, conformance claims, or tests.
   configured resources sources are valid.
 - Target overrides are derived from the first target path segment and appear as
   immediate dot-prefixed folders under `resources/` or inside a resource item.
+  Overrides are derived from the target-local path, never from target parent.
 - Resource composable leaves are directories named for the projected file path
   and marked with `.harnessComposable`; numeric parts compose into one target
   file and do not project individually.
@@ -33,3 +39,8 @@ Read this when changing normative behavior, conformance claims, or tests.
 - `.harnessProfile` selects profiles. `.harnessProfileRoot` must live under
   `.harness`, a configured resources source, or a configured dir source, is
   profile source only, and must not project as a resource item.
+- `.harnessProfileIsolation` may live inside a profile root. It is strict TOML
+  with `version = 1` and optional `[isolate].resources` / `[isolate].dir`
+  pattern arrays. It matches logical resource paths and repo-relative dir output
+  paths, suppresses matching non-profile candidates for the selected profile,
+  preserves same-name active profile roots, and leaves unrelated paths active.

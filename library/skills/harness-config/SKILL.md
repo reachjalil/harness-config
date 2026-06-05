@@ -1,12 +1,12 @@
 ---
 name: harness-config
 description: Use when working with Harness config in a customer repository. Triggers include setting up, adopting, migrating, validating, activating, or troubleshooting .harness/harness.toml, .harness resources, AGENTS.md, CLAUDE.md, .agents, .claude, .cursor, .gemini, skills, rules, plugins, prompts, hooks, .harnessIgnore, .harnessMutable, mutable files, or CLI commands such as npx harnessc validate and npx harnessc activate.
-version: 2026-06-05.wildcard-paths
+version: 2026-06-05.profile-isolation-packs
 ---
 
 # Harness Config
 
-Skill guide version: `2026-06-05.wildcard-paths`.
+Skill guide version: `2026-06-05.profile-isolation-packs`.
 
 When using this skill for setup or migration, include the skill guide version
 in the initial status update and final summary. This lets the user tell whether
@@ -71,8 +71,8 @@ contain the detailed instructions for each area of the skill:
   converting Codex, Claude Code, Gemini CLI, Cursor, plugins/extensions, hooks,
   MCP, rules, commands, and subagents into a `.harness` source layout.
 - `references/examples.md`: practical adoption examples for minimal catalogs,
-  resource groups, local layers, profiles, nested ignores, generated surfaces,
-  and activation scripts.
+  resource groups, local layers, profiles, profile-isolated packs, nested
+  ignores, generated surfaces, and activation scripts.
 - `references/cli.md`: CLI command usage, dry-run behavior, activation flags,
   and common troubleshooting.
 - `references/verification.md`: validation, dry-run activation, apply,
@@ -168,6 +168,13 @@ Use these defaults unless the user's repository clearly points elsewhere:
   combines shared UI resources with UI-specific instructions. Use profile-local
   `.harnessIgnore` to enable or suppress selected resources without copying a
   whole catalog.
+- **Profile-isolated packs for exclusive bundles.** When a selected mode should
+  own a whole logical area such as `skills/**` or `AGENTS.md`, use a pack-shaped
+  `.harnessProfileRoot` with `.harnessProfileIsolation`. The profile selector
+  chooses the pack; the isolation file suppresses matching non-profile
+  resources or dir outputs while same-name active profile roots, including
+  local overrides, continue to participate. Do not emulate exclusive packs by
+  rewriting `harness.toml` or adding broad root `.harnessIgnore` gates.
 - **Local as first-class.** Recommend `.harness/local/resources` for personal
   skills, plugins, agents, prompts, experiments, and private wrappers. Recommend
   `.harness/local/dir` only when repo-relative generated outputs need local
@@ -372,7 +379,7 @@ summarize the decisions with a table like this:
 
 ```markdown
 **Full Transition Installed**
-Skill guide: `2026-06-05.wildcard-paths`
+Skill guide: `2026-06-05.profile-isolation-packs`
 
 | Decision | Recommendation | Reason |
 | --- | --- | --- |
@@ -469,6 +476,7 @@ During implementation, use these examples for every row that applies:
 | Shared skill | `.harness/resources/skills/<name>/SKILL.md` | projects to every declared target |
 | Target-specific skill | `.harness/resources/skills/<name>/.claude/SKILL.md` | `.claude` receives override; other targets receive base |
 | Wildcard source roots | `./packages/*/.harness/resources` and `./packages/*/.harness/dir` for package-owned reviewed source | Existing repo-local package source joins projection without manifest edits per package |
+| Profile-isolated pack | `.harness/packs/<profile>/.harnessProfileRoot` plus `.harnessProfileIsolation` and wildcard `./.harness/packs/*/resources` / `dir` roots | The selected profile owns declared logical paths such as `skills/**` or `AGENTS.md`, while unrelated outputs and same-name local overlays still project |
 | External target fanout | `[[targets]].parent = "../worktrees/*"` with static `path = "./.codex"` | Same reviewed source projects into each sibling worktree output |
 | Target-output ignore | `.claude/**/.harnessIgnore` in the generated surface | filters that target only; not a seed and not source migration |
 | Generated-output untracking | root `.gitignore` contains root-anchored generated target surfaces such as `/.agents/`, `/.claude/`, `/.cursor/`, `/.gemini/`, generated dir outputs such as `/AGENTS.md`, `/CLAUDE.md`, `/GEMINI.md`, or exact generated subtrees unless the user wants generated outputs tracked; `.harness` source paths are not ignored | Git stops treating generated outputs as source after convergence; if generated files are already tracked, run `git rm --cached -r` or `git rm --cached` for every tracked generated output, stage with `git add`, verify staged deletions, and verify no working-tree data loss |
