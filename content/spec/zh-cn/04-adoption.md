@@ -1,17 +1,17 @@
 ---
 title: 采用
-seoTitle: 采用 Harness config
-socialTitle: 如何在仓库中采用 Harness config
-description: 面向 greenfield 启动、迁移、profile、可组合指令和安全清理的实践工作流。
-socialDescription: 一个把 agent 配置移入持久 Harness config 源目录的实用路径，带 profile 和安全清理。
+seoTitle: 采用 .harness Config
+socialTitle: 如何在仓库中采用 .harness
+description: 面向 greenfield 启动、迁移、runtime 所有的 mutable 文件、profile、可组合指令和清理的实践工作流。
+socialDescription: 一个把 agent 配置移入持久 .harness 源目录，同时保留 runtime 所有的 mutable 状态的实用采用路径。
 canonicalPath: /specifications/v1/adoption/
 slug: adoption
 order: 4
 locale: zh-cn
 sectionCode: "04"
-summary: 面向 greenfield 启动、迁移、profile、可组合指令和安全清理的实践工作流。
-llmSummary: 覆盖创建 Harness config 目录、声明 target、预览激活、迁移、profile 和安全清理的工作流。
-audience: 在新仓库或现有仓库中引入 Harness config 的开发者。
+summary: 面向 greenfield 启动、迁移、runtime 所有的 mutable 文件、profile、可组合指令和清理的实践工作流。
+llmSummary: 覆盖创建 .harness 目录、声明 target、预览激活、迁移 harness surface、标记 runtime 所有的 mutable 文件、使用 profile 覆盖并保持 target 清理安全的实践工作流。
+audience: 在现有仓库或新仓库中引入 .harness 的开发者。
 contentKind: spec
 status: draft
 updated: 2026-05-28
@@ -110,7 +110,7 @@ harnessc activate --yes
 
    这种配对让迁移审阅具体：审阅者可以看到哪个共享源根被投影、哪些 target 级文件被初始化以及哪个本地源根是私有或试验性的。随着 Harness config 成熟，团队可以把关注拆到额外的根（如 `./.harness/resources-testing`、`./.harness/resources-deployment` 或 `./.harness/resources-ui`），并通过 manifest 顺序、profile 覆盖或特定 profile 的 `[[dir]]` 指令组合它们。
 3. **在所选 manifest 中声明 target。** 为你想要重新生成的每个 harness surface 添加一个 `[[targets]]` 条目。Target 仅在此处出现时接收投影。用显式 `[[resources]]` 条目声明每个共享源。
-4. **慎重地写 `.harnessIgnore` 和 `.harnessMutable`。** 日志、scratch 文件、按工具元数据和 skill `metadata.toml` 通常属于 ignore 规则，因为它们不应跨越投影边界。Runtime 写回的文件（权限、本地设置、学习到的命令）当源目录应初始化它们一次并 runtime 应在之后拥有它们时属于 `.harnessMutable`。在声明它们 mutable 之前把这些种子文件拷贝到 `.harness`，让新检出收到初始版本。仓库范围规则通常住在 `./.harnessIgnore` 中；特定资源或 dir 的规则可以住在源本地 `.harnessIgnore` 文件中，用户/本地输出偏好可以住在目标输出文件（如 `runtime/agent/skills/foo/.harnessIgnore`）中。目标输出文件在活动 harness surface 是 gitignored 且开发者需要本地临时边界时有用；共享规则应住在源中。优先级遵循逻辑目录深度，因此更深的源/profile 规则可以重新包含选中的路径，同时目标输出规则保持最终边界。
+4. **慎重地写 `.harnessIgnore` 和 `.harnessMutable`。** 日志、scratch 文件、按工具元数据和 skill `metadata.toml` 通常属于 ignore 规则，因为它们不应跨越投影边界。Runtime 写回的文件（权限、本地设置、学习到的命令）当源目录应初始化它们一次并 runtime 应在之后拥有它们时属于 `.harnessMutable`。在声明它们 mutable 之前把这些种子文件拷贝到 `.harness`，让新检出收到初始版本。仓库范围规则通常住在 `./.harnessIgnore` 中；特定资源或 dir 的规则可以住在源本地 `.harnessIgnore` 文件中，用户/本地输出偏好可以住在目标输出文件（如 `runtime/agent/skills/foo/.harnessIgnore`）中。目标输出文件在活动 harness surface 被 Git 忽略且开发者需要本地临时边界时有用；共享规则应住在源中。优先级遵循逻辑目录深度，因此更深的源/profile 规则可以重新包含选中的路径，同时目标输出规则保持最终边界。
 5. **仅在 profile 覆盖澄清所有权时添加它们。** 把 `.harnessProfileRoot` 放在 `.harness` 下、配置过的 resources 源下或配置过的 dir 源下用于可选工具包或个人覆盖，并用仓库根或目标输出 `.harnessProfile` 文件选择它们。Profile 本地 `.harnessIgnore` 文件可以为该 profile 隐藏基础文件或可组合部分，并在 profile 覆盖位置评估。先把 profile 用作跨资源组的可切换模式，仅在它们真正添加或替换内容时用作文件覆盖。
 6. **Dry run、解释、审阅，然后应用。** `harnessc activate` 在不写入的情况下打印计划。对需要检查的特定源或输出使用 `harnessc explain <path>`，然后对快照审阅 `create` / `update` / `remove` 动作并用 `--yes` 重新运行。
 7. **重新运行激活。** 对不变输入的第二次 dry run 应该对受管理文件收敛到 `keep`，对 runtime 所有的文件收敛到 `mutable`。如果不是这样，源树仍然与 target 漂移；在依赖该标准之前调和它。
@@ -124,7 +124,7 @@ harnessc activate --yes
 - **跟踪共享 Harness 源。** 提交 `.harness/harness.toml`、共享 `.harness/resources/**`、使用时的 `.harness/dir/**`、`.harnessIgnore` 和重现生成输出所需的 `.harnessMutable` 声明。
 - **在收敛后 gitignore 生成的 harness surface。** 一旦激活收敛且每个持久资源在 `.harness` 中被代表，文件夹（如 `.agents/`、`.claude/`、`.cursor/` 和 `.gemini/`）可以被忽略。保留已跟踪的激活说明，如根指令笔记、README 设置步骤或运行校验和激活的包脚本。
 - **如果需要，gitignore 本地开发者覆盖。** 用 `.harness/local/` 存放私有 skills、prompts、试验和本地 dir 覆盖，然后在那些文件不应共享时把它添加到 `.gitignore`。
-- **不要依赖第一次激活的 gitignored 目标输出控件。** 目标输出 `.harnessIgnore` 或 `.harnessProfile` 仅在它在生成的输出中存在后参与。把共享的第一次激活边界放在源本地 `.harnessIgnore` 文件或仓库根 `.harnessIgnore` 中。
+- **不要依赖第一次激活的被 Git 忽略的目标输出控件。** 目标输出 `.harnessIgnore` 或 `.harnessProfile` 仅在它在生成的输出中存在后参与。把共享的第一次激活边界放在源本地 `.harnessIgnore` 文件或仓库根 `.harnessIgnore` 中。
 
 完整迁移后的示例：
 

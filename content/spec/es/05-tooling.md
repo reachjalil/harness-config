@@ -2,15 +2,15 @@
 title: Herramientas
 seoTitle: Herramientas Harness config
 socialTitle: Herramientas para validar y activar Harness config
-description: La implementación de referencia npx harnessc, la validación, la introspección explain, dry-run y los comandos de activación.
-socialDescription: La capa de comandos para validar repositorios Harness config y aplicar proyecciones de activación.
+description: La implementación estándar npx harnessc, validación local, introspección explain, operación sin telemetría, manejo de mutables propiedad del runtime, descubrimiento de perfiles, planificación, activación y comandos de limpieza.
+socialDescription: La capa de comandos y ayudas para validación local de .harness, activación sin telemetría, archivos mutables propiedad del runtime, superposiciones de perfil y proyecciones de activación.
 canonicalPath: /specifications/v1/tooling/
 slug: tooling
 order: 5
 locale: es
 sectionCode: "05"
-summary: "La implementación de referencia npx harnessc: validación, introspección explain, dry-run y comandos de activación."
-llmSummary: Describe las expectativas de herramientas para validación, introspección explain, dry-run, activación, diagnósticos y ayudantes alrededor de Harness config.
+summary: "La implementación estándar npx harnessc: validación local, introspección explain, operación sin telemetría, manejo de mutables propiedad del runtime, descubrimiento de perfiles, planificación, activación y comandos de limpieza."
+llmSummary: Describe las expectativas de herramientas para validación local, introspección explain, activación sin telemetría, archivos mutables propiedad del runtime, superposiciones de perfil, planificación dry-run, diagnósticos, limpieza y ayudas de implementación alrededor de .harness.
 audience: Autores de CLI y desarrolladores que operan repositorios Harness config.
 contentKind: spec
 status: draft
@@ -63,7 +63,7 @@ Las entradas objetivo no gestionadas se mantienen por defecto. Usar `--remove-un
 
 Las salidas gestionadas huérfanas también se mantienen por defecto. Son entradas objetivo que las fuentes configuradas del manifiesto actual aún pueden producir, pero que la selección activa de perfil u objetivo ya no produce para ese camino de salida. Usar `--remove-orphans` para eliminar solo las salidas huérfanas cuyos bytes actuales aún coinciden con la proyección fuente no activa; las salidas huérfanas editadas permanecen. Usar `--keep-orphans` para hacer el default explícito.
 
-Las superficies de harness generadas como `.agents`, `.claude`, `.cursor` y `.gemini` pueden ser gitignored cuando son reproducibles desde `.harness`. Los proyectos que hacen esto deben mantener las instrucciones de activación rastreadas como una nota de instrucciones raíz, paso README o script de paquete que diga a usuarios y agentes ejecutar validación y activación en un nuevo checkout.
+Las superficies de harness generadas como `.agents`, `.claude`, `.cursor` y `.gemini` pueden ignorarse en Git cuando son reproducibles desde `.harness`. Los proyectos que hacen esto deben mantener instrucciones de activación con seguimiento, como una nota de instrucciones raíz, paso README o script de paquete que diga a usuarios y agentes ejecutar validación y activación en un nuevo checkout.
 
 Las entradas `.gitignore` recomendadas después de una migración completa son:
 
@@ -177,7 +177,7 @@ El CLI no requiere que estos caminos existan. Los proyectos pueden elegir ignora
 
 `[[resources]].path`, `[[dir]].path` y `[[targets]].parent` pueden usar patrones de ruta estilo gitignore como `*`, `?`, `**` y clases de caracteres. El CLI expande esos patrones a directorios reales existentes en orden lexicográfico determinista dentro de cada entrada de manifiesto. `[[targets]].path` nunca usa patrones; permanece como la carpeta target-local estática que la activación puede crear debajo de cada padre resuelto.
 
-Cuando `.harness/local/` está gitignored, los manifiestos compartidos pueden aún declararlo como una raíz posterior opcional. Las raíces locales faltantes simplemente no contribuyen archivos locales; las raíces locales presentes pueden sobrescribir salidas exactas de recursos o dir para ese desarrollador.
+Cuando `.harness/local/` está ignorado por Git, los manifiestos compartidos pueden aún declararlo como una raíz posterior opcional. Las raíces locales faltantes simplemente no contribuyen archivos locales; las raíces locales presentes pueden sobrescribir salidas exactas de recursos o dir para ese desarrollador.
 
 Los caminos de salida dir que caen bajo un path `[[targets]]` declarado se fusionan en la proyección de ese objetivo, incluidos los objetivos con padres externos — ejecutar la activación una segunda vez converge a acciones `keep` para esos archivos, incluida la limpieza de entradas no gestionadas del objetivo. Una salida dir que reemplazaría o contendría la raíz de un objetivo mismo (por ejemplo una salida dir en `.claude` cuando `./.claude` está declarado como objetivo) se reporta como `harness.dir_output_target_overlap`.
 

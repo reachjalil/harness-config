@@ -2,15 +2,15 @@
 title: 工具
 seoTitle: Harness config 工具
 socialTitle: 校验和激活 Harness config 的工具
-description: npx harnessc 参考实现，包括校验、explain 自省、dry-run 和激活命令。
-socialDescription: 校验 Harness config 仓库并应用激活投影的命令层。
+description: npx harnessc 标准实现，包括本地校验、explain 自省、无遥测运行、runtime 所有的 mutable 处理、profile 发现、计划、激活和清理命令。
+socialDescription: 用于本地 .harness 校验、无遥测激活、runtime 所有的 mutable 文件、profile 覆盖和激活投影的命令与辅助层。
 canonicalPath: /specifications/v1/tooling/
 slug: tooling
 order: 5
 locale: zh-cn
 sectionCode: "05"
-summary: "npx harnessc 参考实现：校验、explain 自省、dry-run 和激活命令。"
-llmSummary: 描述 Harness config 周围的校验、explain 自省、dry-run、激活、诊断和辅助工具的预期。
+summary: "npx harnessc 标准实现：本地校验、explain 自省、无遥测运行、runtime 所有的 mutable 处理、profile 发现、计划、激活和清理命令。"
+llmSummary: 描述 .harness 周围的本地校验、explain 自省、无遥测激活、runtime 所有的 mutable 文件、profile 覆盖、dry-run 计划、诊断、清理和实现辅助工具的预期。
 audience: CLI 作者和操作 Harness config 仓库的开发者。
 contentKind: spec
 status: draft
@@ -63,7 +63,7 @@ harnessc explain .harness/local/resources/skills/review/SKILL.md
 
 孤立的受管理输出也默认保留。它们是当前 manifest 的配置源仍可产生的 target 条目，但活动 profile 或 target 选择不再为该输出路径产生它们。使用 `--remove-orphans` 只删除当前字节仍匹配非活动源投影的孤立输出；已编辑的孤立输出保持原位。使用 `--keep-orphans` 使默认显式。
 
-生成的 harness surface（如 `.agents`、`.claude`、`.cursor` 和 `.gemini`）当它们可从 `.harness` 重现时可被 gitignored。这样做的项目应保留已跟踪的激活说明，如根指令笔记、README 设置步骤或告诉用户和 agent 在新检出时运行校验和激活的包脚本。
+生成的 harness surface（如 `.agents`、`.claude`、`.cursor` 和 `.gemini`）当它们可从 `.harness` 重现时可被 Git 忽略。这样做的项目应保留已跟踪的激活说明，如根指令笔记、README 设置步骤或告诉用户和 agent 在新检出时运行校验和激活的包脚本。
 
 完整迁移后推荐的 `.gitignore` 条目是：
 
@@ -177,7 +177,7 @@ CLI 不要求这些路径存在。项目可以选择在版本控制中忽略 `.h
 
 `[[resources]].path`、`[[dir]].path` 和 `[[targets]].parent` 可以使用 gitignore 风格路径模式，如 `*`、`?`、`**` 和字符类。CLI 在每个 manifest 条目内把这些模式按确定性字典序扩展为已存在的真实目录。`[[targets]].path` 永远不使用模式；它保持为激活可以在每个解析 parent 下面创建的静态 target-local 文件夹。
 
-当 `.harness/local/` 被 gitignored 时，共享 manifest 仍然可以把它声明为可选后续根。缺失的本地根只是不贡献本地文件；存在的本地根可以为该开发者覆盖精确资源或 dir 输出。
+当 `.harness/local/` 被 Git 忽略时，共享 manifest 仍然可以把它声明为可选后续根。缺失的本地根只是不贡献本地文件；存在的本地根可以为该开发者覆盖精确资源或 dir 输出。
 
 落在声明 `[[targets]]` path 下的 dir 输出路径会合并到该 target 的投影中，包括带外部 parent 的 target — 第二次运行激活对这些文件收敛到 `keep` 动作，包括 target 未管理项清理。会替换或包含 target 根本身的 dir 输出（例如当 `./.claude` 被声明为 target 时在 `.claude` 的 dir 输出）作为 `harness.dir_output_target_overlap` 报告。
 

@@ -2,15 +2,15 @@
 title: Patterns
 seoTitle: Harness config Patterns And Examples
 socialTitle: Practical .harness patterns for teams and developers
-description: Concrete examples for runtime-owned mutable files, target-output ignores, composable instructions, profile overlays, team kits, personal customization, and safe cleanup.
-socialDescription: Practical .harness examples for combining mutable runtime state, ignores, profiles, dir composition, and target cleanup safely.
+description: Concrete examples for runtime-owned mutable files, target-output ignores, composable instructions, profile overlays, profile-isolated packs, wildcard roots, external target parents, personal customization, and safe cleanup.
+socialDescription: Practical .harness examples for combining mutable runtime state, ignores, profiles, isolated packs, wildcard roots, dir composition, external target fanout, and target cleanup safely.
 canonicalPath: /specifications/v1/patterns/
 slug: patterns
 order: 7
 locale: en
 sectionCode: "07"
-summary: Concrete examples for combining runtime-owned mutable files, ignores, profiles, dir composition, and cleanup safely.
-llmSummary: Shows practical Harness config patterns for runtime-owned mutable files, target-output ignores, composable instructions, profile overlays, team kits, personal customization, target-local profiles, migration, and cleanup.
+summary: Concrete examples for combining runtime-owned mutable files, ignores, profiles, profile-isolated packs, wildcard roots, dir composition, external target fanout, and cleanup safely.
+llmSummary: Shows practical Harness config patterns for runtime-owned mutable files, target-output ignores, composable instructions, profile overlays, profile-isolated packs, wildcard source roots, external target parents, personal customization, target-local profiles, migration, and cleanup.
 audience: Developers and platform teams adopting Harness config in real repositories.
 contentKind: spec
 status: draft

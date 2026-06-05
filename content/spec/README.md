@@ -25,11 +25,12 @@ conformance claims.
 | `zh-cn` | Community translation | Contributions welcome |
 | `es` | Community translation | Contributions welcome |
 
-A translation is considered current when its section files cover the same
-section-level structure as the matching `en/` files. Translations may lag the
-English text between releases. Each translated file SHOULD carry the same
-`updated:` date in its frontmatter as the English file it was translated from
-so that adopters can see how recent the translation is.
+A translation is considered current when its locale folder contains the same
+section files as `en/`, each section covers the same section-level structure as
+the matching English file, and protected frontmatter stays aligned.
+Translations may lag the English text between releases. Each translated file
+SHOULD carry the same `updated:` date in its frontmatter as the English file it
+was translated from so that adopters can see how recent the translation is.
 
 ## Contributing a translation
 
@@ -39,8 +40,8 @@ To add a new locale or update an existing one:
 2. Update the `locale`, `title`, `seoTitle`, `socialTitle`, `description`,
    `socialDescription`, `summary`, `llmSummary`, and `audience` frontmatter
    fields. Keep `canonicalPath`, `slug`, `order`, `sectionCode`, and
-   `contentKind` identical to the English version. Set `updated:` to the same
-   date as the source English file.
+   `contentKind` identical to the English version. Keep `status:` and
+   `updated:` aligned with the source English file.
 3. Translate prose. **Keep RFC 2119 keywords in English uppercase** (MUST,
    MUST NOT, SHOULD, SHOULD NOT, MAY, etc.) so that normative force survives
    translation. RFC 2119 §1 only assigns normative meaning to the uppercase
@@ -60,6 +61,7 @@ inside a section can mislead adopters who skim for normative requirements.
 equals the matching `docs/<SECTION>.md` text. There is no automated equality
 check for non-English locales because translated prose intentionally differs
 from English. `packages/core/test/locales.test.ts` verifies that translated
-sections keep the same `updated:` date, heading count, fenced-code delimiter
+locales contain the same section files as English, keep protected frontmatter
+fields aligned, and preserve the same heading count, fenced-code delimiter
 count, protected identifiers, diagnostic codes, documented flags, and uppercase
 RFC 2119 keyword counts as the matching English section.

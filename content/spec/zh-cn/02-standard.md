@@ -604,7 +604,7 @@ notes/.harnessIgnore                            # dir 输出的目标输出规�
 - **源本地规则。** `./.harness` 下、配置过的 resources 源下或配置过的 dir 源下的 `.harnessIgnore` 文件匹配源路径。默认路径文件 `.harness/resources/skills/review/.harnessIgnore` 中的模式如 `*.tmp` 匹配 `.harness/resources/skills/review/scratch.tmp` 和 `.harness/resources/skills/review/nested/scratch.tmp`，但不匹配 `.harness/resources/skills/triage/scratch.tmp`。
 - **源本地 mutable 规则。** `./.harness` 下或配置过的 resources 源下的 `.harnessMutable` 文件以相同的本地性匹配源路径。它把匹配的投影资源文件标记为只初始化的 mutable 文件。Dir 输出不是 mutable target 文件。
 - **目标输出本地规则。** 现有声明的 target 根下的 `.harnessIgnore` 文件匹配目标输出路径。`.agents/skills/review/.harnessIgnore` 中的模式如 `*.tmp` 匹配输出路径 `.agents/skills/review/scratch.tmp`，无论源是 `.harness/resources/skills/review/scratch.tmp` 还是 override 文件。对于 dir 输出，实现还在候选输出路径的现有祖先目录中发现 `.harnessIgnore` 文件，例如对输出 `notes/release.md` 的 `notes/.harnessIgnore`。
-- **target 本地控件。** 目标输出 `.harnessIgnore` 文件是活动 harness surface 的本地控件，对临时开发偏好、特定机器排除或开发者需要把本地 runtime 文件保持在下次激活之外的 gitignored target 文件夹有用。它们调整输出边界而不把 target 文件夹变为源根。共享或首次激活规则应在仓库根或源本地 `.harnessIgnore` 文件中。
+- **target 本地控件。** 目标输出 `.harnessIgnore` 文件是活动 harness surface 的本地控件，对临时开发偏好、特定机器排除或开发者需要把本地 runtime 文件保持在下次激活之外的、被 Git 忽略的 target 文件夹有用。它们调整输出边界而不把 target 文件夹变为源根。共享或首次激活规则应在仓库根或源本地 `.harnessIgnore` 文件中。
 - **影响范围。** 本地文件仅在候选源路径或目标输出路径在该文件目录内时参与。
 - **评估顺序。** 规则集按阶段评估：根文件第一，然后源本地和 profile 本地文件按逻辑目录深度递增顺序，然后目标输出本地文件按逻辑目录深度递增顺序。在每个规则集内，规则自上而下读取。所有文件中最后匹配的参与规则获胜。因此更深的源或 target 文件可以重新包含更浅文件在同一阶段排除的路径，或排除更浅文件本应包含的路径。目标输出本地规则形成 target 子树的最终输出边界，profile 本地源规则不能撤销它。
 - **逻辑位置。** 每个参与的本地 `.harnessIgnore` 都有逻辑位置。Profile 本地文件在 profile 根的逻辑覆盖位置参与。由 target 派生的 override 文件在它们的逻辑源和 target 位置参与，而不仅在存储 override 的物理点文件夹中参与。

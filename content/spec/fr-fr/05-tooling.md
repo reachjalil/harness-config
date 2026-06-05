@@ -2,15 +2,15 @@
 title: Outillage
 seoTitle: Outillage Harness config
 socialTitle: Outillage pour valider et activer Harness config
-description: L'implémentation de référence npx harnessc, la validation, l'introspection explain, le planning et les commandes d'activation.
-socialDescription: La couche de commandes pour valider les dépôts Harness config et appliquer les projections d'activation.
+description: L'implémentation standard npx harnessc, la validation locale, l'introspection explain, le fonctionnement sans télémétrie, la gestion des mutables possédés par le runtime, la découverte des profils, la planification, l'activation et les commandes de nettoyage.
+socialDescription: La couche de commandes et d'aides pour la validation locale de .harness, l'activation sans télémétrie, les fichiers mutables possédés par le runtime, les superpositions de profil et les projections d'activation.
 canonicalPath: /specifications/v1/tooling/
 slug: tooling
 order: 5
 locale: fr-fr
 sectionCode: "05"
-summary: "L'implémentation de référence npx harnessc : validation, introspection explain, dry-run et commandes d'activation."
-llmSummary: Décrit les attentes d'outillage pour validation, introspection explain, dry-run, activation, diagnostics et helpers autour de Harness config.
+summary: "L'implémentation standard npx harnessc : validation locale, introspection explain, fonctionnement sans télémétrie, gestion des mutables possédés par le runtime, découverte des profils, planification, activation et commandes de nettoyage."
+llmSummary: Décrit les attentes d'outillage pour validation locale, introspection explain, activation sans télémétrie, fichiers mutables possédés par le runtime, superpositions de profil, planification dry-run, diagnostics, nettoyage et aides d'implémentation autour de .harness.
 audience: Auteurs de CLI et développeurs opérant des dépôts Harness config.
 contentKind: spec
 status: draft
@@ -63,7 +63,7 @@ Les entrées cibles non gérées sont conservées par défaut. Utiliser `--remov
 
 Les sorties gérées orphelines sont aussi conservées par défaut. Ce sont des entrées cibles que les sources configurées du manifeste courant peuvent encore produire, mais que la sélection active de profil ou de cible ne produit plus pour ce chemin de sortie. Utiliser `--remove-orphans` pour supprimer seulement les sorties orphelines dont les octets courants correspondent encore à la projection source non active ; les sorties orphelines éditées restent en place. Utiliser `--keep-orphans` pour rendre le défaut explicite.
 
-Les surfaces de harness générées telles que `.agents`, `.claude`, `.cursor` et `.gemini` peuvent être gitignored lorsqu'elles sont reproductibles depuis `.harness`. Les projets qui font cela devraient garder les instructions d'activation trackées telles qu'une note d'instructions racine, une étape README ou un script de paquet qui dit aux utilisateurs et agents de lancer la validation et l'activation sur un nouveau checkout.
+Les surfaces de harness générées telles que `.agents`, `.claude`, `.cursor` et `.gemini` peuvent être ignorées par Git lorsqu'elles sont reproductibles depuis `.harness`. Les projets qui font cela devraient garder les instructions d'activation suivies telles qu'une note d'instructions racine, une étape README ou un script de paquet qui dit aux utilisateurs et agents de lancer la validation et l'activation sur un nouveau checkout.
 
 Les entrées `.gitignore` recommandées après une migration complète sont :
 
@@ -78,7 +78,7 @@ Les entrées `.gitignore` recommandées après une migration complète sont :
 .harness/local/
 ```
 
-Garder la source Harness partagée trackée : `.harness/harness.toml`, le `.harness/resources/**` partagé, `.harness/dir/**` lorsqu'utilisé, `.harnessIgnore` et les déclarations `.harnessMutable`. Ne pas ajouter `.harness/` comme ignore large sauf si le dépôt opte intentionnellement pour ne pas partager le catalogue source.
+Garder la source Harness partagée suivie : `.harness/harness.toml`, le `.harness/resources/**` partagé, `.harness/dir/**` lorsqu'utilisé, `.harnessIgnore` et les déclarations `.harnessMutable`. Ne pas ajouter `.harness/` comme ignore large sauf si le dépôt opte intentionnellement pour ne pas partager le catalogue source.
 
 Le nettoyage s'applique uniquement aux cibles encore déclarées dans le manifeste sélectionné. Après qu'une déclaration de cible soit retirée, `harnessc activate` de base n'inspecte plus ni ne nettoie ce dossier. Le nettoyer d'abord avec `--remove-unmanaged` ou `--remove-orphans`, selon le cas, ou utiliser un workflow d'état d'activation de niveau supérieur capable de réconcilier les cibles orphelines.
 
@@ -153,7 +153,7 @@ Les fichiers `.harnessRef` à l'intérieur d'une feuille composable importent le
 
 Les règles `.harnessIgnore` côté source s'appliquent pendant la collecte dir, y compris les règles à l'intérieur d'une feuille `.harnessComposable` et les règles à l'intérieur d'une source `[[dir]]` personnalisée en dehors de `./.harness`. Ignorer un conteneur saute toutes les sorties dir en dessous, ignorer une feuille saute cette sortie, et ignorer une partie exclut cette partie de la composition. Les fichiers `.harnessIgnore` en sortie cible peuvent aussi filtrer les sorties dir par chemin de sortie final après que la structure de sortie candidate est connue ; les règles en sortie cible sont évaluées après les règles source et profil-locales, donc elles forment la limite finale pour ce sous-arbre de sortie. Les en-têtes ciblés à portée sont ignorés dans ce mode. Le marqueur `.harnessComposable` lui-même n'est jamais copié dans aucune sortie.
 
-Les surcharges de profil utilisent des sélecteurs `.harnessProfile` et des superpositions source `.harnessProfileRoot`. Un `.harnessProfile` racine s'applique globalement ; les sélecteurs cible/sortie tels que `.agents/skills/.harnessProfile` ne s'appliquent qu'à ce sous-arbre de sortie. `.harnessProfileRoot` doit vivre sous `.harness`, une source de ressources configurée ou une source dir configurée ; lorsqu'active, son contenu superpose soit la racine source parente (pour les marqueurs directement à l'intérieur de la source de ressources ou de la racine dir), soit le dossier parent (pour les racines de profil portables imbriquées dans un élément de ressource ou sous-arbre dir), soit `.harness` (pour les dossiers de style kit). Les racines de profil ne peuvent pas être imbriquées dans d'autres racines de profil. Les fichiers `.harnessIgnore` profil-locaux matchent ces chemins de superposition logiques, y compris les feuilles `.harnessComposable`. La planification dir découvre les sélecteurs de profil cible/sortie depuis les sorties candidates de base et de profil-uniquement avant de calculer le jeu de sortie dir final.
+Les surcharges de profil utilisent des sélecteurs `.harnessProfile` et des superpositions source `.harnessProfileRoot`. Un `.harnessProfile` racine s'applique globalement ; les sélecteurs cible/sortie tels que `.agents/skills/.harnessProfile` ne s'appliquent qu'à ce sous-arbre de sortie. `.harnessProfileRoot` doit vivre sous `.harness`, une source de ressources configurée ou une source dir configurée ; lorsqu'active, son contenu superpose soit la racine source parente (pour les marqueurs directement à l'intérieur de la source de ressources ou de la racine dir), soit le dossier parent (pour les racines de profil portables imbriquées dans un élément de ressource ou sous-arbre dir), soit `.harness` (pour les dossiers de style kit). Les racines de profil ne peuvent pas être imbriquées dans d'autres racines de profil. Les fichiers `.harnessIgnore` profil-locaux correspondent à ces chemins de superposition logiques, y compris les feuilles `.harnessComposable`. La planification dir découvre les sélecteurs de profil cible/sortie depuis les sorties candidates de base et de profil-uniquement avant de calculer le jeu de sortie dir final.
 
 ## Personnalisation pour développeur unique
 
@@ -177,7 +177,7 @@ La CLI n'exige pas que ces chemins existent. Les projets peuvent choisir d'ignor
 
 `[[resources]].path`, `[[dir]].path` et `[[targets]].parent` peuvent utiliser des motifs de chemin de style gitignore tels que `*`, `?`, `**` et les classes de caractères. La CLI étend ces motifs aux dossiers réels existants dans un ordre lexicographique déterministe à l'intérieur de chaque entrée de manifeste. `[[targets]].path` n'utilise jamais de motifs ; il reste le dossier target-local statique que l'activation peut créer sous chaque parent résolu.
 
-Lorsque `.harness/local/` est gitignored, les manifestes partagés peuvent quand même le déclarer comme racine ultérieure optionnelle. Les racines locales manquantes ne contribuent simplement à aucun fichier local ; les racines locales présentes peuvent surcharger les sorties de ressources ou dir exactes pour ce développeur.
+Lorsque `.harness/local/` est ignoré par Git, les manifestes partagés peuvent quand même le déclarer comme racine ultérieure optionnelle. Les racines locales manquantes ne contribuent simplement à aucun fichier local ; les racines locales présentes peuvent surcharger les sorties de ressources ou dir exactes pour ce développeur.
 
 Les chemins de sortie dir qui tombent sous un path `[[targets]]` déclaré fusionnent dans la projection de cette cible, y compris les cibles avec des parents externes — lancer l'activation une deuxième fois converge vers des actions `keep` pour ces fichiers, y compris le nettoyage des entrées non gérées de cible. Une sortie dir qui remplacerait ou contiendrait une racine de cible elle-même (par exemple une sortie dir à `.claude` lorsque `./.claude` est déclarée comme cible) est rapportée comme `harness.dir_output_target_overlap`.
 

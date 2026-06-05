@@ -2,15 +2,15 @@
 title: Patrones
 seoTitle: Patrones y ejemplos de Harness config
 socialTitle: Patrones prácticos de Harness config para equipos y desarrolladores
-description: Ejemplos concretos para archivos mutables propiedad del runtime, ignores de salida objetivo, instrucciones componibles, superposiciones de perfil, kits de equipo, personalización y limpieza segura.
-socialDescription: Ejemplos prácticos de Harness config para combinar estado runtime mutable, ignores, perfiles, composición dir y limpieza de objetivos de manera segura.
+description: Ejemplos concretos para archivos mutables propiedad del runtime, ignores de salida objetivo, instrucciones componibles, superposiciones de perfil, packs aislados por perfil, raíces con comodines, padres objetivo externos, personalización y limpieza segura.
+socialDescription: Ejemplos prácticos de .harness para combinar estado mutable del runtime, ignores, perfiles, packs aislados, raíces con comodines, composición dir, distribución de objetivos externos y limpieza de objetivos de manera segura.
 canonicalPath: /specifications/v1/patterns/
 slug: patterns
 order: 7
 locale: es
 sectionCode: "07"
-summary: Ejemplos concretos para combinar archivos mutables propiedad del runtime, ignores, perfiles, composición dir y limpieza segura.
-llmSummary: Muestra patrones prácticos de Harness config para archivos mutables propiedad del runtime, ignores de salida objetivo, instrucciones componibles, superposiciones de perfil, kits de equipo, personalización, perfiles locales al objetivo, migración y limpieza.
+summary: Ejemplos concretos para combinar archivos mutables propiedad del runtime, ignores, perfiles, packs aislados por perfil, raíces con comodines, composición dir, distribución de objetivos externos y limpieza segura.
+llmSummary: Muestra patrones prácticos de Harness config para archivos mutables propiedad del runtime, ignores de salida objetivo, instrucciones componibles, superposiciones de perfil, packs aislados por perfil, raíces fuente con comodines, padres objetivo externos, personalización, perfiles locales al objetivo, migración y limpieza.
 audience: Desarrolladores y equipos de plataforma que adoptan Harness config en repositorios reales.
 contentKind: spec
 status: draft
@@ -125,7 +125,7 @@ No afecta:
 
 Los ignores de salida objetivo coinciden con caminos de salida, no caminos fuente. También participan solo después de que el archivo `.harnessIgnore` existe en disco. Poner las reglas en el `.harnessIgnore` raíz o un `.harnessIgnore` fuente-local cuando la regla debe aplicarse en la primera activación.
 
-Este patrón es intencionalmente local al objetivo. Es más útil para superficies de harness vivas gitignored, experimentos de desarrollo local o archivos runtime específicos de máquina que no deberían convertirse en fuente compartida. El archivo se preserva y se lee desde la salida objetivo, pero no se copia allí por la proyección.
+Este patrón es intencionalmente local al objetivo. Es más útil para superficies de harness vivas ignoradas por Git, experimentos de desarrollo local o archivos runtime específicos de máquina que no deberían convertirse en fuente compartida. El archivo se preserva y se lee desde la salida objetivo, pero no se copia allí por la proyección.
 
 ## Re-inclusiones de ignore lógicas
 
@@ -273,7 +273,8 @@ Usar esta forma cuando la superposición pertenece a un tipo de recurso.
 
 ## Kit de perfil proporcionado por el equipo
 
-Un perfil kit puede superponer `.harness` mismo y contribuir varias raíces fuente lógicas a la vez.
+Un kit de perfil puede superponer `.harness` mismo y contribuir varias raíces
+fuente lógicas a la vez.
 
 ```toml
 [[resources]]
@@ -373,27 +374,28 @@ dir = ["AGENTS.md", "AGENTS.md/**"]
 Cuando `frontend` está seleccionado, Harness config suprime los recursos base
 `skills/**` coincidentes y los candidatos dir base de `AGENTS.md` para las
 rutas de salida afectadas. Las raíces de perfil activas con el mismo nombre
-siguen participando, así que un pack rastreado y un pack local gitignored
-pueden aplicarse juntos. Rutas no relacionadas como `prompts/shared.md` o
-`PROJECT_GUIDE.md` continúan proyectándose desde la fuente general.
+siguen participando, así que un pack con seguimiento en Git y un pack local
+ignorado por Git pueden aplicarse juntos. Rutas no relacionadas como
+`prompts/shared.md` o `PROJECT_GUIDE.md` continúan proyectándose desde la
+fuente general.
 
-Usa esta forma para bundles portables que deben habilitarse o deshabilitarse
-sin reescribir el manifiesto ni usar gates de `.harnessIgnore` en la raíz del
-repo. Mantén estrechos los patrones de aislamiento: aísla las rutas lógicas que
-posee el pack y deja que el contexto general del repo siga proyectándose para
-todo lo demás.
+Usa esta forma para paquetes portables que deben habilitarse o deshabilitarse
+sin reescribir el manifiesto ni usar compuertas `.harnessIgnore` en la raíz del
+repositorio. Mantén estrechos los patrones de aislamiento: aísla las rutas
+lógicas que posee el pack y deja que el contexto general del repositorio siga
+proyectándose para todo lo demás.
 
-## Fuente wildcard y fanout de objetivos
+## Fuentes con comodines y distribución de objetivos
 
-Los caminos wildcard del manifiesto son útiles cuando la propiedad o la
-ubicación de salida es regular pero no está fija a una sola carpeta. Mantener
+Los caminos con comodines del manifiesto son útiles cuando la propiedad o la
+ubicación de salida es regular pero no está fija a una sola carpeta. Mantén
 la misma regla de propiedad: los caminos configurados `[[resources]]` y
-`[[dir]]` permanecen repo-locales y observables, mientras que
+`[[dir]]` permanecen locales al repositorio y observables, mientras que
 `[[targets]].parent` puede apuntar a padres de salida externos como Git
 worktrees hermanos.
 
-Para worktrees de ramas, declarar un camino objetivo explícito y expandirlo
-mediante un padre wildcard:
+Para worktrees de ramas, declara un camino objetivo explícito y expándelo
+mediante un padre con comodín:
 
 ```toml
 [[resources]]
@@ -420,7 +422,7 @@ crear `.codex` dentro de cada padre. No poner `*` en `[[targets]].path`. Las
 sobrescrituras derivadas del objetivo siguen usando `.codex` porque la
 selección de sobrescritura viene de `path`, no de `parent`.
 
-Para monorepos, permitir que los equipos de paquetes posean su fuente local
+Para monorepos, permite que los equipos de paquetes posean su fuente local
 mientras el manifiesto raíz recopila las raíces Harness de cada paquete:
 
 ```toml
@@ -454,7 +456,10 @@ directorio existe.
 
 ## Superficies generadas con instrucciones de activación
 
-Las superficies de harness generadas pueden gitignored cuando el repositorio mantiene un camino de activación rastreado. El manifiesto y el catálogo fuente permanecen en control de versión; las carpetas vivas pueden ser regeneradas después del checkout.
+Las superficies de harness generadas pueden ignorarse en Git cuando el
+repositorio mantiene un camino de activación con seguimiento. El manifiesto y
+el catálogo fuente permanecen en control de versiones; las carpetas vivas
+pueden regenerarse después del checkout.
 
 ```toml
 [[resources]]
@@ -479,8 +484,8 @@ package.json                      # script setup:harness opcional
       harness-config/
         SKILL.md
       review/
-.agents/                          # generado, gitignored
-.claude/                          # generado, gitignored
+.agents/                          # generado, ignorado por Git
+.claude/                          # generado, ignorado por Git
 ```
 
 ```gitignore
@@ -492,7 +497,7 @@ package.json                      # script setup:harness opcional
 .harness/local/
 ```
 
-Las instrucciones de activación deben decir a usuarios y agentes ejecutar `npx harnessc validate` y dry-run la activación antes de aplicar. No gitignored superficies generadas cuando un nuevo checkout dejaría a los usuarios con carpetas de harness vacías y sin camino claro de activación. No gitignored todo `.harness/`; mantener el manifiesto, recursos compartidos, fuentes dir, `.harnessIgnore` y declaraciones `.harnessMutable` rastreadas para que las superficies vivas permanezcan reproducibles.
+Las instrucciones de activación deben decir a usuarios y agentes ejecutar `npx harnessc validate` y dry-run la activación antes de aplicar. No excluyas de Git las superficies generadas cuando un nuevo checkout dejaría a los usuarios con carpetas de harness vacías y sin camino claro de activación. No excluyas de Git todo `.harness/`; mantén con seguimiento el manifiesto, los recursos compartidos, las fuentes dir, `.harnessIgnore` y las declaraciones `.harnessMutable` para que las superficies vivas permanezcan reproducibles.
 
 ## Sobrescritura personal de AGENTS.md
 

@@ -1,23 +1,23 @@
 ---
-title: Patterns
-seoTitle: Patterns et exemples Harness config
-socialTitle: Patterns Harness config pratiques pour équipes et développeurs
-description: Exemples concrets pour fichiers mutables possédés par le runtime, ignores en sortie cible, instructions composables, superpositions de profil, kits d'équipe, personnalisation et nettoyage sûr.
-socialDescription: Exemples Harness config pratiques pour combiner état runtime mutable, ignores, profils, composition dir et nettoyage des cibles de façon sûre.
+title: Modèles
+seoTitle: Modèles et exemples Harness config
+socialTitle: Modèles Harness config pratiques pour équipes et développeurs
+description: Exemples concrets pour fichiers mutables possédés par le runtime, ignores en sortie cible, instructions composables, superpositions de profil, packs isolés par profil, racines à motifs wildcard, parents de cible externes, personnalisation et nettoyage sûr.
+socialDescription: Exemples .harness pratiques pour combiner état mutable du runtime, ignores, profils, packs isolés, racines à motifs wildcard, composition dir, diffusion vers des cibles externes et nettoyage des cibles de façon sûre.
 canonicalPath: /specifications/v1/patterns/
 slug: patterns
 order: 7
 locale: fr-fr
 sectionCode: "07"
-summary: Exemples concrets pour combiner fichiers mutables possédés par le runtime, ignores, profils, composition dir et nettoyage sûr.
-llmSummary: Montre des patterns pratiques Harness config pour fichiers mutables possédés par le runtime, ignores en sortie cible, instructions composables, superpositions de profil, kits d'équipe, personnalisation, profils locaux aux cibles, migration et nettoyage.
+summary: Exemples concrets pour combiner fichiers mutables possédés par le runtime, ignores, profils, packs isolés par profil, racines à motifs wildcard, composition dir, diffusion vers des cibles externes et nettoyage sûr.
+llmSummary: Montre des modèles pratiques Harness config pour fichiers mutables possédés par le runtime, ignores en sortie cible, instructions composables, superpositions de profil, packs isolés par profil, racines source à motifs wildcard, parents de cible externes, personnalisation, profils locaux aux cibles, migration et nettoyage.
 audience: Développeurs et équipes plateforme adoptant Harness config dans des dépôts réels.
 contentKind: spec
 status: draft
 updated: 2026-06-05
 ---
 
-# Patterns Harness config
+# Modèles Harness config
 
 Cette page montre comment combiner les pièces du standard sans perdre la règle de propriété principale : `.harness/` est la source canonique, et les dossiers cibles vivants sont des sorties générées avec quelques contrôles locaux protégés.
 
@@ -99,7 +99,7 @@ path = "./.harness/local/resources"
 
 Les fichiers à la racine cible appartiennent à leur chemin à la racine cible à l'intérieur de la racine de ressources : par exemple `.claude/settings.json` devient `.harness/resources/.claude/settings.json`. Si ce fichier est possédé par le runtime après la première initialisation, ajouter `.harness/resources/.claude/.harnessMutable` avec `settings.json` dedans.
 
-Les racines de ressources supplémentaires sont utiles lorsqu'elles représentent une vraie frontière : catalogues de préoccupations indépendamment optionnels, frontières de propriété, spécialisations sélectionnées par profil ou superpositions locales privées. Par exemple, les préoccupations testing, déploiement et UI peuvent vivre dans des racines séparées lorsqu'une équipe les combine intentionnellement via l'ordre du manifeste, des superpositions de profil ou des instructions dir spécifiques au profil. La couche locale est utile pour les skills personnels, plugins, agents, prompts et expérimentations avant promotion dans la source trackée.
+Les racines de ressources supplémentaires sont utiles lorsqu'elles représentent une vraie frontière : catalogues de préoccupations indépendamment optionnels, frontières de propriété, spécialisations sélectionnées par profil ou superpositions locales privées. Par exemple, les préoccupations testing, déploiement et UI peuvent vivre dans des racines séparées lorsqu'une équipe les combine intentionnellement via l'ordre du manifeste, des superpositions de profil ou des instructions dir spécifiques au profil. La couche locale est utile pour les skills personnels, plugins, agents, prompts et expérimentations avant promotion dans la source suivie.
 
 ## Ignore en sortie cible pour une surface vivante
 
@@ -123,9 +123,9 @@ Cela n'affecte pas :
 .claude/skills/deploy-plan/scratch.tmp
 ```
 
-Les ignores en sortie cible matchent les chemins de sortie, pas les chemins source. Ils participent aussi seulement après que le fichier `.harnessIgnore` existe sur disque. Placer les règles dans le `.harnessIgnore` racine ou un `.harnessIgnore` source-local lorsque la règle doit s'appliquer à la première activation.
+Les ignores en sortie cible correspondent aux chemins de sortie, pas aux chemins source. Ils participent aussi seulement après que le fichier `.harnessIgnore` existe sur disque. Placer les règles dans le `.harnessIgnore` racine ou un `.harnessIgnore` source-local lorsque la règle doit s'appliquer à la première activation.
 
-Ce pattern est volontairement local à la cible. Il est plus utile pour les surfaces de harness vivantes gitignored, les expérimentations de développement local ou les fichiers runtime spécifiques à la machine qui ne devraient pas devenir source partagée. Le fichier est préservé et lu depuis la sortie cible, mais il n'y est pas copié par la projection.
+Ce modèle est volontairement local à la cible. Il est plus utile pour les surfaces de harness vivantes ignorées par Git, les expérimentations de développement local ou les fichiers runtime spécifiques à la machine qui ne devraient pas devenir source partagée. Le fichier est préservé et lu depuis la sortie cible, mais il n'y est pas copié par la projection.
 
 ## Ré-inclusions logiques d'ignore
 
@@ -221,7 +221,7 @@ AGENTS.md
 CLAUDE.md
 ```
 
-`AGENTS.md` est composé depuis les parties partagées plus les parties locales ultérieures. `CLAUDE.md` importe la feuille `AGENTS.md` d'abord, puis ajoute la queue spécifique à Claude. Utiliser ce pattern lorsque la génération élimine une vraie duplication ou permet des superpositions profils/locales ; garder les fichiers racine simples comme fichiers trackés normaux lorsque la composition n'aide pas.
+`AGENTS.md` est composé depuis les parties partagées plus les parties locales ultérieures. `CLAUDE.md` importe la feuille `AGENTS.md` d'abord, puis ajoute la queue spécifique à Claude. Utiliser ce modèle lorsque la génération élimine une vraie duplication ou permet des superpositions profils/locales ; garder les fichiers racine simples comme fichiers suivis normaux lorsque la composition n'aide pas.
 
 Les fichiers `.harnessIgnore` source-locaux peuvent retirer des parties individuelles :
 
@@ -273,7 +273,8 @@ Utiliser cette forme lorsque la superposition appartient à un type de ressource
 
 ## Kit de profil fourni par l'équipe
 
-Un profil kit peut superposer `.harness` lui-même et contribuer plusieurs racines source logiques à la fois.
+Un kit de profil peut superposer `.harness` lui-même et contribuer plusieurs
+racines source logiques à la fois.
 
 ```toml
 [[resources]]
@@ -373,27 +374,27 @@ dir = ["AGENTS.md", "AGENTS.md/**"]
 Quand `frontend` est sélectionné, Harness config supprime les ressources de
 base `skills/**` correspondantes et les candidats dir de base `AGENTS.md` pour
 les chemins de sortie affectés. Les racines de profil actives de même nom
-continuent de participer, donc un pack suivi et un pack local gitignored
-peuvent s'appliquer ensemble. Les chemins sans rapport comme
+continuent de participer, donc un pack suivi par Git et un pack local ignoré
+par Git peuvent s'appliquer ensemble. Les chemins sans rapport comme
 `prompts/shared.md` ou `PROJECT_GUIDE.md` continuent de se projeter depuis la
 source générale.
 
-Utiliser cette forme pour des bundles portables qui doivent être activés ou
-désactivés sans réécrire le manifeste ni utiliser des gates `.harnessIgnore` à
-la racine du dépôt. Garder les patterns d'isolation étroits : isoler les
-chemins logiques possédés par le pack, et laisser le contexte général du dépôt
-continuer à se projeter pour tout le reste.
+Utiliser cette forme pour des lots portables qui doivent être activés ou
+désactivés sans réécrire le manifeste ni utiliser des barrières
+`.harnessIgnore` à la racine du dépôt. Garder les motifs d'isolation étroits :
+isoler les chemins logiques possédés par le pack, et laisser le contexte
+général du dépôt continuer à se projeter pour tout le reste.
 
-## Source wildcard et fanout de cibles
+## Sources avec wildcards et diffusion de cibles
 
-Les chemins wildcard du manifeste sont utiles lorsque la propriété ou
+Les chemins avec wildcards du manifeste sont utiles lorsque la propriété ou
 l'emplacement de sortie est régulier mais pas fixé à un seul dossier. Garder la
 même règle de propriété : les chemins configurés `[[resources]]` et `[[dir]]`
-restent repo-locaux et observables, tandis que `[[targets]].parent` peut pointer
-vers des parents de sortie externes comme des Git worktrees frères.
+restent locaux au dépôt et observables, tandis que `[[targets]].parent` peut
+pointer vers des parents de sortie externes comme des Git worktrees frères.
 
 Pour des worktrees de branches, déclarer un chemin cible explicite et le
-diffuser via un parent wildcard :
+diffuser via un parent avec wildcard :
 
 ```toml
 [[resources]]
@@ -448,13 +449,16 @@ AGENTS.md
 ```
 
 Cela permet aux packages d'ajouter de la source révisée sans modifier le
-manifeste racine pour chaque package. Les patterns ne s'étendent qu'aux
+manifeste racine pour chaque package. Les motifs ne s'étendent qu'aux
 répertoires réels existants, donc une nouvelle racine source de package
 participe lorsque ce répertoire existe.
 
 ## Surfaces générées avec instructions d'activation
 
-Les surfaces de harness générées peuvent être gitignored lorsque le dépôt garde un chemin d'activation tracké. Le manifeste et le catalogue source restent dans le contrôle de version ; les dossiers vivants peuvent être régénérés après checkout.
+Les surfaces de harness générées peuvent être ignorées par Git lorsque le dépôt
+garde un chemin d'activation suivi. Le manifeste et le catalogue source restent
+dans le contrôle de version ; les dossiers vivants peuvent être régénérés après
+checkout.
 
 ```toml
 [[resources]]
@@ -479,8 +483,8 @@ package.json                      # script setup:harness optionnel
       harness-config/
         SKILL.md
       review/
-.agents/                          # généré, gitignored
-.claude/                          # généré, gitignored
+.agents/                          # généré, ignoré par Git
+.claude/                          # généré, ignoré par Git
 ```
 
 ```gitignore
@@ -492,7 +496,7 @@ package.json                      # script setup:harness optionnel
 .harness/local/
 ```
 
-Les instructions d'activation devraient dire aux utilisateurs et agents de lancer `npx harnessc validate` et le dry-run d'activation avant d'appliquer. Ne pas gitignored les surfaces générées lorsqu'un nouveau checkout laisserait les utilisateurs avec des dossiers de harness vides et sans chemin d'activation clair. Ne pas gitignored tout `.harness/` ; garder le manifeste, les ressources partagées, les sources dir, `.harnessIgnore` et les déclarations `.harnessMutable` trackés pour que les surfaces vivantes restent reproductibles.
+Les instructions d'activation devraient dire aux utilisateurs et agents de lancer `npx harnessc validate` et le dry-run d'activation avant d'appliquer. Ne pas ignorer dans Git les surfaces générées lorsqu'un nouveau checkout laisserait les utilisateurs avec des dossiers de harness vides et sans chemin d'activation clair. Ne pas ignorer dans Git tout `.harness/` ; garder le manifeste, les ressources partagées, les sources dir, `.harnessIgnore` et les déclarations `.harnessMutable` suivis pour que les surfaces vivantes restent reproductibles.
 
 ## Surcharge AGENTS.md personnelle
 
@@ -513,7 +517,7 @@ Les profils peuvent ajouter des parties d'instructions personnelles et retirer d
 
 Si `AGENTS.md` de base a `100_intro.md` et `300_rules.md`, le profil actif peut remplacer l'intro tout en gardant les règles partagées. Le `.harnessIgnore` profil-local est évalué contre le chemin logique `.harness/dir/AGENTS.md/100_intro.md`, pas le chemin de stockage physique sous `.harness/profiles/local-profile`.
 
-Tracker `.harnessProfile` lorsque l'équipe devrait partager le même choix. Le gitignored lorsque chaque développeur devrait choisir son propre profil localement.
+Suivre `.harnessProfile` lorsque l'équipe devrait partager le même choix. L'ignorer dans Git lorsque chaque développeur devrait choisir son propre profil localement.
 
 ## Profils locaux aux cibles
 

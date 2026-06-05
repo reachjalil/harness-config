@@ -2,15 +2,15 @@
 title: 模式
 seoTitle: Harness config 模式与示例
 socialTitle: 面向团队和开发者的实用 Harness config 模式
-description: runtime 所有的 mutable 文件、目标输出 ignore、可组合指令、profile 覆盖、团队工具包、个人定制和安全清理的具体示例。
-socialDescription: 实用 Harness config 示例，安全地组合 mutable runtime 状态、ignore、profile、dir 组合和 target 清理。
+description: runtime 所有的 mutable 文件、目标输出 ignore、可组合指令、profile 覆盖、profile 隔离 pack、通配根、外部 target parent、个人定制和安全清理的具体示例。
+socialDescription: 实用 .harness 示例，安全地组合 runtime 所有的 mutable 状态、ignore、profile、隔离 pack、通配根、dir 组合、外部 target 分发和 target 清理。
 canonicalPath: /specifications/v1/patterns/
 slug: patterns
 order: 7
 locale: zh-cn
 sectionCode: "07"
-summary: 安全地组合 runtime 所有的 mutable 文件、ignore、profile、dir 组合和清理的具体示例。
-llmSummary: 展示 runtime 所有的 mutable 文件、目标输出 ignore、可组合指令、profile 覆盖、团队工具包、个人定制、目标本地 profile、迁移和清理的实用 Harness config 模式。
+summary: 安全地组合 runtime 所有的 mutable 文件、ignore、profile、profile 隔离 pack、通配根、dir 组合、外部 target 分发和清理的具体示例。
+llmSummary: 展示 runtime 所有的 mutable 文件、目标输出 ignore、可组合指令、profile 覆盖、profile 隔离 pack、通配源根、外部 target parent、个人定制、目标本地 profile、迁移和清理的实用 Harness config 模式。
 audience: 在真实仓库中采用 Harness config 的开发者和平台团队。
 contentKind: spec
 status: draft
@@ -125,7 +125,7 @@ Target 根文件属于资源根内的 target 根路径：例如 `.claude/setting
 
 目标输出 ignore 匹配输出路径，不是源路径。它们也仅在 `.harnessIgnore` 文件存在于磁盘上后才参与。在必须在第一次激活时应用规则时，把规则放在仓库根 `.harnessIgnore` 或源本地 `.harnessIgnore` 中。
 
-此模式有意地是 target 本地。它对 gitignored 活动 harness surface、本地开发试验或不应成为共享源的特定机器 runtime 文件最有用。文件被保留并从 target 输出读取，但它不被投影拷贝到那里。
+此模式有意地是 target 本地。它对被 Git 忽略的活动 harness surface、本地开发试验或不应成为共享源的特定机器 runtime 文件最有用。文件被保留并从 target 输出读取，但它不被投影拷贝到那里。
 
 ## 逻辑 ignore 重新包含
 
@@ -310,7 +310,7 @@ path = "./.agents"
 ## 隔离 profile pack
 
 当选择某个 pack 应让该 pack 对某些逻辑路径保持独占时，使用 profile
-isolation。保持 manifest 稳定，把选择放在 `.harnessProfile` 中。
+隔离。保持 manifest 稳定，把选择放在 `.harnessProfile` 中。
 
 ```toml
 [[resources]]
@@ -371,18 +371,19 @@ dir = ["AGENTS.md", "AGENTS.md/**"]
 
 当选择 `frontend` 时，Harness config 会为受影响的输出路径抑制匹配的基础
 `skills/**` resources 和基础 `AGENTS.md` dir candidates。活动的同名 profile
-根仍然参与，因此已跟踪 pack 和 gitignored 本地 pack 可以一起应用。像
-`prompts/shared.md` 或 `PROJECT_GUIDE.md` 这样的无关路径继续从通用源投影。
+根仍然参与，因此已由 Git 跟踪的 pack 和被 Git 忽略的本地 pack 可以一起
+应用。像 `prompts/shared.md` 或 `PROJECT_GUIDE.md` 这样的无关路径继续从
+通用源投影。
 
-将这种形状用于需要启用或禁用而不重写 manifest、也不使用 repo-root
-`.harnessIgnore` gate 的可移植 bundles。保持 isolation patterns 窄：只隔离
-pack 拥有的逻辑路径，让通用 repo context 继续为其他所有内容投影。
+将这种形状用于需要启用或禁用而不重写 manifest、也不使用仓库根
+`.harnessIgnore` 门控的可移植包。保持隔离模式窄：只隔离 pack 拥有的逻辑
+路径，让通用仓库上下文继续为其他所有内容投影。
 
-## Wildcard 源和 target fanout
+## 通配源和 target 分发
 
 当所有权或输出位置有规律但不固定到一个文件夹时，manifest wildcard
 路径很有用。保持同一所有权规则：配置的 `[[resources]]` 和 `[[dir]]`
-路径保持 repo-local 且可观察，而 `[[targets]].parent` 可以指向外部输出父
+路径保持仓库本地且可观察，而 `[[targets]].parent` 可以指向外部输出父
 目录，例如同级 Git worktrees。
 
 对于分支 worktrees，声明一个显式 target 路径，并通过 wildcard parent
@@ -440,11 +441,12 @@ AGENTS.md
 ```
 
 这让 packages 可以添加已审阅源，而不必为每个 package 编辑根 manifest。
-Patterns 只展开到现有真实目录，所以新的 package 源根在该目录存在时开始参与。
+模式只展开到现有真实目录，所以新的 package 源根在该目录存在时开始参与。
 
 ## 带激活说明的生成 surface
 
-生成的 harness surface 可以在仓库保持已跟踪激活路径时 gitignored。Manifest 和源目录留在版本控制中；活动文件夹可以在检出后重新生成。
+当仓库保持已跟踪的激活路径时，生成的 harness surface 可以被 Git 忽略。
+Manifest 和源目录留在版本控制中；活动文件夹可以在检出后重新生成。
 
 ```toml
 [[resources]]
@@ -469,8 +471,8 @@ package.json                      # 可选 setup:harness 脚本
       harness-config/
         SKILL.md
       review/
-.agents/                          # 生成的，gitignored
-.claude/                          # 生成的，gitignored
+.agents/                          # 生成的，被 Git 忽略
+.claude/                          # 生成的，被 Git 忽略
 ```
 
 ```gitignore

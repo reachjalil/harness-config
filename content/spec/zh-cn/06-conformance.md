@@ -2,15 +2,15 @@
 title: 一致性
 seoTitle: Harness config 一致性
 socialTitle: Harness config 工具的可测试一致性声明
-description: 面向仓库、资源、target、投影、路径自省和工具的可测试声明。
-socialDescription: 实现 Harness config 规范的仓库和工具的一致性标准。
+description: 面向仓库、资源、target、runtime 所有的 mutable 文件、profile、投影、路径自省和工具的可测试声明。
+socialDescription: 面向实现 .harness 标准的仓库和工具的一致性标准，包括 runtime 所有的 mutable 文件、profile 覆盖和目标输出控件。
 canonicalPath: /specifications/v1/conformance/
 slug: conformance
 order: 6
 locale: zh-cn
 sectionCode: "06"
-summary: 面向仓库、资源、target、投影、路径自省和工具的可测试声明。
-llmSummary: 列出仓库形状、资源路径、投影、override、ignore、扩展、激活和路径自省的可测试一致性预期。
+summary: 面向仓库、资源、target、runtime 所有的 mutable 文件、profile、投影、路径自省和工具的可测试声明。
+llmSummary: 列出仓库形状、资源路径、target 投影、runtime 所有的 mutable 文件、override、ignore 行为、profile 覆盖、扩展、激活输出和只读路径自省的可测试一致性预期。
 audience: 校验 Harness config 兼容性的测试作者和实现者。
 contentKind: spec
 status: draft
@@ -73,7 +73,7 @@ Harness config 支持的声明应该从文件形状和激活契约本身可测�
 
 ## 证据
 
-仓库证据是版本化 manifest、共享的配置过的源树、`.harnessIgnore` 和声明 mutable 文件时在版本控制中可见的 `.harnessMutable`。当生成的活动 harness surface 被 gitignored 时，仓库证据还应包括解释如何校验和重新生成那些 surface 的已跟踪激活说明。使用时，profile 证据是所选 `.harnessProfile` 文件和配置过的源根下匹配的 `.harnessProfileRoot` 文件夹。
+仓库证据是版本化 manifest、共享的配置过的源树、`.harnessIgnore` 和声明 mutable 文件时在版本控制中可见的 `.harnessMutable`。当生成的活动 harness surface 被 Git 忽略时，仓库证据还应包括解释如何校验和重新生成那些 surface 的已跟踪激活说明。使用时，profile 证据是所选 `.harnessProfile` 文件和配置过的源根下匹配的 `.harnessProfileRoot` 文件夹。
 
 工具证据是在任何写入之前列出创建、更新、请求的删除、保留的文件、mutable 跳过的文件、孤立的受管理输出和保留的未管理项的 dry-run 报告。
 

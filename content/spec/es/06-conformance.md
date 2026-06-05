@@ -2,15 +2,15 @@
 title: Conformidad
 seoTitle: Conformidad Harness config
 socialTitle: Afirmaciones de conformidad testables para herramientas Harness config
-description: Afirmaciones testables para repositorios, recursos, objetivos, proyecciones, introspección de caminos y herramientas.
-socialDescription: Criterios de conformidad para repositorios y herramientas que implementan la especificación Harness config.
+description: Afirmaciones testables para repositorios, recursos, objetivos, archivos mutables propiedad del runtime, perfiles, proyecciones, introspección de caminos y herramientas.
+socialDescription: Criterios de conformidad para repositorios y herramientas que implementan el estándar .harness, incluidos archivos mutables propiedad del runtime, superposiciones de perfil y controles de salida objetivo.
 canonicalPath: /specifications/v1/conformance/
 slug: conformance
 order: 6
 locale: es
 sectionCode: "06"
-summary: Afirmaciones testables para repositorios, recursos, objetivos, proyecciones, introspección de caminos y herramientas.
-llmSummary: Lista las expectativas de conformidad testables para forma del repositorio, caminos de recursos, proyección, overrides, ignores, extensiones, activación e introspección de caminos.
+summary: Afirmaciones testables para repositorios, recursos, objetivos, archivos mutables propiedad del runtime, perfiles, proyecciones, introspección de caminos y herramientas.
+llmSummary: Lista expectativas de conformidad testables para forma del repositorio, caminos de recursos, proyección de objetivos, archivos mutables propiedad del runtime, overrides, comportamiento de ignore, superposiciones de perfil, extensiones, salida de activación e introspección de caminos de solo lectura.
 audience: Autores de pruebas e implementadores que validan compatibilidad con Harness config.
 contentKind: spec
 status: draft
@@ -73,7 +73,7 @@ Una afirmación de soporte de Harness config debería ser testable a partir de l
 
 ## Evidencia
 
-La evidencia del repositorio es un manifiesto versionado, árboles fuente configurados compartidos, `.harnessIgnore` y `.harnessMutable` visibles en control de versión cuando se declaran archivos mutables. Cuando las superficies de harness vivas generadas están gitignored, la evidencia del repositorio también debe incluir instrucciones de activación rastreadas que expliquen cómo validar y regenerar esas superficies. La evidencia de perfil, cuando se usa, es el archivo `.harnessProfile` seleccionado y las carpetas `.harnessProfileRoot` coincidentes bajo las raíces fuente configuradas.
+La evidencia del repositorio es un manifiesto versionado, árboles fuente configurados compartidos, `.harnessIgnore` y `.harnessMutable` visibles en control de versión cuando se declaran archivos mutables. Cuando las superficies de harness vivas generadas están ignoradas por Git, la evidencia del repositorio también debe incluir instrucciones de activación con seguimiento que expliquen cómo validar y regenerar esas superficies. La evidencia de perfil, cuando se usa, es el archivo `.harnessProfile` seleccionado y las carpetas `.harnessProfileRoot` coincidentes bajo las raíces fuente configuradas.
 
 La evidencia de herramienta es un reporte de dry-run que lista creaciones, actualizaciones, eliminaciones solicitadas, archivos mantenidos, archivos mutables saltados, salidas gestionadas huérfanas y entradas no gestionadas preservadas antes de cualquier escritura.
 

@@ -1,16 +1,16 @@
 ---
 title: Conformité
 seoTitle: Conformité Harness config
-socialTitle: Claims de conformité testables pour les outils Harness config
-description: Claims testables pour dépôts, ressources, cibles, projections, introspection de chemin et outils.
-socialDescription: Critères de conformité pour les dépôts et outils qui implémentent la spécification Harness config.
+socialTitle: Revendications de conformité testables pour les outils Harness config
+description: Revendications testables pour les dépôts, ressources, cibles, fichiers mutables possédés par le runtime, profils, projections, introspection de chemin et outils.
+socialDescription: Critères de conformité pour les dépôts et outils qui implémentent le standard .harness, y compris les fichiers mutables possédés par le runtime, les superpositions de profil et les contrôles en sortie cible.
 canonicalPath: /specifications/v1/conformance/
 slug: conformance
 order: 6
 locale: fr-fr
 sectionCode: "06"
-summary: Claims testables pour dépôts, ressources, cibles, projections, introspection de chemin et outils.
-llmSummary: Liste les attentes de conformité testables pour forme du dépôt, chemins de ressources, projection, surcharges, ignores, extensions, activation et introspection de chemin.
+summary: Revendications testables pour les dépôts, ressources, cibles, fichiers mutables possédés par le runtime, profils, projections, introspection de chemin et outils.
+llmSummary: Liste les attentes de conformité testables pour la forme du dépôt, les chemins de ressources, la projection des cibles, les fichiers mutables possédés par le runtime, les surcharges, le comportement d'ignore, les superpositions de profil, les extensions, la sortie d'activation et l'introspection de chemin en lecture seule.
 audience: Auteurs de tests et implémenteurs validant la compatibilité Harness config.
 contentKind: spec
 status: draft
@@ -73,7 +73,7 @@ Une revendication de support Harness config devrait être testable depuis la for
 
 ## Évidence
 
-L'évidence du dépôt est un manifeste versionné, des arbres source configurés partagés, `.harnessIgnore` et `.harnessMutable` visibles dans le contrôle de version lorsque des fichiers mutables sont déclarés. Lorsque les surfaces de harness vivantes générées sont gitignored, l'évidence du dépôt devrait aussi inclure des instructions d'activation trackées qui expliquent comment valider et régénérer ces surfaces. L'évidence de profil, lorsque utilisée, est le fichier `.harnessProfile` sélectionné et les dossiers `.harnessProfileRoot` correspondants sous les racines source configurées.
+L'évidence du dépôt est un manifeste versionné, des arbres source configurés partagés, `.harnessIgnore` et `.harnessMutable` visibles dans le contrôle de version lorsque des fichiers mutables sont déclarés. Lorsque les surfaces de harness vivantes générées sont ignorées par Git, l'évidence du dépôt devrait aussi inclure des instructions d'activation suivies qui expliquent comment valider et régénérer ces surfaces. L'évidence de profil, lorsque utilisée, est le fichier `.harnessProfile` sélectionné et les dossiers `.harnessProfileRoot` correspondants sous les racines source configurées.
 
 L'évidence d'outil est un rapport de dry-run qui liste créations, mises à jour, suppressions demandées, fichiers conservés, fichiers mutables sautés, sorties gérées orphelines et entrées non gérées préservées avant toute écriture.
 
