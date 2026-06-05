@@ -366,7 +366,7 @@ A conforming validator should:
   selectors.
 - Derive validation, explanation, and activation from the same projection input
   set defined by the Standard.
-- Show create, update, remove, keep, preserve, and mutable actions before any
+- Show create, update, remove, keep, preserve, orphan, and mutable actions before any
   write.
 - Verify repeated activation against unchanged inputs converges to the same
   target tree for managed files and leaves mutable files untouched.

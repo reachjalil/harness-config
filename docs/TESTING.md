@@ -17,7 +17,7 @@ re-projection is the only path back to source bytes.
 | TOML | Unknown top-level tables or keys and unknown `[[targets]]`, `[[resources]]`, `[[dir]]`, and `[activation]` fields are accepted and surfaced as informational diagnostics | `packages/core/test/standard.test.ts` |
 | TOML | Target paths reject absolute paths, `..`, `.harness`, duplicate resolved roots, and overlapping target roots while allowing arbitrary repo-local target folders and explicit external parents | `packages/core/test/standard.test.ts` |
 | TOML | `[[resources]].path`, `[[dir]].path`, and `[[targets]].parent` expand gitignore-style wildcard patterns, including `**`, `?`, character classes, backslash escapes, absolute target parents, file/symlink exclusion, and validation after expansion, while `[[targets]].path` rejects wildcard patterns | `packages/core/test/standard.test.ts` |
-| TOML | Legacy single `[resources]` and `[dir]` tables are rejected; configured source paths reject target overlaps and resolve independently from target roots | `packages/core/test/standard.test.ts` |
+| TOML | Single `[resources]` and `[dir]` tables are rejected; configured source paths reject target overlaps and resolve independently from target roots | `packages/core/test/standard.test.ts` |
 | TOML | Missing configured source roots pass as empty layers | `packages/core/test/standard.test.ts` |
 | TOML | Duplicate targets, including explicit `.agents`, are diagnostics | `packages/core/test/standard.test.ts` |
 | TOML | Extension declarations parse with `version`, default `activation`, and extension-owned fields | `packages/core/test/standard.test.ts` |

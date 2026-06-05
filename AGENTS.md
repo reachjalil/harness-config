@@ -271,7 +271,7 @@ clear non-zero diagnostics for:
 - targets under `./.harness`,
 - target entries with unknown fields report informational diagnostics instead
   of errors,
-- malformed `.harnessIgnore` files, legacy `[mutable]` sections, or
+- malformed `.harnessIgnore` files, unsupported `[mutable]` sections, or
   malformed `.harnessMutable` files,
 - `.harnessProfileRoot` outside `.harness` and the configured source roots,
 - overlapping configured resources, dir, or target paths,

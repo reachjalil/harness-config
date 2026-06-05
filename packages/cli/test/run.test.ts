@@ -223,21 +223,6 @@ describe("harnessc", () => {
     ).rejects.toThrow();
   });
 
-  it("redirects the removed plan command to init and activate", async () => {
-    const root = await rootFixture();
-    const capture = captureIo();
-    const exitCode = await runHarnessConfigCli(
-      ["plan", "--root", root],
-      capture.io
-    );
-    expect(exitCode).toBe(1);
-    expect(capture.stderr.join("\n")).toContain(
-      "harnessc plan has been removed"
-    );
-    expect(capture.stderr.join("\n")).toContain("harnessc init");
-    expect(capture.stderr.join("\n")).toContain("harnessc activate");
-  });
-
   it("creates greenfield .harness with init --yes", async () => {
     const root = await rootFixture();
     const capture = captureIo();

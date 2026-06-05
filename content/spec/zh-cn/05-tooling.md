@@ -49,7 +49,7 @@ harnessc extension activate
 - `harnessc activate` 在不带 `--yes` 运行时显示投影预览，并报告创建、更新、请求的删除、保留的文件、mutable 跳过的文件、孤立的受管理输出和保留的未管理项。默认情况下，它把占据投影路径的 target 符号链接报告为冲突；传递 `--replace-target-symlinks` 或设置 `[activation].targetSymlinks = "replace"` 以替换链接本身。
 - `harnessc extension activate` 运行已注册的扩展。使用 `--extension <id>` 运行一个声明的扩展，或使用 `--all` 运行每个声明的支持扩展。
 
-`init`、`activate` 和 `extension activate` 是 dry run，除非提供 `--yes`。`init` 的 dry-run 形式替代了之前的 `harnessc plan` 命令，因此单个心智模型 — "无标志预览，`--yes` 写入" — 适用于每个变更命令。
+`init`、`activate` 和 `extension activate` 是 dry run，除非提供 `--yes`，因此单个心智模型 — "无标志预览，`--yes` 写入" — 适用于每个变更命令。
 
 常见自省示例：
 

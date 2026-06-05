@@ -49,7 +49,7 @@ harnessc extension activate
 - `harnessc activate` montre la prévisualisation de projection lorsqu'il est lancé sans `--yes` et rapporte créations, mises à jour, suppressions demandées, fichiers conservés, fichiers mutables sautés, sorties gérées orphelines et entrées non gérées préservées. Par défaut, il rapporte les liens symboliques cibles qui occupent des chemins projetés comme des conflits ; passer `--replace-target-symlinks` ou définir `[activation].targetSymlinks = "replace"` pour remplacer le lien lui-même.
 - `harnessc extension activate` exécute les extensions enregistrées. Utiliser `--extension <id>` pour exécuter une extension déclarée ou `--all` pour exécuter chaque extension supportée déclarée.
 
-`init`, `activate` et `extension activate` sont des dry runs sauf si `--yes` est fourni. La forme dry-run d'`init` remplace la commande `harnessc plan` précédente, de sorte qu'un modèle mental unique — « sans drapeau prévisualise, `--yes` écrit » — s'applique à chaque commande mutante.
+`init`, `activate` et `extension activate` sont des dry runs sauf si `--yes` est fourni, de sorte qu'un modèle mental unique — « sans drapeau prévisualise, `--yes` écrit » — s'applique à chaque commande mutante.
 
 Exemples d'introspection courants :
 

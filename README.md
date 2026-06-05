@@ -235,6 +235,8 @@ The [`examples/`](./examples/README.md) directory contains runnable scenarios:
 - [04 composable instructions](./examples/04-composable-instructions/README.md)
 - [05 runtime-owned state](./examples/05-runtime-owned-state/README.md)
 - [06 layered local overlays](./examples/06-layered-local-overlays/README.md)
+- [07 worktree fleet wildcards](./examples/07-worktree-fleet-wildcards/README.md)
+- [08 monorepo package wildcards](./examples/08-monorepo-package-wildcards/README.md)
 
 ## Documentation
 

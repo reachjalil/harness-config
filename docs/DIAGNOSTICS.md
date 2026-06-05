@@ -103,7 +103,7 @@ optional recommendation. Severity is one of:
 | Code | Severity | Meaning |
 | --- | --- | --- |
 | `harness.ignore_unsupported_scope` | error | A `.harnessIgnore` or `.harnessMutable` file uses an unsupported target-specific section header (such as `[.claude]` or `[!.cursor]`). |
-| `harness.ignore_mutable_section_unsupported` | error | A `.harnessIgnore` file uses the legacy `[mutable]` section header. Move mutable declarations into `.harnessMutable`. |
+| `harness.ignore_mutable_section_unsupported` | error | A `.harnessIgnore` file uses an unsupported `[mutable]` section header. Move mutable declarations into `.harnessMutable`. |
 | `harness.mutable_ignore_section_unsupported` | error | A `.harnessMutable` file uses an `[ignore]` section header. Move ignore declarations into `.harnessIgnore`. |
 
 ## Extensions

@@ -1140,13 +1140,6 @@ export async function runHarnessConfigCli(
       return 0;
     }
 
-    if (options.command === "plan") {
-      io.stderr(
-        "harnessc plan has been removed. Use 'harnessc init' (no --yes) for an adoption plan or 'harnessc activate' (no --yes) for a projection preview."
-      );
-      return 1;
-    }
-
     if (options.command === "activate") {
       let cleanupUnmanaged = options.cleanupUnmanaged;
       let mutableNotice = "";

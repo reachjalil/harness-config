@@ -225,7 +225,7 @@ label = "root files"
     ).toBe(false);
   });
 
-  it("rejects legacy single-table and per-kind manifest resource declarations", () => {
+  it("rejects single-table and per-kind manifest resource declarations", () => {
     expect(() =>
       parseHarnessConfigToml(`
 version = 1
