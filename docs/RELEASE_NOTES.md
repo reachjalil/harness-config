@@ -11,6 +11,8 @@ participating, including wildcard-expanded pack roots and local override packs.
 
 - Adds `.harnessProfileIsolation` as an optional profile-root declaration file
   with gitignore-style isolation patterns for resource and dir logical paths.
+- Uses strict TOML shape for isolation declarations and the same negation plus
+  last-match-wins pattern model as `.harnessIgnore`.
 - Keeps missing isolation files as normal profile overlay behavior, so existing
   profiles continue to layer over base sources without excluding siblings.
 - Preserves all active same-name profile roots while excluding matching

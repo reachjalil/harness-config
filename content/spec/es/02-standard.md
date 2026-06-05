@@ -637,7 +637,10 @@ resources = ["skills/**"]
 dir = ["AGENTS.md", "AGENTS.md/**"]
 ```
 
+Solo `version` y la tabla opcional `[isolate]` están definidas. `resources` y `dir` usan arrays vacíos por defecto; cuando están presentes MUST ser arrays de strings no vacíos. Campos o tablas desconocidos en este archivo, incluidas claves desconocidas bajo `[isolate]`, MUST producir `harness.profile_isolation_invalid`.
+
 Si falta `.harnessProfileIsolation`, la raíz de perfil usa el comportamiento normal de superposición y no aísla rutas fuente base. Los patrones `resources` coinciden con rutas lógicas de recursos relativas a una raíz fuente de recursos. Los patrones `dir` coinciden con rutas lógicas de salida dir relativas a la raíz del repositorio. Las rutas target y las rutas físicas de almacenamiento no se usan para la coincidencia de aislamiento.
+Los strings de patrón de aislamiento usan la misma sintaxis de patrones de camino y evaluación ordenada que las líneas de regla `.harnessIgnore`: negación `!`, anchors iniciales `/`, patrones solo-directorio con `/` final, `*`, `**`, `?`, y gana el último patrón participante coincidente. Una coincidencia negada final significa que el candidato no está aislado.
 
 Cuando un perfil con aislamiento está activo para una ruta de salida, los candidatos no-perfil de recursos o dir que coinciden se suprimen para esa ruta de salida. Las raíces de perfil activas con el mismo nombre de perfil seleccionado siguen participando, incluidas múltiples raíces con el mismo nombre desde raíces fuente ordenadas o raíces fuente expandidas por comodines. Esto permite que un pack portable seleccionado y un pack local de sobrescritura con el mismo nombre se apliquen juntos mientras se excluyen archivos base/generales coincidentes y packs hermanos inactivos. El aislamiento es acotado por ruta: los patrones que aíslan `AGENTS.md` no aíslan salidas dir no relacionadas, y los patrones que aíslan `skills/**` no aíslan tipos de recursos no relacionados.
 

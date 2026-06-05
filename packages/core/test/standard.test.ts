@@ -834,6 +834,20 @@ path = "./.cursor"
         "\n"
       )
     );
+    await write(root, ".harness/profiles/strict/.harnessProfileRoot", "team\n");
+    await write(
+      root,
+      ".harness/profiles/strict/.harnessProfileIsolation",
+      [
+        "version = 1",
+        'owner = "harnex"',
+        "",
+        "[isolate]",
+        'resources = ["skills/**"]',
+        'prompts = ["prompts/**"]',
+        "",
+      ].join("\n")
+    );
 
     const validation = await validateHarnessConfig(root);
 
@@ -843,6 +857,11 @@ path = "./.cursor"
           severity: "error",
           code: "harness.profile_isolation_invalid",
           path: ".harness/profiles/team/.harnessProfileIsolation",
+        }),
+        expect.objectContaining({
+          severity: "error",
+          code: "harness.profile_isolation_invalid",
+          path: ".harness/profiles/strict/.harnessProfileIsolation",
         }),
       ])
     );
@@ -1869,6 +1888,11 @@ path = "./.agents"
       matcher.ignores(".harness/resources/skills/review/.harnessProfile")
     ).toBe(true);
     expect(
+      matcher.ignores(
+        ".harness/resources/skills/review/.harnessProfileIsolation"
+      )
+    ).toBe(true);
+    expect(
       matcher.ignores(".harness/resources/skills/deploy/.harnessProfileRoot")
     ).toBe(true);
   });
@@ -1877,7 +1901,7 @@ path = "./.agents"
     const matcher = createHarnessIgnoreMatcher([
       {
         rules: parseHarnessIgnoreFile(
-          "!.harnessIgnore\n!.harnessProfile\n!.harnessProfileRoot\n",
+          "!.harnessIgnore\n!.harnessProfile\n!.harnessProfileIsolation\n!.harnessProfileRoot\n",
           {
             isRoot: false,
             sourcePath: ".harness/resources/skills/review/.harnessIgnore",
@@ -1894,6 +1918,11 @@ path = "./.agents"
     ).toBe(true);
     expect(
       matcher.ignores(".harness/resources/skills/review/.harnessProfile")
+    ).toBe(true);
+    expect(
+      matcher.ignores(
+        ".harness/resources/skills/review/.harnessProfileIsolation"
+      )
     ).toBe(true);
     expect(
       matcher.ignores(".harness/resources/skills/review/.harnessProfileRoot")

@@ -225,7 +225,7 @@ Un validador conforme debe:
 - Validar los caminos de fuentes de recursos configuradas y rechazar las declaraciones de recursos por tipo en el manifiesto.
 - Verificar que cada entrada `[[targets]]` contiene un `path` target-local requerido, no contiene patrones comodín, resuelve debajo de la raíz del repositorio o de cada `parent` explícito resuelto, y no se superpone con `./.harness`, raíces fuente configuradas u otra raíz objetivo resuelta; los campos futuro-compatibles desconocidos deberían ser informacionales.
 - Parsear `.harnessIgnore` con reglas raíz, fuente-locales, perfil-locales y locales de salida objetivo usando las fases de precedencia estándar. Parsear `.harnessMutable` separadamente para archivos propiedad del runtime de creación-única.
-- Resolver los selectores `.harnessProfile` y las superposiciones `.harnessProfileRoot` antes de la proyección, incluido el paso bootstrap/final dir para selectores de salida.
+- Resolver los selectores `.harnessProfile` y las superposiciones `.harnessProfileRoot` antes de la proyección, incluido el paso bootstrap/final dir para selectores de salida. Analizar declaraciones `.harnessProfileIsolation` dentro de raíces de perfil para que los perfiles seleccionados puedan suprimir recursos no-perfil y salidas dir coincidentes sin reescribir el manifiesto.
 - Mostrar las acciones create, update, remove, keep, preserve y mutable antes de cualquier escritura.
 - Verificar que la activación repetida contra entradas sin cambios converge al mismo árbol objetivo para archivos gestionados y deja los archivos mutables intactos.
 - Reportar los objetivos declarados separadamente de las carpetas fuente persistentes.

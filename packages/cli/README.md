@@ -136,6 +136,9 @@ activation is run with `--remove-unmanaged`.
 a configured dir source merges into resources and dir outputs by logical
 source path, so local or team-specific kits can add files or replace
 composable parts without turning target folders into source roots.
+Optional `.harnessProfileIsolation` files inside profile roots can make the
+selected profile exclusive for chosen resource or dir paths while leaving
+unrelated source paths active.
 
 Human terminal output uses ANSI color when the output stream supports it and
 keeps `--json` output unstyled for automation. Set `NO_COLOR` to disable color

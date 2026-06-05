@@ -334,6 +334,7 @@ const profileIsolationSchema = z
         dir: z.array(z.string().min(1)).default([]),
         resources: z.array(z.string().min(1)).default([]),
       })
+      .strict()
       .default({ dir: [], resources: [] }),
   })
   .strict();

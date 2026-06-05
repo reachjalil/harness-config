@@ -637,7 +637,10 @@ resources = ["skills/**"]
 dir = ["AGENTS.md", "AGENTS.md/**"]
 ```
 
+只定义 `version` 和可选 `[isolate]` 表。`resources` 和 `dir` 默认为空数组；存在时它们 MUST 是非空字符串数组。该文件中的未知字段或表，包括 `[isolate]` 下的未知键，MUST 产生 `harness.profile_isolation_invalid`。
+
 缺少 `.harnessProfileIsolation` 表示该 profile 根使用普通覆盖行为，不隔离任何基础源路径。`resources` 模式匹配相对于 resources 源根的逻辑资源路径。`dir` 模式匹配相对于仓库根的逻辑 dir 输出路径。Target 路径和物理存储路径不用于隔离匹配。
+隔离模式字符串使用与 `.harnessIgnore` 规则行相同的路径模式语法和有序评估：`!` 否定、前导 `/` anchor、尾随 `/` 的仅目录模式、`*`、`**`、`?`，并且最后一个匹配的参与模式获胜。最终否定匹配表示该候选未被隔离。
 
 当带隔离的 profile 对某个输出路径处于活动状态时，匹配的非 profile resource 或 dir 候选会对该输出路径被抑制。具有相同选中 profile 名称的活动 profile 根继续参与，包括来自有序源根或 wildcard 展开源根的多个同名根。这允许选中的可移植 pack 和同名本地 override pack 一起应用，同时排除匹配的基础/通用文件和未活动的同级 pack。隔离按路径限定：隔离 `AGENTS.md` 的模式不会隔离无关的 dir 输出，隔离 `skills/**` 的模式不会隔离无关的资源类型。
 

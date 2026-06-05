@@ -155,7 +155,8 @@ specific runtime, CLI, or hosted service.
 - Implementations MUST support `.harnessProfileIsolation` when present inside
   an active profile root, suppressing matching non-profile resource and dir
   candidates while preserving active same-name profile roots and unrelated
-  paths.
+  paths. Isolation patterns MUST use the same ordered negation and
+  last-match-wins evaluation model as `.harnessIgnore` path rules.
 - Implementations MUST support `.harnessMutable` and treat matching files as
   create-once, runtime-owned target files even when target bytes still match
   the source template. This behavior is separate from ignore behavior:

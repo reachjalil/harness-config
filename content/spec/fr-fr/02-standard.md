@@ -637,7 +637,10 @@ resources = ["skills/**"]
 dir = ["AGENTS.md", "AGENTS.md/**"]
 ```
 
+Seuls `version` et la table optionnelle `[isolate]` sont définis. `resources` et `dir` utilisent des tableaux vides par défaut ; lorsqu'ils sont présents ils MUST être des tableaux de chaînes non vides. Les champs ou tables inconnus dans ce fichier, y compris les clés inconnues sous `[isolate]`, MUST produire `harness.profile_isolation_invalid`.
+
 Si `.harnessProfileIsolation` est absent, la racine de profil utilise le comportement normal de superposition et n'isole aucun chemin source de base. Les motifs `resources` correspondent aux chemins logiques de ressources relatifs à une racine source de ressources. Les motifs `dir` correspondent aux chemins logiques de sortie dir relatifs à la racine du dépôt. Les chemins target et les chemins physiques de stockage ne sont pas utilisés pour la correspondance d'isolation.
+Les chaînes de motifs d'isolation utilisent la même syntaxe de motifs de chemin et la même évaluation ordonnée que les lignes de règle `.harnessIgnore` : négation `!`, ancres initiales `/`, motifs répertoire-seulement avec `/` final, `*`, `**`, `?`, et le dernier motif participant correspondant gagne. Une correspondance négative finale signifie que le candidat n'est pas isolé.
 
 Quand un profil avec isolation est actif pour un chemin de sortie, les candidats de ressources ou dir non-profil qui correspondent sont supprimés pour ce chemin de sortie. Les racines de profil actives avec le même nom de profil sélectionné continuent de participer, y compris plusieurs racines de même nom depuis des racines source ordonnées ou des racines source développées par wildcard. Cela permet à un pack portable sélectionné et à un pack local de surcharge de même nom de s'appliquer ensemble tout en excluant les fichiers base/généraux correspondants et les packs frères inactifs. L'isolation est limitée au chemin : les motifs qui isolent `AGENTS.md` n'isolent pas les sorties dir sans rapport, et les motifs qui isolent `skills/**` n'isolent pas les types de ressources sans rapport.
 

@@ -507,6 +507,77 @@ describe("core dir (composable + copy)", () => {
     );
   });
 
+  it("honors negated dir patterns in profile isolation", async () => {
+    const root = await fixtureRoot();
+    await write(
+      root,
+      ".harness/harness.toml",
+      [
+        "version = 1",
+        "",
+        "[[dir]]",
+        'path = "./.harness/dir"',
+        "",
+        "[[dir]]",
+        'path = "./.harness/packs/*/dir"',
+        "",
+      ].join("\n")
+    );
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harnessProfile", "frontend\n");
+    await write(root, ".harness/dir/AGENTS.md/.harnessComposable", "");
+    await write(root, ".harness/dir/AGENTS.md/100_base.md", "base\n");
+    await write(root, ".harness/dir/README.md", "base readme\n");
+    await write(root, ".harness/dir/PROJECT_GUIDE.md", "shared guide\n");
+    await write(
+      root,
+      ".harness/packs/frontend/.harnessProfileRoot",
+      "frontend\n"
+    );
+    await write(
+      root,
+      ".harness/packs/frontend/.harnessProfileIsolation",
+      [
+        "version = 1",
+        "",
+        "[isolate]",
+        'dir = ["**", "!PROJECT_GUIDE.md"]',
+        "",
+      ].join("\n")
+    );
+    await write(
+      root,
+      ".harness/packs/frontend/dir/AGENTS.md/.harnessComposable",
+      ""
+    );
+    await write(
+      root,
+      ".harness/packs/frontend/dir/AGENTS.md/100_frontend.md",
+      "frontend\n"
+    );
+    await write(
+      root,
+      ".harness/packs/backend/dir/AGENTS.md/.harnessComposable",
+      ""
+    );
+    await write(
+      root,
+      ".harness/packs/backend/dir/AGENTS.md/100_backend.md",
+      "backend\n"
+    );
+
+    const result = await applyHarnessActivation(root, { yes: true });
+
+    expect(result.plan.diagnostics).toEqual([]);
+    await expect(readFile(path.join(root, "AGENTS.md"), "utf8")).resolves.toBe(
+      "frontend\n"
+    );
+    await expect(
+      readFile(path.join(root, "PROJECT_GUIDE.md"), "utf8")
+    ).resolves.toBe("shared guide\n");
+    await expect(readFile(path.join(root, "README.md"))).rejects.toThrow();
+  });
+
   it("applies target-located .harnessIgnore rules to dir copy outputs", async () => {
     const root = await fixtureRoot();
     await writeConfig(root, { targets: ["./.agents"] });

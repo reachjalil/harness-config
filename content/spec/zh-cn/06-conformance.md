@@ -64,7 +64,7 @@ Harness config 支持的声明应该从文件形状和激活契约本身可测�
 - 实现 MUST 把孤立的受管理输出报告为不同于未管理 target 条目，只要非活动产生源仍存在。切换活动 profile 并重新激活 MUST 把先前 profile 的现在未选择输出报告为孤立的受管理输出，默认保留它们，仅在显式清理下删除未编辑的输出，并且绝不删除本地编辑的孤立输出或真正未管理的条目。
 - 实现 MUST 支持 `.harnessIgnore` 用于保持在活动投影之外的根、源本地、profile 本地、由 target 派生的 override 和目标输出本地文件。优先级 MUST 使用逻辑位置和逻辑目录深度，最后匹配参与规则获胜。Profile 本地文件 MUST 在 profile 覆盖位置评估，由 target 派生的 override 文件 MUST 在它们的逻辑源和 target 位置评估，已经存在的目标输出 `.harnessIgnore` 文件 MUST 保持为最终边界并在激活和未管理清理期间被保留。
 - 实现 MUST 支持 `.harnessProfile` 选择器和 `.harnessProfileRoot` 覆盖。Profile 根 MUST 住在 `./.harness`、配置过的 resources 源或配置过的 dir 源下，MUST 作为普通资源项被跳过，MUST 为资源和 dir 输出按逻辑源路径合并。
-- 实现 MUST 在活动 profile 根内存在 `.harnessProfileIsolation` 时支持它，抑制匹配的非 profile resource 和 dir 候选，同时保留活动同名 profile 根和无关路径。
+- 实现 MUST 在活动 profile 根内存在 `.harnessProfileIsolation` 时支持它，抑制匹配的非 profile resource 和 dir 候选，同时保留活动同名 profile 根和无关路径。隔离模式 MUST 使用与 `.harnessIgnore` 路径规则相同的有序否定和最后匹配获胜评估模型。
 - 实现 MUST 支持 `.harnessMutable` 并把匹配文件视为一次创建、runtime 所有的 target 文件，即使 target 字节仍然匹配源模板。匹配资源可组合叶逻辑输出路径的 `.harnessMutable` 规则 MUST 把组合输出文件标记为 mutable。这种行为与 ignore 行为分离：被忽略的文件保持在投影之外，而 mutable 文件可以在缺失时被投影并在创建后被保留。
 - 声明的 target 文件夹 MUST 被视为投影输出，不是源仓库。
 - 声明的 target 文件夹 MUST NOT 指向 `./.harness`、与配置过的源根重叠或与另一个解析后的 target root 重叠。

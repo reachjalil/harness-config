@@ -103,7 +103,9 @@ final boundary.
 Active profile roots merge by logical source path for resources and dir outputs;
 generic profile overlays do not beat target-specific resource overrides.
 Profile-local `.harnessIgnore` files can suppress base files or composable
-parts.
+parts. Optional `.harnessProfileIsolation` files can suppress matching
+non-profile resource and dir candidates while preserving active same-name
+profile roots and unrelated paths.
 
 Unmanaged target entries are preserved by default and reported at one level;
 pass `{ cleanupUnmanaged: "remove" }` to plan and apply explicit cleanup.

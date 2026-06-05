@@ -1247,11 +1247,22 @@ resources = ["skills/**"]
 dir = ["AGENTS.md", "AGENTS.md/**"]
 ```
 
+Only `version` and the optional `[isolate]` table are defined.
+`resources` and `dir` default to empty arrays; when present they MUST be
+arrays of non-empty strings. Unknown fields or tables in this file, including
+unknown keys under `[isolate]`, MUST produce
+`harness.profile_isolation_invalid`.
+
 Missing `.harnessProfileIsolation` means the profile root uses normal overlay
 behavior and does not isolate any base source paths. `resources` patterns match
 logical resource paths relative to a resources source root. `dir` patterns
 match logical dir output paths relative to the repository root. Target paths
 and physical storage paths are not used for isolation matching.
+Isolation pattern strings use the same path-pattern syntax and ordered
+evaluation as `.harnessIgnore` rule lines: `!` negation, leading `/` anchors,
+trailing `/` directory-only patterns, `*`, `**`, `?`, and last matching
+participating pattern wins. A final negated match means the candidate is not
+isolated.
 
 When a profile with isolation is active for an output path, matching non-profile
 resource or dir candidates are suppressed for that output path. Active profile
