@@ -1,0 +1,13 @@
+version = 1
+
+[[resources]]
+path = "./packages/*/.harness/resources"
+
+[[targets]]
+path = "./.agents"
+
+[[targets]]
+path = "./.claude"
+
+[[dir]]
+path = "./packages/*/.harness/dir"
