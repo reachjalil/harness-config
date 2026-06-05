@@ -30,7 +30,7 @@ Harness config has two independent version lines:
 | Line | Current status | Meaning |
 | --- | --- | --- |
 | Specification | `v1` proposal | File shape, manifest schema, projection model, ignore grammar, and conformance contract. |
-| Reference implementation | `1.0.0-alpha.7` | The npm packages and CLI implementation. Package releases do not imply a spec change. |
+| Reference implementation | `1.0.0-alpha.8` | The npm packages and CLI implementation. Package releases do not imply a spec change. |
 
 Treat the v1 file shape and activation model as a public proposal while public
 releases, conformance fixtures, adopter repositories, and external feedback
