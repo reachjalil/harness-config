@@ -1,17 +1,17 @@
 ---
 title: Justification
-seoTitle: Justification de Harness config
-socialTitle: Pourquoi un standard de configuration agent local au dépôt
-description: Le problème concret de plusieurs surfaces de harness en parallèle et les concepts coordonnés qu'introduit le standard.
-socialDescription: Le problème de la dérive multi-harness et le contrat petit, révisable et reproductible que Harness config propose.
+seoTitle: Justification de .harness Config
+socialTitle: Pourquoi .harness sépare les catalogues source des surfaces de harness
+description: Pourquoi le standard sépare un catalogue source durable, des surfaces de harness générées et un état mutable possédé par le runtime.
+socialDescription: La justification de conception pour traiter les surfaces de harness comme des projections générées tout en gardant l'état mutable possédé par le runtime hors de la source canonique.
 canonicalPath: /specifications/v1/rationale/
 slug: rationale
 order: 1
 locale: fr-fr
 sectionCode: "01"
-summary: Pourquoi un standard local au dépôt aide les équipes utilisant plusieurs agents de codage, et quels concepts coordonnés il introduit.
-llmSummary: Explique le problème concret des surfaces de harness multiples, divergentes et possédées par les runtimes, et présente les concepts coordonnés (manifeste, sources de ressources et de dir, cibles déclarées, surcharges dérivées des cibles, profils, ignores, mutables, projection d'activation).
-audience: Auteurs d'outils, équipes plateforme et auditeurs de spécification évaluant les compromis.
+summary: Pourquoi le standard sépare un catalogue source durable des surfaces de harness vivantes et de l'état mutable possédé par le runtime.
+llmSummary: Explique pourquoi les surfaces de harness vivantes devraient être des sorties dérivées tandis que .harness reste la source de vérité révisable, y compris les profils, les contrôles en sortie cible, les fichiers mutables possédés par le runtime et les fichiers d'instructions composables.
+audience: Implémenteurs décidant comment organiser la configuration d'agents entre runtimes.
 contentKind: spec
 status: draft
 updated: 2026-05-26
@@ -97,7 +97,7 @@ Harness config ne standardise pas les flux produit, les services hébergés, les
 
 Harness config s'inspire de schémas qui fonctionnent dans des systèmes largement déployés. Ce n'est pas une généralisation de l'un d'eux ; il emprunte les parties qui correspondent à un problème de projection source-vers-runtime local au dépôt et laisse le reste.
 
-- Les **fichiers de patron de style `.gitignore`** inspirent la syntaxe et la précédence ordonnée à dernière correspondance gagnante de `.harnessIgnore` et `.harnessMutable`. Différences : `.harnessIgnore` exclut les fichiers, tandis que `.harnessMutable` déclare des fichiers d'initialisation unique, parce que la projection a plus de dimensions que « tracké vs non tracké » : un fichier peut être initialisé depuis la source tout en restant possédé par le runtime après l'activation.
+- Les **fichiers de patron de style `.gitignore`** inspirent la syntaxe et la précédence ordonnée à dernière correspondance gagnante de `.harnessIgnore` et `.harnessMutable`. Différences : `.harnessIgnore` exclut les fichiers, tandis que `.harnessMutable` déclare des fichiers d'initialisation unique, parce que la projection a plus de dimensions que « suivi ou non par le contrôle de version » : un fichier peut être initialisé depuis la source tout en restant possédé par le runtime après l'activation.
 - Les **superpositions Helm / Kustomize** (Kubernetes) inspirent l'idée d'un arbre source de base composé avec des surcharges par cible. Harness config garde la portée des surcharges plus étroite : un dossier préfixé par un point *à l'intérieur de l'élément de ressource* dont le premier segment correspond au premier segment du chemin de la cible, sans langage de patch ni templating. Les fichiers de surcharge soit remplacent des chemins exacts, soit en ajoutent de nouveaux ; rien d'autre.
 - Les **superpositions de dotfiles spécifiques au profil** inspirent `.harnessProfile` et `.harnessProfileRoot` : les équipes peuvent garder des kits optionnels ou des superpositions personnelles sous `.harness`, les sélectionner par dépôt ou par sous-arbre de sortie cible et toujours réviser la projection finale comme des créations et remplacements au niveau fichier.
 - **EditorConfig** a inspiré le choix d'un seul fichier à la racine du dépôt avec une petite grammaire déclarative que n'importe quel outil peut implémenter sans couplage runtime.

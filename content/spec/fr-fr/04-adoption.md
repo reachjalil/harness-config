@@ -1,17 +1,17 @@
 ---
 title: Adoption
-seoTitle: Adopter Harness config
-socialTitle: Comment adopter Harness config dans un dépôt
-description: Workflows pratiques pour démarrage greenfield, migration, profils, instructions composables et nettoyage.
-socialDescription: Un chemin pratique pour déplacer la configuration agent dans un catalogue source Harness config durable avec profils et nettoyage sûr.
+seoTitle: Adopter .harness Config
+socialTitle: Comment adopter .harness dans un dépôt
+description: Workflows pratiques pour démarrage greenfield, migration, fichiers mutables possédés par le runtime, profils, instructions composables et nettoyage.
+socialDescription: Un chemin d'adoption pratique pour déplacer la configuration d'agents dans un catalogue source .harness durable tout en préservant l'état mutable possédé par le runtime.
 canonicalPath: /specifications/v1/adoption/
 slug: adoption
 order: 4
 locale: fr-fr
 sectionCode: "04"
-summary: Workflows pratiques pour démarrage greenfield, migration, profils, instructions composables et nettoyage.
-llmSummary: Couvre les workflows de création d'un catalogue Harness config, de déclaration des cibles, de prévisualisation de l'activation, de migration, de profils et de nettoyage sûr.
-audience: Développeurs introduisant Harness config dans des dépôts nouveaux ou existants.
+summary: Workflows pratiques pour démarrage greenfield, migration, fichiers mutables possédés par le runtime, profils, instructions composables et nettoyage.
+llmSummary: Couvre les workflows pratiques pour créer un catalogue .harness, déclarer des cibles, prévisualiser l'activation, migrer des surfaces de harness, marquer les fichiers mutables possédés par le runtime, utiliser des superpositions de profil et garder le nettoyage de cible sûr.
+audience: Développeurs introduisant .harness dans des dépôts existants ou nouveaux.
 contentKind: spec
 status: draft
 updated: 2026-05-28
@@ -44,7 +44,7 @@ path = "./.agents"
 ```
 
 ```text
-AGENTS.md                         # instructions racine / d'activation trackées
+AGENTS.md                         # instructions racine / d'activation suivies
 .harnessIgnore
 .harnessMutable
 .harness/
@@ -57,7 +57,7 @@ AGENTS.md                         # instructions racine / d'activation trackées
 .agents/                          # généré après activation
 ```
 
-Garder `AGENTS.md`, `CLAUDE.md` ou des fichiers d'instructions racine similaires comme fichiers trackés normaux lorsqu'ils sont simples et déjà cohérents. Les déplacer dans `[[dir]]` uniquement lorsque la génération, la composition, les profils ou les superpositions locales rendent le dépôt plus facile à comprendre.
+Garder `AGENTS.md`, `CLAUDE.md` ou des fichiers d'instructions racine similaires comme fichiers suivis normaux lorsqu'ils sont simples et déjà cohérents. Les déplacer dans `[[dir]]` uniquement lorsque la génération, la composition, les profils ou les superpositions locales rendent le dépôt plus facile à comprendre.
 
 `harnessc` est l'implémentation standard pour ce workflow :
 
@@ -110,21 +110,21 @@ Séquence recommandée :
 
    Ce couplage garde la revue de migration concrète : les reviewers peuvent voir quelle racine source partagée est projetée, quels fichiers au niveau cible sont initialisés et quelle racine source locale est privée ou expérimentale. Au fur et à mesure que Harness config mûrit, les équipes peuvent diviser les préoccupations en racines supplémentaires telles que `./.harness/resources-testing`, `./.harness/resources-deployment` ou `./.harness/resources-ui` et les combiner avec des superpositions de profil ou des instructions `[[dir]]` spécifiques au profil.
 3. **Déclarer les cibles dans le manifeste sélectionné.** Ajouter une entrée `[[targets]]` pour chaque surface de harness que vous voulez régénérer. Une cible ne reçoit des projections que lorsqu'elle apparaît ici. Déclarer chaque source partagée avec une entrée `[[resources]]` explicite.
-4. **Écrire `.harnessIgnore` et `.harnessMutable` délibérément.** Les logs, fichiers scratch, métadonnées par outil et `metadata.toml` de skill appartiennent typiquement aux règles d'ignore parce qu'ils ne devraient pas traverser la limite de projection. Les fichiers que le runtime écrit en retour (permissions, réglages locaux, commandes apprises) appartiennent à `.harnessMutable` lorsque le catalogue source devrait les initialiser une seule fois et que le runtime cible devrait les posséder après. Copier ces fichiers d'initialisation dans `.harness` avant de les déclarer mutables, pour que les nouveaux checkouts reçoivent une version initiale. Les règles à l'échelle du dépôt vivent généralement dans `./.harnessIgnore` ; les règles spécifiques aux ressources ou dir peuvent vivre dans des fichiers `.harnessIgnore` source-locaux, et les préférences de sortie utilisateur/locales peuvent vivre dans des fichiers en sortie cible tels que `runtime/agent/skills/foo/.harnessIgnore`. Les fichiers en sortie cible sont utiles lorsque la surface de harness vivante est gitignored et qu'un développeur a besoin d'une limite locale temporaire ; les règles partagées devraient vivre dans la source. La précédence suit la profondeur de dossier logique, donc les règles source/profil plus profondes peuvent ré-inclure des chemins sélectionnés tandis que les règles en sortie cible restent la limite finale.
+4. **Écrire `.harnessIgnore` et `.harnessMutable` délibérément.** Les logs, fichiers scratch, métadonnées par outil et `metadata.toml` de skill appartiennent typiquement aux règles d'ignore parce qu'ils ne devraient pas traverser la limite de projection. Les fichiers que le runtime écrit en retour (permissions, réglages locaux, commandes apprises) appartiennent à `.harnessMutable` lorsque le catalogue source devrait les initialiser une seule fois et que le runtime cible devrait les posséder après. Copier ces fichiers d'initialisation dans `.harness` avant de les déclarer mutables, pour que les nouveaux checkouts reçoivent une version initiale. Les règles à l'échelle du dépôt vivent généralement dans `./.harnessIgnore` ; les règles spécifiques aux ressources ou dir peuvent vivre dans des fichiers `.harnessIgnore` source-locaux, et les préférences de sortie utilisateur/locales peuvent vivre dans des fichiers en sortie cible tels que `runtime/agent/skills/foo/.harnessIgnore`. Les fichiers en sortie cible sont utiles lorsque la surface de harness vivante est ignorée par Git et qu'un développeur a besoin d'une limite locale temporaire ; les règles partagées devraient vivre dans la source. La précédence suit la profondeur de dossier logique, donc les règles source/profil plus profondes peuvent ré-inclure des chemins sélectionnés tandis que les règles en sortie cible restent la limite finale.
 5. **Ajouter des surcharges de profil uniquement là où elles clarifient la propriété.** Placer `.harnessProfileRoot` sous `.harness`, une source de ressources configurée ou une source dir configurée pour les kits optionnels ou superpositions personnelles, et les sélectionner avec des fichiers `.harnessProfile` racine ou en sortie cible. Les fichiers `.harnessIgnore` profil-locaux peuvent cacher les fichiers de base ou les parties composables pour ce profil et sont évalués à l'emplacement de superposition du profil. Utiliser les profils comme modes commutables à travers les groupes de ressources d'abord, et comme superpositions de fichiers uniquement lorsqu'ils ajoutent ou remplacent réellement du contenu.
 6. **Dry run, expliquer, réviser, puis appliquer.** `harnessc activate` imprime le plan sans écrire. Utiliser `harnessc explain <path>` pour une source ou sortie spécifique qui a besoin d'inspection, puis réviser les actions `create` / `update` / `remove` par rapport au snapshot et relancer avec `--yes`.
 7. **Relancer l'activation.** Un deuxième dry run sur des entrées inchangées devrait converger vers `keep` pour les fichiers gérés et `mutable` pour les fichiers possédés par le runtime. Si ce n'est pas le cas, l'arbre source dérive encore par rapport à la cible ; réconcilier avant de s'appuyer sur le standard.
 
-Après la migration, les dossiers vivants sont dérivés : ils peuvent être supprimés et régénérés depuis les racines source configurées plus le manifeste à tout moment. Les équipes peuvent aussi gitignored ces surfaces de harness vivantes lorsqu'elles veulent plus d'espace pour des expérimentations locales, de l'état runtime ou des fichiers scratch spécifiques à l'outil. Le compromis est délibéré : la revue se passe dans `.harness` et le manifeste sélectionné, les fichiers cibles gérés restent reproductibles et les fichiers cibles `.harnessMutable` gardent l'état possédé par le runtime hors de l'arbre source canonique.
+Après la migration, les dossiers vivants sont dérivés : ils peuvent être supprimés et régénérés depuis les racines source configurées plus le manifeste à tout moment. Les équipes peuvent aussi ignorer dans Git ces surfaces de harness vivantes lorsqu'elles veulent plus d'espace pour des expérimentations locales, de l'état runtime ou des fichiers scratch spécifiques à l'outil. Le compromis est délibéré : la revue se passe dans `.harness` et le manifeste sélectionné, les fichiers cibles gérés restent reproductibles et les fichiers cibles `.harnessMutable` gardent l'état possédé par le runtime hors de l'arbre source canonique.
 
 ## Recommandations gitignore
 
 Utiliser `.gitignore` uniquement après que la source de vérité est claire :
 
-- **Tracker la source Harness partagée.** Commiter `.harness/harness.toml`, le `.harness/resources/**` partagé, `.harness/dir/**` lorsqu'utilisé, `.harnessIgnore` et les déclarations `.harnessMutable` nécessaires pour reproduire les sorties générées.
-- **Gitignored les surfaces de harness générées après convergence.** Une fois que l'activation converge et que chaque ressource durable est représentée dans `.harness`, les dossiers tels que `.agents/`, `.claude/`, `.cursor/` et `.gemini/` peuvent être ignorés. Garder les instructions d'activation trackées, telles qu'une note d'instructions racine, une étape README ou un script de paquet qui exécute la validation et l'activation.
-- **Gitignored les superpositions développeur locales si souhaité.** Utiliser `.harness/local/` pour les skills, prompts, expérimentations et superpositions dir locales privées, puis l'ajouter à `.gitignore` lorsque ces fichiers ne devraient pas être partagés.
-- **Ne pas s'appuyer sur des contrôles en sortie cible gitignored pour la première activation.** Un `.harnessIgnore` ou `.harnessProfile` en sortie cible ne participe qu'après son existence dans la sortie générée. Placer les limites partagées de première activation dans des fichiers `.harnessIgnore` source-locaux ou le `.harnessIgnore` racine.
+- **Suivre la source Harness partagée.** Commiter `.harness/harness.toml`, le `.harness/resources/**` partagé, `.harness/dir/**` lorsqu'utilisé, `.harnessIgnore` et les déclarations `.harnessMutable` nécessaires pour reproduire les sorties générées.
+- **Ignorer dans Git les surfaces de harness générées après convergence.** Une fois que l'activation converge et que chaque ressource durable est représentée dans `.harness`, les dossiers tels que `.agents/`, `.claude/`, `.cursor/` et `.gemini/` peuvent être ignorés. Garder les instructions d'activation suivies, telles qu'une note d'instructions racine, une étape README ou un script de paquet qui exécute la validation et l'activation.
+- **Ignorer dans Git les superpositions développeur locales si souhaité.** Utiliser `.harness/local/` pour les skills, prompts, expérimentations et superpositions dir locales privées, puis l'ajouter à `.gitignore` lorsque ces fichiers ne devraient pas être partagés.
+- **Ne pas s'appuyer sur des contrôles en sortie cible ignorés par Git pour la première activation.** Un `.harnessIgnore` ou `.harnessProfile` en sortie cible ne participe qu'après son existence dans la sortie générée. Placer les limites partagées de première activation dans des fichiers `.harnessIgnore` source-locaux ou le `.harnessIgnore` racine.
 
 Exemple après une migration complète :
 

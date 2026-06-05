@@ -1,17 +1,17 @@
 ---
 title: 设计理由
-seoTitle: Harness config 设计理由
-socialTitle: 为什么需要一个仓库本地的 agent 配置标准
-description: 多个 harness surface 并存的具体问题，以及该标准引入的协调概念。
-socialDescription: 多 harness 漂移的问题，以及 Harness config 提议的小、可审阅、可重复的契约。
+seoTitle: .harness Config 设计理由
+socialTitle: 为什么 .harness 要把源目录与 harness surface 分开
+description: 为什么该标准要分离持久源目录、生成的 harness surface 和 runtime 所有的 mutable 状态。
+socialDescription: 把 harness surface 视为生成投影，同时让 runtime 所有的 mutable 状态留在规范源之外的设计理由。
 canonicalPath: /specifications/v1/rationale/
 slug: rationale
 order: 1
 locale: zh-cn
 sectionCode: "01"
-summary: 为什么仓库本地标准能帮助使用多个编码 agent 的团队，以及它引入了哪些协调概念。
-llmSummary: 解释多个、漂移的、由 runtime 拥有的 harness surface 的具体问题，并介绍协调概念（manifest、resources 和 dir 源、声明的 target、由 target 派生的 override、profile、ignore、mutable、激活投影）。
-audience: 评估权衡的工具作者、平台团队和规范审阅者。
+summary: 为什么该标准要把持久源目录与活动 harness surface 和 runtime 所有的 mutable 状态分开。
+llmSummary: 解释为什么活动 harness surface 应该是派生输出，而 .harness 保持为可审阅的真理源，包括 profile、目标输出控件、runtime 所有的 mutable 文件和可组合指令文件。
+audience: 决定如何组织跨 runtime agent 配置的实现者。
 contentKind: spec
 status: draft
 updated: 2026-05-26

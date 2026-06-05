@@ -1,17 +1,17 @@
 ---
 title: Justificación
-seoTitle: Justificación de Harness config
-socialTitle: Por qué un estándar de configuración de agentes local al repositorio
-description: El problema concreto de varias superficies de harness en paralelo y los conceptos coordinados que el estándar introduce.
-socialDescription: El problema de la deriva multi-harness y el contrato pequeño, revisable y reproducible que Harness config propone.
+seoTitle: Justificación de .harness Config
+socialTitle: Por qué .harness separa catálogos fuente de superficies de harness
+description: Por qué el estándar separa un catálogo fuente duradero, superficies de harness generadas y estado mutable propiedad del runtime.
+socialDescription: La justificación de diseño para tratar las superficies de harness como proyecciones generadas mientras el estado mutable propiedad del runtime queda fuera de la fuente canónica.
 canonicalPath: /specifications/v1/rationale/
 slug: rationale
 order: 1
 locale: es
 sectionCode: "01"
-summary: Por qué un estándar local al repositorio ayuda a equipos que usan múltiples agentes de codificación, y qué conceptos coordinados introduce.
-llmSummary: Explica el problema concreto de las superficies de harness múltiples, divergentes y propiedad de runtimes, y presenta los conceptos coordinados (manifiesto, fuentes de recursos y dir, objetivos declarados, overrides derivados del objetivo, perfiles, ignores, mutables, proyección de activación).
-audience: Autores de herramientas, equipos de plataforma y revisores de especificación que evalúan compromisos.
+summary: Por qué el estándar separa un catálogo fuente duradero de las superficies de harness vivas y del estado mutable propiedad del runtime.
+llmSummary: Explica por qué las superficies de harness vivas deberían ser salidas derivadas mientras .harness sigue siendo la fuente de verdad revisable, incluidos perfiles, controles de salida objetivo, archivos mutables propiedad del runtime y archivos de instrucciones componibles.
+audience: Implementadores que deciden cómo organizar configuración de agentes entre runtimes.
 contentKind: spec
 status: draft
 updated: 2026-05-26

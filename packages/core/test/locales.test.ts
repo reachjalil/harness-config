@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -48,6 +48,27 @@ const RFC_2119_KEYWORDS = [
   "OPTIONAL",
 ] as const;
 
+const IDENTICAL_FRONTMATTER_FIELDS = [
+  "canonicalPath",
+  "slug",
+  "order",
+  "sectionCode",
+  "contentKind",
+  "status",
+  "updated",
+] as const;
+
+const TRANSLATED_FRONTMATTER_FIELDS = [
+  "title",
+  "seoTitle",
+  "socialTitle",
+  "description",
+  "socialDescription",
+  "summary",
+  "llmSummary",
+  "audience",
+] as const;
+
 async function readRepoFile(relativePath: string): Promise<string> {
   return readFile(path.resolve(REPO_ROOT, relativePath), "utf8");
 }
@@ -63,6 +84,19 @@ function readFrontmatterField(text: string, field: string): string | undefined {
     .find((line) => line.startsWith(`${field}:`))
     ?.replace(`${field}:`, "")
     .trim();
+}
+
+function readFrontmatter(text: string): Map<string, string> {
+  const frontmatter = text.match(/^---\n([\s\S]*?)\n---\n/)?.[1] ?? "";
+  const fields = new Map<string, string>();
+  for (const line of frontmatter.split("\n")) {
+    const separator = line.indexOf(":");
+    if (separator === -1) {
+      continue;
+    }
+    fields.set(line.slice(0, separator), line.slice(separator + 1).trim());
+  }
+  return fields;
 }
 
 function escapeRegExp(value: string): string {
@@ -102,6 +136,55 @@ function extractDocumentedTokens(englishBodies: string[]): string[] {
 }
 
 describe("HarnessConfig translated specification content", () => {
+  it("keeps locale inventories and protected frontmatter aligned with English", async () => {
+    const englishFiles = (
+      await readdir(path.resolve(REPO_ROOT, "content/spec/en"))
+    )
+      .filter((file) => file.endsWith(".md"))
+      .sort();
+    expect(englishFiles).toEqual([...SECTION_FILES]);
+
+    for (const locale of LOCALES) {
+      const localeFiles = (
+        await readdir(path.resolve(REPO_ROOT, `content/spec/${locale}`))
+      )
+        .filter((file) => file.endsWith(".md"))
+        .sort();
+      expect(
+        localeFiles,
+        `content/spec/${locale} must contain the same section files as English`
+      ).toEqual(englishFiles);
+
+      for (const file of SECTION_FILES) {
+        const englishFrontmatter = readFrontmatter(
+          await readRepoFile(`content/spec/en/${file}`)
+        );
+        const localePath = `content/spec/${locale}/${file}`;
+        const localeFrontmatter = readFrontmatter(
+          await readRepoFile(localePath)
+        );
+
+        expect(localeFrontmatter.get("locale"), `${localePath} locale`).toBe(
+          locale
+        );
+
+        for (const field of IDENTICAL_FRONTMATTER_FIELDS) {
+          expect(
+            localeFrontmatter.get(field),
+            `${localePath} frontmatter ${field} must match English`
+          ).toBe(englishFrontmatter.get(field));
+        }
+
+        for (const field of TRANSLATED_FRONTMATTER_FIELDS) {
+          expect(
+            localeFrontmatter.get(field) ?? "",
+            `${localePath} frontmatter ${field} must be translated and non-empty`
+          ).toMatch(/\S/);
+        }
+      }
+    }
+  });
+
   it("keeps locale sections structurally aligned with English", async () => {
     const englishTexts = await Promise.all(
       SECTION_FILES.map((file) => readRepoFile(`content/spec/en/${file}`))
