@@ -35,7 +35,8 @@ Prerequisite: Node >= 22.12 with `npx harnessc` available.
 .agents/ AGENTS.md PROJECT_GUIDE.md  # generated output
 ```
 
-The frontend pack declares:
+Each portable pack declares the same isolation shape. For example, the
+frontend pack declares:
 
 ```toml
 version = 1
@@ -45,8 +46,9 @@ resources = ["skills/**"]
 dir = ["AGENTS.md", "AGENTS.md/**"]
 ```
 
-That means the selected frontend pack owns skill resources and `AGENTS.md`
-composition. Unrelated resources and dir outputs continue to project normally.
+That means the selected pack owns skill resources and `AGENTS.md`
+composition while it is active. Unrelated resources and dir outputs continue
+to project normally.
 
 ## Run it
 
@@ -78,5 +80,6 @@ pack isolated `skills/**` and `AGENTS.md`, so matching base/general candidates
 were suppressed. The local frontend pack has the same profile name, so it
 participated with the selected pack instead of being treated as a sibling.
 
-Try next: change `.harnessProfile` to `backend`, dry-run, and compare which
-skill and `AGENTS.md` source paths now participate.
+Try next: change `.harnessProfile` to `backend`, dry-run, and compare how the
+exclusive pack view swaps to backend while shared prompts and `PROJECT_GUIDE.md`
+keep projecting.

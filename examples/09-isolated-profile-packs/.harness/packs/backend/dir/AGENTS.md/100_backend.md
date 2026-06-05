@@ -1,3 +1,3 @@
 # Backend Pack Guide
 
-Backend pack guide is inactive while frontend is selected.
+Backend pack guide is active when backend is selected.
