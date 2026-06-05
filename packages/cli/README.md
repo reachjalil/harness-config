@@ -32,7 +32,6 @@ harnessc activate --yes
 harnessc extension activate --all --yes
 harnessc init --resource prompts --target ./runtime/agent
 harnessc init --yes --resource prompts --target ./runtime/agent
-harnessc plan
 ```
 
 Website: https://www.harnessconfig.dev/
@@ -74,10 +73,10 @@ worktree. `[[resources]].path`, `[[dir]].path`, and `[[targets]].parent` may
 use gitignore-style wildcard patterns; `[[targets]].path` remains a static
 target-local folder that activation may create.
 
-`harnessc plan` is a read-only initialization/adoption plan. It is not a
-projection preview, and it does not infer targets from existing folder names.
-Declare targets with `--target <path>` during init or edit the selected
-manifest.
+`harnessc init` without `--yes` is the read-only initialization/adoption plan.
+It does not infer targets from existing folder names. Declare targets with
+`--target <path>` during init or edit the selected manifest. Use
+`harnessc activate` without `--yes` for the projection preview.
 
 `harnessc explain <path>` is read-only introspection for a source or output
 path. It reports matching target outputs, configured source roots, source-use
