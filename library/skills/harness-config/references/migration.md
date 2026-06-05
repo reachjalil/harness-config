@@ -140,7 +140,7 @@ A full transition has all of these properties:
 | --- | --- |
 | Git safety gate | The repository is a Git worktree with a clean `git status --short` before migration edits; otherwise migration pauses while the user is offered options to initialize Git or preserve dirty work before continuing. |
 | Migration ledger | Every durable live path, root instruction file, target-level seed, generated target surface, generated `[[dir]]` output, and blocker is recorded with a `.harness` destination, generated output path, tracking decision, or explicit exception before activation and untracking. |
-| Source of truth | Durable agent configuration lives under configured `.harness` source roots. |
+| Source of truth | Durable agent configuration lives under configured `.harness` source roots. Wildcard source roots are used only for repo-local repeated ownership such as package-owned `.harness` folders. |
 | Live surfaces | `.agents`, `.claude`, `.cursor`, `.gemini`, and similar folders are generated outputs with root `.gitignore` entries after convergence, unless the user wants generated output tracked. |
 | Skills/resources | Every reusable skill, plugin, prompt, rule, command, hook, and agent is migrated or explicitly blocked with a reason. |
 | Root files | Durable root instructions such as `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and equivalents are copied into `.harness/dir` as direct Markdown files by default, or explicitly documented as blocked/excepted. |
@@ -148,6 +148,7 @@ A full transition has all of these properties:
 | Mutable files | Files matched by `.harnessMutable` are copied into `.harness` as source seeds when they should exist for fresh users; target-level settings such as `.claude/settings.json` are seeded at `.harness/resources/.claude/settings.json` unless explicitly blocked as secret/local state. |
 | Cleanup | Unmanaged live files are preserved until migrated, archived, or explicitly approved for deletion after a dry-run removal list. |
 | Target ignores | Generated surfaces have target-output `.harnessIgnore` files when a target needs local-only output rules. |
+| External target parents | `[[targets]].parent` is used only for output placement such as sibling Git worktrees; `[[targets]].path` remains static and explicit. |
 | Git ignore and untracking | Root `.gitignore` ignores each root-level generated target surface, generated `[[dir]]` output, or exact generated subtree after convergence unless the user wants generated output tracked; use root-anchored patterns such as `/.claude/` and `/AGENTS.md` so `.harness` source paths are not ignored. Build a repo-specific `git check-ignore -v` matrix from the ledger and prove generated outputs are ignored while `.harness`, profile, local, and target-derived source paths are not. Target-output `.harnessIgnore` is still used separately for Harness projection boundaries. If generated files are already tracked, run `git rm --cached -r` or `git rm --cached` for every tracked generated output, stage the transition with `git add`, verify the staged deletions, and verify no working-tree data was lost. |
 | Regeneration path | A tracked command or setup note tells users and agents how to validate and activate generated surfaces on a fresh checkout. |
 | Local state | Secrets, caches, logs, credentials, trust state, and machine-local settings stay out of `.harness`. |

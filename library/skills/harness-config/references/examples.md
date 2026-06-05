@@ -170,6 +170,71 @@ Suggest this `.gitignore` entry when local work should stay private:
 Promote useful local work by moving it into a tracked resource subfolder and
 reviewing the diff.
 
+## Wildcard Source Roots
+
+Best when a repository already has a regular reviewed source layout, such as a
+monorepo where each package owns its own Harness source.
+
+```toml
+[[resources]]
+path = "./packages/*/.harness/resources"
+
+[[dir]]
+path = "./packages/*/.harness/dir"
+
+[[targets]]
+path = "./.agents"
+
+[[targets]]
+path = "./.claude"
+```
+
+```text
+packages/api/.harness/resources/skills/api-contract/SKILL.md
+packages/docs/.harness/resources/prompts/docs-style.md
+packages/web/.harness/dir/AGENTS.md/140_web.md
+
+.agents/skills/api-contract/SKILL.md
+.agents/prompts/docs-style.md
+AGENTS.md
+```
+
+Use this only for repo-local source roots that should be observable from the
+repository. Patterns expand to existing real directories. Do not use wildcard
+resources or dir roots to pull source from sibling repositories, home
+directories, or generated target folders.
+
+## External Target Parent Fanout
+
+Best when a developer has sibling Git worktrees and wants the same reviewed
+Harness source projected into each worktree's runtime folder.
+
+```toml
+[[resources]]
+path = "./.harness/resources"
+
+[[dir]]
+path = "./.harness/dir"
+
+[[targets]]
+parent = "../worktrees/*"
+path = "./.codex"
+```
+
+```text
+.harness/resources/skills/review/SKILL.md
+.harness/dir/.codex/BRANCH_GUIDE.md/100_shared.md
+
+../worktrees/feature-login/.codex/skills/review/SKILL.md
+../worktrees/release-hardening/.codex/BRANCH_GUIDE.md
+```
+
+The target `parent` chooses physical output placement and may be outside the
+repo. The target `path` stays static and explicit because activation may need to
+create it under each resolved parent. Source roots, profile roots, ignore
+rules, and mutable declarations stay anchored in the repo unless they are
+target-output-local controls inside a concrete target.
+
 ## Profile-Based Activation Across Resource Groups
 
 Best when the repo has switchable modes such as `frontend`, `security-review`,

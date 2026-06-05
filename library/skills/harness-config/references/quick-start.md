@@ -139,6 +139,33 @@ Later roots win at the same logical output path. Suggest adding
 `.harness/local/` to `.gitignore` when the user wants those overrides private;
 do not require it.
 
+## Optional Wildcard Layouts
+
+Use wildcard manifest paths only when the repository already has a repeated
+layout worth preserving.
+
+For a monorepo with package-owned Harness source:
+
+```toml
+[[resources]]
+path = "./packages/*/.harness/resources"
+
+[[dir]]
+path = "./packages/*/.harness/dir"
+```
+
+For sibling Git worktree outputs:
+
+```toml
+[[targets]]
+parent = "../worktrees/*"
+path = "./.codex"
+```
+
+Keep source-root wildcards repo-local. `[[targets]].parent` may point outside
+the repo because it is output placement only. `[[targets]].path` must remain
+static and explicit; activation may create it under each resolved parent.
+
 ## Generated Surfaces
 
 Generated harness surfaces such as `.agents`, `.claude`, `.cursor`, and

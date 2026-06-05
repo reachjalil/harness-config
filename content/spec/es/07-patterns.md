@@ -14,7 +14,7 @@ llmSummary: Muestra patrones prácticos de Harness config para archivos mutables
 audience: Desarrolladores y equipos de plataforma que adoptan Harness config en repositorios reales.
 contentKind: spec
 status: draft
-updated: 2026-05-28
+updated: 2026-06-05
 ---
 
 # Patrones Harness config
@@ -306,6 +306,75 @@ path = "./.agents"
 Este kit se superpone en `.harness/resources/skills` y `.harness/dir`. Puede añadir un skill y añadir una parte de instrucción específica de despliegue sin convertirse en una carpeta `.agents/kits/deploy-kit/` proyectada.
 
 Este es el modelo correcto para kits de despliegue, seguridad, frontend, backend o onboarding proporcionados por la empresa. El kit es fuente revisada. El selector decide dónde está activo.
+
+## Fuente wildcard y fanout de objetivos
+
+Los caminos wildcard del manifiesto son útiles cuando la propiedad o la
+ubicación de salida es regular pero no está fija a una sola carpeta. Mantener
+la misma regla de propiedad: los caminos configurados `[[resources]]` y
+`[[dir]]` permanecen repo-locales y observables, mientras que
+`[[targets]].parent` puede apuntar a padres de salida externos como Git
+worktrees hermanos.
+
+Para worktrees de ramas, declarar un camino objetivo explícito y expandirlo
+mediante un padre wildcard:
+
+```toml
+[[resources]]
+path = "./.harness/resources"
+
+[[dir]]
+path = "./.harness/dir"
+
+[[targets]]
+parent = "../worktrees/*"
+path = "./.codex"
+```
+
+Si existen `../worktrees/feature-login` y
+`../worktrees/release-hardening`, la activación escribe:
+
+```text
+../worktrees/feature-login/.codex/
+../worktrees/release-hardening/.codex/
+```
+
+El camino objetivo permanece estático porque la activación puede necesitar
+crear `.codex` dentro de cada padre. No poner `*` en `[[targets]].path`. Las
+sobrescrituras derivadas del objetivo siguen usando `.codex` porque la
+selección de sobrescritura viene de `path`, no de `parent`.
+
+Para monorepos, permitir que los equipos de paquetes posean su fuente local
+mientras el manifiesto raíz recopila las raíces Harness de cada paquete:
+
+```toml
+[[resources]]
+path = "./packages/*/.harness/resources"
+
+[[dir]]
+path = "./packages/*/.harness/dir"
+
+[[targets]]
+path = "./.agents"
+
+[[targets]]
+path = "./.claude"
+```
+
+```text
+packages/api/.harness/resources/skills/api-contract/SKILL.md
+packages/docs/.harness/resources/prompts/docs-style.md
+packages/web/.harness/dir/AGENTS.md/140_web.md
+
+.agents/skills/api-contract/SKILL.md
+.agents/prompts/docs-style.md
+AGENTS.md
+```
+
+Esto permite que los paquetes añadan fuente revisada sin editar el manifiesto
+raíz para cada paquete. Los patrones se expanden solo a directorios reales
+existentes, así que una nueva raíz fuente de paquete participa cuando ese
+directorio existe.
 
 ## Superficies generadas con instrucciones de activación
 
