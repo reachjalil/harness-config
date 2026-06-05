@@ -15,10 +15,15 @@ npx harnessc activate
 npx harnessc activate --yes
 printf 'security-audit\n' > .harnessProfile
 npx harnessc activate
+npx harnessc activate --yes --remove-orphans
 ```
 
 That one-line selector change previews the move from frontend mode to
-security-audit mode before anything is written.
+security-audit mode before anything is written. When applying a profile switch,
+add `--remove-orphans` to remove unedited files from the previously selected
+profile. Use `--remove-unmanaged` separately when cleaning files that no
+configured source can produce anymore, such as outputs from deleted or newly
+ignored source files.
 
 ## The arc
 

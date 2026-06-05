@@ -45,7 +45,7 @@ npx harnessc activate                                  # check that nothing new 
 printf 'security-audit\n' > .harnessProfile            # switch the selected profile
 npx harnessc activate                                  # dry run: preview the mode swap before writing
 npx harnessc explain .agents/skills/security-audit/SKILL.md --json  # inspect the active profile source
-npx harnessc activate --yes                            # apply: write the security-audit generated files
+npx harnessc activate --yes --remove-orphans           # apply: write security-audit and remove stale frontend outputs
 ```
 
 Expected result:
@@ -53,7 +53,9 @@ Expected result:
 - `validate` reports no Harness config issues.
 - The first apply writes the default `frontend` mode.
 - Changing `.harnessProfile` to `security-audit` previews a mode swap.
-- The security skill appears after `activate --yes`.
+- The security skill appears after `activate --yes --remove-orphans`.
+- Unedited frontend-only outputs are removed because the old profile can still
+  produce them and they are now orphaned managed outputs.
 - `explain` shows that the security skill came from the active profile.
 
 ## What just happened
@@ -64,4 +66,7 @@ on top. The active profile contributed one mode skill, one mode prompt, and one
 so it follows the same selected mode.
 
 Try next: switch to `backend`, dry-run, and inspect the planned creates,
-updates, and removals before applying.
+updates, orphaned outputs, and removals before applying with
+`--remove-orphans`. Use `--remove-unmanaged` only for target files that no
+configured source can produce anymore, such as outputs from deleted or newly
+ignored source files.

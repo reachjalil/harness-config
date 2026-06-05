@@ -1514,6 +1514,152 @@ targetSymlinks = "sometimes"
     ).rejects.toThrow();
   });
 
+  it("end-to-end: profile isolation selects wildcard pack resources and dir outputs", async () => {
+    const root = await rootFixture();
+    await write(
+      root,
+      ".harness/harness.toml",
+      [
+        "version = 1",
+        "",
+        "[[resources]]",
+        'path = "./.harness/resources"',
+        "",
+        "[[resources]]",
+        'path = "./.harness/packs/*/resources"',
+        "",
+        "[[resources]]",
+        'path = "./.harness/local-packs/*/resources"',
+        "",
+        "[[targets]]",
+        'path = "./.agents"',
+        "",
+        "[[dir]]",
+        'path = "./.harness/dir"',
+        "",
+        "[[dir]]",
+        'path = "./.harness/packs/*/dir"',
+        "",
+        "[[dir]]",
+        'path = "./.harness/local-packs/*/dir"',
+        "",
+      ].join("\n")
+    );
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harnessProfile", "frontend\n");
+    await write(root, ".harness/resources/hooks.json", "{}");
+    await write(root, ".harness/resources/skills/general/SKILL.md", "general");
+    await write(root, ".harness/dir/README.md", "base readme\n");
+    await write(root, ".harness/dir/AGENTS.md/.harnessComposable", "");
+    await write(root, ".harness/dir/AGENTS.md/100_base.md", "base\n");
+    await write(
+      root,
+      ".harness/packs/frontend/.harnessProfileRoot",
+      "frontend\n"
+    );
+    await write(
+      root,
+      ".harness/packs/frontend/.harnessProfileIsolation",
+      [
+        "version = 1",
+        "",
+        "[isolate]",
+        'resources = ["skills/**"]',
+        'dir = ["AGENTS.md", "AGENTS.md/**"]',
+        "",
+      ].join("\n")
+    );
+    await write(
+      root,
+      ".harness/packs/frontend/resources/skills/frontend/SKILL.md",
+      "frontend"
+    );
+    await write(
+      root,
+      ".harness/packs/frontend/dir/AGENTS.md/.harnessComposable",
+      ""
+    );
+    await write(
+      root,
+      ".harness/packs/frontend/dir/AGENTS.md/100_frontend.md",
+      "frontend\n"
+    );
+    await write(
+      root,
+      ".harness/packs/backend/resources/skills/backend/SKILL.md",
+      "backend"
+    );
+    await write(
+      root,
+      ".harness/packs/backend/dir/AGENTS.md/.harnessComposable",
+      ""
+    );
+    await write(
+      root,
+      ".harness/packs/backend/dir/AGENTS.md/100_backend.md",
+      "backend\n"
+    );
+    await write(
+      root,
+      ".harness/local-packs/frontend/.harnessProfileRoot",
+      "frontend\n"
+    );
+    await write(
+      root,
+      ".harness/local-packs/frontend/resources/skills/local/SKILL.md",
+      "local"
+    );
+    await write(
+      root,
+      ".harness/local-packs/frontend/dir/AGENTS.md/.harnessComposable",
+      ""
+    );
+    await write(
+      root,
+      ".harness/local-packs/frontend/dir/AGENTS.md/200_local.md",
+      "local\n"
+    );
+
+    const validateCapture = captureIo();
+    const validateExitCode = await runHarnessConfigCli(
+      ["validate", "--root", root],
+      validateCapture.io
+    );
+    expect(validateExitCode).toBe(0);
+    expect(validateCapture.stdout.join("\n")).toContain(
+      "No Harness config issues found."
+    );
+
+    const activateCapture = captureIo();
+    const activateExitCode = await runHarnessConfigCli(
+      ["activate", "--root", root, "--yes"],
+      activateCapture.io
+    );
+
+    expect(activateExitCode).toBe(0);
+    await expect(
+      readFile(path.join(root, ".agents/skills/frontend/SKILL.md"), "utf8")
+    ).resolves.toBe("frontend");
+    await expect(
+      readFile(path.join(root, ".agents/skills/local/SKILL.md"), "utf8")
+    ).resolves.toBe("local");
+    await expect(
+      readFile(path.join(root, ".agents/hooks.json"), "utf8")
+    ).resolves.toBe("{}");
+    await expect(
+      readFile(path.join(root, ".agents/skills/general/SKILL.md"))
+    ).rejects.toThrow();
+    await expect(
+      readFile(path.join(root, ".agents/skills/backend/SKILL.md"))
+    ).rejects.toThrow();
+    await expect(readFile(path.join(root, "AGENTS.md"), "utf8")).resolves.toBe(
+      "frontend\nlocal\n"
+    );
+    await expect(readFile(path.join(root, "README.md"), "utf8")).resolves.toBe(
+      "base readme\n"
+    );
+  });
+
   it("reports a path-conflict when a copy file collides with a composable leaf", async () => {
     const root = await rootFixture();
     await writeDirConfig(root);

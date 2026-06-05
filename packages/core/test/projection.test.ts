@@ -3577,7 +3577,7 @@ describe("HarnessConfig activation projection", () => {
     ).rejects.toThrow();
   });
 
-  it("lets an active portable pack profile ignore sibling wildcard resource roots", async () => {
+  it("isolates wildcard pack resources to active same-name profile roots", async () => {
     const root = await rootFixture();
     await write(
       root,
@@ -3586,7 +3586,13 @@ describe("HarnessConfig activation projection", () => {
         "version = 1",
         "",
         "[[resources]]",
+        'path = "./.harness/resources"',
+        "",
+        "[[resources]]",
         'path = "./.harness/packs/*/resources"',
+        "",
+        "[[resources]]",
+        'path = "./.harness/local-packs/*/resources"',
         "",
         "[[targets]]",
         'path = "./.agents"',
@@ -3602,23 +3608,34 @@ describe("HarnessConfig activation projection", () => {
     );
     await write(
       root,
-      ".harness/packs/frontend/.harnessIgnore",
-      [
-        "packs/*/resources/**",
-        "!packs/frontend/resources/",
-        "!packs/frontend/resources/**",
-        "",
-      ].join("\n")
+      ".harness/packs/frontend/.harnessProfileIsolation",
+      ["version = 1", "", "[isolate]", 'resources = ["**"]', ""].join("\n")
     );
     await write(
       root,
-      ".harness/packs/frontend/resources/skills/frontend/SKILL.md",
-      "frontend"
+      ".harness/local-packs/frontend/.harnessProfileRoot",
+      "frontend\n"
+    );
+    await write(root, ".harness/resources/skills/general/SKILL.md", "general");
+    await write(
+      root,
+      ".harness/packs/frontend/resources/skills/frontend/SKILL.md/.harnessComposable",
+      ""
+    );
+    await write(
+      root,
+      ".harness/packs/frontend/resources/skills/frontend/SKILL.md/100_frontend.md",
+      "frontend\n"
     );
     await write(
       root,
       ".harness/packs/backend/resources/skills/backend/SKILL.md",
       "backend"
+    );
+    await write(
+      root,
+      ".harness/local-packs/frontend/resources/skills/local/SKILL.md",
+      "local"
     );
 
     const result = await applyHarnessActivation(root, {
@@ -3629,7 +3646,13 @@ describe("HarnessConfig activation projection", () => {
     expect(result.plan.diagnostics).toEqual([]);
     await expect(
       readFile(path.join(root, ".agents/skills/frontend/SKILL.md"), "utf8")
-    ).resolves.toBe("frontend");
+    ).resolves.toBe("frontend\n");
+    await expect(
+      readFile(path.join(root, ".agents/skills/local/SKILL.md"), "utf8")
+    ).resolves.toBe("local");
+    await expect(
+      readFile(path.join(root, ".agents/skills/general/SKILL.md"))
+    ).rejects.toThrow();
     await expect(
       readFile(path.join(root, ".agents/skills/backend/SKILL.md"))
     ).rejects.toThrow();

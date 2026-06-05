@@ -822,6 +822,32 @@ path = "./.cursor"
     );
   });
 
+  it("reports invalid profile isolation declarations during validation", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
+    await write(root, ".harness/harness.toml", "version = 1\n");
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harness/profiles/team/.harnessProfileRoot", "team\n");
+    await write(
+      root,
+      ".harness/profiles/team/.harnessProfileIsolation",
+      ["version = 1", "", "[isolate]", 'resources = ["skills/**", 1]', ""].join(
+        "\n"
+      )
+    );
+
+    const validation = await validateHarnessConfig(root);
+
+    expect(validation.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          severity: "error",
+          code: "harness.profile_isolation_invalid",
+          path: ".harness/profiles/team/.harnessProfileIsolation",
+        }),
+      ])
+    );
+  });
+
   it("reports nested profile roots during validation", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
     await write(root, ".harness/harness.toml", "version = 1\n");

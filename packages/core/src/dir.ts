@@ -8,6 +8,7 @@ import {
   HARNESS_IGNORE_FILE,
   HARNESS_MUTABLE_FILE,
   HARNESS_PROFILE_FILE,
+  HARNESS_PROFILE_ISOLATION_FILE,
   HARNESS_PROFILE_ROOT_FILE,
   normalizeHarnessTargetOutputPath,
   resolveHarnessPaths,
@@ -184,6 +185,23 @@ function layerProfileApplies(
   );
 }
 
+function layerIsolatedByProfile(
+  layer: DirSourceLayer,
+  profileContext: HarnessProfileContext,
+  outputPath: string,
+  physicalPath: string,
+  isDirectory: boolean
+): boolean {
+  const activeProfile = outputProfile(profileContext, outputPath);
+  return (
+    layer.profile === undefined &&
+    !profileContext.profileRootContainsPath(activeProfile, physicalPath) &&
+    profileContext.profileIsolatesDir(activeProfile, outputPath, {
+      isDirectory,
+    })
+  );
+}
+
 async function readDirectoryEntries(
   root: string,
   directory: string,
@@ -257,6 +275,13 @@ async function classifyEntries(
         continue;
       }
       if (
+        !layerIsolatedByProfile(
+          layer,
+          profileContext,
+          outputPath,
+          entry.absolutePath,
+          true
+        ) &&
         !shouldIgnore(
           matcher,
           sourceRelativePath,
@@ -273,13 +298,29 @@ async function classifyEntries(
 
     if (entryType === "file") {
       if (entry.name === HARNESS_COMPOSABLE_MARKER) {
-        if (layerProfileApplies(layer, profileContext, outputPath)) {
+        if (
+          layerProfileApplies(layer, profileContext, outputPath) &&
+          !layerIsolatedByProfile(
+            layer,
+            profileContext,
+            outputPath,
+            entry.absolutePath,
+            false
+          )
+        ) {
           hasMarker = true;
         }
         continue;
       }
       if (
         layerProfileApplies(layer, profileContext, outputPath) &&
+        !layerIsolatedByProfile(
+          layer,
+          profileContext,
+          outputPath,
+          entry.absolutePath,
+          false
+        ) &&
         !shouldIgnore(
           matcher,
           sourceRelativePath,
@@ -296,6 +337,13 @@ async function classifyEntries(
 
     if (
       layerProfileApplies(layer, profileContext, outputPath) &&
+      !layerIsolatedByProfile(
+        layer,
+        profileContext,
+        outputPath,
+        entry.absolutePath,
+        false
+      ) &&
       !shouldIgnore(
         matcher,
         sourceRelativePath,
@@ -889,6 +937,7 @@ function isCandidateDeclarationFile(name: string): boolean {
     name === HARNESS_IGNORE_FILE ||
     name === HARNESS_MUTABLE_FILE ||
     name === HARNESS_PROFILE_FILE ||
+    name === HARNESS_PROFILE_ISOLATION_FILE ||
     name === HARNESS_PROFILE_ROOT_FILE
   );
 }
@@ -1020,7 +1069,31 @@ async function dirSourceLayers(
   for (const dirRoot of dirRoots) {
     layers.push(...(await dirSourceLayersForRoot(dirRoot, profileContext)));
   }
-  return layers;
+  const activeProfileLayerKeys = new Set(
+    layers
+      .filter(
+        (layer) =>
+          layer.profile !== undefined &&
+          profileContext.profileCanApplyWithin(
+            layer.outputPrefix ?? "",
+            layer.profile
+          )
+      )
+      .map((layer) => dirLayerParticipationKey(layer))
+  );
+
+  return layers.filter(
+    (layer) =>
+      layer.profile !== undefined ||
+      !activeProfileLayerKeys.has(dirLayerParticipationKey(layer))
+  );
+}
+
+function dirLayerParticipationKey(layer: DirSourceLayer): string {
+  return [
+    path.resolve(layer.physicalRoot),
+    normalizeRelative(layer.outputPrefix ?? ""),
+  ].join("\0");
 }
 
 export async function planHarnessDir(

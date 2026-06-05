@@ -279,7 +279,7 @@ Target 是配置，不是隐藏的变更。工具 SHOULD 在创建、替换、�
 - **路径规范化。** 在比较之前，实现 MUST 折叠重复分隔符、删除前导 `./` 并拒绝 `..` 段。路径 MUST 解析为仓库内部。
 - **大小写敏感性。** 路径比较（target 相等、override 匹配、ignore 匹配）**对大小写敏感**。可能在大小写不敏感文件系统（如默认的 macOS 或 Windows 卷）上克隆的仓库 SHOULD 避免仅大小写不同的名称，因为底层文件系统可能折叠它们。实现 MAY 在检测到此类冲突时警告。
 - **符号链接。** 在配置过的源根、`./.harness` 或声明的 target 树内遇到的符号链接被视为叶文件系统条目。v1 实现 MUST NOT 在发现源树、现有 target 树、ignore、profile 或 dir 输出时跟随符号链接。当 target 符号链接占据激活需要写入的路径时，激活 MUST 报告冲突，除非选择了显式的 target 符号链接替换策略。使用该策略时，链接本身 MAY 按用于其他非目录条目的相同文件/路径冲突规则被替换。v1 不要求把符号链接保留为链接或把源符号链接投影到 target。
-- **隐藏文件。** 以 `.` 开头的名称不被隐式忽略。它们像任何其他文件一样参与投影，除非被 `.harnessIgnore` 排除。这不让 Harness config 声明文件成为 target payload：`.harnessIgnore`、`.harnessMutable`、`.harnessProfile` 和 `.harnessProfileRoot` 是边界控件并 MUST NOT 被投影到 target。
+- **隐藏文件。** 以 `.` 开头的名称不被隐式忽略。它们像任何其他文件一样参与投影，除非被 `.harnessIgnore` 排除。这不让 Harness config 声明文件成为 target payload：`.harnessIgnore`、`.harnessMutable`、`.harnessProfile`、`.harnessProfileRoot` 和 `.harnessProfileIsolation` 是边界控件并 MUST NOT 被投影到 target。
 
 ## 路由资源到 target
 
@@ -311,7 +311,7 @@ local-only/
 
 1. 配置过的 resources 源下的参与文件、可组合叶和文件夹，包括它们的 override 文件夹，
 2. 所选版本化 manifest，
-3. `.harnessProfile` 选择器和活动的 `.harnessProfileRoot` 覆盖，
+3. `.harnessProfile` 选择器和活动的 `.harnessProfileRoot` 覆盖，包括任何 profile 本地 `.harnessProfileIsolation` 声明，
 4. 所有参与的 `.harnessIgnore` 文件，包括仓库根、源本地、profile 本地和目标输出本地规则，
 5. 所有参与的 `.harnessMutable` 文件，包括仓库根、源本地和 profile 本地规则，
 6. 未管理清理策略（保留未管理项 vs 删除它们），
@@ -366,11 +366,15 @@ Target 文件夹可能已经包含不来自配置过的源的资源。符合的�
 
 如果选择了清理，计划 MUST 在写入之前把那些条目显示为 `remove`。应用显式清理 SHOULD 修剪 target 内空的父目录，以便后续在不变输入下的激活在没有额外清理动作的情况下收敛。如果未选择清理，计划 MUST 把未管理条目显示为 `preserve`。
 
+未管理分类基于当前配置的源图，而不是先前激活历史。先前源文件已删除、源根不再配置、或源路径现在被 `.harnessIgnore` 排除的 target 条目，在基础 v1 投影契约中没有当前源生产者，因此是未管理的。直接写入已声明 target 的本地文件也是如此。
+
 如果 target 声明从所选 manifest 中移除，核心 v1 投影不再把该 target 放在它的授权写入集中，因此在正常激活期间不清理该文件夹。要仅用基础投影契约清理 target，请在 target 仍被声明时运行清理，然后移除声明。更高层工具 MAY 保留激活状态并提供一个孤立 target 调和工作流，预览移除、忽略或捕获回源。
 
 ### 孤立的受管理输出
 
 孤立的受管理输出是 target 条目，其逻辑输出路径由当前 manifest 下的某个配置源产生，但不由该输出路径的活动选择产生。常见情况包括 profile 选择器改变后，由已取消选择的 profile 根或 target override 产生的文件。孤立的受管理输出不同于活动投影中的受管理条目，也不同于不由任何配置源产生的未管理条目。
+
+孤立分类要求存在当前非活动生产者。对某个输出路径处于活动状态的普通 resources 或 dir 源是活动投影的一部分；如果它从配置的源图中移除，它就不再证明任何过期 target 条目的受管理所有权。Profile 根和特定于 target 的 override 源可以保持配置但不为某个特定输出路径选择，因此它们可以在不要求激活历史的情况下证明孤立的受管理输出。
 
 默认孤立输出清理策略 SHOULD 是保留。符合的工具 SHOULD 把孤立的受管理输出报告为自己的计划类别，以便操作员区分工具产生的过期 profile 输出和真正外来的 target 文件。
 
@@ -606,7 +610,7 @@ notes/.harnessIgnore                            # dir 输出的目标输出规�
 - **逻辑位置。** 每个参与的本地 `.harnessIgnore` 都有逻辑位置。Profile 本地文件在 profile 根的逻辑覆盖位置参与。由 target 派生的 override 文件在它们的逻辑源和 target 位置参与，而不仅在存储 override 的物理点文件夹中参与。
 - **相同语法。** 嵌套文件支持与相应根文件相同的注释、否定、锚点、glob 语法和支持的节标题。
 - **特定 target 放置。** 目标输出子树内的嵌套 `.harnessIgnore` 是特定 target 的机制。特定 target 的节标题即使在 override 文件夹内也无效。
-- **合成 ignore。** 每个 `.harnessIgnore`、`.harnessMutable`、`.harnessProfile` 和 `.harnessProfileRoot` 文件本身被排除在投影之外，相当于声明文件的全局 ignore 规则。实现 MUST NOT 把这些声明文件拷贝到 target 中，即使没有显式规则排除它们。目标输出声明文件仍然可以从其现有 target 位置影响投影；它作为本地控件读取，而不作为受管理的 target 内容投影。
+- **合成 ignore。** 每个 `.harnessIgnore`、`.harnessMutable`、`.harnessProfile`、`.harnessProfileRoot` 和 `.harnessProfileIsolation` 文件本身被排除在投影之外，相当于声明文件的全局 ignore 规则。实现 MUST NOT 把这些声明文件拷贝到 target 中，即使没有显式规则排除它们。目标输出声明文件仍然可以从其现有 target 位置影响投影；它作为本地控件读取，而不作为受管理的 target 内容投影。
 - **目标输出保护。** 已经存在于目标输出位置的 `.harnessIgnore` 文件 MUST NOT 被投影覆盖，MUST NOT 被未管理清理删除。保持该文件在原位所需的祖先目录也 MUST 被保留。现有目标输出 `.harnessProfile` 文件具有相同保护。
 
 本地文件是可选的范围边界输入；仅使用根文件的仓库保持符合。目标输出本地文件仅在它们存在于磁盘上后参与；实现不必推断尚未创建的文件的内容。
@@ -621,11 +625,25 @@ Profile 根根据放置标记的位置覆盖源路径：
 
 - 如果标记目录是配置过的 resources 源或配置过的 dir 源的紧邻子目录，该标记目录覆盖该源根。例如，在约定 resources 路径下，`.harness/resources/deploy/.harnessProfileRoot` 覆盖 `.harness/resources`；`deploy/` 的子项变为逻辑资源输出。
 - 如果标记目录嵌套在配置过的 resources 源或配置过的 dir 源更深处，该标记目录覆盖它的父目录。这让资源项可以携带可移植本地 profile。例如，在约定 resources 路径下，`.harness/resources/skills/example/focusedProfile/.harnessProfileRoot` 覆盖 `.harness/resources/skills/example`，因此在该 profile 活动时 `.harness/resources/skills/example/focusedProfile/SKILL.md` 替换逻辑 `.harness/resources/skills/example/SKILL.md`。
-- 否则，`./.harness` 下的标记目录覆盖 `./.harness`。这支持工具包布局，如 `.harness/kits/deploy-kit/.harnessProfileRoot`，其子项如 `resources/` 和 `dir/`。
+- 否则，`./.harness` 下的标记目录覆盖 `./.harness`。这支持 pack 布局，如 `.harness/packs/deploy/.harnessProfileRoot`，其子项如 `resources/` 和 `dir/`。
+
+Profile 根 MAY 包含可选的 `.harnessProfileIsolation` 文件。该文件是 UTF-8 TOML，并且 MUST 使用 `version = 1`。它 MAY 在 `[isolate]` 下声明 gitignore 风格模式：
+
+```toml
+version = 1
+
+[isolate]
+resources = ["skills/**"]
+dir = ["AGENTS.md", "AGENTS.md/**"]
+```
+
+缺少 `.harnessProfileIsolation` 表示该 profile 根使用普通覆盖行为，不隔离任何基础源路径。`resources` 模式匹配相对于 resources 源根的逻辑资源路径。`dir` 模式匹配相对于仓库根的逻辑 dir 输出路径。Target 路径和物理存储路径不用于隔离匹配。
+
+当带隔离的 profile 对某个输出路径处于活动状态时，匹配的非 profile resource 或 dir 候选会对该输出路径被抑制。具有相同选中 profile 名称的活动 profile 根继续参与，包括来自有序源根或 wildcard 展开源根的多个同名根。这允许选中的可移植 pack 和同名本地 override pack 一起应用，同时排除匹配的基础/通用文件和未活动的同级 pack。隔离按路径限定：隔离 `AGENTS.md` 的模式不会隔离无关的 dir 输出，隔离 `skills/**` 的模式不会隔离无关的资源类型。
 
 在投影期间，profile 覆盖参与 [Override](#override) 中定义的资源优先级顺序。因此通用 profile 覆盖不能替换特定 target 的 override（如 `.codex`）；特定 profile 的 `.codex` override 可以。如果所选 profile 的多个活动 profile 根投影同一逻辑文件，工具 MUST 按 profile 根路径使用确定性的最后获胜顺序，并 SHOULD 报告警告。Profile 本地 `.harnessIgnore` 和 `.harnessMutable` 文件匹配逻辑覆盖路径，不是存储路径。例如，在 `.harness/profiles/personal/dir/AGENTS.md/.harnessIgnore` 的 ignore 文件就像它位于 `.harness/dir/AGENTS.md/.harnessIgnore` 一样应用，因此它可以在添加 profile 部分之前抑制基础可组合部分。
 
-作为 profile 根的物理祖先的源本地 `.harnessIgnore` 文件也在 profile 根映射到其逻辑覆盖路径之前应用。例如，`.harness/kits/.harnessIgnore` 可以排除活动 `deploy` profile 中的 `.harness/kits/deploy/**/.harness-cache/` 元数据，即使该 profile 根下的文件覆盖逻辑路径（如 `.harness/resources` 或 `.harness/dir`）。
+作为 profile 根的物理祖先的源本地 `.harnessIgnore` 文件也在 profile 根映射到其逻辑覆盖路径之前应用。例如，`.harness/packs/.harnessIgnore` 可以排除活动 `deploy` profile 中的 `.harness/packs/deploy/**/.harness-cache/` 元数据，即使该 profile 根下的文件覆盖逻辑路径（如 `.harness/resources` 或 `.harness/dir`）。
 
 对于 dir 源，实现 MUST 使用引导/最终流程：用源端规则和任何已知的 profile 选择器收集候选输出，在候选输出祖先中发现目标输出 `.harnessIgnore` 和 `.harnessProfile` 文件，然后重新计算最终输出。活动的 profile 目录 MUST 也参与候选发现，以便目标输出 `.harnessProfile` 可以激活仅 profile 的 dir 输出，即使没有基础 dir 源会产生该输出。活动的 profile 目录可以贡献到现有的 `.harnessComposable` 叶，即使 profile 目录不重复 `.harnessComposable` 标记。
 

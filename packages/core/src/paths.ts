@@ -21,6 +21,7 @@ export const HARNESS_IGNORE_FILE = ".harnessIgnore";
 export const HARNESS_MUTABLE_FILE = ".harnessMutable";
 export const HARNESS_PROFILE_FILE = ".harnessProfile";
 export const HARNESS_PROFILE_ROOT_FILE = ".harnessProfileRoot";
+export const HARNESS_PROFILE_ISOLATION_FILE = ".harnessProfileIsolation";
 export const CONVENTIONAL_HARNESS_RESOURCES = [
   "skills",
   "rules",

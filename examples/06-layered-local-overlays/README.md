@@ -46,7 +46,7 @@ printf 'personal-lab\n' > .harness/local/.harnessProfileRoot  # mark the local f
 printf 'personal-lab\n' > .harnessProfile              # switch to the local profile
 npx harnessc activate                                  # dry run: preview the local override before writing
 npx harnessc explain .agents/skills/repo-review/SKILL.md --json  # inspect why the local skill wins
-npx harnessc activate --yes                            # apply: write the local overlay output
+npx harnessc activate --yes --remove-orphans           # apply: write local overlay and remove stale shared-profile outputs
 ```
 
 Expected result:
@@ -56,6 +56,8 @@ Expected result:
 - Copying `local-template` into `.harness/local` creates a private overlay.
 - Changing `.harnessProfile` to `personal-lab` previews the local override.
 - `explain` shows the repo-review skill came from the local overlay.
+- `activate --yes --remove-orphans` writes the local overlay and removes
+  unedited outputs from the previously selected profile, if any.
 
 ## What just happened
 
@@ -66,4 +68,7 @@ the experiment stays private until useful files are promoted back into reviewed
 source.
 
 Try next: edit `.harness/local/resources/skills/repo-review/SKILL.md`, dry-run,
-and compare the planned update without changing shared source.
+and compare the planned update without changing shared source. When switching
+away from `personal-lab`, dry-run first and apply with `--remove-orphans` if
+you want unedited local-profile outputs removed. Use `--remove-unmanaged` only
+for target files that no configured source can produce anymore.

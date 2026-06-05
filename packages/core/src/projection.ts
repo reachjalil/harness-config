@@ -22,6 +22,7 @@ import {
   HARNESS_IGNORE_FILE,
   HARNESS_MUTABLE_FILE,
   HARNESS_PROFILE_FILE,
+  HARNESS_PROFILE_ISOLATION_FILE,
   HARNESS_PROFILE_ROOT_FILE,
   harnessTargetKey,
   normalizeHarnessTargetOutputPath,
@@ -460,6 +461,7 @@ function isComposableDeclarationFile(fileName: string): boolean {
     fileName === HARNESS_IGNORE_FILE ||
     fileName === HARNESS_MUTABLE_FILE ||
     fileName === HARNESS_PROFILE_FILE ||
+    fileName === HARNESS_PROFILE_ISOLATION_FILE ||
     fileName === HARNESS_PROFILE_ROOT_FILE
   );
 }
@@ -855,6 +857,20 @@ async function projectResourcesTree(options: {
     if (!profileParticipates(options.requiredProfile, activeProfile)) {
       continue;
     }
+    if (
+      !options.profileRootDir &&
+      !options.profileContext.profileRootContainsPath(
+        activeProfile,
+        path.join(options.sourceDir, relativeFromSource)
+      ) &&
+      options.profileContext.profileIsolatesResources(
+        activeProfile,
+        fallbackOutputRelativePath,
+        { isDirectory: false }
+      )
+    ) {
+      continue;
+    }
     const leaf = await readResourceComposableLeaf({
       activeProfile,
       diagnostics: options.diagnostics,
@@ -943,6 +959,20 @@ async function projectResourcesTree(options: {
       targetOutputPath
     );
     if (!profileParticipates(options.requiredProfile, activeProfile)) {
+      continue;
+    }
+    if (
+      !options.profileRootDir &&
+      !options.profileContext.profileRootContainsPath(
+        activeProfile,
+        filePath
+      ) &&
+      options.profileContext.profileIsolatesResources(
+        activeProfile,
+        outputRelativePath,
+        { isDirectory: false }
+      )
+    ) {
       continue;
     }
 

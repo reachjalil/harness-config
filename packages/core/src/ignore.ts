@@ -5,6 +5,7 @@ import {
   HARNESS_IGNORE_FILE,
   HARNESS_MUTABLE_FILE,
   HARNESS_PROFILE_FILE,
+  HARNESS_PROFILE_ISOLATION_FILE,
   HARNESS_PROFILE_ROOT_FILE,
   harnessTargetRootMappingsForConfig,
   logicalTargetOutputPathForPhysicalPath,
@@ -186,6 +187,7 @@ const SYNTHETIC_NESTED_DECLARATION_RULES: HarnessIgnoreRule[] = [
   HARNESS_IGNORE_FILE,
   HARNESS_MUTABLE_FILE,
   HARNESS_PROFILE_FILE,
+  HARNESS_PROFILE_ISOLATION_FILE,
   HARNESS_PROFILE_ROOT_FILE,
 ].map((fileName) => ({
   kind: "ignore",
@@ -511,6 +513,7 @@ function isSyntheticDeclarationPath(normalizedPath: string): boolean {
     HARNESS_IGNORE_FILE,
     HARNESS_MUTABLE_FILE,
     HARNESS_PROFILE_FILE,
+    HARNESS_PROFILE_ISOLATION_FILE,
     HARNESS_PROFILE_ROOT_FILE,
   ].some(
     (fileName) =>
@@ -526,6 +529,7 @@ function syntheticDeclarationRuleForPath(
       HARNESS_IGNORE_FILE,
       HARNESS_MUTABLE_FILE,
       HARNESS_PROFILE_FILE,
+      HARNESS_PROFILE_ISOLATION_FILE,
       HARNESS_PROFILE_ROOT_FILE,
     ].find(
       (candidate) =>
