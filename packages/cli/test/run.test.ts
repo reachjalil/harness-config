@@ -349,6 +349,142 @@ describe("harnessc", () => {
     ).resolves.toBe("custom");
   });
 
+  it("activates and explains a target with an external parent", async () => {
+    const workspace = await mkdtemp(path.join(tmpdir(), "harnessc-worktrees-"));
+    const root = path.join(workspace, "repo");
+    const worktree = path.join(workspace, "other_branch");
+    await mkdir(root, { recursive: true });
+    await mkdir(worktree, { recursive: true });
+    await write(
+      root,
+      ".harness/harness.toml",
+      [
+        "version = 1",
+        "",
+        "[[resources]]",
+        'path = "./.harness/resources"',
+        "",
+        "[[targets]]",
+        'parent = "../other_branch"',
+        'path = "./.codex"',
+        "",
+      ].join("\n")
+    );
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harness/resources/skills/review/SKILL.md", "external");
+
+    const activateCapture = captureIo();
+    const activateExitCode = await runHarnessConfigCli(
+      ["activate", "--root", root, "--yes"],
+      activateCapture.io
+    );
+
+    expect(activateExitCode).toBe(0);
+    expect(activateCapture.stdout.join("\n")).toContain(
+      ".codex (parent ../other_branch"
+    );
+    const outputPath = path.join(worktree, ".codex/skills/review/SKILL.md");
+    await expect(readFile(outputPath, "utf8")).resolves.toBe("external");
+
+    const explainCapture = captureIo();
+    const explainExitCode = await runHarnessConfigCli(
+      ["explain", outputPath, "--root", root, "--json"],
+      explainCapture.io
+    );
+    const explanation = JSON.parse(explainCapture.stdout.join("\n"));
+
+    expect(explainExitCode).toBe(0);
+    expect(explanation.logicalPath).toBe(".codex/skills/review/SKILL.md");
+    expect(explanation.outputActions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "keep",
+          target: "./.codex",
+        }),
+      ])
+    );
+  });
+
+  it("activates wildcard source roots and target parents", async () => {
+    const workspace = await mkdtemp(path.join(tmpdir(), "harnessc-worktrees-"));
+    const root = path.join(workspace, "repo");
+    const alphaWorktree = path.join(workspace, "worktrees/alpha");
+    const betaWorktree = path.join(workspace, "worktrees/beta");
+    await mkdir(root, { recursive: true });
+    await mkdir(alphaWorktree, { recursive: true });
+    await mkdir(betaWorktree, { recursive: true });
+    await write(
+      root,
+      ".harness/harness.toml",
+      [
+        "version = 1",
+        "",
+        "[[resources]]",
+        'path = "./.harness/resources-*"',
+        "",
+        "[[targets]]",
+        'parent = "../worktrees/*"',
+        'path = "./.codex"',
+        "",
+        "[[dir]]",
+        'path = "./.harness/dir-*"',
+        "",
+      ].join("\n")
+    );
+    await write(root, ".harnessIgnore", "");
+    await write(root, ".harness/resources-base/skills/review/SKILL.md", "base");
+    await write(root, ".harness/resources-team/skills/review/SKILL.md", "team");
+    await write(root, ".harness/dir-base/.codex/branch-note.md", "base dir");
+    await write(root, ".harness/dir-team/.codex/branch-note.md", "team dir");
+
+    const activateCapture = captureIo();
+    const activateExitCode = await runHarnessConfigCli(
+      ["activate", "--root", root, "--yes"],
+      activateCapture.io
+    );
+
+    expect(activateExitCode).toBe(0);
+    expect(activateCapture.stdout.join("\n")).toContain(
+      ".codex (parent ../worktrees/alpha"
+    );
+    expect(activateCapture.stdout.join("\n")).toContain(
+      ".codex (parent ../worktrees/beta"
+    );
+    await expect(
+      readFile(
+        path.join(alphaWorktree, ".codex/skills/review/SKILL.md"),
+        "utf8"
+      )
+    ).resolves.toBe("team");
+    await expect(
+      readFile(path.join(betaWorktree, ".codex/branch-note.md"), "utf8")
+    ).resolves.toBe("team dir");
+
+    const explainCapture = captureIo();
+    const explainExitCode = await runHarnessConfigCli(
+      [
+        "explain",
+        path.join(betaWorktree, ".codex/skills/review/SKILL.md"),
+        "--root",
+        root,
+        "--json",
+      ],
+      explainCapture.io
+    );
+    const explanation = JSON.parse(explainCapture.stdout.join("\n"));
+
+    expect(explainExitCode).toBe(0);
+    expect(explanation.logicalPath).toBe(".codex/skills/review/SKILL.md");
+    expect(explanation.outputActions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "keep",
+          target: "./.codex",
+        }),
+      ])
+    );
+  });
+
   it("dry-runs init by default", async () => {
     const root = await rootFixture();
     const capture = captureIo();

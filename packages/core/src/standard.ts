@@ -32,6 +32,17 @@ export const repoLocalPathSchema = z
     message: "Paths must be repo-local and cannot contain .. segments.",
   });
 
+export const targetLocalPathSchema = z
+  .string()
+  .min(1)
+  .refine((value) => !value.startsWith("/"), {
+    message: "Target paths must be target-local and cannot be absolute.",
+  })
+  .refine((value) => !value.split(/[\\/]/).includes(".."), {
+    message:
+      "Target paths must be target-local and cannot contain .. segments.",
+  });
+
 export const harnessSourcePathSchema = repoLocalPathSchema.refine((value) => {
   const normalized = value
     .replaceAll("\\", "/")
@@ -40,7 +51,15 @@ export const harnessSourcePathSchema = repoLocalPathSchema.refine((value) => {
   return Boolean(normalized && normalized !== ".");
 }, "Source paths must point at a repo-local folder, not the repository root.");
 
-export const harnessTargetPathSchema = repoLocalPathSchema
+function hasPathPattern(value: string): boolean {
+  return /(^|[^\\])[*?[]/.test(value);
+}
+
+export const harnessTargetPathSchema = targetLocalPathSchema
+  .refine(
+    (value) => !hasPathPattern(value),
+    "Target paths must be static and cannot use wildcard patterns."
+  )
   .refine((value) => {
     const firstSegment = value
       .replaceAll("\\", "/")
@@ -48,7 +67,7 @@ export const harnessTargetPathSchema = repoLocalPathSchema
       .split("/")
       .find(Boolean);
     return Boolean(firstSegment && firstSegment !== ".");
-  }, "Target paths must point at a repo-local folder, not the repository root.")
+  }, "Target paths must point at a target-local folder, not the target parent.")
   .refine((value) => {
     const firstSegment = value
       .replaceAll("\\", "/")
@@ -58,6 +77,8 @@ export const harnessTargetPathSchema = repoLocalPathSchema
     return firstSegment !== ".harness";
   }, "Target paths cannot point at .harness.");
 
+export const harnessTargetParentPathSchema = z.string().min(1);
+
 export const overrideDirectorySchema = z
   .string()
   .regex(
@@ -66,7 +87,10 @@ export const overrideDirectorySchema = z
   );
 
 export const harnessTargetSchema = z
-  .object({ path: harnessTargetPathSchema })
+  .object({
+    parent: harnessTargetParentPathSchema.optional(),
+    path: harnessTargetPathSchema,
+  })
   .catchall(z.unknown());
 
 export const harnessExtensionActivationSchema = z.enum(["explicit", "auto"]);
@@ -164,6 +188,12 @@ export function listHarnessDirSources(config: HarnessConfig): string[] {
 
 export function listHarnessProjectionTargets(config: HarnessConfig): string[] {
   return config.targets.map((target) => target.path);
+}
+
+export function listHarnessProjectionTargetDefinitions(
+  config: HarnessConfig
+): HarnessConfig["targets"] {
+  return config.targets;
 }
 
 export function inferHarnessOverrideDirectory(

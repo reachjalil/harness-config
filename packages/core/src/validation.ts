@@ -12,7 +12,10 @@ import {
 import {
   HARNESS_PROFILE_ROOT_FILE,
   assertRepoLocalPath,
+  formatHarnessTargetReference,
   resolveHarnessPaths,
+  resolveHarnessTargetInstances,
+  resolveRepoLocalDirectoryPattern,
   resolveRepoLocalPath,
   toRepoRelative,
 } from "./paths";
@@ -137,19 +140,16 @@ function validateRepoLocalPath(
   }
 }
 
-function normalizeTargetPath(path: string): string {
-  return path
-    .replaceAll("\\", "/")
-    .replace(/\/+/g, "/")
-    .replace(/^\.\//, "")
-    .replace(/\/+$/, "");
-}
-
-function targetPathsOverlap(left: string, right: string): boolean {
+function pathsOverlap(left: string, right: string): boolean {
+  const resolvedLeft = path.resolve(left);
+  const resolvedRight = path.resolve(right);
+  const leftFromRight = path.relative(resolvedRight, resolvedLeft);
+  const rightFromLeft = path.relative(resolvedLeft, resolvedRight);
   return (
-    left === right ||
-    left.startsWith(`${right}/`) ||
-    right.startsWith(`${left}/`)
+    !leftFromRight ||
+    !rightFromLeft ||
+    (!leftFromRight.startsWith("..") && !path.isAbsolute(leftFromRight)) ||
+    (!rightFromLeft.startsWith("..") && !path.isAbsolute(rightFromLeft))
   );
 }
 
@@ -168,6 +168,7 @@ function validateConfigSemantics(
       path: source.path,
     })),
   ];
+  const sourceRoots: Array<{ label: string; path: string; root: string }> = [];
   for (const source of sourcePaths) {
     validateRepoLocalPath(
       diagnostics,
@@ -176,18 +177,30 @@ function validateConfigSemantics(
       `${source.label}.path`,
       `${source.label} source path`
     );
+    const resolvedSourceRoots = (() => {
+      try {
+        return resolveRepoLocalDirectoryPattern(
+          root,
+          source.path,
+          `${source.label} source path`
+        );
+      } catch {
+        return [];
+      }
+    })();
+    for (const sourceRoot of resolvedSourceRoots) {
+      sourceRoots.push({ ...source, root: sourceRoot });
+    }
   }
-  for (let leftIndex = 0; leftIndex < sourcePaths.length; leftIndex += 1) {
+  for (let leftIndex = 0; leftIndex < sourceRoots.length; leftIndex += 1) {
     for (
       let rightIndex = leftIndex + 1;
-      rightIndex < sourcePaths.length;
+      rightIndex < sourceRoots.length;
       rightIndex += 1
     ) {
-      const left = sourcePaths[leftIndex];
-      const right = sourcePaths[rightIndex];
-      const normalizedLeft = normalizeTargetPath(left.path);
-      const normalizedRight = normalizeTargetPath(right.path);
-      if (targetPathsOverlap(normalizedLeft, normalizedRight)) {
+      const left = sourceRoots[leftIndex];
+      const right = sourceRoots[rightIndex];
+      if (pathsOverlap(left.root, right.root)) {
         diagnostics.push({
           severity: "error",
           code: "harness.source_path_overlapping",
@@ -200,48 +213,83 @@ function validateConfigSemantics(
     }
   }
 
-  const targetPaths = new Set<string>();
+  const targetRoots: Array<{ reference: string; root: string }> = [];
+  const harnessDir = resolveHarnessPaths(root, { config }).harnessDir;
   for (const target of config.targets) {
-    const normalizedTargetPath = normalizeTargetPath(target.path);
-    for (const source of sourcePaths) {
-      const normalizedSourcePath = normalizeTargetPath(source.path);
-      if (targetPathsOverlap(normalizedTargetPath, normalizedSourcePath)) {
+    const targetReference = formatHarnessTargetReference(target);
+    let resolvedTargets: ReturnType<typeof resolveHarnessTargetInstances>;
+    try {
+      resolvedTargets = resolveHarnessTargetInstances(
+        root,
+        target,
+        `Target "${targetReference}" output path`
+      );
+    } catch (error) {
+      diagnostics.push({
+        severity: "error",
+        code: "harness.target_path_invalid",
+        message: error instanceof Error ? error.message : String(error),
+        path: `targets["${targetReference}"].path`,
+        recommendation:
+          "Use a target path that stays inside its declared parent.",
+      });
+      continue;
+    }
+    for (const resolvedTarget of resolvedTargets) {
+      const targetRoot = resolvedTarget.root;
+      const resolvedReference = formatHarnessTargetReference(
+        resolvedTarget.definition
+      );
+      if (path.resolve(targetRoot) === path.resolve(root)) {
+        diagnostics.push({
+          severity: "error",
+          code: "harness.target_repo_root",
+          message: `Target "${resolvedReference}" resolves to the repository root.`,
+          path: `targets["${targetReference}"].path`,
+          recommendation:
+            "Declare a target folder below the repository root or below an explicit parent.",
+        });
+      }
+      if (pathsOverlap(targetRoot, harnessDir)) {
         diagnostics.push({
           severity: "error",
           code: "harness.target_overlaps_source_path",
-          message: `Target path "${target.path}" overlaps with ${source.label} source path "${source.path}".`,
-          path: `targets["${target.path}"].path`,
+          message: `Target "${resolvedReference}" overlaps with the .harness source root.`,
+          path: `targets["${targetReference}"].path`,
           recommendation:
-            "Projection targets must be separate from configured source roots.",
+            "Projection targets must be separate from Harness config source roots.",
         });
       }
+      for (const source of sourceRoots) {
+        if (pathsOverlap(targetRoot, source.root)) {
+          diagnostics.push({
+            severity: "error",
+            code: "harness.target_overlaps_source_path",
+            message: `Target "${resolvedReference}" overlaps with ${source.label} source path "${source.path}".`,
+            path: `targets["${targetReference}"].path`,
+            recommendation:
+              "Projection targets must be separate from configured source roots.",
+          });
+        }
+      }
+      const overlappingTarget = targetRoots.find((existing) =>
+        pathsOverlap(targetRoot, existing.root)
+      );
+      if (overlappingTarget) {
+        diagnostics.push({
+          severity: "error",
+          code:
+            path.resolve(targetRoot) === path.resolve(overlappingTarget.root)
+              ? "harness.target_duplicate_path"
+              : "harness.target_overlapping_path",
+          message: `Target "${resolvedReference}" overlaps with "${overlappingTarget.reference}".`,
+          path: `targets["${targetReference}"]`,
+          recommendation:
+            "Declare only independent projection paths. Each target is explicit.",
+        });
+      }
+      targetRoots.push({ reference: resolvedReference, root: targetRoot });
     }
-    const overlappingTarget = [...targetPaths].find((existingPath) =>
-      targetPathsOverlap(normalizedTargetPath, existingPath)
-    );
-    if (overlappingTarget) {
-      diagnostics.push({
-        severity: "error",
-        code:
-          normalizedTargetPath === overlappingTarget
-            ? "harness.target_duplicate_path"
-            : "harness.target_overlapping_path",
-        message: `Target path "${target.path}" overlaps with "${
-          overlappingTarget
-        }".`,
-        path: `targets["${target.path}"]`,
-        recommendation:
-          "Declare only independent projection paths. Each target is explicit.",
-      });
-    }
-    targetPaths.add(normalizedTargetPath);
-    validateRepoLocalPath(
-      diagnostics,
-      root,
-      target.path,
-      `targets["${target.path}"].path`,
-      `Target "${target.path}" output path`
-    );
   }
 }
 
@@ -296,7 +344,7 @@ function reportUnknownEntryKeys(
     reportUnknownKeys(
       diagnostics,
       entry,
-      new Set(["path"]),
+      new Set(key === "targets" ? ["path", "parent"] : ["path"]),
       `${key}[${index}]`
     );
   }

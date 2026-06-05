@@ -36,8 +36,10 @@ optional recommendation. Severity is one of:
 | `harness.activation_config_unavailable` | error | The selected manifest could not be loaded as an activation manifest. |
 | `harness.source_path_overlapping` | error | Two configured `[[resources]]` or `[[dir]]` source roots overlap. |
 | `harness.target_overlaps_source_path` | error | A `[[targets]]` path overlaps a configured source root. |
-| `harness.target_duplicate_path` | error | Two `[[targets]]` entries normalize to the same path. |
-| `harness.target_overlapping_path` | error | Two `[[targets]]` entries overlap (one contains the other). |
+| `harness.target_path_invalid` | error | A `[[targets]]` path uses an invalid target-local path, wildcard pattern, or parent traversal. |
+| `harness.target_repo_root` | error | A `[[targets]]` entry resolves to the repository root. |
+| `harness.target_duplicate_path` | error | Two `[[targets]]` entries resolve to the same target root. |
+| `harness.target_overlapping_path` | error | Two `[[targets]]` entries resolve to overlapping target roots, where one contains the other. |
 | `harness.target_symlink_conflict` | error | A target symlink occupies a path the projection needs to write, and the target symlink policy is `conflict`. |
 
 ## Projection

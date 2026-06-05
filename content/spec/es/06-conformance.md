@@ -39,6 +39,7 @@ Una afirmación de soporte de Harness config debería ser testable a partir de l
 - Las hojas componibles de recursos usan un directorio con el nombre del archivo proyectado, un marcador `.harnessComposable` vacío y partes con prefijo numérico.
 - Los overrides derivados del objetivo aparecen solo como carpetas con prefijo de punto directamente bajo una fuente de recursos o directamente dentro de un elemento de recurso convencional.
 - Las entradas `[[targets]]` contienen caminos locales al repositorio requeridos; las claves no reconocidas son informacionales, no errores.
+- Nota de patrón: `[[targets]].parent` MAY expandirse a padres concretos, y `[[targets]].path` MUST permanecer estático y MUST seguir siendo explícito.
 - Ningún objetivo redefine recursos, modos o nombres de override.
 - Ningún objetivo apunta a `./.harness`.
 - Los ids de extensión y los campos centrales de extensión validan cuando se declaran extensiones.

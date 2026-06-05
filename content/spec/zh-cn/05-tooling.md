@@ -175,6 +175,8 @@ path = "./.harness/local/dir"
 
 CLI 不要求这些路径存在。项目可以选择在版本控制中忽略 `.harness/local/`、提交它、生成它，或使用不同的路径。后续的根覆盖之前的精确路径资源或 dir 输出；使用 `harnessc explain <path>` 检查为什么特定源或输出路径存在、被忽略、被覆盖或被组合。
 
+模式说明：`[[resources]]`、`[[dir]]`、`[[targets]].parent` 和 `[[targets]].path` 保持通配字段与静态 target 路径的区分。
+
 当 `.harness/local/` 被 gitignored 时，共享 manifest 仍然可以把它声明为可选后续根。缺失的本地根只是不贡献本地文件；存在的本地根可以为该开发者覆盖精确资源或 dir 输出。
 
 落在声明 `[[targets]]` 路径下的 dir 输出路径合并到该 target 的投影中 — 第二次运行激活对这些文件收敛到 `keep` 动作，包括 target 未管理项清理。会替换或包含 target 根本身的 dir 输出（例如当 `./.claude` 被声明为 target 时在 `.claude` 的 dir 输出）作为 `harness.dir_output_target_overlap` 报告。

@@ -12,10 +12,11 @@ re-projection is the only path back to source bytes.
 
 | Area | Scenario | Test |
 | --- | --- | --- |
-| TOML | Valid `harness.toml` with required target paths, default `.harness/harness.toml` manifest path, and ordered `[[resources]]` / `[[dir]]` source roots | `packages/core/test/standard.test.ts` |
+| TOML | Valid `harness.toml` with required target-local paths, optional target parents, default `.harness/harness.toml` manifest path, and ordered `[[resources]]` / `[[dir]]` source roots | `packages/core/test/standard.test.ts` |
 | TOML | Unsupported standard versions fail validation | `packages/core/test/standard.test.ts` |
 | TOML | Unknown top-level tables or keys and unknown `[[targets]]`, `[[resources]]`, `[[dir]]`, and `[activation]` fields are accepted and surfaced as informational diagnostics | `packages/core/test/standard.test.ts` |
-| TOML | Target paths reject absolute paths, `..`, `.harness`, duplicate normalized paths, and overlapping target roots while allowing arbitrary repo-local target folders | `packages/core/test/standard.test.ts` |
+| TOML | Target paths reject absolute paths, `..`, `.harness`, duplicate resolved roots, and overlapping target roots while allowing arbitrary repo-local target folders and explicit external parents | `packages/core/test/standard.test.ts` |
+| TOML | `[[resources]].path`, `[[dir]].path`, and `[[targets]].parent` expand gitignore-style wildcard patterns, including `**`, `?`, character classes, backslash escapes, absolute target parents, file/symlink exclusion, and validation after expansion, while `[[targets]].path` rejects wildcard patterns | `packages/core/test/standard.test.ts` |
 | TOML | Legacy single `[resources]` and `[dir]` tables are rejected; configured source paths reject target overlaps and resolve independently from target roots | `packages/core/test/standard.test.ts` |
 | TOML | Missing configured source roots pass as empty layers | `packages/core/test/standard.test.ts` |
 | TOML | Duplicate targets, including explicit `.agents`, are diagnostics | `packages/core/test/standard.test.ts` |
@@ -29,6 +30,9 @@ re-projection is the only path back to source bytes.
 | Profiles | Nested `.harnessProfileRoot` declarations and profile roots outside configured source roots are diagnostics | `packages/core/test/standard.test.ts` |
 | Projection | Explicit `.agents` copy projection with `.agents` overrides | `packages/core/test/projection.test.ts` |
 | Projection | Explicit `.harness/resources` tree projects direct files and target-root overrides | `packages/core/test/projection.test.ts`, `packages/cli/test/run.test.ts` |
+| Projection | External target parents project resources and target-scoped dir outputs into sibling worktree-style targets while preserving target-output controls | `packages/core/test/projection.test.ts`, `packages/cli/test/run.test.ts` |
+| Projection | Multiple external parents can declare the same target-local path and project independently, including target-local profile selectors outside the repo | `packages/core/test/projection.test.ts` |
+| Projection | Wildcard resources roots, dir roots, and target parents expand into deterministic source layers and multiple concrete external target projections; target-local profile and ignore controls remain isolated per expanded target; a target parent pattern with no matches does not redirect target-scoped dir outputs to the repo root | `packages/core/test/projection.test.ts`, `packages/cli/test/run.test.ts` |
 | Projection | Repo-root `.harnessIgnore` filters resource projection by configured source paths and target output paths | `packages/core/test/projection.test.ts` |
 | Projection | Ordered `[[resources]]` roots project resources, target overrides, profile roots, source-local ignores, exact replacement, and composable merge behavior | `packages/core/test/projection.test.ts` |
 | Projection | Activation can load a repo-local manifest from an explicit non-default config path | `packages/core/test/projection.test.ts`, `packages/cli/test/run.test.ts` |
@@ -56,7 +60,7 @@ re-projection is the only path back to source bytes.
 | Projection | Orphan cleanup respects target-output `.harnessIgnore` boundaries so ignored prior-profile outputs are not removed as orphaned managed outputs | `packages/core/test/projection.test.ts` |
 | Projection | Orphan cleanup compares current bytes with the final non-active target override projection, including dotfile outputs such as `.gitignore` | `packages/core/test/projection.test.ts` |
 | TOML | Target paths determine override folders from the first path segment | `packages/core/test/standard.test.ts` |
-| TOML | Target paths are explicit repo-local paths and are not constrained to named harness surfaces | `packages/core/test/standard.test.ts`, `packages/cli/test/run.test.ts` |
+| TOML | Target paths are explicit target-local paths, optional parents can place outputs outside the repo, and targets are not constrained to named harness surfaces | `packages/core/test/standard.test.ts`, `packages/cli/test/run.test.ts` |
 | Projection | Identical declared targets are still materialized as copy projections | `packages/core/test/projection.test.ts` |
 | TOML | `[activation].targetSymlinks` defaults to `conflict` and accepts explicit `replace` | `packages/core/test/standard.test.ts` |
 | Projection | Target root and nested target symlinks are treated as leaf entries: projected symlink paths conflict by default, explicit replacement replaces the link itself, unmanaged links are preserved by default | `packages/core/test/projection.test.ts` |

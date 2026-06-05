@@ -219,6 +219,16 @@ Los objetivos que comparten un primer segmento de camino comparten intencionalme
 
 Los objetivos son configuración, no mutación oculta. Las herramientas SHOULD mostrar el plan objetivo antes de crear, reemplazar, copiar o eliminar archivos.
 
+Actualización de ubicación externa: una entrada `[[targets]]` MAY contener `parent`; `[[targets]]` MAY resolver ese padre fuera del repositorio; `parent` MAY ser relativo o absoluto. El `path` del objetivo MUST permanecer debajo de su padre y MUST NOT ser absoluto, MUST NOT contener `..`, MUST NOT apuntar a `.harness`, y MUST NOT superponerse con raíces fuente configuradas.
+
+Actualización de comodines: el path de recursos MAY usar patrones, el path dir MAY usar patrones, el parent de target MAY usar patrones, y la activación MAY crear el target path; los paths con patrones MUST permanecer locales al repositorio, el target path MUST ser estático, los patrones fuente MUST NOT contener `..`, y el target path MUST NOT contener patrones.
+
+```toml
+[[targets]]
+parent = "../worktrees/feature-branch"
+path = "./.codex"
+```
+
 ### Política de activación
 
 La tabla opcional de nivel superior `[activation]` contiene la política de activación del estándar. Cuando se omite, todos los campos usan sus valores por defecto. Las herramientas MUST NOT fallar la validación únicamente porque `[activation]` lleve una clave no reconocida reservada para futuras revisiones v1; SHOULD reportar las claves no reconocidas como informacionales.

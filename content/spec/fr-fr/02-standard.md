@@ -219,6 +219,16 @@ Les cibles qui partagent un premier segment de chemin partagent intentionnelleme
 
 Les cibles sont une configuration, pas une mutation cachée. Les outils SHOULD montrer le plan cible avant de créer, remplacer, copier ou supprimer des fichiers.
 
+Mise à jour pour parent externe : une entrée `[[targets]]` MAY contenir `parent` ; `[[targets]]` MAY résoudre ce parent hors du dépôt ; `parent` MAY être relatif ou absolu. Le `path` cible MUST rester sous son parent et MUST NOT être absolu, MUST NOT contenir `..`, MUST NOT pointer vers `.harness`, et MUST NOT chevaucher des racines source configurées.
+
+Mise à jour des jokers : le path de ressources MAY utiliser des patrons, le path dir MAY utiliser des patrons, le parent cible MAY utiliser des patrons, et l'activation MAY créer le target path ; les paths à patrons MUST rester locaux au dépôt, le target path MUST rester statique, les patrons source MUST NOT contenir `..`, et le target path MUST NOT contenir de patrons.
+
+```toml
+[[targets]]
+parent = "../worktrees/feature-branch"
+path = "./.codex"
+```
+
 ### Politique d'activation
 
 La table optionnelle de premier niveau `[activation]` contient la politique d'activation du standard. Lorsqu'elle est omise, tous les champs utilisent leurs valeurs par défaut. Les outils MUST NOT faire échouer la validation uniquement parce que `[activation]` porte une clé non reconnue réservée à de futures révisions v1 ; ils SHOULD rapporter les clés non reconnues comme informationnelles.

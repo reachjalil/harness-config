@@ -140,9 +140,10 @@ teams keep tool-native surfaces while reviewing shared configuration once.
 
 - **Neutral source roots** reviewed in version control, with `./.harness` as
   the default convention.
-- **Explicit targets only.** A repo-local folder receives projection *only*
-  when declared in the selected manifest. No implicit targets or reserved target
-  folder names.
+- **Explicit targets only.** A folder receives projection *only* when declared
+  in the selected manifest; targets may be repo-local or placed under an
+  explicit external parent. No implicit targets or reserved target folder
+  names.
 - **Ordered source roots.** `[[resources]]` and `[[dir]]` entries declare the
   source locations that participate in projection. Later roots override
   earlier exact-path outputs, which supports shared base configuration plus
@@ -335,11 +336,16 @@ path = "./.harness/dir"
 path = "./.harness/local/dir"
 ```
 
-Target declarations contain only `path`. A target path such as `./.claude`
-automatically uses `.claude` override folders when they exist in
-the configured resources source or inside a resource item. Omit
-`[[resources]]` to disable resource projection. Omit `[[dir]]` to disable dir
-composition and copy. Extensions are declared under
+Target declarations contain required static `path` and may contain `parent`. A
+target path such as `./.claude` automatically uses `.claude` override folders
+when they exist in the configured resources source or inside a resource item.
+When `parent` is present, it chooses the physical output parent, for example a
+sibling Git worktree, while resources and dir source roots remain repo-local.
+`[[resources]].path`, `[[dir]].path`, and `[[targets]].parent` may use
+gitignore-style wildcard patterns; `[[targets]].path` is always explicit
+because activation may need to create it.
+Omit `[[resources]]` to disable resource projection. Omit `[[dir]]` to disable
+dir composition and copy. Extensions are declared under
 `[extensions.<id>]`; core owns `version` and `activation`, while each extension
 owns its remaining fields.
 
@@ -567,8 +573,8 @@ output.
 
 Dir outputs that fall under a declared `[[targets]]` path merge into that
 target's projection, so target unmanaged-entry cleanup respects dir-owned
-files. Dir outputs that would replace or contain a declared target root
-are rejected.
+files, including targets whose parent is external. Dir outputs that would
+replace or contain a declared target root are rejected.
 
 ## TypeScript API
 
@@ -605,11 +611,13 @@ and package dry-runs for every publishable package.
 - `./.harness` is the default durable repository-owned convention root.
 - `./.harness/harness.toml` is the default manifest, and tools may select another
   repo-local TOML path explicitly.
-- Resources and dir source roots are explicit ordered manifest entries.
+- Resources and dir source roots are explicit ordered manifest entries, with
+  optional wildcard expansion to existing source directories.
 - Resource kinds are declarative names, not reserved schema concepts.
 - `skills`, `rules`, and `plugins` are conventional init defaults.
 - Every projection target is explicit in the selected manifest.
-- Targets are path-only and copy-only in v1.
+- Targets are explicit copy-only outputs in v1; optional `parent` moves or
+  expands the output root without changing the source roots.
 - Live target folders are derived projection outputs, not source repositories.
 - Activation is idempotent for the same configured sources, manifest, ignore
   rules, mutable rules, cleanup policy, and mutable policy.
@@ -618,7 +626,7 @@ and package dry-runs for every publishable package.
   expressed by target-output-local `.harnessIgnore` files.
 - `.harnessProfile` selects optional `.harnessProfileRoot` overlays without
   making live target folders source roots.
-- Target override folders are derived from target paths.
+- Target override folders are derived from target paths, not target parents.
 - `harnessc` is local-first and explains planned changes before writing.
 - `harnessc` does not collect telemetry and does not make network requests
   during normal activation, validation, or planning.

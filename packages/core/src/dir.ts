@@ -4,13 +4,15 @@ import path from "node:path";
 import { loadHarnessIgnoreMatcherDetailed } from "./ignore";
 import {
   assertRepoLocalPath,
+  formatHarnessTargetReference,
   HARNESS_IGNORE_FILE,
   HARNESS_MUTABLE_FILE,
   HARNESS_PROFILE_FILE,
   HARNESS_PROFILE_ROOT_FILE,
+  normalizeHarnessTargetOutputPath,
   resolveHarnessPaths,
-  resolveRepoLocalPath,
   toRepoRelative,
+  type HarnessTargetRootMapping,
 } from "./paths";
 import {
   loadHarnessProfileContext,
@@ -18,7 +20,7 @@ import {
   type HarnessProfileContext,
   type HarnessProfileRoot,
 } from "./profile";
-import { type HarnessConfig, listHarnessProjectionTargets } from "./standard";
+import type { HarnessConfig } from "./standard";
 import type { HarnessDiagnostic, HarnessIgnoreMatcher } from "./types";
 
 export const HARNESS_COMPOSABLE_MARKER = ".harnessComposable";
@@ -45,6 +47,7 @@ export type HarnessDirPlan = {
 
 export type HarnessDirPlanOptions = {
   profileContext?: HarnessProfileContext;
+  targetRootMappings?: HarnessTargetRootMapping[];
 };
 
 type DirectoryEntry = {
@@ -710,20 +713,17 @@ function validateDirOutputPath(
   // target's managed projection during activation. The only conflict is
   // when a dir output lands at the target ROOT, which would replace the
   // entire target directory.
-  for (const target of listHarnessProjectionTargets(config)) {
-    const targetRoot = resolveRepoLocalPath(
-      root,
-      target,
-      `Target "${target}" path`
-    );
+  const normalizedOutput = normalizeHarnessTargetOutputPath(relativePath);
+  for (const target of config.targets) {
+    const normalizedTarget = normalizeHarnessTargetOutputPath(target.path);
     if (
-      path.resolve(targetRoot) === path.resolve(targetPath) ||
-      isInsideOrEqual(targetPath, targetRoot)
+      normalizedOutput === normalizedTarget ||
+      normalizedTarget.startsWith(`${normalizedOutput}/`)
     ) {
       diagnostics.push({
         severity: "error",
         code: "harness.dir_output_target_overlap",
-        message: `Dir output "${relativePath}" would replace or contain declared target "${target}".`,
+        message: `Dir output "${relativePath}" would replace or contain declared target "${formatHarnessTargetReference(target)}".`,
         path: relativePath,
         recommendation:
           "Pick a path that does not collide with a declared target root.",
@@ -733,12 +733,6 @@ function validateDirOutputPath(
   }
 
   return targetPath;
-}
-
-function resolveDirRoots(root: string, config: HarnessConfig): string[] {
-  return config.dir.map((source) =>
-    resolveRepoLocalPath(root, source.path, `Dir source path "${source.path}"`)
-  );
 }
 
 function dirEnabled(config: HarnessConfig): boolean {
@@ -1043,7 +1037,7 @@ export async function planHarnessDir(
     };
   }
 
-  const dirRoots = resolveDirRoots(root, config);
+  const dirRoots = resolveHarnessPaths(root, { config }).dirDirs;
   const dirRootRelatives = dirRoots.map((dirRoot) =>
     toRepoRelative(root, dirRoot)
   );
@@ -1070,11 +1064,13 @@ export async function planHarnessDir(
     options.profileContext ??
     (await loadHarnessProfileContext(root, {
       config,
+      targetRootMappings: options.targetRootMappings,
     }));
   const bootstrap = await loadHarnessIgnoreMatcherDetailed(root, {
     config,
     extraRuleSets: bootstrapProfileContext.ignoreRuleSets,
     protectedTargetPaths: bootstrapProfileContext.protectedTargetPaths,
+    targetRootMappings: options.targetRootMappings,
   });
   const bootstrapLayers = await dirSourceLayers(
     existingDirRoots,
@@ -1099,6 +1095,7 @@ export async function planHarnessDir(
       ? bootstrapProfileContext
       : await loadHarnessProfileContext(root, {
           config,
+          targetRootMappings: options.targetRootMappings,
           targetOutputPaths,
         });
   diagnostics.push(...profileContext.diagnostics);
@@ -1107,6 +1104,7 @@ export async function planHarnessDir(
       config,
       extraRuleSets: profileContext.ignoreRuleSets,
       protectedTargetPaths: profileContext.protectedTargetPaths,
+      targetRootMappings: options.targetRootMappings,
       targetOutputPaths,
     });
   diagnostics.push(...ignoreDiagnostics);

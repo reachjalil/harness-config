@@ -67,8 +67,12 @@ to write a different repo-local manifest and `--resources-path <path>` to set
 an explicit `[[resources]]` entry and create resource folders below that source root. With no
 `--resource` flags, init uses the conventional resource folders `skills`,
 `rules`, and `plugins`. With one or more `--resource <kind>` flags, init
-creates only those folders. Targets are explicit and path-only; declare them
-with `--target <path>` or edit the selected manifest.
+creates only those folders. Targets are explicit; declare them with
+`--target <path>` for repo-local outputs, or edit the selected manifest to add
+a target `parent` for output under an external folder such as a sibling
+worktree. `[[resources]].path`, `[[dir]].path`, and `[[targets]].parent` may
+use gitignore-style wildcard patterns; `[[targets]].path` remains a static
+target-local folder that activation may create.
 
 `harnessc plan` is a read-only initialization/adoption plan. It is not a
 projection preview, and it does not infer targets from existing folder names.

@@ -27,8 +27,12 @@ specific runtime, CLI, or hosted service.
 ## Conformance Levels
 
 - Repository conformance: a repository declares `version = 1` in the selected
-  repo-local manifest, keeps every declared path repo-local, and stores
-  durable target resources under configured resources sources.
+  repo-local manifest, keeps source paths repo-local, and stores durable
+  target resources under configured resources sources. Configured resources
+  and dir source paths may use repo-local path patterns that expand to
+  existing source directories. A declared target may use an explicit external
+  `parent`, including a path pattern, because targets are outputs, not source
+  roots.
 - Resource conformance: a resource is a file or folder under
   a configured resources source. Conventional resource items are folders
   under `<resources>/<kind>/<name>`. A target-root override appears as a
@@ -36,11 +40,14 @@ specific runtime, CLI, or hosted service.
   appears as a dot-prefixed folder directly inside a conventional item.
   Resource files may also be composed from directories marked with
   `.harnessComposable`.
-- Target conformance: a `[[targets]]` entry contains a required repo-local path.
-  The matching override folder is inferred from the first path segment. No
-  target may point at `.harness`, overlap a configured source root, or
-  redeclare resource mappings. Unknown keys reserved for future v1 revisions
-  are tolerated and surfaced as informational diagnostics.
+- Target conformance: a `[[targets]]` entry contains a required static
+  target-local `path` and may contain an explicit `parent`. The matching
+  override folder is inferred from the first path segment of `path`; `parent`
+  only chooses the physical output parent and may expand to multiple concrete
+  parents. No target may point at `.harness`, overlap a configured source root,
+  overlap another resolved target root, or redeclare resource mappings.
+  Unknown keys reserved for future v1 revisions are tolerated and surfaced as
+  informational diagnostics.
 - Dir conformance: each `[[dir]]` table declares one ordered repo-local dir
   source root. Directories inside that source
   marked with an empty `.harnessComposable` file are composable leaves
@@ -75,7 +82,8 @@ specific runtime, CLI, or hosted service.
   an empty `.harnessComposable` marker, and numeric-prefix parts.
 - Target-derived overrides appear only as dot-prefixed folders directly under
   a resources source or directly inside a conventional resource item.
-- `[[targets]]` entries contain required repo-local paths.
+- `[[targets]]` entries contain required static target-local paths and
+  optional parents only for output placement.
 - No target redefines resources, modes, or override names.
 - No target points at `./.harness`.
 - Extension ids and core extension fields validate when extensions are
@@ -102,11 +110,13 @@ specific runtime, CLI, or hosted service.
   `.harnessMutable`, or numbered part files individually.
   When `.harnessMutable` matches the composable leaf's logical output path, the
   composed output file MUST be treated as the mutable target file.
-- Overrides MUST be derived from the target path.
-- The selected manifest MUST keep target entries limited to required
-  repo-local paths plus unrecognized keys reserved for future v1 revisions.
-  Targets MUST NOT redefine resources, modes, or override names. Top-level
-  `[[resources]]` and `[[dir]]` tables declare ordered source roots.
+- Overrides MUST be derived from the target path, not from the target parent.
+- The selected manifest MUST keep target entries limited to required static
+  target-local paths, optional parents, plus unrecognized keys reserved for
+  future v1 revisions. Targets MUST NOT redefine resources, modes, or override
+  names. Top-level `[[resources]]` and `[[dir]]` tables declare ordered
+  repo-local source roots, and their path patterns MUST expand only to
+  existing repo-local source directories.
 - Activation SHOULD be derived from projection.
 - Activation MUST be idempotent for the canonical input set defined in the
   Standard's Copy Projection section.
@@ -151,6 +161,9 @@ specific runtime, CLI, or hosted service.
   repositories.
 - Declared target folders MUST NOT point at `./.harness`, overlap configured
   source roots, or overlap each other.
+- `[[targets]].parent` patterns MAY expand to multiple concrete target
+  parents, but `[[targets]].path` MUST remain static and explicit for every
+  expanded target.
 - When `[[dir]]` entries are declared, activation MUST compose every directory with a
   `.harnessComposable` marker from its numeric-prefix parts and MUST copy
   every other directory and file under each dir source to its matching
