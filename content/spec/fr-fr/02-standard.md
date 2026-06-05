@@ -43,7 +43,7 @@ Les mots clés `MUST`, `MUST NOT`, `REQUIRED`, `SHALL`, `SHALL NOT`, `SHOULD`, `
 Ces termes ont des sens spécifiques dans ce document. Lorsqu'une section ultérieure donne une définition plus détaillée, cette section fait autorité.
 
 - **Harness** — le runtime agent AI ou outil orienté développeur qui consomme les instructions, le contexte, les outils et la configuration du dépôt pour opérer sur un projet.
-- **Surface de harness** — les fichiers et dossiers locaux au dépôt qu'un harness lit, tels que `AGENTS.md`, `.agents`, `.claude`, `.cursor` ou une autre sortie cible déclarée.
+- **Surface de harness** — les fichiers et dossiers qu'un harness lit, habituellement des fichiers locaux au dépôt tels que `AGENTS.md`, `.agents`, `.claude` ou `.cursor`, ainsi que toute sortie cible externe déclarée.
 - **Racine de convention** — le dossier `./.harness` à la racine d'un dépôt, couramment utilisé pour les ressources, les fichiers source dir, les profils et autres stockages source. Il n'est pas l'emplacement requis du manifeste.
 - **Manifeste** — le fichier TOML sélectionné local au dépôt, par défaut `./.harness/harness.toml`, qui déclare la version du standard, les sources de ressources ordonnées, les sources dir ordonnées, les cibles et les extensions.
 - **Source de ressources** — un dossier local au dépôt déclaré par un `path` `[[resources]]`, dont les fichiers, dossiers et feuilles composables de ressources sont projetés dans chaque cible déclarée. Plusieurs sources de ressources sont superposées dans l'ordre du manifeste.
@@ -71,7 +71,7 @@ version = 1
 La version `1` standardise :
 
 - la racine de convention `./.harness`,
-- le schéma de manifeste TOML sélectionné pour les cibles avec chemins locaux au dépôt requis, les racines source `[[resources]]` ordonnées, les racines source `[[dir]]` ordonnées et les déclarations d'extension de premier niveau,
+- le schéma de manifeste TOML sélectionné pour les cibles avec chemins target-local requis et parents explicites optionnels, les racines source `[[resources]]` ordonnées, les racines source `[[dir]]` ordonnées et les déclarations d'extension de premier niveau,
 - les arbres de sources de ressources configurées,
 - les dossiers de surcharge dérivés des cibles,
 - la projection de copie (idempotente sous des entrées fixes),
@@ -89,7 +89,7 @@ Harness config standardise :
 - le fichier de manifeste sélectionné et son schéma,
 - le layout de ressources sous les sources de ressources configurées,
 - les surcharges cibles par ressource sous forme de dossiers immédiats préfixés par un point,
-- les déclarations de cibles explicites avec chemins locaux au dépôt requis,
+- les déclarations de cibles explicites avec chemins target-local requis et parents explicites optionnels,
 - la politique d'activation de premier niveau avec des valeurs par défaut définies,
 - les racines source dir ordonnées, avec des feuilles composables (`.harnessComposable`) et des dossiers en mode copie qui se projettent vers des chemins relatifs au dépôt,
 - le modèle de sélection de profil et de superposition, incluant les sélecteurs `.harnessProfile` et les racines `.harnessProfileRoot` qui peuvent ajouter ou surcharger des ressources et des fragments composables de dir,
@@ -179,6 +179,10 @@ path = "./.claude"
 [[targets]]
 path = "./runtime/agent"
 
+[[targets]]
+parent = "../worktrees/feature-branch"
+path = "./.codex"
+
 [[dir]]
 path = "./.harness/dir"
 
@@ -190,44 +194,48 @@ version = 1
 activation = "explicit"
 ```
 
+Les champs du manifeste qui acceptent des motifs de chemin utilisent une correspondance de segments de style gitignore : `*`, `?`, `**`, classes de caractères et échappements par barre oblique inverse. Les correspondances de motif s'étendent uniquement aux dossiers existants et réels ; les dossiers symboliques ne sont pas suivis. Un motif qui ne matche aucun dossier ne contribue aucune instance de source ou de cible. Dans une seule entrée de manifeste, les correspondances concrètes sont traitées par ordre lexicographique de chemin ; entre les entrées, l'ordre du manifeste est préservé. Les motifs niés et les en-têtes de section ne s'appliquent pas dans les champs de chemin du manifeste.
+
 ### Ressources
 
 La projection de ressources utilise uniquement les racines source `[[resources]]` déclarées. Si aucune entrée `[[resources]]` n'est déclarée, la projection de ressources est désactivée.
 
-Chaque entrée `[[resources]]` MUST contenir `path`. Les outils MUST NOT faire échouer la validation uniquement parce qu'une entrée `[[resources]]` porte une clé non reconnue réservée à de futures révisions v1 ; ils SHOULD rapporter les clés non reconnues comme informationnelles. Le chemin MUST être local au dépôt, MUST se résoudre à l'intérieur du dépôt et MUST NOT contenir de segments `..`. Un manifeste MUST NOT contenir une seule table `[resources]` ni de tables `[resources.<kind>]` ; les types de ressources restent des noms d'arbre source, pas des entrées de schéma de manifeste.
+Chaque entrée `[[resources]]` MUST contenir `path`. Les outils MUST NOT faire échouer la validation uniquement parce qu'une entrée `[[resources]]` porte une clé non reconnue réservée à de futures révisions v1 ; ils SHOULD rapporter les clés non reconnues comme informationnelles. Le chemin MUST être local au dépôt, MUST se résoudre à l'intérieur du dépôt et MUST NOT contenir de segments `..`. Il MAY contenir un motif de chemin. Un motif s'étend aux dossiers source de ressources locaux au dépôt existants qui correspondent ; un motif sans correspondance est une couche vide valide. Un manifeste MUST NOT contenir une seule table `[resources]` ni de tables `[resources.<kind>]` ; les types de ressources restent des noms d'arbre source, pas des entrées de schéma de manifeste.
 
 Les noms de dossiers de ressources de premier niveau SHOULD utiliser des lettres minuscules, des chiffres, des soulignés ou des tirets. Les noms préfixés par un point directement sous une source de ressources sont des surcharges à la racine cible, pas des dossiers de sortie canoniques partagés. Les fichiers et dossiers de ressources MUST NOT s'appuyer sur la traversée de chemin ; tous les chemins de sortie projetés MUST rester à l'intérieur de leur cible déclarée.
 
 ### Cibles
 
-Chaque cible est explicite. Harness config ne réserve, ne préfère ni n'implique aucun nom de dossier cible runtime. Chaque entrée `[[targets]]` dans le manifeste sélectionné déclare un chemin cible local au dépôt et MUST contenir `path`. Les outils MUST NOT faire échouer la validation uniquement parce qu'une entrée `[[targets]]` porte une clé non reconnue réservée à de futures révisions v1 ; ils SHOULD rapporter les clés non reconnues comme informationnelles.
+Chaque cible est explicite. Harness config ne réserve, ne préfère ni n'implique aucun nom de dossier cible runtime. Chaque entrée `[[targets]]` dans le manifeste sélectionné déclare une cible et MUST contenir `path`. Une cible MAY aussi contenir `parent`. Les outils MUST NOT faire échouer la validation uniquement parce qu'une entrée `[[targets]]` porte une clé non reconnue réservée à de futures révisions v1 ; ils SHOULD rapporter les clés non reconnues comme informationnelles.
 
-Les chemins cibles MUST se résoudre à l'intérieur du dépôt, MUST pointer vers un dossier sous la racine du dépôt, MUST NOT contenir de segments `..` après normalisation, MUST NOT pointer vers `./.harness` lui-même ni vers un descendant de celui-ci, et MUST NOT chevaucher les racines source configurées telles que `[[resources]]` ou `[[dir]]`.
+`path` est target-local : il est résolu sous le parent de la cible, pas directement comme une racine source. Il MUST être relatif, MUST pointer vers un dossier sous son parent, MUST NOT contenir de segments `..` après normalisation, MUST NOT contenir de motifs de chemin et MUST NOT pointer vers `.harness` lui-même ni vers un descendant de `.harness`. Les outils MAY créer `path` pendant l'activation ; il est donc toujours statique et explicite.
 
-Le dossier de surcharge pour une cible est le premier segment de chemin après le `./` initial, normalisé en dossier de surcharge source préfixé par un point. Cela garde les chemins cibles libres tout en préservant la convention de l'arbre source selon laquelle les dossiers immédiats préfixés par un point à l'intérieur d'un élément de ressource sont des surcharges. Après normalisation des chemins (réduction des séparateurs dupliqués et suppression du `./` initial) :
+`parent` est optionnel. Lorsqu'il est omis, le parent de la cible est la racine du dépôt et le comportement existant des cibles locales au dépôt est préservé. Lorsqu'il est présent, `parent` se résout relativement à la racine du dépôt sauf s'il est absolu. Un parent de cible MAY contenir un motif de chemin, et chaque dossier existant qui correspond déclare une cible concrète utilisant le même `path` statique. Un parent de cible MAY se résoudre hors du dépôt, par exemple lors d'une projection vers des Git worktrees frères :
+
+```toml
+[[targets]]
+parent = "../worktrees/*"
+path = "./.codex"
+```
+
+Si le motif matche `../worktrees/feature-branch`, l'activation écrit la cible à `../worktrees/feature-branch/.codex`. Le manifeste, les racines source de ressources configurées, les racines source dir configurées, les racines de profil, les déclarations d'ignore et les déclarations de mutables restent ancrés dans le dépôt sauf s'il s'agit de contrôles locaux en sortie cible à l'intérieur d'une cible concrète déclarée.
+
+La racine cible résolue MUST NOT être la racine du dépôt, MUST NOT chevaucher `./.harness`, MUST NOT chevaucher les racines source configurées telles que `[[resources]]` ou `[[dir]]`, et MUST NOT chevaucher la racine cible résolue de toute autre cible déclarée. Les cibles doivent être des racines de projection indépendantes par emplacement physique de sortie.
+
+Le dossier de surcharge pour une cible est le premier segment de `path` après le `./` initial, normalisé en dossier de surcharge source préfixé par un point. `parent` ne participe pas à la sélection de surcharge. Cela garde les chemins cibles libres tout en préservant la convention de l'arbre source selon laquelle les dossiers immédiats préfixés par un point à l'intérieur d'un élément de ressource sont des surcharges. Après normalisation des chemins (réduction des séparateurs dupliqués et suppression du `./` initial) :
 
 - `./.agents` → dossier de surcharge `.agents`.
 - `./.claude` → dossier de surcharge `.claude`.
 - `./runtime/agent` → dossier de surcharge `.runtime`.
 - `./.github/copilot/agents` → dossier de surcharge `.github`.
 
-Deux entrées `[[targets]]` dont les chemins normalisés sont égaux sont des doublons et MUST être rejetées avec un diagnostic.
+Deux entrées `[[targets]]` dont les racines cibles résolues sont égales sont des doublons et MUST être rejetées avec un diagnostic.
 
-Deux entrées `[[targets]]` dont les chemins normalisés se chevauchent comme ancêtre et descendant, par exemple `./.agents` et `./.agents/skills`, MUST être rejetées avec un diagnostic. Les cibles doivent être des racines de projection indépendantes.
+Deux entrées `[[targets]]` dont les racines cibles résolues se chevauchent comme chemins ancêtre et descendant, par exemple `./.agents` et `./.agents/skills` sous le même parent, MUST être rejetées avec un diagnostic.
 
-Les cibles qui partagent un premier segment de chemin partagent intentionnellement un seul espace de noms de surcharge dérivé de la cible en v1. Par exemple, `./runtime/agent` et `./runtime/tools` utilisent toutes deux les surcharges `.runtime`. Préférer des premiers segments distincts lorsque deux cibles ont besoin d'espaces de noms de surcharge distincts.
+Les cibles qui partagent un premier segment dans `path` partagent intentionnellement un seul espace de noms de surcharge dérivé de la cible en v1, même lorsque leurs parents diffèrent. Par exemple, `./runtime/agent` et `./runtime/tools` utilisent toutes deux les surcharges `.runtime`, et deux cibles worktree avec `path = "./.codex"` utilisent toutes deux les surcharges `.codex`. Préférer des premiers segments distincts lorsque deux cibles ont besoin d'espaces de noms de surcharge distincts.
 
 Les cibles sont une configuration, pas une mutation cachée. Les outils SHOULD montrer le plan cible avant de créer, remplacer, copier ou supprimer des fichiers.
-
-Mise à jour pour parent externe : une entrée `[[targets]]` MAY contenir `parent` ; `[[targets]]` MAY résoudre ce parent hors du dépôt ; `parent` MAY être relatif ou absolu. Le `path` cible MUST rester sous son parent et MUST NOT être absolu, MUST NOT contenir `..`, MUST NOT pointer vers `.harness`, et MUST NOT chevaucher des racines source configurées.
-
-Mise à jour des jokers : le path de ressources MAY utiliser des patrons, le path dir MAY utiliser des patrons, le parent cible MAY utiliser des patrons, et l'activation MAY créer le target path ; les paths à patrons MUST rester locaux au dépôt, le target path MUST rester statique, les patrons source MUST NOT contenir `..`, et le target path MUST NOT contenir de patrons.
-
-```toml
-[[targets]]
-parent = "../worktrees/feature-branch"
-path = "./.codex"
-```
 
 ### Politique d'activation
 
@@ -295,7 +303,7 @@ C'est la limite v1 :
 - `.harnessIgnore` filtre les fichiers source et les sous-arbres de sortie cible.
 - `.harnessMutable` marque les fichiers source qui devraient initialiser des fichiers cibles une seule fois puis devenir possédés par le runtime.
 
-Les outils SHOULD NOT introduire de mappings de ressources par cible dans le manifeste sélectionné pour v1. Garder les déclarations de cibles limitées aux chemins locaux au dépôt requis plus des champs futur-compatibles ignorés, pendant que les racines source restent ordonnées au niveau supérieur, préserve un seul endroit pour le filtrage de projection et facilite le raisonnement sur la sortie en dry-run.
+Les outils SHOULD NOT introduire de mappings de ressources par cible dans le manifeste sélectionné pour v1. Garder les déclarations de cibles limitées aux chemins target-local statiques requis, aux parents optionnels et aux champs futur-compatibles ignorés, pendant que les racines source restent ordonnées au niveau supérieur, préserve un seul endroit pour le filtrage de projection et facilite le raisonnement sur la sortie en dry-run.
 
 ## Projection de copie
 
@@ -448,7 +456,7 @@ path = "./.harness/dir"
 path = "./.harness/local/dir"
 ```
 
-Chaque entrée `[[dir]]` MUST contenir `path`. Les outils MUST NOT faire échouer la validation uniquement parce qu'une entrée `[[dir]]` porte une clé non reconnue réservée à de futures révisions v1 ; ils SHOULD rapporter les clés non reconnues comme informationnelles. Un manifeste MUST NOT contenir une seule table `[dir]`. Si aucune entrée `[[dir]]` n'est déclarée, aucune composition ou copie dir n'a lieu. Une source dir manquante est une couche vide valide.
+Chaque entrée `[[dir]]` MUST contenir `path`. Les outils MUST NOT faire échouer la validation uniquement parce qu'une entrée `[[dir]]` porte une clé non reconnue réservée à de futures révisions v1 ; ils SHOULD rapporter les clés non reconnues comme informationnelles. Un manifeste MUST NOT contenir une seule table `[dir]`. Si aucune entrée `[[dir]]` n'est déclarée, aucune composition ou copie dir n'a lieu. Une source dir manquante est une couche vide valide. Le path MUST être local au dépôt, MUST se résoudre à l'intérieur du dépôt, MUST NOT contenir de segments `..` et MAY contenir un motif de chemin. Un motif s'étend aux dossiers source dir locaux au dépôt existants qui correspondent ; un motif sans correspondance est une couche vide valide.
 
 ### Feuilles composables
 
@@ -486,9 +494,9 @@ Le fichier marqueur `.harnessComposable` lui-même MUST NOT apparaître dans auc
 
 ### Chemins de sortie et chevauchement avec les cibles
 
-Les sorties dir sont des chemins relatifs au dépôt. Elles MUST se résoudre à l'intérieur du dépôt et MUST NOT écrire à l'intérieur de `./.harness`, d'une source de ressources configurée ou d'une source dir configurée. Un chemin de sortie dir qui tombe **sous** un chemin `[[targets]]` déclaré (par exemple `.claude/settings.json` lorsque `./.claude` est une cible déclarée) est fusionné dans la projection de cette cible pendant l'activation, de sorte que l'idempotence cible et le nettoyage des entrées non gérées respectent les fichiers possédés par dir. Une sortie dir qui **remplacerait ou contiendrait** la racine d'une cible déclarée elle-même (par exemple une sortie dir à `.claude` lorsque `./.claude` est une cible déclarée) MUST être rapportée comme `harness.dir_output_target_overlap`.
+Les sorties dir sont des chemins logiques relatifs au dépôt. Elles MUST se résoudre à l'intérieur du dépôt sauf si elles sont fusionnées dans une projection de cible déclarée, et MUST NOT écrire à l'intérieur de `./.harness`, d'une source de ressources configurée ou d'une source dir configurée. Un chemin de sortie dir qui tombe **sous** un `path` de `[[targets]]` déclaré (par exemple `.claude/settings.json` lorsque `./.claude` est une cible déclarée) est fusionné dans la projection de cette cible pendant l'activation, de sorte que l'idempotence cible et le nettoyage des entrées non gérées respectent les fichiers possédés par dir. Si cette cible déclare un `parent` externe, la sortie dir fusionnée est écrite dans la racine cible externe résolue. Une sortie dir qui **remplacerait ou contiendrait** la racine d'une cible déclarée elle-même (par exemple une sortie dir à `.claude` lorsque `./.claude` est une cible déclarée) MUST être rapportée comme `harness.dir_output_target_overlap`.
 
-Un chemin de sortie dir qui ne chevauche aucune cible déclarée écrit directement à ce chemin relatif au dépôt.
+Un chemin de sortie dir qui ne chevauche aucun `path` de cible déclaré écrit directement à ce chemin relatif au dépôt.
 
 ### Conflits
 
@@ -653,7 +661,7 @@ La frontière source/projection rend les différences entre surfaces révisables
 
 Harness config décrit un système qui copie des fichiers depuis le contrôle de version dans des dossiers qu'un agent AI ou un autre outil lira par la suite. L'intégrité de ces copies a un effet direct sur ce que fait l'agent. Les implémentations SHOULD considérer les menaces suivantes explicitement :
 
-- **Traversée de chemin.** Les chemins de manifeste, chemins cibles et patrons d'ignore sont contrôlés par l'utilisateur. Les implémentations MUST refuser les chemins qui se résolvent en dehors du dépôt après normalisation (voir [Encodage, chemins et sensibilité à la casse](#encodage-chemins-et-sensibilité-à-la-casse)).
+- **Traversée de chemin.** Les chemins de manifeste, chemins cibles, parents cibles et patrons d'ignore sont contrôlés par l'utilisateur. Les implémentations MUST refuser les racines source configurées, les chemins de manifeste sélectionnés, les racines de profil, les sorties dir et les patrons d'ignore qui se résolvent en dehors du dépôt après normalisation (voir [Encodage, chemins et sensibilité à la casse](#encodage-chemins-et-sensibilité-à-la-casse)). La seule exception standard est un `[[targets]].parent` explicite, qui MAY se résoudre hors du dépôt ; même alors, le `path` cible MUST rester sous ce parent et MUST NOT traverser hors de lui.
 - **Redirection de lien symbolique.** Les liens symboliques dans l'arbre source ou dans les arbres cibles déclarés peuvent rediriger les lectures ou écritures hors du dépôt s'ils sont suivis. Les implémentations v1 MUST traiter les liens symboliques comme des entrées feuilles et MUST NOT les suivre silencieusement. Remplacer un lien symbolique cible qui occupe un chemin projeté MUST exiger une politique de lien symbolique cible explicite, soit depuis le manifeste sélectionné soit depuis une option d'activation équivalente sélectionnée par l'opérateur.
 - **TOCTOU à l'application.** Une cible peut être modifiée entre la planification et l'application. Les implémentations SHOULD revérifier l'existence et la classification gérée/non gérée des fichiers au moment de l'application, pas seulement au moment du plan.
 - **Suppression d'entrées non gérées.** Le nettoyage supprime les fichiers utilisateur. La politique par défaut MUST être la préservation, et toute suppression MUST être visible dans le plan avant qu'elle ne se produise.

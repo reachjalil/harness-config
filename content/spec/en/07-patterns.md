@@ -14,7 +14,7 @@ llmSummary: Shows practical Harness config patterns for runtime-owned mutable fi
 audience: Developers and platform teams adopting Harness config in real repositories.
 contentKind: spec
 status: draft
-updated: 2026-05-28
+updated: 2026-06-05
 ---
 
 # Harness config Patterns
@@ -361,6 +361,73 @@ skill and add a deploy-specific instruction part without becoming a projected
 This is the right model for company-provided deploy, security, frontend,
 backend, or onboarding kits. The kit is reviewed source. The selector decides
 where it is active.
+
+## Wildcard Source And Target Fanout
+
+Wildcard manifest paths are useful when ownership or output placement is
+regular but not fixed to one folder. Keep the same ownership rule: configured
+`[[resources]]` and `[[dir]]` paths stay repo-local and observable, while
+`[[targets]].parent` may point at external output parents such as sibling Git
+worktrees.
+
+For branch worktrees, declare one explicit target path and fan it out through a
+wildcard parent:
+
+```toml
+[[resources]]
+path = "./.harness/resources"
+
+[[dir]]
+path = "./.harness/dir"
+
+[[targets]]
+parent = "../worktrees/*"
+path = "./.codex"
+```
+
+If `../worktrees/feature-login` and `../worktrees/release-hardening` exist,
+activation writes:
+
+```text
+../worktrees/feature-login/.codex/
+../worktrees/release-hardening/.codex/
+```
+
+The target path stays static because activation may need to create `.codex`
+inside each parent. Do not put `*` in `[[targets]].path`. Target-derived
+overrides still use `.codex` because override selection comes from `path`, not
+from `parent`.
+
+For monorepos, let package teams own their local source while the root manifest
+collects each package's Harness source roots:
+
+```toml
+[[resources]]
+path = "./packages/*/.harness/resources"
+
+[[dir]]
+path = "./packages/*/.harness/dir"
+
+[[targets]]
+path = "./.agents"
+
+[[targets]]
+path = "./.claude"
+```
+
+```text
+packages/api/.harness/resources/skills/api-contract/SKILL.md
+packages/docs/.harness/resources/prompts/docs-style.md
+packages/web/.harness/dir/AGENTS.md/140_web.md
+
+.agents/skills/api-contract/SKILL.md
+.agents/prompts/docs-style.md
+AGENTS.md
+```
+
+This lets packages add reviewed source without editing the root manifest for
+every package. Patterns expand only to existing real directories, so adding a
+new package source root starts participating when that directory exists.
 
 ## Generated Surfaces With Activation Instructions
 

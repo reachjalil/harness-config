@@ -29,6 +29,11 @@ Expected result:
 
 - `validate` reports no errors for the selected manifest.
 - `activate` is a dry run and writes nothing.
+- Wildcard `[[resources]].path` and `[[dir]].path` entries, when used, expand
+  only to intended repo-local source roots.
+- Wildcard `[[targets]].parent` entries, when used, expand only to intended
+  output parents such as sibling Git worktrees, and every generated target uses
+  the same static `[[targets]].path`.
 - The plan explains creates, updates, keeps, preserved unmanaged files, mutable
   files, requested removals, and any target symlink conflicts.
 - For full migration/adoption, durable root instruction files such as
@@ -45,6 +50,9 @@ npx harnessc activate
 Expected result:
 
 - Declared targets receive only the intended files.
+- External target parents receive generated output only under the explicit
+  static target path, and no external folder is treated as a resource or dir
+  source root.
 - A second dry run converges to `keep` for managed files.
 - Runtime-owned files declared in `.harnessMutable` are reported as `mutable` and
   are not overwritten.
@@ -128,6 +136,11 @@ Confirm:
 
 - durable shared source is under configured resource groups such as
   `.harness/resources`,
+- wildcard source roots, if used, represent reviewed repo-local ownership such
+  as `./packages/*/.harness/resources` rather than external repositories,
+  home-directory state, or generated target folders,
+- external target parents, if used, are output fanout only; `[[targets]].path`
+  remains static and explicit,
 - durable root instruction files such as `AGENTS.md`, `CLAUDE.md`,
   `GEMINI.md`, and equivalents are copied into `.harness/dir` as direct
   Markdown files by default, or explicitly documented as blocked/excepted,

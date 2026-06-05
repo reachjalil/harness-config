@@ -1,4 +1,12 @@
-import { cp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  cp,
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,6 +19,17 @@ const repoRoot = path.resolve(
   "../../.."
 );
 const examplesRoot = path.join(repoRoot, "examples");
+
+const documentedExamples = [
+  "01-multi-runtime-one-source",
+  "02-profile-mode-switching",
+  "03-team-kits",
+  "04-composable-instructions",
+  "05-runtime-owned-state",
+  "06-layered-local-overlays",
+  "07-worktree-fleet-wildcards",
+  "08-monorepo-package-wildcards",
+];
 
 const generatedPaths = [
   ".agents",
@@ -40,12 +59,14 @@ async function exampleNames(): Promise<string[]> {
   const entries = await readdir(examplesRoot, { withFileTypes: true });
   return entries
     .filter((entry) => entry.isDirectory())
+    .filter((entry) => /^\d{2}-/.test(entry.name))
     .map((entry) => entry.name)
     .sort();
 }
 
 async function copyExample(name: string): Promise<string> {
-  const root = path.join(tmpdir(), `harness-example-${name}-${Date.now()}`);
+  const workspace = await mkdtemp(path.join(tmpdir(), `harness-${name}-`));
+  const root = path.join(workspace, "repo");
   await cp(path.join(examplesRoot, name), root, {
     recursive: true,
     filter: (source) => !source.includes(`${path.sep}node_modules${path.sep}`),
@@ -55,7 +76,20 @@ async function copyExample(name: string): Promise<string> {
       rm(path.join(root, relativePath), { force: true, recursive: true })
     )
   );
+  await prepareCopiedExample(name, root);
   return root;
+}
+
+async function prepareCopiedExample(name: string, root: string) {
+  if (name !== "07-worktree-fleet-wildcards") {
+    return;
+  }
+
+  await Promise.all(
+    ["feature-login", "release-hardening"].map((worktree) =>
+      mkdir(path.join(root, "../worktrees", worktree), { recursive: true })
+    )
+  );
 }
 
 async function run(root: string, args: string[]) {
@@ -70,9 +104,240 @@ async function run(root: string, args: string[]) {
   };
 }
 
+async function expectFileContains(
+  filePath: string,
+  expectedText: string,
+  label = filePath
+) {
+  await expect(readFile(filePath, "utf8"), label).resolves.toContain(
+    expectedText
+  );
+}
+
+async function expectRepoFileContains(
+  root: string,
+  relativePath: string,
+  expectedText: string
+) {
+  await expectFileContains(
+    path.join(root, relativePath),
+    expectedText,
+    relativePath
+  );
+}
+
+async function expectRepoFileMissing(root: string, relativePath: string) {
+  await expect(
+    readFile(path.join(root, relativePath), "utf8"),
+    `${relativePath} should not exist`
+  ).rejects.toMatchObject({ code: "ENOENT" });
+}
+
+async function assertExampleOutputs(name: string, root: string) {
+  switch (name) {
+    case "01-multi-runtime-one-source":
+      await expectRepoFileContains(
+        root,
+        ".agents/skills/code-review/SKILL.md",
+        "# Code Review"
+      );
+      await expectRepoFileContains(
+        root,
+        ".claude/skills/code-review/SKILL.md",
+        "# Claude Code Review"
+      );
+      await expectRepoFileContains(
+        root,
+        ".gemini/skills/code-review/SKILL.md",
+        "# Gemini Code Review"
+      );
+      await expectRepoFileContains(
+        root,
+        ".cursor/rules/harness-config.mdc",
+        "Shared Harness config workflow"
+      );
+      await expectRepoFileContains(root, ".agents/hooks.json", "shared");
+      await expectRepoFileContains(root, ".claude/hooks.json", "claude");
+      await expectRepoFileMissing(
+        root,
+        ".agents/skills/code-review/scratch/notes.md"
+      );
+      return;
+
+    case "02-profile-mode-switching":
+      await expectRepoFileContains(
+        root,
+        ".agents/skills/project-context/SKILL.md",
+        "# Project Context"
+      );
+      await expectRepoFileContains(
+        root,
+        ".agents/skills/frontend-ui/SKILL.md",
+        "# Frontend UI"
+      );
+      await expectRepoFileContains(
+        root,
+        ".agents/prompts/mode.md",
+        "Frontend mode"
+      );
+      await expectRepoFileContains(
+        root,
+        "AGENTS.md",
+        "Frontend mode focuses on components"
+      );
+      await expectRepoFileContains(root, "CLAUDE.md", "## Claude Notes");
+      await expectRepoFileMissing(
+        root,
+        ".agents/skills/security-audit/SKILL.md"
+      );
+      return;
+
+    case "03-team-kits":
+      await expectRepoFileContains(
+        root,
+        ".agents/skills/repo-basics/SKILL.md",
+        "# Repo Basics"
+      );
+      await expectRepoFileContains(
+        root,
+        ".agents/skills/deploy-check/SKILL.md",
+        "# Deploy Check"
+      );
+      await expectRepoFileContains(
+        root,
+        ".agents/prompts/kit.md",
+        "Deploy kit"
+      );
+      await expectRepoFileContains(root, "AGENTS.md", "Deploy kit is active");
+      await expectRepoFileMissing(
+        root,
+        ".agents/skills/security-check/SKILL.md"
+      );
+      return;
+
+    case "04-composable-instructions":
+      await expectRepoFileContains(root, "AGENTS.md", "# Agent Guide");
+      await expectRepoFileContains(root, "AGENTS.md", "## Workflow");
+      await expectRepoFileContains(root, "CLAUDE.md", "## Claude Extras");
+      await expectRepoFileContains(
+        root,
+        ".github/copilot-instructions.md",
+        "## Copilot Extras"
+      );
+      await expectRepoFileContains(
+        root,
+        ".github/copilot-instructions.md",
+        "Use the repository source of truth"
+      );
+      return;
+
+    case "05-runtime-owned-state":
+      await expectRepoFileContains(
+        root,
+        ".agents/skills/runtime-state/SKILL.md",
+        "# Runtime State"
+      );
+      await expectRepoFileContains(
+        root,
+        ".agents/settings.local.json",
+        '"allowedCommands": []'
+      );
+      await expectRepoFileContains(
+        root,
+        ".claude/settings.local.json",
+        '"allowedCommands": ["pnpm test"]'
+      );
+      return;
+
+    case "06-layered-local-overlays":
+      await expectRepoFileContains(
+        root,
+        ".agents/skills/repo-review/SKILL.md",
+        "shared team rules"
+      );
+      await expectRepoFileContains(
+        root,
+        "AGENTS.md",
+        "Use the shared team configuration"
+      );
+      return;
+
+    case "07-worktree-fleet-wildcards": {
+      const workspace = path.dirname(root);
+      for (const worktree of ["feature-login", "release-hardening"]) {
+        const targetRoot = path.join(
+          workspace,
+          "worktrees",
+          worktree,
+          ".codex"
+        );
+        await expectFileContains(
+          path.join(targetRoot, "skills/review/SKILL.md"),
+          "# Shared Review",
+          `${worktree} shared review skill`
+        );
+        await expectFileContains(
+          path.join(targetRoot, "skills/feature-flag/SKILL.md"),
+          "# Feature Flag",
+          `${worktree} feature flag skill`
+        );
+        await expectFileContains(
+          path.join(targetRoot, "skills/release-check/SKILL.md"),
+          "# Release Check",
+          `${worktree} release check skill`
+        );
+        await expectFileContains(
+          path.join(targetRoot, "BRANCH_GUIDE.md"),
+          "Release branches should call out version changes",
+          `${worktree} branch guide`
+        );
+        await expectFileContains(
+          path.join(targetRoot, "settings.json"),
+          "worktree-fleet",
+          `${worktree} target override`
+        );
+      }
+      return;
+    }
+
+    case "08-monorepo-package-wildcards":
+      await expectRepoFileContains(
+        root,
+        ".agents/skills/api-contract/SKILL.md",
+        "# API Contract"
+      );
+      await expectRepoFileContains(
+        root,
+        ".agents/skills/web-ui/SKILL.md",
+        "# Web UI"
+      );
+      await expectRepoFileContains(
+        root,
+        ".agents/prompts/docs-style.md",
+        "# Docs Style Prompt"
+      );
+      await expectRepoFileContains(
+        root,
+        ".claude/hooks.json",
+        "web package claude hook"
+      );
+      await expectRepoFileContains(root, "AGENTS.md", "# API Package");
+      await expectRepoFileContains(root, "AGENTS.md", "# Docs Package");
+      await expectRepoFileContains(root, "AGENTS.md", "# Web Package");
+      return;
+
+    default:
+      throw new Error(`Missing output assertions for example ${name}.`);
+  }
+}
+
 describe("examples", () => {
+  it("discovers every documented example", async () => {
+    expect(await exampleNames()).toEqual(documentedExamples);
+  });
+
   it("keeps every example valid and convergent", async () => {
-    for (const name of await exampleNames()) {
+    for (const name of documentedExamples) {
       const root = await copyExample(name);
 
       const validate = await run(root, ["validate"]);
@@ -90,6 +355,8 @@ describe("examples", () => {
       const apply = await run(root, ["activate", "--yes"]);
       expect(apply.exitCode, `${name} activate --yes`).toBe(0);
 
+      await assertExampleOutputs(name, root);
+
       const secondDryRun = await run(root, ["activate"]);
       expect(secondDryRun.exitCode, `${name} second activate dry run`).toBe(0);
       expect(
@@ -98,6 +365,38 @@ describe("examples", () => {
         `${name} should converge to keep or mutable actions`
       ).toBe(true);
     }
+  }, 20_000);
+
+  it("keeps mutable example runtime ownership honest", async () => {
+    const root = await copyExample("05-runtime-owned-state");
+    const apply = await run(root, ["activate", "--yes"]);
+    expect(apply.exitCode).toBe(0);
+
+    await writeFile(
+      path.join(root, ".agents/settings.local.json"),
+      '{"createdBy":"runtime","allowedCommands":["pnpm test"]}\n',
+      "utf8"
+    );
+
+    const dryRun = await run(root, ["activate"]);
+    expect(dryRun.exitCode).toBe(0);
+    expect(dryRun.output).toContain("mutable");
+
+    const preserve = await run(root, ["activate", "--yes"]);
+    expect(preserve.exitCode).toBe(0);
+    await expectRepoFileContains(
+      root,
+      ".agents/settings.local.json",
+      '"createdBy":"runtime"'
+    );
+
+    const force = await run(root, ["activate", "--yes", "--force-mutable"]);
+    expect(force.exitCode).toBe(0);
+    await expectRepoFileContains(
+      root,
+      ".agents/settings.local.json",
+      '"createdBy": "harness"'
+    );
   });
 
   it("keeps the switchability examples honest", async () => {
@@ -172,5 +471,38 @@ describe("examples", () => {
     await expect(
       readFile(path.join(localRoot, "AGENTS.md"), "utf8")
     ).resolves.toContain("Personal lab mode is active.");
+  });
+
+  it("demonstrates wildcard target parent fanout to sibling worktrees", async () => {
+    const root = await copyExample("07-worktree-fleet-wildcards");
+    const workspace = path.dirname(root);
+    const apply = await run(root, ["activate", "--yes"]);
+    expect(apply.exitCode).toBe(0);
+
+    await assertExampleOutputs("07-worktree-fleet-wildcards", root);
+
+    const explain = await run(root, [
+      "explain",
+      path.join(workspace, "worktrees/feature-login/.codex/BRANCH_GUIDE.md"),
+      "--json",
+    ]);
+    expect(explain.exitCode).toBe(0);
+    expect(explain.output).toContain("../worktrees/feature-login");
+  });
+
+  it("demonstrates wildcard package source roots in a monorepo", async () => {
+    const root = await copyExample("08-monorepo-package-wildcards");
+    const apply = await run(root, ["activate", "--yes"]);
+    expect(apply.exitCode).toBe(0);
+
+    await assertExampleOutputs("08-monorepo-package-wildcards", root);
+
+    const explain = await run(root, [
+      "explain",
+      ".claude/hooks.json",
+      "--json",
+    ]);
+    expect(explain.exitCode).toBe(0);
+    expect(explain.output).toContain("packages/web/.harness/resources");
   });
 });

@@ -1,12 +1,12 @@
 ---
 name: harness-config
 description: Use when working with Harness config in a customer repository. Triggers include setting up, adopting, migrating, validating, activating, or troubleshooting .harness/harness.toml, .harness resources, AGENTS.md, CLAUDE.md, .agents, .claude, .cursor, .gemini, skills, rules, plugins, prompts, hooks, .harnessIgnore, .harnessMutable, mutable files, or CLI commands such as npx harnessc validate and npx harnessc activate.
-version: 2026-05-29.root-anchored-gitignore
+version: 2026-06-05.wildcard-paths
 ---
 
 # Harness Config
 
-Skill guide version: `2026-05-29.root-anchored-gitignore`.
+Skill guide version: `2026-06-05.wildcard-paths`.
 
 When using this skill for setup or migration, include the skill guide version
 in the initial status update and final summary. This lets the user tell whether
@@ -99,6 +99,17 @@ Use these defaults unless the user's repository clearly points elsewhere:
 - **Resource grouping follows the repo.** Group by workflow, team, domain,
   mode, target agent set, or concern only when it improves review or reuse. Add
   short `README.md` files only for non-obvious groups.
+- **Wildcard source roots are for repeated reviewed ownership.** Use wildcard
+  `[[resources]].path` and `[[dir]].path` only when the repo already has a
+  regular source layout, such as package-owned `.harness` folders in a
+  monorepo. Source-root wildcards must stay repo-local and observable; do not
+  use them to pull source from sibling repositories, home directories, or
+  runtime output folders.
+- **External target parents are output placement only.** Use
+  `[[targets]].parent` for worktree-style output fanout when the source remains
+  in the repository and each external parent is only a generated target
+  location. Keep `[[targets]].path` static and explicit, such as `./.codex`;
+  never put wildcard syntax in target `path`.
 - **Understand before installing.** Spend enough time reading the repository to
   choose useful grouping inside the selected resources root. Do not flatten a
   repo that already has clear teams, domains, workflows, agent sets, or reusable
@@ -361,17 +372,18 @@ summarize the decisions with a table like this:
 
 ```markdown
 **Full Transition Installed**
-Skill guide: `2026-05-29.root-anchored-gitignore`
+Skill guide: `2026-06-05.wildcard-paths`
 
 | Decision | Recommendation | Reason |
 | --- | --- | --- |
 | Targets | `.agents`, `.claude` | Both surfaces exist and contain durable config |
-| Source roots | simplest reviewed `.harness` layout for this repo | Keeps source easy to review while preserving durable config |
+| Source roots | simplest reviewed `.harness` layout for this repo; use wildcard source roots only for repo-local repeated ownership such as package-owned `.harness` folders | Keeps source easy to review while preserving durable config |
 | Resource layout | target-level seeds plus skills/prompts/rules grouped by repo vocabulary | Examples are adapted to the repo, not forced |
 | Root files | direct copy `.harness/dir/AGENTS.md` | Durable root instructions are represented in `.harness/dir` by default during full adoption |
 | Agent instructions | add Harness maintenance note to `AGENTS.md`/`CLAUDE.md` | Future agents must use Harness guidance for agent-config changes |
 | Mutable files | copy `.claude/settings.json` seed to `.harness/resources/.claude/settings.json`, declare it in `.harnessMutable` | Fresh users get the file once; runtime edits are preserved |
 | Target ignores | add `.agents/.harnessIgnore` or subtree ignores when needed | Target-local output boundaries belong with the generated surface |
+| External target parents | use `[[targets]].parent` only for output placement such as sibling worktrees; keep `[[targets]].path` static | Supports worktree fanout without making external folders source |
 | Generated surfaces | add root-anchored `/.agents/`, `/.claude/`, or equivalent generated outputs to root `.gitignore` after convergence unless the user wants generated outputs tracked | Live surfaces are reproducible outputs without ignoring `.harness` source |
 | Activation path | add `package.json` scripts, Makefile target, justfile recipe, README step, or guarded install hook | Fresh checkouts can regenerate inactive harness surfaces |
 | Cleanup | preserve unmanaged until migrated or explicitly approved for removal | Narrowing active skills must not delete the only copy |
@@ -456,6 +468,8 @@ During implementation, use these examples for every row that applies:
 | Composable `AGENTS.md` | `.harness/dir/AGENTS.md/.harnessComposable` plus numbered parts | root `AGENTS.md` is assembled; use only for real composition |
 | Shared skill | `.harness/resources/skills/<name>/SKILL.md` | projects to every declared target |
 | Target-specific skill | `.harness/resources/skills/<name>/.claude/SKILL.md` | `.claude` receives override; other targets receive base |
+| Wildcard source roots | `./packages/*/.harness/resources` and `./packages/*/.harness/dir` for package-owned reviewed source | Existing repo-local package source joins projection without manifest edits per package |
+| External target fanout | `[[targets]].parent = "../worktrees/*"` with static `path = "./.codex"` | Same reviewed source projects into each sibling worktree output |
 | Target-output ignore | `.claude/**/.harnessIgnore` in the generated surface | filters that target only; not a seed and not source migration |
 | Generated-output untracking | root `.gitignore` contains root-anchored generated target surfaces such as `/.agents/`, `/.claude/`, `/.cursor/`, `/.gemini/`, generated dir outputs such as `/AGENTS.md`, `/CLAUDE.md`, `/GEMINI.md`, or exact generated subtrees unless the user wants generated outputs tracked; `.harness` source paths are not ignored | Git stops treating generated outputs as source after convergence; if generated files are already tracked, run `git rm --cached -r` or `git rm --cached` for every tracked generated output, stage with `git add`, verify staged deletions, and verify no working-tree data loss |
 | Repo-native activation | `package.json` scripts, Makefile target, justfile recipe, README setup step, or guarded install hook | Fresh checkouts can regenerate generated surfaces without guessing commands |

@@ -44,7 +44,7 @@ harnessc extension activate
 
 - `harnessc` 不带命令时校验最近的仓库配置，并打印检测到的 manifest 路径以及建议的后续步骤。
 - `harnessc init` 在不带 `--yes` 运行时显示采用计划。带 `--yes` 时，它创建所选 manifest（默认 `./.harness/harness.toml`）、配置过的 resources 源根下的约定或自定义资源文件夹、`.harnessIgnore` 和 `.harnessMutable`。生成的起始 manifest 显式声明 `[[resources]] path = "./.harness/resources"`。使用 `--resources-path <path>` 选择该源根，使用 `--resource <kind>` 在其下创建一个或多个资源类型文件夹，并使用 `--target <path>` 添加显式 `[[targets]]` 条目。
-- `harnessc validate` 检查版本支持、仓库本地路径、target 映射、投影 ignore 语法、mutable 声明语法、资源可组合叶、符号链接叶处理和 dir 组合/拷贝问题。
+- `harnessc validate` 检查版本支持、仓库本地 source 路径、target-local 路径和可选 target parent、投影 ignore 语法、mutable 声明语法、资源可组合叶、符号链接叶处理和 dir 组合/拷贝问题。
 - `harnessc explain <path>` 解释源或输出路径如何参与当前投影计划，包括获胜的源路径、配置过的源根、dir 输出、阻塞诊断以及激活使用的相同投影输入所产生的决定。JSON 输出包括源和目标输出 ignore 跟踪，使调用者可以区分仓库根排除、更深的源本地重新包含、profile 本地逻辑重新包含和目标输出最终边界。
 - `harnessc activate` 在不带 `--yes` 运行时显示投影预览，并报告创建、更新、请求的删除、保留的文件、mutable 跳过的文件、孤立的受管理输出和保留的未管理项。默认情况下，它把占据投影路径的 target 符号链接报告为冲突；传递 `--replace-target-symlinks` 或设置 `[activation].targetSymlinks = "replace"` 以替换链接本身。
 - `harnessc extension activate` 运行已注册的扩展。使用 `--extension <id>` 运行一个声明的扩展，或使用 `--all` 运行每个声明的支持扩展。
@@ -82,7 +82,7 @@ harnessc explain .harness/local/resources/skills/review/SKILL.md
 
 清理仅适用于在所选 manifest 中仍声明的 target。在 target 声明移除后，基础 `harnessc activate` 不再检查或清理该文件夹。视情况先用 `--remove-unmanaged` 或 `--remove-orphans` 清理它，或使用更高层激活状态工作流来调和孤立 target。
 
-默认 manifest 路径是 `./.harness/harness.toml`。当 `--root` 和 `--config` 被省略时，`harnessc` 从当前目录向上搜索该 manifest。传递 `--config <path>` 以针对另一个仓库本地 TOML 文件进行校验、初始化、激活或运行扩展。`harnessc init --resources-path <path>` 把一个 `[[resources]]` 条目写入 manifest，并在该配置过的源根下创建资源文件夹。`harnessc init --resource <kind>` 在配置过的资源根下添加一个资源类型文件夹，并用资源 id 模式校验名称。`harnessc init --target <path>` 为仓库本地 target 路径添加一个 `[[targets]]` 条目。Manifest 路径由工具调用选择；manifest 内的路径保持仓库本地，不相对于 manifest 文件的目录。
+默认 manifest 路径是 `./.harness/harness.toml`。当 `--root` 和 `--config` 被省略时，`harnessc` 从当前目录向上搜索该 manifest。传递 `--config <path>` 以针对另一个仓库本地 TOML 文件进行校验、初始化、激活或运行扩展。`harnessc init --resources-path <path>` 把一个 `[[resources]]` 条目写入 manifest，并在该配置过的源根下创建资源文件夹。`harnessc init --resource <kind>` 在配置过的资源根下添加一个资源类型文件夹，并用资源 id 模式校验名称。`harnessc init --target <path>` 为默认仓库 parent 下的 target-local path 添加一个显式 `[[targets]]` 条目。Manifest 路径由工具调用选择；manifest 内的路径保持仓库本地，不相对于 manifest 文件的目录。
 
 激活计划也是面向操作员的所有权视图。受管理文件是仓库所有的投影输出，孤立的受管理输出是来自非活动源选择的仓库产生的过期输出，未管理条目是配置源之外的现有 target 状态，mutable 条目是由源初始化但现在由 runtime 所有的 target 文件。
 
@@ -175,11 +175,11 @@ path = "./.harness/local/dir"
 
 CLI 不要求这些路径存在。项目可以选择在版本控制中忽略 `.harness/local/`、提交它、生成它，或使用不同的路径。后续的根覆盖之前的精确路径资源或 dir 输出；使用 `harnessc explain <path>` 检查为什么特定源或输出路径存在、被忽略、被覆盖或被组合。
 
-模式说明：`[[resources]]`、`[[dir]]`、`[[targets]].parent` 和 `[[targets]].path` 保持通配字段与静态 target 路径的区分。
+`[[resources]].path`、`[[dir]].path` 和 `[[targets]].parent` 可以使用 gitignore 风格路径模式，如 `*`、`?`、`**` 和字符类。CLI 在每个 manifest 条目内把这些模式按确定性字典序扩展为已存在的真实目录。`[[targets]].path` 永远不使用模式；它保持为激活可以在每个解析 parent 下面创建的静态 target-local 文件夹。
 
 当 `.harness/local/` 被 gitignored 时，共享 manifest 仍然可以把它声明为可选后续根。缺失的本地根只是不贡献本地文件；存在的本地根可以为该开发者覆盖精确资源或 dir 输出。
 
-落在声明 `[[targets]]` 路径下的 dir 输出路径合并到该 target 的投影中 — 第二次运行激活对这些文件收敛到 `keep` 动作，包括 target 未管理项清理。会替换或包含 target 根本身的 dir 输出（例如当 `./.claude` 被声明为 target 时在 `.claude` 的 dir 输出）作为 `harness.dir_output_target_overlap` 报告。
+落在声明 `[[targets]]` path 下的 dir 输出路径会合并到该 target 的投影中，包括带外部 parent 的 target — 第二次运行激活对这些文件收敛到 `keep` 动作，包括 target 未管理项清理。会替换或包含 target 根本身的 dir 输出（例如当 `./.claude` 被声明为 target 时在 `.claude` 的 dir 输出）作为 `harness.dir_output_target_overlap` 报告。
 
 ## 扩展
 
@@ -223,7 +223,7 @@ const dryRun = await applyHarnessActivation(paths.root);
 - 解析所选 manifest（默认 `./.harness/harness.toml`），并用清晰诊断拒绝格式错误的输入。
 - 拒绝未来不支持的标准版本。
 - 校验配置过的 resources 源路径，并拒绝按类型的 manifest 资源声明。
-- 验证每个 `[[targets]]` 条目包含必需的仓库本地路径、指向仓库根下并且不与配置过的源根重叠；未识别键报告为信息。
+- 验证每个 `[[targets]]` 条目包含必需的 target-local `path`、不包含通配模式、解析到仓库根或每个解析后的显式 `parent` 之下，并且不与 `./.harness`、配置过的源根或另一个解析后的 target root 重叠；未知的未来兼容字段应作为信息。
 - 使用标准优先级阶段，用仓库根、源本地、profile 本地和目标输出本地规则解析 `.harnessIgnore`。为只创建 runtime 所有的文件单独解析 `.harnessMutable`。
 - 在投影之前解析 `.harnessProfile` 选择器和 `.harnessProfileRoot` 覆盖，包括输出选择器的 dir 引导/最终阶段。
 - 在任何写入之前显示 create、update、remove、keep、preserve 和 mutable 动作。

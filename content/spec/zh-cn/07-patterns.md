@@ -14,7 +14,7 @@ llmSummary: 展示 runtime 所有的 mutable 文件、目标输出 ignore、可�
 audience: 在真实仓库中采用 Harness config 的开发者和平台团队。
 contentKind: spec
 status: draft
-updated: 2026-05-28
+updated: 2026-06-05
 ---
 
 # Harness config 模式
@@ -306,6 +306,70 @@ path = "./.agents"
 此工具包覆盖到 `.harness/resources/skills` 和 `.harness/dir` 中。它可以添加 skill 并添加部署特定指令部分，而不变成投影的 `.agents/kits/deploy-kit/` 文件夹。
 
 这是公司提供的部署、安全、前端、后端或入职工具包的正确模型。工具包是已审阅源。选择器决定它在哪里活动。
+
+## Wildcard 源和 target fanout
+
+当所有权或输出位置有规律但不固定到一个文件夹时，manifest wildcard
+路径很有用。保持同一所有权规则：配置的 `[[resources]]` 和 `[[dir]]`
+路径保持 repo-local 且可观察，而 `[[targets]].parent` 可以指向外部输出父
+目录，例如同级 Git worktrees。
+
+对于分支 worktrees，声明一个显式 target 路径，并通过 wildcard parent
+把它展开：
+
+```toml
+[[resources]]
+path = "./.harness/resources"
+
+[[dir]]
+path = "./.harness/dir"
+
+[[targets]]
+parent = "../worktrees/*"
+path = "./.codex"
+```
+
+如果 `../worktrees/feature-login` 和
+`../worktrees/release-hardening` 存在，激活会写入：
+
+```text
+../worktrees/feature-login/.codex/
+../worktrees/release-hardening/.codex/
+```
+
+target 路径保持静态，因为激活可能需要在每个 parent 内创建 `.codex`。不要
+在 `[[targets]].path` 中放 `*`。target 派生覆盖仍使用 `.codex`，因为覆盖
+选择来自 `path`，不是来自 `parent`。
+
+对于 monorepos，让 package 团队拥有本地源，同时根 manifest 收集每个
+package 的 Harness 源根：
+
+```toml
+[[resources]]
+path = "./packages/*/.harness/resources"
+
+[[dir]]
+path = "./packages/*/.harness/dir"
+
+[[targets]]
+path = "./.agents"
+
+[[targets]]
+path = "./.claude"
+```
+
+```text
+packages/api/.harness/resources/skills/api-contract/SKILL.md
+packages/docs/.harness/resources/prompts/docs-style.md
+packages/web/.harness/dir/AGENTS.md/140_web.md
+
+.agents/skills/api-contract/SKILL.md
+.agents/prompts/docs-style.md
+AGENTS.md
+```
+
+这让 packages 可以添加已审阅源，而不必为每个 package 编辑根 manifest。
+Patterns 只展开到现有真实目录，所以新的 package 源根在该目录存在时开始参与。
 
 ## 带激活说明的生成 surface
 

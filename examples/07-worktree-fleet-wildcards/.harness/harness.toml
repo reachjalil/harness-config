@@ -1,0 +1,17 @@
+version = 1
+
+[[resources]]
+path = "./.harness/resources/shared"
+
+[[resources]]
+path = "./.harness/resources/branches/*"
+
+[[targets]]
+parent = "../worktrees/*"
+path = "./.codex"
+
+[[dir]]
+path = "./.harness/dir/shared"
+
+[[dir]]
+path = "./.harness/dir/branches/*"
