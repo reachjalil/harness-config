@@ -307,6 +307,83 @@ Ce kit se superpose dans `.harness/resources/skills` et `.harness/dir`. Il peut 
 
 C'est le bon modèle pour les kits de déploiement, sécurité, frontend, backend ou onboarding fournis par l'entreprise. Le kit est de la source révisée. Le sélecteur décide où il est actif.
 
+## Pack de profil isolé
+
+Utiliser l'isolation de profil lorsque sélectionner un pack doit rendre ce
+pack exclusif pour certains chemins logiques. Garder le manifeste stable et
+placer le choix dans `.harnessProfile`.
+
+```toml
+[[resources]]
+path = "./.harness/resources"
+
+[[resources]]
+path = "./.harness/packs/*/resources"
+
+[[resources]]
+path = "./.harness/local-packs/*/resources"
+
+[[dir]]
+path = "./.harness/dir"
+
+[[dir]]
+path = "./.harness/packs/*/dir"
+
+[[dir]]
+path = "./.harness/local-packs/*/dir"
+
+[[targets]]
+path = "./.agents"
+```
+
+```text
+.harnessProfile                         # contient : frontend
+
+.harness/
+  resources/
+    skills/
+      baseline/
+        SKILL.md
+    prompts/
+      shared.md
+  packs/
+    frontend/
+      .harnessProfileRoot               # contient : frontend
+      .harnessProfileIsolation
+      resources/
+        skills/frontend/SKILL.md
+      dir/
+        AGENTS.md/100_frontend.md
+  local-packs/
+    frontend/
+      .harnessProfileRoot               # contient : frontend
+      resources/
+        skills/local-frontend/SKILL.md
+```
+
+```toml
+# .harness/packs/frontend/.harnessProfileIsolation
+version = 1
+
+[isolate]
+resources = ["skills/**"]
+dir = ["AGENTS.md", "AGENTS.md/**"]
+```
+
+Quand `frontend` est sélectionné, Harness config supprime les ressources de
+base `skills/**` correspondantes et les candidats dir de base `AGENTS.md` pour
+les chemins de sortie affectés. Les racines de profil actives de même nom
+continuent de participer, donc un pack suivi et un pack local gitignored
+peuvent s'appliquer ensemble. Les chemins sans rapport comme
+`prompts/shared.md` ou `PROJECT_GUIDE.md` continuent de se projeter depuis la
+source générale.
+
+Utiliser cette forme pour des bundles portables qui doivent être activés ou
+désactivés sans réécrire le manifeste ni utiliser des gates `.harnessIgnore` à
+la racine du dépôt. Garder les patterns d'isolation étroits : isoler les
+chemins logiques possédés par le pack, et laisser le contexte général du dépôt
+continuer à se projeter pour tout le reste.
+
 ## Source wildcard et fanout de cibles
 
 Les chemins wildcard du manifeste sont utiles lorsque la propriété ou

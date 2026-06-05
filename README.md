@@ -237,6 +237,7 @@ The [`examples/`](./examples/README.md) directory contains runnable scenarios:
 - [06 layered local overlays](./examples/06-layered-local-overlays/README.md)
 - [07 worktree fleet wildcards](./examples/07-worktree-fleet-wildcards/README.md)
 - [08 monorepo package wildcards](./examples/08-monorepo-package-wildcards/README.md)
+- [09 isolated profile packs](./examples/09-isolated-profile-packs/README.md)
 
 Profile-switching examples use `--remove-orphans` when applying a new profile
 so unedited outputs from the previous profile are cleaned up. Use

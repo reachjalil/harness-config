@@ -362,6 +362,81 @@ This is the right model for company-provided deploy, security, frontend,
 backend, or onboarding kits. The kit is reviewed source. The selector decides
 where it is active.
 
+## Isolated Profile Pack
+
+Use profile isolation when selecting a pack should make that pack exclusive for
+some logical paths. Keep the manifest stable and put the choice in
+`.harnessProfile`.
+
+```toml
+[[resources]]
+path = "./.harness/resources"
+
+[[resources]]
+path = "./.harness/packs/*/resources"
+
+[[resources]]
+path = "./.harness/local-packs/*/resources"
+
+[[dir]]
+path = "./.harness/dir"
+
+[[dir]]
+path = "./.harness/packs/*/dir"
+
+[[dir]]
+path = "./.harness/local-packs/*/dir"
+
+[[targets]]
+path = "./.agents"
+```
+
+```text
+.harnessProfile                         # contains: frontend
+
+.harness/
+  resources/
+    skills/
+      baseline/
+        SKILL.md
+    prompts/
+      shared.md
+  packs/
+    frontend/
+      .harnessProfileRoot               # contains: frontend
+      .harnessProfileIsolation
+      resources/
+        skills/frontend/SKILL.md
+      dir/
+        AGENTS.md/100_frontend.md
+  local-packs/
+    frontend/
+      .harnessProfileRoot               # contains: frontend
+      resources/
+        skills/local-frontend/SKILL.md
+```
+
+```toml
+# .harness/packs/frontend/.harnessProfileIsolation
+version = 1
+
+[isolate]
+resources = ["skills/**"]
+dir = ["AGENTS.md", "AGENTS.md/**"]
+```
+
+When `frontend` is selected, Harness config suppresses matching base
+`skills/**` resources and base `AGENTS.md` dir candidates for the affected
+output paths. Active same-name profile roots still participate, so a tracked
+pack and a gitignored local override pack can apply together. Unrelated paths
+such as `prompts/shared.md` or `PROJECT_GUIDE.md` continue to project from the
+general source.
+
+Use this shape for portable bundles that should be enabled or disabled without
+rewriting the manifest or using repo-root `.harnessIgnore` gates. Keep
+isolation patterns narrow: isolate the logical paths the pack owns, and let
+general repo context keep projecting for everything else.
+
 ## Wildcard Source And Target Fanout
 
 Wildcard manifest paths are useful when ownership or output placement is

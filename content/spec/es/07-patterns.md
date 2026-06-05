@@ -307,6 +307,82 @@ Este kit se superpone en `.harness/resources/skills` y `.harness/dir`. Puede añ
 
 Este es el modelo correcto para kits de despliegue, seguridad, frontend, backend o onboarding proporcionados por la empresa. El kit es fuente revisada. El selector decide dónde está activo.
 
+## Pack de perfil aislado
+
+Usa aislamiento de perfil cuando seleccionar un pack debe hacer que ese pack
+sea exclusivo para algunas rutas lógicas. Mantén estable el manifiesto y pon
+la elección en `.harnessProfile`.
+
+```toml
+[[resources]]
+path = "./.harness/resources"
+
+[[resources]]
+path = "./.harness/packs/*/resources"
+
+[[resources]]
+path = "./.harness/local-packs/*/resources"
+
+[[dir]]
+path = "./.harness/dir"
+
+[[dir]]
+path = "./.harness/packs/*/dir"
+
+[[dir]]
+path = "./.harness/local-packs/*/dir"
+
+[[targets]]
+path = "./.agents"
+```
+
+```text
+.harnessProfile                         # contiene: frontend
+
+.harness/
+  resources/
+    skills/
+      baseline/
+        SKILL.md
+    prompts/
+      shared.md
+  packs/
+    frontend/
+      .harnessProfileRoot               # contiene: frontend
+      .harnessProfileIsolation
+      resources/
+        skills/frontend/SKILL.md
+      dir/
+        AGENTS.md/100_frontend.md
+  local-packs/
+    frontend/
+      .harnessProfileRoot               # contiene: frontend
+      resources/
+        skills/local-frontend/SKILL.md
+```
+
+```toml
+# .harness/packs/frontend/.harnessProfileIsolation
+version = 1
+
+[isolate]
+resources = ["skills/**"]
+dir = ["AGENTS.md", "AGENTS.md/**"]
+```
+
+Cuando `frontend` está seleccionado, Harness config suprime los recursos base
+`skills/**` coincidentes y los candidatos dir base de `AGENTS.md` para las
+rutas de salida afectadas. Las raíces de perfil activas con el mismo nombre
+siguen participando, así que un pack rastreado y un pack local gitignored
+pueden aplicarse juntos. Rutas no relacionadas como `prompts/shared.md` o
+`PROJECT_GUIDE.md` continúan proyectándose desde la fuente general.
+
+Usa esta forma para bundles portables que deben habilitarse o deshabilitarse
+sin reescribir el manifiesto ni usar gates de `.harnessIgnore` en la raíz del
+repo. Mantén estrechos los patrones de aislamiento: aísla las rutas lógicas que
+posee el pack y deja que el contexto general del repo siga proyectándose para
+todo lo demás.
+
 ## Fuente wildcard y fanout de objetivos
 
 Los caminos wildcard del manifiesto son útiles cuando la propiedad o la

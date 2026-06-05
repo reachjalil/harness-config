@@ -1,0 +1,4 @@
+# Projection ignore rules go here.
+#
+# Generated outputs are tracked by .gitignore instead. Keeping this file empty
+# lets the example show profile isolation without also filtering outputs.

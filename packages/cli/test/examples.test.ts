@@ -29,6 +29,7 @@ const documentedExamples = [
   "06-layered-local-overlays",
   "07-worktree-fleet-wildcards",
   "08-monorepo-package-wildcards",
+  "09-isolated-profile-packs",
 ];
 
 const generatedPaths = [
@@ -326,6 +327,40 @@ async function assertExampleOutputs(name: string, root: string) {
       await expectRepoFileContains(root, "AGENTS.md", "# Web Package");
       return;
 
+    case "09-isolated-profile-packs":
+      await expectRepoFileContains(
+        root,
+        ".agents/skills/frontend/SKILL.md",
+        "# Frontend Pack"
+      );
+      await expectRepoFileContains(
+        root,
+        ".agents/skills/local-frontend/SKILL.md",
+        "# Local Frontend Override"
+      );
+      await expectRepoFileMissing(root, ".agents/skills/baseline/SKILL.md");
+      await expectRepoFileMissing(root, ".agents/skills/backend/SKILL.md");
+      await expectRepoFileContains(
+        root,
+        ".agents/prompts/shared.md",
+        "# Shared Prompt"
+      );
+      await expectRepoFileContains(root, "AGENTS.md", "Frontend pack guide");
+      await expectRepoFileContains(
+        root,
+        "AGENTS.md",
+        "Local frontend override guide"
+      );
+      await expect(
+        readFile(path.join(root, "AGENTS.md"), "utf8")
+      ).resolves.not.toContain("Base Agent Guide");
+      await expectRepoFileContains(
+        root,
+        "PROJECT_GUIDE.md",
+        "This unrelated dir output stays active"
+      );
+      return;
+
     default:
       throw new Error(`Missing output assertions for example ${name}.`);
   }
@@ -504,5 +539,31 @@ describe("examples", () => {
     ]);
     expect(explain.exitCode).toBe(0);
     expect(explain.output).toContain("packages/web/.harness/resources");
+  });
+
+  it("demonstrates isolated wildcard profile packs", async () => {
+    const root = await copyExample("09-isolated-profile-packs");
+    const apply = await run(root, ["activate", "--yes"]);
+    expect(apply.exitCode).toBe(0);
+
+    await assertExampleOutputs("09-isolated-profile-packs", root);
+
+    const frontendExplain = await run(root, [
+      "explain",
+      ".agents/skills/frontend/SKILL.md",
+      "--json",
+    ]);
+    expect(frontendExplain.exitCode).toBe(0);
+    expect(frontendExplain.output).toContain(
+      ".harness/packs/frontend/resources"
+    );
+
+    const sharedExplain = await run(root, [
+      "explain",
+      ".agents/prompts/shared.md",
+      "--json",
+    ]);
+    expect(sharedExplain.exitCode).toBe(0);
+    expect(sharedExplain.output).toContain(".harness/resources");
   });
 });

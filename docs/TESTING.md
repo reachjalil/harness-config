@@ -120,6 +120,7 @@ re-projection is the only path back to source bytes.
 | CLI E2E | `harnessc validate` and `harnessc activate --yes` apply `.harnessProfileIsolation` across wildcard pack resource and dir roots | `packages/cli/test/run.test.ts` |
 | Examples | Every documented `examples/*` mini-repo validates, dry-runs, applies, asserts its characteristic generated outputs, and converges to `keep` or `mutable` on a second dry run | `packages/cli/test/examples.test.ts` |
 | Examples | Wildcard examples project external target-parent fanout into sibling worktrees and collect monorepo package-owned wildcard `resources` / `dir` roots | `packages/cli/test/examples.test.ts` |
+| Examples | Isolated profile-pack examples suppress matching base resources and dir outputs while preserving same-name local pack overlays and unrelated outputs | `packages/cli/test/examples.test.ts` |
 | Docs | Translated website specification sections keep heading, fenced-code, identifier, diagnostic-code, flag, and RFC 2119 keyword parity with English | `packages/core/test/locales.test.ts` |
 
 Known gap: orphaned managed output cleanup covers target copy projection. Dir

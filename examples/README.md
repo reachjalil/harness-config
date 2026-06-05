@@ -1,8 +1,8 @@
 # Harness config examples
 
-Eight runnable mini-repositories show the v1 surface from first projection to
-switchable modes, kits, composition, mutable state, private local overlays, and
-wildcard fanout.
+Nine runnable mini-repositories show the v1 surface from first projection to
+switchable modes, kits, isolated packs, composition, mutable state, private
+local overlays, and wildcard fanout.
 
 ## 30-second wow path
 
@@ -37,6 +37,7 @@ ignored source files.
 | [06-layered-local-overlays](06-layered-local-overlays/README.md) | Gitignored local overlays override exact files just for one developer | Experiment locally without leaking config to the team. |
 | [07-worktree-fleet-wildcards](07-worktree-fleet-wildcards/README.md) | Wildcard target parents project `.codex` into sibling worktrees | Keep every branch worktree on the same reviewed agent setup. |
 | [08-monorepo-package-wildcards](08-monorepo-package-wildcards/README.md) | Wildcard resources and dir paths collect package-owned source roots | Let package teams add agent source without editing the root manifest. |
+| [09-isolated-profile-packs](09-isolated-profile-packs/README.md) | Profile-local isolation makes selected wildcard packs exclusive for chosen paths | Build portable packs without manifest rewrites or root ignore gates. |
 
 Each folder is self-contained: run commands from inside the example directory.
 Generated target surfaces are gitignored, and the reviewed source lives under
