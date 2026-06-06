@@ -1,3 +1,4 @@
 # HarnessConfig projection boundaries for this repository.
+examples/
 .harness/**/logs/
 .harness/**/*.tmp

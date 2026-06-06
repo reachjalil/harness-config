@@ -1,5 +1,23 @@
 # Harness config release notes
 
+## 1.0.0-alpha.10
+
+`1.0.0-alpha.10` fixes validation discovery for generated Harness-like runtime
+trees. Validation now honors root `.harnessIgnore` directory boundaries while
+looking for `.harnessProfileRoot` declarations outside configured source roots.
+
+### Validation
+
+- Skips ignored runtime directories during profile-root validation discovery,
+  so generated projections can carry their own Harness sources without
+  poisoning validation of the parent repository.
+- Preserves the existing `harness.profile_root_outside_source_roots`
+  diagnostic for visible `.harnessProfileRoot` files that are outside
+  `./.harness`, configured resources roots, and configured dir roots.
+- Declares this repository's `examples/` tree as ignored for root activation,
+  letting direct `harnessc activate --yes` validate the root projection without
+  the dogfood fixture wrapper.
+
 ## 1.0.0-alpha.9
 
 `1.0.0-alpha.9` adds profile-local isolation for pack-style profile roots.
