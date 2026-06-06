@@ -517,6 +517,13 @@ each removed durable item is already represented in `.harness`, intentionally
 archived, or explicitly approved for deletion. If the old live target folder is
 the only copy of a skill, removing it is data loss even when git can recover it.
 
+When the narrowing comes from a `.harnessProfile` or target selection change,
+the stale outputs are reported as `orphan`, not unmanaged `remove`, because a
+configured non-active source could still produce them. Orphans are preserved by
+default; `npx harnessc activate --yes --remove-orphans` deletes only unedited
+orphans whose bytes still match the non-active source, leaving edited orphans
+and mutable files in place. Review the dry-run `orphan` list before applying.
+
 ## Local Layer
 
 Recommend `.harness/local/` as a first-class local workspace:

@@ -35,7 +35,8 @@ Expected result:
   output parents such as sibling Git worktrees, and every generated target uses
   the same static `[[targets]].path`.
 - The plan explains creates, updates, keeps, preserved unmanaged files, mutable
-  files, requested removals, and any target symlink conflicts.
+  files, orphaned managed outputs, requested removals, and any target symlink
+  conflicts.
 - For full migration/adoption, durable root instruction files such as
   `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and equivalents are sourced from
   `.harness/dir` or explicitly documented as blocked/excepted.
@@ -207,3 +208,19 @@ npx harnessc activate --remove-unmanaged
 Confirm every `remove` is expected. Target-output `.harnessIgnore` and
 `.harnessProfile` files should be preserved. Do not use cleanup to compensate
 for an unclear source layout.
+
+Orphaned managed outputs are a separate category from unmanaged entries. They
+are target files a configured source could still produce, but the active
+profile or target selection no longer projects for that path, such as outputs
+left behind after a `.harnessProfile` change. They are preserved by default and
+appear as `orphan` in the plan:
+
+```bash
+npx harnessc activate --remove-orphans
+```
+
+`--remove-orphans` deletes only orphaned outputs whose current bytes still match
+the non-active source projection; edited orphans, mutable files, and
+target-output `.harnessIgnore`/`.harnessProfile` files are still preserved.
+Review the dry-run plan and confirm each `orphan` removal is expected before
+applying.

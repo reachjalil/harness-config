@@ -63,6 +63,9 @@ files as preserved.
 - `--force-mutable`: rewrite files protected by `.harnessMutable` rules.
 - `--keep-unmanaged`: preserve unmanaged target files.
 - `--remove-unmanaged`: remove unmanaged target files when the plan says so.
+- `--keep-orphans`: preserve orphaned managed outputs (the default).
+- `--remove-orphans`: remove only orphaned managed outputs whose current bytes
+  still match the non-active source projection; edited orphans stay in place.
 - `--replace-target-symlinks`: replace a target symlink when projection needs
   to occupy that path.
 
@@ -84,6 +87,10 @@ Treat the dry-run plan as the user review surface:
 - `keep`: a managed file already matches the source.
 - `mutable`: a runtime-owned file is intentionally preserved.
 - `preserve`: an unmanaged file is left alone.
+- `orphan`: a managed output a configured source could still produce, but the
+  active profile or target selection no longer projects for that path. Kept by
+  default; removed only by `--remove-orphans` when the bytes still match the
+  non-active source.
 - `remove`: an unmanaged file is removed only when explicitly requested.
 
 If the plan includes unexpected creates or updates, stop and inspect the source
@@ -139,6 +146,10 @@ generated surface.
   `ignore.targetOutput.finalMatch` fields.
 - Unexpected overwrites usually mean a runtime-owned file is not matched by
   `.harnessMutable`.
+- Stale files left behind after switching a `.harnessProfile` or target
+  selection usually appear as `orphan`, not `remove`. They are preserved by
+  default; use `--remove-orphans` after reviewing the dry run only when those
+  unedited outputs should be cleaned.
 - Divergent `.agents` and `.claude` output should usually be represented with
   target-derived overrides, not copied source trees.
 
