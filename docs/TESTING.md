@@ -27,7 +27,7 @@ re-projection is the only path back to source bytes.
 | Ignore | Source-local, target-output-local, root source/output, and shallow-first precedence | `packages/core/test/standard.test.ts` |
 | Profiles | Root and target-local `.harnessProfile` selectors discover active profiles and protected target selectors | `packages/core/test/standard.test.ts` |
 | Profiles | `.harnessProfile` and `.harnessProfileRoot` grammar, empty selector behavior, and multi-line severity | `packages/core/test/standard.test.ts` |
-| Profiles | Nested `.harnessProfileRoot` declarations and profile roots outside configured source roots are diagnostics | `packages/core/test/standard.test.ts` |
+| Profiles | Nested `.harnessProfileRoot` declarations, profile roots outside configured source roots, and ignored runtime profile roots are validation diagnostics or skips as appropriate | `packages/core/test/standard.test.ts` |
 | Profiles | Malformed `.harnessProfileIsolation` declarations, including unknown fields, are validation diagnostics | `packages/core/test/standard.test.ts` |
 | Projection | Explicit `.agents` copy projection with `.agents` overrides | `packages/core/test/projection.test.ts` |
 | Projection | Explicit `.harness/resources` tree projects direct files and target-root overrides | `packages/core/test/projection.test.ts`, `packages/cli/test/run.test.ts` |

@@ -4,7 +4,10 @@ import path from "node:path";
 import { parse } from "smol-toml";
 
 import { planHarnessDir } from "./dir";
-import { loadHarnessIgnoreRuleSets } from "./ignore";
+import {
+  createHarnessIgnoreMatcher,
+  loadHarnessIgnoreRuleSets,
+} from "./ignore";
 import {
   loadHarnessProfileContext,
   type HarnessProfileContext,
@@ -48,7 +51,11 @@ async function pathExists(path: string): Promise<boolean> {
 
 async function findProfileRootsOutsideAllowedRoots(
   root: string,
-  allowedRoots: string[]
+  allowedRoots: string[],
+  ignoredPaths: (
+    relativePath: string,
+    options: { isDirectory: boolean }
+  ) => boolean
 ): Promise<string[]> {
   const markers: string[] = [];
   const ignoredDirectories = new Set([
@@ -83,6 +90,7 @@ async function findProfileRootsOutsideAllowedRoots(
     );
     for (const entry of entries) {
       const absolutePath = path.join(directory, entry.name);
+      const relativePath = toRepoRelative(root, absolutePath);
       if (
         entry.isDirectory() &&
         resolvedAllowedRoots.some(
@@ -92,7 +100,10 @@ async function findProfileRootsOutsideAllowedRoots(
         continue;
       }
       if (entry.isDirectory()) {
-        if (ignoredDirectories.has(entry.name)) {
+        if (
+          ignoredDirectories.has(entry.name) ||
+          ignoredPaths(relativePath, { isDirectory: true })
+        ) {
           continue;
         }
         await visit(absolutePath);
@@ -503,9 +514,13 @@ export async function validateHarnessConfig(
         configPath: options.configPath,
       });
       validateConfigSemantics(config, paths.root, diagnostics);
+      const { ruleSets: ignoreRuleSets, diagnostics: ignoreDiagnostics } =
+        await loadHarnessIgnoreRuleSets(paths.root, { config });
+      const ignoreMatcher = createHarnessIgnoreMatcher(ignoreRuleSets);
       for (const markerPath of await findProfileRootsOutsideAllowedRoots(
         paths.root,
-        profileRootAllowedRoots(paths.root, config)
+        profileRootAllowedRoots(paths.root, config),
+        (relativePath, options) => ignoreMatcher.ignores(relativePath, options)
       )) {
         diagnostics.push({
           severity: "error",
@@ -523,8 +538,6 @@ export async function validateHarnessConfig(
           config,
         }));
       diagnostics.push(...profileContext.diagnostics);
-      const { diagnostics: ignoreDiagnostics } =
-        await loadHarnessIgnoreRuleSets(paths.root, { config });
       diagnostics.push(...ignoreDiagnostics);
       const dirPlan = await planHarnessDir(paths.root, config, {
         profileContext,

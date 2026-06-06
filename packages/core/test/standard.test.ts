@@ -914,6 +914,30 @@ path = "./.cursor"
     );
   });
 
+  it("does not report profile roots under ignored runtime directories during validation", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
+    await write(
+      root,
+      ".harness/harness.toml",
+      'version = 1\n\n[[targets]]\npath = "./.agents"\n'
+    );
+    await write(root, ".harnessIgnore", ".fleet/runtime/\n");
+    await write(
+      root,
+      ".fleet/runtime/scoped/reviewer/projection/.harness/packs/reviewer/.harnessProfileRoot",
+      "reviewer\n"
+    );
+
+    const inspection = await validateHarnessConfig(root);
+
+    expect(
+      inspection.diagnostics.some(
+        (diagnostic) =>
+          diagnostic.code === "harness.profile_root_outside_source_roots"
+      )
+    ).toBe(false);
+  });
+
   it("allows profile roots under a configured resources root", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "harnessconfig-"));
     await write(
