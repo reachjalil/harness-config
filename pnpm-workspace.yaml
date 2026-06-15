@@ -5,7 +5,7 @@ linkWorkspacePackages: true
 
 catalogs:
   default:
-    "@types/node": ^25.5.0
+    "@types/node": ^25.9.3
     esbuild: ^0.28.0
     smol-toml: ^1.6.1
     tsx: 4.22.3
